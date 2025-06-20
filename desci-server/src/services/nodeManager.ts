@@ -542,7 +542,7 @@ export const getNewNodesInRange = async ({ from, to }: { from: Date; to: Date })
 };
 
 export const getBytesInRange = async ({ from, to, guest }: { from: Date; to: Date; guest?: boolean }) => {
-  logger.trace({ fn: 'getBytesInRange', from, to }, 'node::getBytesInRange');
+  // logger.trace({ fn: 'getBytesInRange', from, to }, 'node::getBytesInRange');
 
   const bytesInRange = guest
     ? await prisma.guestDataReference.findMany({

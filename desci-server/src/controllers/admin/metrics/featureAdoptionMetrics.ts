@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { SuccessResponse } from '../../../core/ApiResponse.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger } from '../../../logger.js';
+import { getFromCache, ONE_DAY_TTL, setToCache } from '../../../redisClient.js';
 import {
   countClaimedBadgesLogs,
   countAiAnalyticsTabsClicks,
@@ -47,6 +48,16 @@ export const getFeatureAdoptionMetrics = async (req: FeatureAdoptionMetricsReque
   const prevRange =
     prevStartDate && prevEndDate && compareToPreviousPeriod ? { from: prevStartDate, to: prevEndDate } : undefined;
   logger.trace({ fn: 'getFeatureAdoptionMetrics', range, prevRange }, 'getFeatureAdoptionMetrics');
+
+  const cacheKey = range
+    ? `featureAdoptionMetrics-${range.from.toISOString()}-${range.to.toISOString()}-${compareToPreviousPeriod.toString()}`
+    : `featureAdoptionMetrics`;
+  const cachedResponse = await getFromCache<FeatureAdoptionMetricsResponse>(cacheKey);
+  if (cachedResponse) {
+    logger.trace({ cachedResponse }, 'getFeatureAdoptionMetrics: CACHED RESPONSE');
+    new SuccessResponse(cachedResponse).send(res);
+    return;
+  }
 
   const [
     totalShares,
@@ -109,5 +120,6 @@ export const getFeatureAdoptionMetrics = async (req: FeatureAdoptionMetricsReque
     };
   }
   logger.trace({ data }, 'getFeatureAdoptionMetrics');
+  await setToCache(cacheKey, data, ONE_DAY_TTL);
   new SuccessResponse(data).send(res);
 };

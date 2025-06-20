@@ -288,14 +288,14 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
 };
 
 export const getNodeViewsInRange = async (range: { from: Date; to: Date }) => {
-  logger.info({ fn: 'getNodeViewsInRange' }, 'interactionLog::getNodeViewsInRange');
+  // logger.info({ fn: 'getNodeViewsInRange' }, 'interactionLog::getNodeViewsInRange');
   const res =
     await prisma.$queryRaw`select "createdAt" from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
   return res as { createdAt: string }[];
 };
 
 export const getBadgeVerificationsInRange = async (range: { from: Date; to: Date }) => {
-  logger.info({ fn: 'getBadgeVerificationsInRange' }, 'interactionLog::getBadgeVerificationsInRange');
+  // logger.info({ fn: 'getBadgeVerificationsInRange' }, 'interactionLog::getBadgeVerificationsInRange');
   const res =
     await prisma.$queryRaw`select "createdAt" from "InteractionLog" z where action = 'VERIFY_ATTESTATION' and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
   return res as { createdAt: string }[];
@@ -308,7 +308,7 @@ export const getBadgeVerificationsCountInRange = async (range: { from: Date; to:
 };
 
 export const getDownloadedBytesInRange = async (range: { from: Date; to: Date }) => {
-  logger.info({ fn: 'getDownloadedBytesInRange', range }, 'interactionLog::getDownloadedBytesInRange');
+  // logger.info({ fn: 'getDownloadedBytesInRange', range }, 'interactionLog::getDownloadedBytesInRange');
   const res =
     (await prisma.$queryRaw`select "extra", "createdAt" from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"ctxDriveDownload"'::jsonb and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`) as {
       createdAt: string;

@@ -472,7 +472,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
   const cacheKey = `aggregateAnalytics-${selectedDates.from.toDateString()}-${selectedDates.to.toDateString()}-${timeInterval}`;
   logger.trace({ cacheKey }, 'GET: CACHE KEY');
-  let aggregatedData = null; // await getFromCache<AnalyticsData[]>(cacheKey);
+  let aggregatedData = await getFromCache<AnalyticsData[]>(cacheKey);
 
   if (!aggregatedData) {
     const {
