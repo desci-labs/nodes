@@ -224,6 +224,7 @@ export const editorInviteDecisionOperation: ZodOpenApiOperationObject = {
   operationId: 'editorInviteDecision',
   tags: ['Journals'],
   summary: 'Accept or decline an editor invitation',
+  requestParams: { path: editorInviteDecisionSchema.shape.params },
   requestBody: {
     content: {
       'application/json': {

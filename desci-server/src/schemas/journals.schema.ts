@@ -47,6 +47,9 @@ export const inviteEditorSchema = z.object({
 });
 
 export const editorInviteDecisionSchema = z.object({
+  params: z.object({
+    journalId: z.string().transform((val) => parseInt(val, 10)),
+  }),
   body: z.object({
     decision: z.enum(['accept', 'decline']),
     token: z.string(),
