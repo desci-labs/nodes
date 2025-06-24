@@ -22,6 +22,11 @@ import {
   revisionApiSchema,
   revisionActionSchema,
   listJournalsSchema,
+  createFormTemplateSchema,
+  listFormTemplatesSchema,
+  getFormResponseSchema,
+  saveFormResponseSchema,
+  submitFormResponseSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -1197,6 +1202,295 @@ export const revisionActionOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Create Form Template
+export const createFormTemplateOperation: ZodOpenApiOperationObject = {
+  operationId: 'createFormTemplate',
+  tags: ['Journals'],
+  summary: 'Create a form template',
+  description: 'Create a new form template for a journal (Chief Editors only)',
+  requestParams: { path: createFormTemplateSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: createFormTemplateSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Template created successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            template: z.object({
+              id: z.number(),
+              journalId: z.number(),
+              name: z.string(),
+              description: z.string().nullable(),
+              version: z.number(),
+              isActive: z.boolean(),
+              structure: z.any(),
+              createdById: z.number(),
+              createdAt: z.string(),
+              updatedAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Bad request',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Unauthorized - not a chief editor',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// List Form Templates
+export const listFormTemplatesOperation: ZodOpenApiOperationObject = {
+  operationId: 'listFormTemplates',
+  tags: ['Journals'],
+  summary: 'List form templates',
+  description: 'Get all form templates for a journal',
+  requestParams: {
+    path: listFormTemplatesSchema.shape.params,
+    query: listFormTemplatesSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Templates retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            templates: z.array(
+              z.object({
+                id: z.number(),
+                journalId: z.number(),
+                name: z.string(),
+                description: z.string().nullable(),
+                version: z.number(),
+                isActive: z.boolean(),
+                structure: z.any(),
+                createdById: z.number(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+                createdBy: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                }),
+                _count: z.object({
+                  responses: z.number(),
+                }),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get or Create Form Response
+export const getFormResponseOperation: ZodOpenApiOperationObject = {
+  operationId: 'getFormResponse',
+  tags: ['Journals'],
+  summary: 'Get or create form response',
+  description: 'Get an existing form response or create a new one for a referee assignment',
+  requestParams: { path: getFormResponseSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Form response retrieved or created',
+      content: {
+        'application/json': {
+          schema: z.object({
+            id: z.number(),
+            templateId: z.number(),
+            refereeAssignmentId: z.number(),
+            reviewId: z.number().nullable(),
+            status: z.enum(['DRAFT', 'SUBMITTED']),
+            formData: z.any(),
+            startedAt: z.string(),
+            submittedAt: z.string().nullable(),
+            updatedAt: z.string(),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Unauthorized to access this form response',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Assignment or template not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Save Form Response
+export const saveFormResponseOperation: ZodOpenApiOperationObject = {
+  operationId: 'saveFormResponse',
+  tags: ['Journals'],
+  summary: 'Save form response',
+  description: 'Save form response data (auto-save)',
+  requestParams: { path: saveFormResponseSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: saveFormResponseSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Form response saved',
+      content: {
+        'application/json': {
+          schema: z.object({
+            response: z.object({
+              id: z.number(),
+              templateId: z.number(),
+              refereeAssignmentId: z.number(),
+              reviewId: z.number().nullable(),
+              status: z.enum(['DRAFT', 'SUBMITTED']),
+              formData: z.any(),
+              startedAt: z.string(),
+              submittedAt: z.string().nullable(),
+              updatedAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Cannot modify a submitted form',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Unauthorized to save this form response',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Form response not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Submit Form Response
+export const submitFormResponseOperation: ZodOpenApiOperationObject = {
+  operationId: 'submitFormResponse',
+  tags: ['Journals'],
+  summary: 'Submit form response',
+  description: 'Submit a completed form response',
+  requestParams: { path: submitFormResponseSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: submitFormResponseSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Form response submitted',
+      content: {
+        'application/json': {
+          schema: z.object({
+            response: z.object({
+              id: z.number(),
+              templateId: z.number(),
+              refereeAssignmentId: z.number(),
+              reviewId: z.number(),
+              status: z.enum(['DRAFT', 'SUBMITTED']),
+              formData: z.any(),
+              startedAt: z.string(),
+              submittedAt: z.string(),
+              updatedAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Form validation failed or already submitted',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Unauthorized to submit this form response',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Form response not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -1255,5 +1549,18 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/revisions/{revisionId}/action': {
     post: revisionActionOperation,
+  },
+  '/v1/journals/{journalId}/forms/templates': {
+    post: createFormTemplateOperation,
+    get: listFormTemplatesOperation,
+  },
+  '/v1/journals/{journalId}/forms/response/{assignmentId}/{templateId}': {
+    get: getFormResponseOperation,
+  },
+  '/v1/journals/{journalId}/forms/response/{responseId}': {
+    put: saveFormResponseOperation,
+  },
+  '/v1/journals/{journalId}/forms/response/{responseId}/submit': {
+    post: submitFormResponseOperation,
   },
 };
