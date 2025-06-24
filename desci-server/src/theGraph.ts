@@ -122,6 +122,13 @@ type ResolverIndexResult = {
  * is what motivates the conversions to hex and the inclusion of the UUIDs.
  */
 const getHistoryFromDpids = async (dpidsToUuidsMap: Record<number, string>): Promise<IndexedResearchObject[]> => {
+  // If no DPIDs to query, return empty array to handle brand new nodes
+  // that haven't been published yet and have no DPID information
+  if (Object.keys(dpidsToUuidsMap).length === 0) {
+    logger.info({ fn: 'getHistoryFromDpids' }, 'No DPIDs to query, returning empty array for new nodes');
+    return [];
+  }
+
   const historyRes = await axios.post<ResolverIndexResult[]>(`${RESOLVER_URL}/api/v2/query/history`, {
     ids: Object.keys(dpidsToUuidsMap),
   });
