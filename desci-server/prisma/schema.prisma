@@ -248,19 +248,20 @@ model User {
 
   // Relationships
   editorRoles            JournalEditor[] // User as editor
-  authoredSubmissions    JournalSubmission[] @relation("AuthorSubmission")
-  assignedSubmissions    JournalSubmission[] @relation("EditorSubmission")
+  authoredSubmissions    JournalSubmission[]   @relation("AuthorSubmission")
+  assignedSubmissions    JournalSubmission[]   @relation("EditorSubmission")
   refereeAssignments     RefereeAssignment[]
-  invitedEditors         JournalEditor[]     @relation("InviterRelation")
-  inviteCredits          Int                 @default(0)
+  invitedEditors         JournalEditor[]       @relation("InviterRelation")
+  inviteCredits          Int                   @default(0)
   JournalEventLogs       JournalEventLog[]
   EditorInvite           EditorInvite[]
   // messagesSent        Message[]           @relation("MessageSender")
   // messagesReceived    Message[]           @relation("MessageReceiver")
   // Message             Message[]
   // JournalSubmissionMessage JournalSubmissionMessage[]
-  refereeInvitesSent     RefereeInvite[]     @relation("InvitedBy")
-  refereeInvitesReceived RefereeInvite[]     @relation("RefereeUser")
+  refereeInvitesSent     RefereeInvite[]       @relation("InvitedBy")
+  refereeInvitesReceived RefereeInvite[]       @relation("RefereeUser")
+  journalFormTemplates   JournalFormTemplate[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1164,6 +1165,7 @@ model Journal {
   RefereeAssignment         RefereeAssignment[]
   JournalSubmissionReview   JournalSubmissionReview[]
   JournalSubmissionRevision JournalSubmissionRevision[]
+  formTemplates             JournalFormTemplate[]
 }
 
 model JournalEditor {
@@ -1200,15 +1202,16 @@ model JournalSubmission {
   doi              String? // Minted DOI
 
   // Relationships
-  journal            Journal                     @relation(fields: [journalId], references: [id])
-  author             User                        @relation("AuthorSubmission", fields: [authorId], references: [id])
-  assignedEditor     User?                       @relation("EditorSubmission", fields: [assignedEditorId], references: [id])
-  revisions          JournalSubmissionRevision[]
-  refereeAssignments RefereeAssignment[]
-  reviews            JournalSubmissionReview[]
-  eventLogs          JournalEventLog[]
-  RefereeInvite      RefereeInvite[]
-  node               Node                        @relation(fields: [dpid], references: [dpidAlias])
+  journal             Journal                     @relation(fields: [journalId], references: [id])
+  author              User                        @relation("AuthorSubmission", fields: [authorId], references: [id])
+  assignedEditor      User?                       @relation("EditorSubmission", fields: [assignedEditorId], references: [id])
+  revisions           JournalSubmissionRevision[]
+  refereeAssignments  RefereeAssignment[]
+  reviews             JournalSubmissionReview[]
+  eventLogs           JournalEventLog[]
+  RefereeInvite       RefereeInvite[]
+  node                Node                        @relation(fields: [dpid], references: [dpidAlias])
+  JournalFormResponse JournalFormResponse[]
 }
 
 model JournalSubmissionRevision {
@@ -1241,10 +1244,11 @@ model RefereeAssignment {
   journalId           Int
 
   // Relationships
-  submission JournalSubmission         @relation(fields: [submissionId], references: [id])
-  referee    User                      @relation(fields: [refereeId], references: [id])
-  reviews    JournalSubmissionReview[]
-  journal    Journal                   @relation(fields: [journalId], references: [id])
+  submission          JournalSubmission         @relation(fields: [submissionId], references: [id])
+  referee             User                      @relation(fields: [refereeId], references: [id])
+  reviews             JournalSubmissionReview[]
+  journal             Journal                   @relation(fields: [journalId], references: [id])
+  JournalFormResponse JournalFormResponse[]
 
   @@unique([submissionId, refereeId])
 }
@@ -1263,9 +1267,10 @@ model JournalSubmissionReview {
   updatedAt           DateTime        @updatedAt
 
   // Relationships
-  journal           Journal           @relation(fields: [journalId], references: [id])
-  submission        JournalSubmission @relation(fields: [submissionId], references: [id])
-  refereeAssignment RefereeAssignment @relation(fields: [refereeAssignmentId], references: [id])
+  journal           Journal              @relation(fields: [journalId], references: [id])
+  submission        JournalSubmission    @relation(fields: [submissionId], references: [id])
+  refereeAssignment RefereeAssignment    @relation(fields: [refereeAssignmentId], references: [id])
+  formResponse      JournalFormResponse?
 }
 
 model JournalEventLog {
@@ -1379,6 +1384,45 @@ model JournalInvoice {
 
   // Relationships
   billing JournalBilling @relation(fields: [billingId], references: [id])
+}
+
+model JournalFormTemplate {
+  id          Int      @id @default(autoincrement())
+  journalId   Int
+  name        String
+  description String?
+  version     Int      @default(1)
+  isActive    Boolean  @default(true)
+  structure   Json // Contains sections and fields structure
+  createdById Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  journal   Journal               @relation(fields: [journalId], references: [id])
+  createdBy User                  @relation(fields: [createdById], references: [id])
+  responses JournalFormResponse[]
+
+  @@unique([journalId, name, version])
+}
+
+model JournalFormResponse {
+  id          Int                @id @default(autoincrement())
+  templateId  Int
+  reviewId    Int?               @unique
+  status      FormResponseStatus @default(DRAFT)
+  formData    Json // Object containing all field responses
+  startedAt   DateTime           @default(now())
+  submittedAt DateTime?
+  updatedAt   DateTime           @updatedAt
+
+  // Relationships
+  template            JournalFormTemplate      @relation(fields: [templateId], references: [id])
+  review              JournalSubmissionReview? @relation(fields: [reviewId], references: [id])
+  JournalSubmission   JournalSubmission?       @relation(fields: [journalSubmissionId], references: [id])
+  journalSubmissionId Int?
+  RefereeAssignment   RefereeAssignment?       @relation(fields: [refereeAssignmentId], references: [id])
+  refereeAssignmentId Int?
 }
 
 enum MigrationType {
@@ -1657,4 +1701,9 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   CANCELED
+}
+
+enum FormResponseStatus {
+  DRAFT // In progress
+  SUBMITTED // Completed and submitted
 }
