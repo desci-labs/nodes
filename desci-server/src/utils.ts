@@ -306,3 +306,14 @@ export const encryptForLog = (text: string, key: string) => {
   encrypted += cipher.final('base64');
   return encrypted;
 };
+
+/**
+ * Prepends an indefinite article to a word.
+ * @example "Chief Editor" -> "a Chief Editor"
+ * @example "Associate Editor" -> "an Associate Editor"
+ */
+export const prependIndefiniteArticle = (word: string) => {
+  const vowels = ['a', 'e', 'i', 'o', 'u'];
+  const firstLetter = word.toLowerCase().charAt(0);
+  return vowels.includes(firstLetter) ? `an ${word}` : `a ${word}`;
+};

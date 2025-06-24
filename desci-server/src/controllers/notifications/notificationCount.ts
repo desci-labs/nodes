@@ -1,10 +1,8 @@
 import { Response } from 'express';
-import { z } from 'zod';
 
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getUnseenNotificationCount, resetUnseenNotificationCount } from '../../services/NotificationService.js';
-
-import { AuthenticatedRequest } from './create.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 
 export interface ErrorResponse {
   error: string;
@@ -26,7 +24,7 @@ export const getNotificationCount = async (
       return res.status(401).json({ error: 'Unauthorized' } as ErrorResponse);
     }
     const user = req.user;
-    const unseenNotificationCount = await getUnseenNotificationCount({ user });
+    const unseenNotificationCount = await NotificationService.getUnseenNotificationCount({ user });
 
     logger.info({ unseenNotificationCount }, 'Successfully retrieved notification count');
     return res.status(201).json({ unseenNotificationCount });
@@ -52,7 +50,7 @@ export const resetNotificationCount = async (
       return res.status(401).json({ error: 'Unauthorized' } as ErrorResponse);
     }
     const user = req.user;
-    const unseenNotificationCount = await resetUnseenNotificationCount({ userId: user.id });
+    const unseenNotificationCount = await NotificationService.resetUnseenNotificationCount({ userId: user.id });
 
     logger.info({ unseenNotificationCount }, 'Successfully reset notification count');
     return res.status(201).json({ message: 'Successfully reset notification count' });

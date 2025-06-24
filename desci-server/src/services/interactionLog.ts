@@ -1,6 +1,6 @@
 import { AccessStatus } from '@desci-labs/desci-models';
-import { ActionType } from '@prisma/client';
-import { subDays } from 'date-fn-latest';
+import { ActionType, Prisma } from '@prisma/client';
+import { subDays } from 'date-fns';
 import { Request } from 'express';
 
 import { prisma } from '../client.js';
@@ -90,30 +90,6 @@ export const getUserPublishConsent = async (userId?: number) => {
     },
     // data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
   });
-};
-
-export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<number> => {
-  logger.info({ fn: 'getCountActiveUsersInXDays' }, 'interactionLog::getCountActiveUsersInXDays');
-
-  const now = new Date();
-
-  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
-  return (
-    await prisma.interactionLog.findMany({
-      distinct: ['userId'],
-      where: {
-        createdAt: {
-          gte: utcMidnightXDaysAgo,
-        },
-        OR: [{ isGuest: false }, { isGuest: null }],
-        // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
-        // from poluting returned data
-        userId: {
-          not: null,
-        },
-      },
-    })
-  ).length;
 };
 
 export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
@@ -287,7 +263,7 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
       },
       OR: [{ isGuest: false }, { isGuest: null }],
     },
-    select: { user: { select: { createdAt: true } } },
+    select: { createdAt: true, user: { select: { id: true } } },
   });
 };
 
@@ -307,36 +283,32 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
         },
       },
     },
-    select: { user: { select: { createdAt: true } } },
+    select: { createdAt: true },
   });
 };
 
 export const getNodeViewsInRange = async (range: { from: Date; to: Date }) => {
-  logger.info({ fn: 'getNodeViewsInRange' }, 'interactionLog::getNodeViewsInRange');
+  // logger.info({ fn: 'getNodeViewsInRange' }, 'interactionLog::getNodeViewsInRange');
   const res =
     await prisma.$queryRaw`select "createdAt" from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
   return res as { createdAt: string }[];
 };
 
 export const getBadgeVerificationsInRange = async (range: { from: Date; to: Date }) => {
-  logger.info({ fn: 'getBadgeVerificationsInRange' }, 'interactionLog::getBadgeVerificationsInRange');
+  // logger.info({ fn: 'getBadgeVerificationsInRange' }, 'interactionLog::getBadgeVerificationsInRange');
   const res =
     await prisma.$queryRaw`select "createdAt" from "InteractionLog" z where action = 'VERIFY_ATTESTATION' and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
   return res as { createdAt: string }[];
 };
 
 export const getBadgeVerificationsCountInRange = async (range: { from: Date; to: Date }) => {
-  // logger.info({ fn: 'getBadgeVerificationsCountInRange' }, 'interactionLog::getBadgeVerificationsCountInRange');
-  // const res =
-  //   await prisma.$queryRaw`select count(*) from "InteractionLog" z where action = 'VERIFY_ATTESTATION' and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
-  // logger.trace({ res }, 'getBadgeVerificationsCountInRange');
-  // return (res as { count: number }[])[0]['count'];
-
-  return prisma.interactionLog.count({ where: { action: ActionType.VERIFY_ATTESTATION } });
+  return prisma.interactionLog.count({
+    where: { action: ActionType.VERIFY_ATTESTATION, createdAt: { gte: range.from, lt: range.to } },
+  });
 };
 
 export const getDownloadedBytesInRange = async (range: { from: Date; to: Date }) => {
-  logger.info({ fn: 'getDownloadedBytesInRange', range }, 'interactionLog::getDownloadedBytesInRange');
+  // logger.info({ fn: 'getDownloadedBytesInRange', range }, 'interactionLog::getDownloadedBytesInRange');
   const res =
     (await prisma.$queryRaw`select "extra", "createdAt" from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"ctxDriveDownload"'::jsonb and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`) as {
       createdAt: string;

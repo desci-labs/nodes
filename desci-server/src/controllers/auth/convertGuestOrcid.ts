@@ -2,6 +2,7 @@ import { ActionType, User } from '@prisma/client';
 import { Response } from 'express';
 
 import { prisma } from '../../client.js';
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { verifyMagicCode } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
@@ -12,7 +13,6 @@ import orcid from '../../services/orcid.js';
 import { MergeUserService } from '../../services/user/merge.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
-import { AuthenticatedRequest } from '../notifications/create.js';
 
 import { ConvertGuestResponse } from './convertGuest.js';
 import { generateAccessToken } from './magic.js';

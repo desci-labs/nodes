@@ -329,11 +329,19 @@ export const concepts_counts_by_yearInOpenalex = openalex.table('concepts_counts
   primaryKey({ columns: [table.concept_id, table.year] }),
 ]);
 
+/**
+ * This differs from the suggested OA database schema in that it accumulates all institution ids for a given work/author pair.
+ * The reason is a combination of:
+ * - Need to prevent duplicates
+ * - Cannot use institution_id in the PK because it's nullable in the source data set
+ * - Can't ignore it, because we'll get multiple rows conflicting the work/author PK within the same insert statement, which postgres doesn't support
+ *   - Plus we might need it to map author relations
+ */
 export const works_authorshipsInOpenalex = openalex.table('works_authorships', {
   work_id: text(),
   author_position: text(),
   author_id: text(),
-  institution_id: text(),
+  institution_ids: text().array().default([]),
   raw_affiliation_string: text(),
 }, (table) => [
   primaryKey({ columns: [table.work_id, table.author_id] }),

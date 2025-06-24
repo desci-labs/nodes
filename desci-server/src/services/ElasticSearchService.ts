@@ -63,7 +63,7 @@ export const RELEVANT_FIELDS = {
   denorm_topics: ['topics.display_name'],
   denorm_fields: ['topics.subfield_display_name'],
   denorm_concepts: ['concepts.display_name', 'concepts.subfield_display_name'],
-  denorm_sources: ['best_locations.display_name', 'best_locations.publisher'],
+  denorm_sources: ['locations.display_name', 'locations.publisher'],
   denorm_institutions: ['institutions.display_name', 'institutions.ror', 'institutions.country_code'],
   denorm_countries: ['institutions.country_code'],
   works_single: [
@@ -78,8 +78,8 @@ export const RELEVANT_FIELDS = {
     'authors.last_known_institution',
     'authors.affiliation',
     'institutions.display_name',
-    'best_locations.publisher',
-    'best_locations.display_name',
+    'locations.publisher',
+    'locations.display_name',
   ],
 };
 
@@ -153,10 +153,10 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
       // Venue quality as tiebreaker
       {
         filter: {
-          range: { 'best_locations.works_count': { gte: 1000 } },
+          range: { 'locations.works_count': { gte: 1000 } },
         },
         field_value_factor: {
-          field: 'best_locations.works_count',
+          field: 'locations.works_count',
           factor: 0.00001,
           modifier: 'log1p',
         },
@@ -436,10 +436,10 @@ function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
       // // Venue quality as tiebreaker
       {
         filter: {
-          range: { 'best_locations.works_count': { gte: 1000 } },
+          range: { 'locations.works_count': { gte: 1000 } },
         },
         field_value_factor: {
-          field: 'best_locations.works_count',
+          field: 'locations.works_count',
           factor: 1,
           modifier: 'log1p',
         },
@@ -540,7 +540,7 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
           'abstract^2',
           'topics.display_name^2',
           'authors.display_name^1.5',
-          'best_locations.display_name^1.5',
+          'locations.display_name^1.5',
           'institutions.display_name^1.5',
         ],
         type: 'best_fields',
@@ -559,7 +559,7 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
           'abstract^1.5',
           'topics.display_name^1.5',
           'authors.display_name',
-          'best_locations.display_name',
+          'locations.display_name',
           'institutions.display_name',
         ],
         type: 'cross_fields',
@@ -607,10 +607,10 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
       // Venue quality as tiebreaker
       {
         filter: {
-          range: { 'best_locations.works_count': { gte: 1000 } },
+          range: { 'locations.works_count': { gte: 1000 } },
         },
         field_value_factor: {
-          field: 'best_locations.works_count',
+          field: 'locations.works_count',
           factor: 0.00001,
           modifier: 'log1p',
         },

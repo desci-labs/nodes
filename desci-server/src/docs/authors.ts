@@ -239,75 +239,85 @@ export const getAuthorWorksOperation: ZodOpenApiOperationObject = {
           schema: z.object({
             data: z.object({
               meta: z.object({
-                page: z.number().default(1),
-                limit: z.number().default(200),
+                nextPage: z.number().nullable().describe('Next page number if more results are available'),
+                count: z.number().describe('Total number of works'),
+                page: z.number().describe('Current page number'),
+                perPage: z.number().describe('Number of works per page'),
               }),
               works: z.array(
-                z
-                  .object({
-                    id: z.string(),
-                    doi: z.string().optional(),
-                    title: z.string(),
-                    display_name: z.string(),
-                    publication_year: z.number().optional(),
-                    publication_date: z.string().optional(),
-                    cited_by_count: z.number().optional(),
-                    is_retracted: z.boolean().optional(),
-                    is_paratext: z.boolean().optional(),
-                    type: z.string().optional(),
-                    type_crossref: z.string().optional(),
-                    open_access: z
-                      .object({
-                        is_oa: z.boolean(),
-                        oa_status: z.string(),
-                        oa_url: z.string().optional(),
-                      })
-                      .optional(),
-                    authorships: z
-                      .array(
-                        z.object({
-                          author_position: z.string(),
-                          author: z.object({
-                            id: z.string(),
-                            display_name: z.string(),
-                            orcid: z.string().optional(),
-                          }),
-                          institutions: z
-                            .array(
-                              z.object({
-                                id: z.string(),
-                                display_name: z.string(),
-                                ror: z.string().optional(),
-                                country_code: z.string().optional(),
-                                type: z.string().optional(),
-                              }),
-                            )
-                            .optional(),
+                z.object({
+                  id: z.string().describe('OpenAlex work ID'),
+                  doi: z.string().optional().describe('Digital Object Identifier'),
+                  title: z.string().describe('Work title'),
+                  display_name: z.string().describe('Display name of the work'),
+                  publication_date: z.string().optional().describe('Publication date'),
+                  ids: z
+                    .object({
+                      openalex: z.string().optional().describe('OpenAlex identifier URL'),
+                      doi: z.string().optional().describe('DOI URL'),
+                      mag: z.string().optional().describe('Microsoft Academic Graph identifier'),
+                      pmid: z.string().optional().describe('PubMed identifier URL'),
+                      pmcid: z.string().optional().describe('PubMed Central identifier URL'),
+                    })
+                    .optional()
+                    .describe('Additional identifiers for the work'),
+                  cited_by_count: z.number().optional().describe('Number of citations'),
+                  open_access: z
+                    .object({
+                      is_oa: z.boolean().describe('Whether the work is open access'),
+                      oa_status: z.string().describe('Open access status'),
+                      oa_url: z.string().optional().describe('Open access URL'),
+                    })
+                    .optional()
+                    .describe('Open access information'),
+                  authorships: z
+                    .array(
+                      z.object({
+                        author: z.object({
+                          id: z.string().describe('Author ID'),
+                          display_name: z.string().describe('Author name'),
+                          orcid: z.string().optional().describe('Author ORCID'),
                         }),
-                      )
-                      .optional(),
-                    primary_location: z
-                      .object({
-                        source: z
-                          .object({
-                            id: z.string(),
-                            display_name: z.string(),
-                            issn_l: z.string().optional(),
-                            issn: z.array(z.string()).optional(),
-                            host_organization: z.string().optional(),
-                            type: z.string().optional(),
-                          })
-                          .optional(),
-                        license: z.string().optional(),
-                        version: z.string().optional(),
-                        landing_page_url: z.string().optional(),
-                        pdf_url: z.string().optional(),
-                        is_oa: z.boolean().optional(),
-                        oa_status: z.string().optional(),
-                      })
-                      .optional(),
-                  })
-                  .passthrough(),
+                        institutions: z
+                          .array(
+                            z.object({
+                              id: z.string().describe('Institution ID'),
+                              display_name: z.string().describe('Institution name'),
+                              ror: z.string().optional().describe('ROR identifier'),
+                              country_code: z.string().optional().describe('Country code'),
+                              type: z.string().optional().describe('Institution type'),
+                            }),
+                          )
+                          .optional()
+                          .describe('Author institutions'),
+                      }),
+                    )
+                    .optional()
+                    .describe('Author information'),
+                  primary_location: z
+                    .object({
+                      source: z
+                        .object({
+                          id: z.string().describe('Source ID'),
+                          display_name: z.string().describe('Source name'),
+                          issn_l: z.string().optional().describe('ISSN-L'),
+                          issn: z.array(z.string()).optional().describe('ISSNs'),
+                          host_organization: z.string().optional().describe('Host organization'),
+                          type: z.string().optional().describe('Source type'),
+                        })
+                        .optional()
+                        .describe('Publication source'),
+                      license: z.string().optional().describe('License information'),
+                      version: z.string().optional().describe('Version information'),
+                      landing_page_url: z.string().optional().describe('Landing page URL'),
+                      pdf_url: z.string().optional().describe('PDF URL'),
+                      is_oa: z.boolean().optional().describe('Whether the work is open access'),
+                      oa_status: z.string().optional().describe('Open access status'),
+                    })
+                    .optional()
+                    .describe('Primary publication location'),
+                  created_date: z.string().optional().describe('Creation date'),
+                }),
               ),
             }),
           }),

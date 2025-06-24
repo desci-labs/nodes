@@ -107,7 +107,7 @@ npm run migrate
 
 ### Introspect Remote OpenAlex Schema
 
-> [!WARNING]  
+> [!WARNING]
 > This overwrites the `schema.ts` file, which has multiple change to indices and keys.
 > Only do this to reset the base state, and be ready to rebuild the migrations directory.
 
@@ -136,7 +136,7 @@ schema by setting it to `text_ops`.
 
 ### Manually generate batches migration
 
-> [!NOTE]  
+> [!NOTE]
 > This shouldn't be necessary now that `drizzle.config.ts` includes both schemas.
 
 ```bash
@@ -239,7 +239,7 @@ Not all OA datatypes are fully supported, the table below shows the status of ea
 | works_primary_locations | ✅      |                                       |
 | works_locations         | ✅      | no unique constraint available        |
 | works_best_oa_locations | ✅      |                                       |
-| works_authorships       | ❌      |                                       |
+| works_authorships       | ✅      | institution_ids accumulated in array  |
 | works_topics            | ✅      | maps work -> topic ID                 |
 | works_concepts          | ✅      | maps work -> concept ID               |
 | works_ids               | ✅      |                                       |
