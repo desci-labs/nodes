@@ -301,3 +301,9 @@ export const revisionActionSchema = z.object({
     decision: z.enum(['accept', 'reject']),
   }),
 });
+
+export const listRefereeAssignmentsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+  }),
+});

@@ -9,6 +9,7 @@ import { removeEditorController } from '../../../controllers/journals/management
 import { updateJournalController } from '../../../controllers/journals/management/update.js';
 import { updateEditorController } from '../../../controllers/journals/management/updateEditor.js';
 import { updateEditorRoleController } from '../../../controllers/journals/management/updateRole.js';
+import { listRefereeAssignmentsController } from '../../../controllers/journals/referees/index.js';
 import { invalidateRefereeAssignmentController } from '../../../controllers/journals/referees/invalidateRefereeAssignment.js';
 import { inviteRefereeController } from '../../../controllers/journals/referees/inviteReferee.js';
 import { refereeInviteDecisionController } from '../../../controllers/journals/referees/refereeInviteDecision.js';
@@ -67,6 +68,7 @@ import {
   revisionActionSchema,
   revisionApiSchema,
   listJournalsSchema,
+  listRefereeAssignmentsSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -122,6 +124,13 @@ router.delete(
   '/:journalId/editors/:editorUserId',
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(removeEditorSchema)],
   removeEditorController,
+);
+
+// referee assignments
+router.get(
+  '/referee-assignments',
+  [ensureUser, validateInputs(listRefereeAssignmentsSchema)],
+  asyncHandler(listRefereeAssignmentsController),
 );
 
 // Submissions

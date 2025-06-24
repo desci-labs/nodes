@@ -22,6 +22,7 @@ import {
   revisionApiSchema,
   revisionActionSchema,
   listJournalsSchema,
+  listRefereeAssignmentsSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -1197,6 +1198,60 @@ export const revisionActionOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// List Referee Assignments
+export const listRefereeAssignmentsOperation: ZodOpenApiOperationObject = {
+  operationId: 'listRefereeAssignments',
+  tags: ['Journals'],
+  summary: 'List referee assignments for the current user in a specific journal',
+  requestParams: { path: listRefereeAssignmentsSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Referee assignments retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            assignments: z.array(
+              z.object({
+                id: z.number(),
+                submissionId: z.number(),
+                refereeId: z.number(),
+                assignedById: z.number(),
+                assignedAt: z.string(),
+                reassignedAt: z.string().nullable(),
+                dueDate: z.string().nullable(),
+                completedAssignment: z.boolean().nullable(),
+                completedAt: z.string().nullable(),
+                journalId: z.number(),
+                journal: z.object({
+                  id: z.number(),
+                  name: z.string(),
+                  iconCid: z.string().nullable(),
+                  description: z.string().nullable(),
+                }),
+                submission: z.object({
+                  id: z.number(),
+                  node: z.object({
+                    title: z.string(),
+                  }),
+                }),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -1255,5 +1310,8 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/revisions/{revisionId}/action': {
     post: revisionActionOperation,
+  },
+  '/v1/journals/referee-assignments': {
+    get: listRefereeAssignmentsOperation,
   },
 };

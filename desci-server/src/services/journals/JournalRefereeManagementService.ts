@@ -178,6 +178,36 @@ async function getRefereeAssignments(refereeId: number): Promise<Result<RefereeA
         // CompletedAssignment is only false if the referee drops out.
         OR: [{ completedAssignment: true }, { completedAssignment: null }],
       },
+      select: {
+        id: true,
+        submissionId: true,
+        refereeId: true,
+        assignedById: true,
+        assignedAt: true,
+        journalId: true,
+        dueDate: true,
+        completedAssignment: true,
+        completedAt: true,
+        reassignedAt: true,
+        journal: {
+          select: {
+            id: true,
+            name: true,
+            iconCid: true,
+            description: true,
+          },
+        },
+        submission: {
+          select: {
+            id: true,
+            node: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        },
+      },
     });
     return ok(refereeAssignments);
   } catch (error) {
