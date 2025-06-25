@@ -113,14 +113,14 @@ export const getAuthorSubmissionsController = async (req: GetAuthorSubmissionsRe
     const { limit, offset } = req.validatedData.query;
     const authorId = req.user?.id;
 
-    const submissions = await journalSubmissionService.getAuthorSubmissions({
+    const data = await journalSubmissionService.getAuthorSubmissions({
       journalId,
       authorId,
       limit,
       offset,
     });
 
-    return sendSuccess(res, { submissions, meta: { count: submissions.length, limit, offset } });
+    return sendSuccess(res, { data, meta: { count: data.length, limit, offset } });
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve journal submissions', 500);

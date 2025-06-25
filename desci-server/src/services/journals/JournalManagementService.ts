@@ -452,6 +452,41 @@ async function getUserJournalRole(journalId: number, userId: number): Promise<Re
   return ok(editor.role);
 }
 
+async function getJournalProfile(userId: number): Promise<
+  Result<
+    {
+      role: EditorRole;
+      journalId: number;
+      journal: {
+        id: number;
+        name: string;
+        description: string;
+        iconCid: string;
+      };
+    }[],
+    Error
+  >
+> {
+  const result = await prisma.journalEditor.findMany({
+    where: {
+      userId: userId,
+    },
+    select: {
+      journalId: true,
+      journal: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          iconCid: true,
+        },
+      },
+      role: true,
+    },
+  });
+  return ok(result);
+}
+
 export const JournalManagementService = {
   createJournal,
   updateJournal,
@@ -461,4 +496,5 @@ export const JournalManagementService = {
   updateEditorRole,
   updateEditor,
   getUserJournalRole,
+  getJournalProfile,
 };

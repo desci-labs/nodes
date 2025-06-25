@@ -37,6 +37,8 @@ async function createSubmission(payload: { journalId: number; authorId: number; 
     },
   });
 
+  logger.trace({ existing }, 'Existing submission');
+
   if (existing) {
     // replace with error class from journals/core/errors.ts
     throw new ForbiddenError('Submission already exists');

@@ -26,7 +26,7 @@ import {
   revisionActionController,
   submitRevisionController,
 } from '../../../controllers/journals/revision/index.js';
-import { showJournalController } from '../../../controllers/journals/show.js';
+import { showJournalController, showJournalProfileController } from '../../../controllers/journals/show.js';
 import {
   assignSubmissionToEditorController,
   createJournalSubmissionController,
@@ -75,7 +75,8 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
 const router = Router();
 
 // General
-router.get('/', [attachUser, validateInputs(listJournalsSchema)], listJournalsController);
+router.get('/', [attachUser, validateInputs(listJournalsSchema)], asyncHandler(listJournalsController));
+router.get('/profile', [ensureUser], asyncHandler(showJournalProfileController));
 router.get(
   '/:journalId',
   [
@@ -153,7 +154,7 @@ router.get(
 );
 
 router.get(
-  '/:journalId/my-submissions/:authorId',
+  '/:journalId/my-submissions',
   [ensureUser, validateInputs(getAuthorJournalSubmissionsSchema)],
   asyncHandler(getAuthorSubmissionsController),
 );

@@ -23,6 +23,9 @@ import {
   revisionActionSchema,
   listJournalsSchema,
   listRefereeAssignmentsSchema,
+  inviteRefereeSchema,
+  refereeInviteDecisionSchema,
+  invalidateRefereeAssignmentSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -446,7 +449,7 @@ export const getAuthorJournalSubmissionsOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            submissions: z.array(
+            data: z.array(
               z.object({
                 journal: z.object({
                   id: z.number(),
@@ -456,6 +459,7 @@ export const getAuthorJournalSubmissionsOperation: ZodOpenApiOperationObject = {
                 version: z.number(),
                 status: z.string(),
                 id: z.number(),
+                authorId: z.number(),
                 assignedEditorId: z.number().nullable(),
                 assignedEditor: z
                   .object({
@@ -1252,10 +1256,199 @@ export const listRefereeAssignmentsOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Show Journal Profile
+export const showJournalProfileOperation: ZodOpenApiOperationObject = {
+  operationId: 'showJournalProfile',
+  tags: ['Journals'],
+  summary: 'Get journal profile for the current user',
+  responses: {
+    '200': {
+      description: 'Journal profile retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            profiles: z.array(
+              z.object({
+                role: z.string(),
+                journalId: z.number(),
+                journal: z.object({
+                  id: z.number(),
+                  name: z.string(),
+                  description: z.string().nullable(),
+                  iconCid: z.string().nullable(),
+                }),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Invite Referee
+export const inviteRefereeOperation: ZodOpenApiOperationObject = {
+  operationId: 'inviteReferee',
+  tags: ['Journals'],
+  summary: 'Invite a referee to review a submission',
+  requestParams: { path: inviteRefereeSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: inviteRefereeSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Referee invited successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            invite: z.object({
+              id: z.number(),
+              token: z.string(),
+              email: z.string(),
+              submissionId: z.number(),
+              invitedById: z.number(),
+              createdAt: z.string(),
+              expiresAt: z.string(),
+              accepted: z.boolean(),
+              declined: z.boolean(),
+              relativeDueDateHrs: z.number().nullable(),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission or referee not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to invite referees',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Referee Invite Decision
+export const refereeInviteDecisionOperation: ZodOpenApiOperationObject = {
+  operationId: 'refereeInviteDecision',
+  tags: ['Journals'],
+  summary: 'Accept or decline a referee invitation',
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: refereeInviteDecisionSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Referee invite decision processed successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            invite: z.object({
+              id: z.number(),
+              token: z.string(),
+              email: z.string(),
+              submissionId: z.number(),
+              invitedById: z.number(),
+              createdAt: z.string(),
+              expiresAt: z.string(),
+              accepted: z.boolean(),
+              declined: z.boolean(),
+              acceptedAt: z.string().nullable(),
+              declinedAt: z.string().nullable(),
+              userId: z.number().nullable(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid or expired invite',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Invite not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+};
+
+// Invalidate Referee Assignment
+export const invalidateRefereeAssignmentOperation: ZodOpenApiOperationObject = {
+  operationId: 'invalidateRefereeAssignment',
+  tags: ['Journals'],
+  summary: 'Invalidate a referee assignment',
+  requestParams: { path: invalidateRefereeAssignmentSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Referee assignment invalidated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Referee assignment not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to invalidate assignment',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
     post: createJournalOperation,
+  },
+  '/v1/journals/profile': {
+    get: showJournalProfileOperation,
   },
   '/v1/journals/{journalId}': {
     get: showJournalOperation,
@@ -1275,7 +1468,7 @@ export const journalPaths: ZodOpenApiPathsObject = {
     post: createJournalSubmissionOperation,
     get: listJournalSubmissionsOperation,
   },
-  '/v1/journals/{journalId}/submissions/author': {
+  '/v1/journals/{journalId}/my-submissions': {
     get: getAuthorJournalSubmissionsOperation,
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/assign': {
@@ -1313,5 +1506,14 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/referee-assignments': {
     get: listRefereeAssignmentsOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/referee/invite': {
+    post: inviteRefereeOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/referee/invite/decision': {
+    post: refereeInviteDecisionOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/referees/{assignmentId}/invalidate': {
+    patch: invalidateRefereeAssignmentOperation,
   },
 };

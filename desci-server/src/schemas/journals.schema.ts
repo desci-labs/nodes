@@ -140,7 +140,7 @@ export const assignSubmissionToEditorSchema = z.object({
 export const getAuthorJournalSubmissionsSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal'),
-    authorId: z.coerce.number().describe('The ID of the author'),
+    // authorId: z.coerce.number().describe('The ID of the author'),
   }),
   query: z.object({
     limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
