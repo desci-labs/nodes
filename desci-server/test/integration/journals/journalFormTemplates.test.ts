@@ -14,7 +14,7 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import { prisma } from '../../../src/client.js';
-import { server as app } from '../../../src/server.js';
+import { server } from '../../../src/server.js';
 import { JournalFormService } from '../../../src/services/journals/JournalFormService.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
 import { JournalRefereeManagementService } from '../../../src/services/journals/JournalRefereeManagementService.js';
@@ -22,6 +22,11 @@ import { journalSubmissionService } from '../../../src/services/journals/Journal
 import { publishMockNode } from '../../util.js';
 
 import { VALID_FORM_STRUCTURE } from './formMockData.js';
+
+server.ready().then((_) => {
+  console.log('server is ready');
+});
+export const app = server.app;
 
 describe('Journal Form Template Service & Endpoints', () => {
   let chiefEditor: User;
