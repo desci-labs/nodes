@@ -133,7 +133,7 @@ async function createFormTemplate(
         name: data.name,
         description: data.description,
         createdById: userId,
-        structure: data.structure,
+        structure: data.structure as unknown as any,
         version: data.version || 1,
       },
       include: {
@@ -206,7 +206,7 @@ async function updateFormTemplate(
       });
 
       // Create new version with incremented version number
-      const currentStructure = template.structure as FormStructure;
+      const currentStructure = template.structure as unknown as FormStructure;
       const newTemplateResult = await createFormTemplate(userId, {
         journalId: template.journalId,
         name: data.name || template.name,
@@ -328,16 +328,21 @@ async function getFormTemplate(templateId: number): Promise<Result<JournalFormTe
  * Get or create a form response for a referee assignment
  */
 async function getOrCreateFormResponse(
+  userId: number,
   refereeAssignmentId: number,
   templateId: number,
 ): Promise<Result<JournalFormResponse, Error>> {
-  logger.trace({ refereeAssignmentId, templateId }, 'Getting or creating form response');
+  logger.trace({ userId, refereeAssignmentId, templateId }, 'Getting or creating form response');
 
   try {
     const assignment = await prisma.refereeAssignment.findUnique({
       where: { id: refereeAssignmentId },
       include: {
-        submission: true,
+        submission: {
+          include: {
+            journal: true,
+          },
+        },
         referee: {
           select: {
             id: true,
@@ -351,6 +356,30 @@ async function getOrCreateFormResponse(
     if (!assignment) {
       logger.warn({ refereeAssignmentId }, 'Referee assignment not found');
       return err(new Error('Referee assignment not found'));
+    }
+
+    // Check if user is authorized to access this form response
+    // Authorization rules:
+    // 1. Referees can access (get/create) their own form responses
+    // 2. Editors (chief or assigned) can only view existing form responses, not create new ones
+    const isReferee = assignment.refereeId === userId;
+
+    // Check if user is an editor of the journal
+    const editor = await prisma.journalEditor.findFirst({
+      where: {
+        journalId: assignment.submission.journalId,
+        userId: userId,
+      },
+    });
+
+    const isAssignedEditor = assignment.submission.assignedEditorId === userId;
+    const isChiefEditor = editor?.role === EditorRole.CHIEF_EDITOR;
+    const isEditor = isAssignedEditor || isChiefEditor;
+
+    // User must be either the referee or an editor to access the form response
+    if (!isReferee && !isEditor) {
+      logger.warn({ userId, refereeAssignmentId }, 'User not authorized to access form response');
+      return err(new Error('User not authorized to access this form response'));
     }
 
     // Check if a response already exists
@@ -377,6 +406,26 @@ async function getOrCreateFormResponse(
     });
 
     if (!response) {
+      // Only referees can create new responses
+      if (!isReferee) {
+        logger.warn({ userId, refereeAssignmentId }, 'Editor attempted to create form response');
+        return err(new Error('Form response not found. Only referees can create new form responses.'));
+      }
+
+      // Verify the template belongs to the journal
+      const template = await prisma.journalFormTemplate.findFirst({
+        where: {
+          id: templateId,
+          journalId: assignment.submission.journalId,
+          isActive: true,
+        },
+      });
+
+      if (!template) {
+        logger.warn({ templateId, journalId: assignment.submission.journalId }, 'Template not found or inactive');
+        return err(new Error('Form template not found or inactive'));
+      }
+
       // Create a new response with empty form data
       response = await prisma.journalFormResponse.create({
         data: {
@@ -396,15 +445,18 @@ async function getOrCreateFormResponse(
                   email: true,
                 },
               },
+              submission: true,
             },
           },
         },
       });
+
+      logger.info({ userId, responseId: response.id }, 'Created new form response');
     }
 
     return ok(response);
   } catch (error) {
-    logger.error({ error, refereeAssignmentId, templateId }, 'Failed to get or create form response');
+    logger.error({ error, userId, refereeAssignmentId, templateId }, 'Failed to get or create form response');
     return err(error instanceof Error ? error : new Error('Failed to get or create form response'));
   }
 }
@@ -521,7 +573,7 @@ async function submitFormResponse(
     }
 
     // Get template structure
-    const templateStructure = response.template.structure as FormStructure;
+    const templateStructure = response.template.structure as unknown as FormStructure;
 
     // Validate all required fields are filled
     const formData = convertFieldResponsesToObject(data.fieldResponses);

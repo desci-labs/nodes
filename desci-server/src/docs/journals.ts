@@ -1324,7 +1324,8 @@ export const getFormResponseOperation: ZodOpenApiOperationObject = {
   operationId: 'getFormResponse',
   tags: ['Journals'],
   summary: 'Get or create form response',
-  description: 'Get an existing form response or create a new one for a referee assignment',
+  description:
+    'Get an existing form response or create a new one. Referees can get or create their form responses. Editors (chief or assigned) can only view existing form responses.',
   requestParams: { path: getFormResponseSchema.shape.params },
   responses: {
     '200': {
@@ -1346,7 +1347,7 @@ export const getFormResponseOperation: ZodOpenApiOperationObject = {
       },
     },
     '403': {
-      description: 'Unauthorized to access this form response',
+      description: 'Unauthorized - User is not the referee or an editor of the journal',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -1354,7 +1355,7 @@ export const getFormResponseOperation: ZodOpenApiOperationObject = {
       },
     },
     '404': {
-      description: 'Assignment or template not found',
+      description: 'Assignment, template not found, or form response not found (for editors)',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
