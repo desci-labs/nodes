@@ -1443,6 +1443,49 @@ export const invalidateRefereeAssignmentOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Get Referee Invitations
+export const getRefereeInvitationsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getRefereeInvitations',
+  tags: ['Journals'],
+  summary: 'Get all referee invitations for the authenticated user',
+  responses: {
+    '200': {
+      description: 'Referee invitations retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z.object({
+              id: z.number(),
+              submissionId: z.number(),
+              accepted: z.boolean(),
+              declined: z.boolean(),
+              expiresAt: z.string(),
+              token: z.string(),
+              submission: z.object({
+                journalId: z.number(),
+                journal: z.string(),
+                title: z.string(),
+                id: z.number(),
+                author: z.string(),
+                dpid: z.number(),
+              }),
+            }),
+          ),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -1505,8 +1548,11 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/submissions/{submissionId}/revisions/{revisionId}/action': {
     post: revisionActionOperation,
   },
-  '/v1/journals/referee-assignments': {
+  '/v1/journals/referee/assignments': {
     get: listRefereeAssignmentsOperation,
+  },
+  '/v1/journals/referee/invitations': {
+    get: getRefereeInvitationsOperation,
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/referee/invite': {
     post: inviteRefereeOperation,
