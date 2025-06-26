@@ -1232,16 +1232,17 @@ model JournalSubmissionRevision {
 }
 
 model RefereeAssignment {
-  id                  Int       @id @default(autoincrement())
-  submissionId        Int
-  refereeId           Int
-  assignedById        Int // Editor who assigned
-  assignedAt          DateTime  @default(now())
-  reassignedAt        DateTime? // Would show if the assignment is a reassignment.
-  dueDate             DateTime?
-  completedAssignment Boolean? // Only false if the referee drops out.
-  completedAt         DateTime?
-  journalId           Int
+  id                      Int       @id @default(autoincrement())
+  submissionId            Int
+  refereeId               Int
+  assignedById            Int // Editor who assigned
+  assignedAt              DateTime  @default(now())
+  reassignedAt            DateTime? // Would show if the assignment is a reassignment.
+  dueDate                 DateTime?
+  completedAssignment     Boolean? // Only false if the referee drops out.
+  completedAt             DateTime?
+  journalId               Int
+  expectedFormTemplateIds Int[]     @default([]) // Array of JournalFormTemplate IDs that the referee is expected to complete
 
   // Relationships
   submission          JournalSubmission         @relation(fields: [submissionId], references: [id])
@@ -1306,19 +1307,20 @@ model EditorInvite {
 }
 
 model RefereeInvite {
-  id                 Int       @id @default(autoincrement())
-  email              String
-  userId             Int?
-  submissionId       Int
-  invitedById        Int
-  token              String    @unique
-  createdAt          DateTime  @default(now())
-  expiresAt          DateTime
-  accepted           Boolean   @default(false)
-  acceptedAt         DateTime?
-  declined           Boolean   @default(false)
-  declinedAt         DateTime?
-  relativeDueDateHrs Int? // Proposed review deadline in hours, relative to the time of invite acceptance.
+  id                      Int       @id @default(autoincrement())
+  email                   String
+  userId                  Int?
+  submissionId            Int
+  invitedById             Int
+  token                   String    @unique
+  createdAt               DateTime  @default(now())
+  expiresAt               DateTime
+  accepted                Boolean   @default(false)
+  acceptedAt              DateTime?
+  declined                Boolean   @default(false)
+  declinedAt              DateTime?
+  relativeDueDateHrs      Int? // Proposed review deadline in hours, relative to the time of invite acceptance.
+  expectedFormTemplateIds Int[]     @default([]) // Array of JournalFormTemplate IDs that the referee is expected to complete
 
   // suggestedReferees String[] @default([])   - We don't know the type of this yet TBD
 
