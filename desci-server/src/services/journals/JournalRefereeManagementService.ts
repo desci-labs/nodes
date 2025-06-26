@@ -170,18 +170,18 @@ async function getActiveRefereeAssignments(submissionId: number): Promise<Result
  * Get all referee assignments for a submission that are either complete, or in progress.
  * Does not retrieve assignments that have been dropped out. (completedAssignment === false)
  */
-async function getRefereeAssignments(refereeId: number): Promise<Result<RefereeAssignment[], Error>> {
+async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssignment[], Error>> {
   try {
     const refereeAssignments = await prisma.refereeAssignment.findMany({
       where: {
-        refereeId,
+        userId,
         // CompletedAssignment is only false if the referee drops out.
         OR: [{ completedAssignment: true }, { completedAssignment: null }],
       },
       select: {
         id: true,
         submissionId: true,
-        refereeId: true,
+        userId: true,
         assignedById: true,
         assignedAt: true,
         journalId: true,
@@ -205,13 +205,36 @@ async function getRefereeAssignments(refereeId: number): Promise<Result<RefereeA
                 title: true,
               },
             },
+            status: true,
+          },
+        },
+        reviews: {
+          select: {
+            id: true,
+            recommendation: true,
+            review: true,
+            editorFeedback: true,
+            authorFeedback: true,
+            submittedAt: true,
           },
         },
       },
     });
-    return ok(refereeAssignments);
+    const assignments = refereeAssignments.map((assignment) => ({
+      ...assignment,
+      submission: {
+        id: assignment.submissionId,
+        title: assignment.submission.node.title,
+        status: assignment.submission.status,
+      },
+      reviews: assignment.reviews.map((review) => ({
+        ...review,
+        review: JSON.parse(review.review as string),
+      })),
+    }));
+    return ok(assignments);
   } catch (error) {
-    logger.error({ error, refereeId }, 'Failed to get active referee assignments');
+    logger.error({ error, refereeUserId: userId }, 'Failed to get active referee assignments');
     return err(
       error instanceof Error ? error : new Error('An unexpected error occurred during referee assignment retrieval'),
     );
@@ -220,11 +243,11 @@ async function getRefereeAssignments(refereeId: number): Promise<Result<RefereeA
 
 async function isRefereeAssignedToSubmission(
   submissionId: number,
-  refereeId: number,
+  refereeUserId: number,
   journalId: number,
 ): Promise<Result<boolean, Error>> {
   const refereeAssignment = await prisma.refereeAssignment.findFirst({
-    where: { submissionId, refereeId, journalId },
+    where: { submissionId, journalId, userId: refereeUserId },
   });
   if (!refereeAssignment) {
     return ok(false);
@@ -401,7 +424,7 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
       prisma.refereeAssignment.create({
         data: {
           submissionId: data.submissionId,
-          refereeId: data.refereeUserId,
+          userId: data.refereeUserId,
           assignedById: data.managerId,
           assignedAt: new Date(),
           ...(data.isReassignment ? { reassignedAt: new Date() } : {}), // Indicate if its a reassignment
@@ -577,7 +600,7 @@ export async function invalidateRefereeAssignment(
 
     let authMethod: 'referee' | 'editor' | 'chiefEditor' | null = null;
 
-    const isUserReferee = refereeAssignment.refereeId === userId;
+    const isUserReferee = refereeAssignment.userId === userId;
     if (isUserReferee) {
       authMethod = 'referee';
     } else if (refereeAssignment.submission.assignedEditorId === userId) {
@@ -613,10 +636,10 @@ export async function invalidateRefereeAssignment(
         data: {
           journalId: assignment.journalId,
           action: JournalEventLogAction.REFEREE_ASSIGNMENT_DROPPED,
-          userId: refereeAssignment.refereeId,
+          userId: refereeAssignment.userId,
           details: {
             submissionId: assignment.submissionId,
-            refereeId: assignment.refereeId,
+            refereeId: assignment.userId,
             assignedEditorId: assignment.assignedById,
             triggeredByUserId: userId,
             authMethod,

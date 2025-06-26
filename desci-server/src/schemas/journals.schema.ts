@@ -303,7 +303,7 @@ export const revisionActionSchema = z.object({
 });
 
 export const listRefereeAssignmentsSchema = z.object({
-  params: z.object({
-    journalId: z.coerce.number(),
-  }),
+  // params: z.object({
+  //   journalId: z.coerce.number(),
+  // }),
 });

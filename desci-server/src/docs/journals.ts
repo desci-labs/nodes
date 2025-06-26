@@ -1207,7 +1207,7 @@ export const listRefereeAssignmentsOperation: ZodOpenApiOperationObject = {
   operationId: 'listRefereeAssignments',
   tags: ['Journals'],
   summary: 'List referee assignments for the current user in a specific journal',
-  requestParams: { path: listRefereeAssignmentsSchema.shape.params },
+  // requestParams: { path: listRefereeAssignmentsSchema.shape.params },
   responses: {
     '200': {
       description: 'Referee assignments retrieved successfully',

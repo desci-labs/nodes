@@ -203,7 +203,7 @@ describe('Journal Referee Management Service', () => {
       expect(acceptedInvite.acceptedAt).to.be.instanceOf(Date);
 
       const assignment = await prisma.refereeAssignment.findFirst({
-        where: { submissionId: submission.id, refereeId: refereeUser.id },
+        where: { submissionId: submission.id, userId: refereeUser.id },
       });
       expect(assignment).to.not.be.null;
       expect(assignment?.assignedById).to.equal(associateEditor.id);
@@ -307,7 +307,7 @@ describe('Journal Referee Management Service', () => {
       expect(result.isOk()).to.be.true;
       const assignment = result._unsafeUnwrap();
       expect(assignment.submissionId).to.equal(submission.id);
-      expect(assignment.refereeId).to.equal(refereeUser.id);
+      expect(assignment.userId).to.equal(refereeUser.id);
       expect(assignment.assignedById).to.equal(associateEditor.id);
       expect(assignment.journalId).to.equal(journal.id);
       expect(assignment.dueDate).to.be.instanceOf(Date);

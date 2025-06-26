@@ -128,11 +128,7 @@ router.delete(
 );
 
 // referee assignments
-router.get(
-  '/referee-assignments',
-  [ensureUser, validateInputs(listRefereeAssignmentsSchema)],
-  asyncHandler(listRefereeAssignmentsController),
-);
+router.get('/referee-assignments', [ensureUser], asyncHandler(listRefereeAssignmentsController));
 
 // Submissions
 router.post(

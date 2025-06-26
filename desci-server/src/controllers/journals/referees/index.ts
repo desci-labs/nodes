@@ -14,12 +14,11 @@ type ListRefereeAssignmentsRequest = ValidatedRequest<typeof listRefereeAssignme
 
 export const listRefereeAssignmentsController = async (req: ListRefereeAssignmentsRequest, res: Response) => {
   try {
-    const { journalId } = req.validatedData.params;
-    const refereeId = req.user.id;
+    const refereeUserId = req.user.id;
 
-    logger.info({ journalId, refereeId }, 'Attempting to list referee assignments');
+    logger.info({ refereeUserId }, 'Attempting to list referee assignments');
 
-    const result = await JournalRefereeManagementService.getRefereeAssignments(refereeId);
+    const result = await JournalRefereeManagementService.getRefereeAssignments(refereeUserId);
 
     if (result.isErr()) {
       const error = result.error;
