@@ -1355,6 +1355,7 @@ export const refereeInviteDecisionOperation: ZodOpenApiOperationObject = {
   operationId: 'refereeInviteDecision',
   tags: ['Journals'],
   summary: 'Accept or decline a referee invitation',
+  requestParams: { path: refereeInviteDecisionSchema.shape.params },
   requestBody: {
     content: {
       'application/json': {

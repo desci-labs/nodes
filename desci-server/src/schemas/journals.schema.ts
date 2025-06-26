@@ -208,6 +208,7 @@ export const updateReviewSchema = z.object({
 export const inviteRefereeSchema = z.object({
   params: z.object({
     submissionId: z.string(),
+    journalId: z.string(),
   }),
   body: z.object({
     refereeUserId: z.number().int().positive(),
@@ -216,6 +217,10 @@ export const inviteRefereeSchema = z.object({
 });
 
 export const refereeInviteDecisionSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
   body: z.object({
     token: z.string(),
     decision: z.enum(['accept', 'decline']),

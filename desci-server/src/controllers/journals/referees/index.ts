@@ -27,7 +27,7 @@ export const listRefereeAssignmentsController = async (req: ListRefereeAssignmen
     }
 
     const assignments = result.value;
-    return sendSuccess(res, { assignments });
+    return sendSuccess(res, assignments);
   } catch (error) {
     logger.error(
       { error, body: req.body, params: req.params, user: req.user },
