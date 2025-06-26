@@ -16,16 +16,20 @@ type InviteRefereeRequest = ValidatedRequest<typeof inviteRefereeSchema, Authent
 export const inviteRefereeController = async (req: InviteRefereeRequest, res: Response) => {
   try {
     const { submissionId } = req.validatedData.params;
-    const { refereeUserId, relativeDueDateHrs } = req.validatedData.body;
+    const { refereeUserId, relativeDueDateHrs, expectedFormTemplateIds } = req.validatedData.body;
     const managerUserId = req.user.id;
 
-    logger.info({ submissionId, refereeUserId, managerUserId, relativeDueDateHrs }, 'Attempting to invite referee');
+    logger.info(
+      { submissionId, refereeUserId, managerUserId, relativeDueDateHrs, expectedFormTemplateIds },
+      'Attempting to invite referee',
+    );
 
     const result = await JournalRefereeManagementService.inviteReferee({
       submissionId: parseInt(submissionId),
       refereeUserId,
       managerUserId,
       relativeDueDateHrs,
+      expectedFormTemplateIds,
     });
 
     if (result.isErr()) {
@@ -37,7 +41,7 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
     const invite = result.value;
     return sendSuccess(
       res,
-      { invite: _.pick(invite, ['id', 'userId', 'submissionId', 'relativeDueDateHrs']) },
+      { invite: _.pick(invite, ['id', 'userId', 'submissionId', 'relativeDueDateHrs', 'expectedFormTemplateIds']) },
       'Referee invited successfully.',
     );
   } catch (error) {
