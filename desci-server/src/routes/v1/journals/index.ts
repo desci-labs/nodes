@@ -14,6 +14,7 @@ import { removeEditorController } from '../../../controllers/journals/management
 import { updateJournalController } from '../../../controllers/journals/management/update.js';
 import { updateEditorController } from '../../../controllers/journals/management/updateEditor.js';
 import { updateEditorRoleController } from '../../../controllers/journals/management/updateRole.js';
+import { getRefereeFormStatusController } from '../../../controllers/journals/referees/getRefereeFormStatus.js';
 import { invalidateRefereeAssignmentController } from '../../../controllers/journals/referees/invalidateRefereeAssignment.js';
 import { inviteRefereeController } from '../../../controllers/journals/referees/inviteReferee.js';
 import { refereeInviteDecisionController } from '../../../controllers/journals/referees/refereeInviteDecision.js';
@@ -309,6 +310,13 @@ router.post(
   '/:journalId/forms/response/:responseId/submit',
   [ensureUser, validateInputs(submitFormResponseSchema)],
   asyncHandler(submitFormResponseController),
+);
+
+// Referee form status
+router.get(
+  '/:journalId/submissions/:submissionId/referees/:assignmentId/form-status',
+  [ensureUser],
+  asyncHandler(getRefereeFormStatusController),
 );
 
 export default router;

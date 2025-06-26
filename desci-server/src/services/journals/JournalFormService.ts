@@ -1117,6 +1117,79 @@ function validateFieldValue(field: FormField, value: any): Result<void, Error> {
   return ok(undefined);
 }
 
+/**
+ * Get the form completion status for a referee assignment
+ */
+async function getRefereeFormStatus(refereeAssignmentId: number): Promise<
+  Result<
+    {
+      expectedTemplates: JournalFormTemplate[];
+      completedTemplateIds: number[];
+      pendingTemplateIds: number[];
+      formResponses: JournalFormResponse[];
+    },
+    Error
+  >
+> {
+  logger.trace({ refereeAssignmentId }, 'Getting referee form status');
+
+  try {
+    const assignment = await prisma.refereeAssignment.findUnique({
+      where: { id: refereeAssignmentId },
+      include: {
+        submission: {
+          include: {
+            journal: true,
+          },
+        },
+      },
+    });
+
+    if (!assignment) {
+      logger.warn({ refereeAssignmentId }, 'Referee assignment not found');
+      return err(new Error('Referee assignment not found'));
+    }
+
+    // Get expected templates
+    const expectedTemplates = await prisma.journalFormTemplate.findMany({
+      where: {
+        id: { in: assignment.expectedFormTemplateIds },
+        journalId: assignment.journalId,
+      },
+    });
+
+    // Get all form responses for this assignment
+    const formResponses = await prisma.journalFormResponse.findMany({
+      where: {
+        refereeAssignmentId,
+      },
+      include: {
+        template: true,
+      },
+    });
+
+    // Determine which templates have been completed
+    const completedTemplateIds = formResponses
+      .filter((response) => response.status === FormResponseStatus.SUBMITTED)
+      .map((response) => response.templateId);
+
+    // Determine which templates are still pending
+    const pendingTemplateIds = assignment.expectedFormTemplateIds.filter(
+      (templateId) => !completedTemplateIds.includes(templateId),
+    );
+
+    return ok({
+      expectedTemplates,
+      completedTemplateIds,
+      pendingTemplateIds,
+      formResponses,
+    });
+  } catch (error) {
+    logger.error({ error, refereeAssignmentId }, 'Failed to get referee form status');
+    return err(error instanceof Error ? error : new Error('Failed to get referee form status'));
+  }
+}
+
 export const JournalFormService = {
   createFormTemplate,
   updateFormTemplate,
@@ -1128,6 +1201,7 @@ export const JournalFormService = {
   getFormResponse,
   getSubmissionFormResponses,
   deleteFormTemplate,
+  getRefereeFormStatus,
 };
 
 export type {

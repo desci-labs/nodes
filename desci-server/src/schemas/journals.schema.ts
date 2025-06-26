@@ -212,6 +212,7 @@ export const inviteRefereeSchema = z.object({
   body: z.object({
     refereeUserId: z.number().int().positive(),
     relativeDueDateHrs: z.number().int().positive().optional(), // lets restric tthis further.
+    expectedFormTemplateIds: z.array(z.number().int().positive()).optional().default([]),
   }),
 });
 

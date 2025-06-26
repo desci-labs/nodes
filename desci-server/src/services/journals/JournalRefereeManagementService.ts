@@ -3,7 +3,6 @@ import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getRelativeTime } from '../../utils/clock.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
@@ -24,6 +23,7 @@ type InviteRefereeInput = {
   managerUserId: number; // Editor who is inviting the referee
   relativeDueDateHrs?: number;
   refereeEmail?: string; // If not an existing user.
+  expectedFormTemplateIds?: number[]; // Form templates the referee is expected to complete
 };
 
 /**
@@ -80,6 +80,21 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
 
     const token = crypto.randomUUID();
 
+    // Validate expected form templates if provided
+    if (data.expectedFormTemplateIds && data.expectedFormTemplateIds.length > 0) {
+      const validTemplates = await prisma.journalFormTemplate.findMany({
+        where: {
+          id: { in: data.expectedFormTemplateIds },
+          journalId: submission.journalId,
+          isActive: true,
+        },
+      });
+
+      if (validTemplates.length !== data.expectedFormTemplateIds.length) {
+        return err(new Error('One or more form templates are invalid or inactive'));
+      }
+    }
+
     const refereeInvite = await prisma.$transaction(async (tx) => {
       //   const relativeDueDateHrs = DEFAULT_REVIEW_DUE_DATE / (60 * 60 * 1000); // ms to hours conversion
       const invite = await tx.refereeInvite.create({
@@ -91,6 +106,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
           token,
           expiresAt: new Date(Date.now() + DEFAULT_INVITE_DUE_DATE),
           relativeDueDateHrs: data.relativeDueDateHrs,
+          expectedFormTemplateIds: data.expectedFormTemplateIds || [],
         },
       });
 
@@ -287,6 +303,7 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
       managerId: refereeInvite.invitedById,
       dueDateHrs: relativeDueDateHrs,
       journalId: submission.journalId,
+      expectedFormTemplateIds: refereeInvite.expectedFormTemplateIds,
     });
 
     try {
@@ -339,6 +356,7 @@ type AssignRefereeInput = {
   isReassignment?: boolean;
   dueDateHrs: number;
   journalId: number;
+  expectedFormTemplateIds?: number[]; // Form templates the referee is expected to complete
 };
 
 export async function assignReferee(data: AssignRefereeInput): Promise<Result<RefereeAssignment, Error>> {
@@ -377,6 +395,7 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
           ...(data.isReassignment ? { reassignedAt: new Date() } : {}), // Indicate if its a reassignment
           dueDate,
           journalId: data.journalId,
+          expectedFormTemplateIds: data.expectedFormTemplateIds || [],
         },
       }),
       prisma.journalEventLog.create({

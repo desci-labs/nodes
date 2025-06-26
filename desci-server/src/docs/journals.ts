@@ -27,6 +27,7 @@ import {
   getFormResponseSchema,
   saveFormResponseSchema,
   submitFormResponseSchema,
+  inviteRefereeSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -1494,6 +1495,126 @@ export const submitFormResponseOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Invite Referee
+export const inviteRefereeOperation: ZodOpenApiOperationObject = {
+  operationId: 'inviteReferee',
+  tags: ['Journals'],
+  summary: 'Invite a referee',
+  description: 'Invite a referee to review a submission. Can specify expected form templates.',
+  requestParams: {
+    path: z.object({
+      journalId: z.coerce.number(),
+      submissionId: z.coerce.number(),
+    }),
+  },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: inviteRefereeSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Referee invited successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            invite: z.object({
+              id: z.number(),
+              userId: z.number().nullable(),
+              submissionId: z.number(),
+              relativeDueDateHrs: z.number().nullable(),
+              expectedFormTemplateIds: z.array(z.number()),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid form template IDs or other validation error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Referee Form Status
+export const getRefereeFormStatusOperation: ZodOpenApiOperationObject = {
+  operationId: 'getRefereeFormStatus',
+  tags: ['Journals'],
+  summary: 'Get referee form status',
+  description:
+    'Get the form completion status for a referee assignment. Shows expected templates and completion progress.',
+  requestParams: {
+    path: z.object({
+      journalId: z.coerce.number(),
+      assignmentId: z.coerce.number(),
+    }),
+  },
+  responses: {
+    '200': {
+      description: 'Form status retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            expectedTemplates: z.array(
+              z.object({
+                id: z.number(),
+                name: z.string(),
+                description: z.string().nullable(),
+                version: z.number(),
+              }),
+            ),
+            completedTemplateIds: z.array(z.number()),
+            pendingTemplateIds: z.array(z.number()),
+            totalExpected: z.number(),
+            totalCompleted: z.number(),
+            formResponses: z.array(
+              z.object({
+                id: z.number(),
+                templateId: z.number(),
+                status: z.enum(['DRAFT', 'SUBMITTED']),
+                startedAt: z.string(),
+                submittedAt: z.string().nullable(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view this referee form status',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Referee assignment not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -1565,5 +1686,11 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/forms/response/{responseId}/submit': {
     post: submitFormResponseOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/referee/invite': {
+    post: inviteRefereeOperation,
+  },
+  '/v1/journals/{journalId}/referees/assignments/{assignmentId}/form-status': {
+    get: getRefereeFormStatusOperation,
   },
 };
