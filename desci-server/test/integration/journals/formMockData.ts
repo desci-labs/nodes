@@ -1,4 +1,4 @@
-import { FormStructure } from '../../../src/services/journals/JournalFormService.js';
+import { FormStructure } from '../../../src/schemas/journalsForm.schema.js';
 
 export const VALID_FORM_STRUCTURE: FormStructure = {
   sections: [
