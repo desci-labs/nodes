@@ -386,6 +386,18 @@ export const saveFormResponseSchema = z.object({
     fieldResponses: z.array(
       z.object({
         fieldId: z.string(),
+        fieldType: z.enum([
+          'TEXT',
+          'TEXTAREA',
+          'NUMBER',
+          'BOOLEAN',
+          'RADIO',
+          'CHECKBOX',
+          'SELECT',
+          'SCALE',
+          'RATING',
+          'DATE',
+        ]),
         value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
       }),
     ),
@@ -401,6 +413,18 @@ export const submitFormResponseSchema = z.object({
     fieldResponses: z.array(
       z.object({
         fieldId: z.string(),
+        fieldType: z.enum([
+          'TEXT',
+          'TEXTAREA',
+          'NUMBER',
+          'BOOLEAN',
+          'RADIO',
+          'CHECKBOX',
+          'SELECT',
+          'SCALE',
+          'RATING',
+          'DATE',
+        ]),
         value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
       }),
     ),

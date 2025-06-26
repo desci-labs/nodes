@@ -1,5 +1,4 @@
 import {
-  PrismaClient,
   EditorRole,
   FormResponseStatus,
   JournalFormTemplate,
@@ -10,7 +9,6 @@ import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
 
@@ -58,10 +56,48 @@ interface FormStructure {
   sections: FormSection[];
 }
 
-interface FormFieldResponse {
+interface BaseFormFieldResponse {
   fieldId: string;
-  value: any;
+  fieldType: FormFieldType;
 }
+
+interface TextFieldResponse extends BaseFormFieldResponse {
+  fieldType: 'TEXT' | 'TEXTAREA';
+  value: string;
+}
+
+interface NumberFieldResponse extends BaseFormFieldResponse {
+  fieldType: 'NUMBER' | 'SCALE' | 'RATING';
+  value: number;
+}
+
+interface BooleanFieldResponse extends BaseFormFieldResponse {
+  fieldType: 'BOOLEAN';
+  value: boolean;
+}
+
+interface SingleSelectFieldResponse extends BaseFormFieldResponse {
+  fieldType: 'RADIO' | 'SELECT';
+  value: string;
+}
+
+interface MultiSelectFieldResponse extends BaseFormFieldResponse {
+  fieldType: 'CHECKBOX';
+  value: string[];
+}
+
+interface DateFieldResponse extends BaseFormFieldResponse {
+  fieldType: 'DATE';
+  value: string; // ISO date string
+}
+
+type FormFieldResponse =
+  | TextFieldResponse
+  | NumberFieldResponse
+  | BooleanFieldResponse
+  | SingleSelectFieldResponse
+  | MultiSelectFieldResponse
+  | DateFieldResponse;
 
 interface CreateFormTemplateData {
   journalId: number;
@@ -497,6 +533,14 @@ async function saveFormResponse(
       return err(new Error('Cannot modify a submitted form response'));
     }
 
+    // Validate field response types
+    for (const fieldResponse of data.fieldResponses) {
+      const validationResult = validateFieldResponseType(fieldResponse);
+      if (validationResult.isErr()) {
+        return err(validationResult.error);
+      }
+    }
+
     // Convert field responses array to object for easier access
     const formData = convertFieldResponsesToObject(data.fieldResponses);
 
@@ -574,6 +618,14 @@ async function submitFormResponse(
 
     // Get template structure
     const templateStructure = response.template.structure as unknown as FormStructure;
+
+    // Validate field response types
+    for (const fieldResponse of data.fieldResponses) {
+      const typeValidationResult = validateFieldResponseType(fieldResponse);
+      if (typeValidationResult.isErr()) {
+        return err(typeValidationResult.error);
+      }
+    }
 
     // Validate all required fields are filled
     const formData = convertFieldResponsesToObject(data.fieldResponses);
@@ -880,6 +932,125 @@ function convertFieldResponsesToObject(fieldResponses: FormFieldResponse[]): Rec
 }
 
 /**
+ * Helper function to get the expected value type for a field type
+ */
+function getExpectedValueType(fieldType: FormFieldType): string {
+  switch (fieldType) {
+    case 'TEXT':
+    case 'TEXTAREA':
+    case 'RADIO':
+    case 'SELECT':
+    case 'DATE':
+      return 'string';
+    case 'NUMBER':
+    case 'SCALE':
+    case 'RATING':
+      return 'number';
+    case 'BOOLEAN':
+      return 'boolean';
+    case 'CHECKBOX':
+      return 'array';
+    default:
+      return 'unknown';
+  }
+}
+
+/**
+ * Validate that a field response value matches its field type
+ */
+function validateFieldResponseType(response: FormFieldResponse): Result<void, Error> {
+  const { fieldId, fieldType, value } = response;
+
+  switch (fieldType) {
+    case 'TEXT':
+    case 'TEXTAREA':
+    case 'RADIO':
+    case 'SELECT':
+      if (typeof value !== 'string') {
+        return err(new Error(`Field ${fieldId} expects a string value`));
+      }
+      break;
+
+    case 'DATE':
+      if (typeof value !== 'string') {
+        return err(new Error(`Field ${fieldId} expects a string value`));
+      }
+      // Validate ISO date format
+      if (isNaN(Date.parse(value))) {
+        return err(new Error(`Field ${fieldId} expects a valid date string`));
+      }
+      break;
+
+    case 'NUMBER':
+    case 'SCALE':
+    case 'RATING':
+      if (typeof value !== 'number') {
+        return err(new Error(`Field ${fieldId} expects a number value`));
+      }
+      break;
+
+    case 'BOOLEAN':
+      if (typeof value !== 'boolean') {
+        return err(new Error(`Field ${fieldId} expects a boolean value`));
+      }
+      break;
+
+    case 'CHECKBOX':
+      if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
+        return err(new Error(`Field ${fieldId} expects an array of strings`));
+      }
+      break;
+
+    default:
+      return err(new Error(`Unknown field type: ${fieldType}`));
+  }
+
+  return ok(undefined);
+}
+
+/**
+ * Type guard functions for field responses
+ */
+function isTextFieldResponse(response: FormFieldResponse): response is TextFieldResponse {
+  return response.fieldType === 'TEXT' || response.fieldType === 'TEXTAREA';
+}
+
+function isNumberFieldResponse(response: FormFieldResponse): response is NumberFieldResponse {
+  return response.fieldType === 'NUMBER' || response.fieldType === 'SCALE' || response.fieldType === 'RATING';
+}
+
+function isBooleanFieldResponse(response: FormFieldResponse): response is BooleanFieldResponse {
+  return response.fieldType === 'BOOLEAN';
+}
+
+function isSingleSelectFieldResponse(response: FormFieldResponse): response is SingleSelectFieldResponse {
+  return response.fieldType === 'RADIO' || response.fieldType === 'SELECT';
+}
+
+function isMultiSelectFieldResponse(response: FormFieldResponse): response is MultiSelectFieldResponse {
+  return response.fieldType === 'CHECKBOX';
+}
+
+function isDateFieldResponse(response: FormFieldResponse): response is DateFieldResponse {
+  return response.fieldType === 'DATE';
+}
+
+/**
+ * Helper function to create a map of field IDs to their types from the template structure
+ */
+function createFieldTypeMap(structure: FormStructure): Map<string, FormFieldType> {
+  const fieldTypeMap = new Map<string, FormFieldType>();
+
+  for (const section of structure.sections) {
+    for (const field of section.fields) {
+      fieldTypeMap.set(field.id, field.fieldType);
+    }
+  }
+
+  return fieldTypeMap;
+}
+
+/**
  * Helper function to validate required fields
  */
 function validateRequiredFields(structure: FormStructure, formData: Record<string, any>): Result<void, Error> {
@@ -965,6 +1136,23 @@ export type {
   FormField,
   FormFieldType,
   FormFieldResponse,
+  TextFieldResponse,
+  NumberFieldResponse,
+  BooleanFieldResponse,
+  SingleSelectFieldResponse,
+  MultiSelectFieldResponse,
+  DateFieldResponse,
   CreateFormTemplateData,
   UpdateFormTemplateData,
+  SubmitFormResponseData,
+};
+
+// Export type guards
+export {
+  isTextFieldResponse,
+  isNumberFieldResponse,
+  isBooleanFieldResponse,
+  isSingleSelectFieldResponse,
+  isMultiSelectFieldResponse,
+  isDateFieldResponse,
 };

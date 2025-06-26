@@ -1371,7 +1371,8 @@ export const saveFormResponseOperation: ZodOpenApiOperationObject = {
   operationId: 'saveFormResponse',
   tags: ['Journals'],
   summary: 'Save form response',
-  description: 'Save form response data (auto-save)',
+  description:
+    'Save form response data (auto-save). Each field response must include the fieldType to ensure type safety.',
   requestParams: { path: saveFormResponseSchema.shape.params },
   requestBody: {
     content: {
@@ -1434,7 +1435,8 @@ export const submitFormResponseOperation: ZodOpenApiOperationObject = {
   operationId: 'submitFormResponse',
   tags: ['Journals'],
   summary: 'Submit form response',
-  description: 'Submit a completed form response',
+  description:
+    'Submit a completed form response. Each field response must include the fieldType to ensure type safety and proper validation.',
   requestParams: { path: submitFormResponseSchema.shape.params },
   requestBody: {
     content: {
