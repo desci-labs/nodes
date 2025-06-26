@@ -9,6 +9,12 @@ import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import {
+  FormStructure,
+  FormStructureSchema,
+  createResponseSchema,
+  FormField,
+} from '../../schemas/journalsForm.schema.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
 
@@ -28,32 +34,11 @@ type FormFieldType =
   | 'RATING'
   | 'DATE';
 
-interface FormField {
-  id: string;
-  fieldType: FormFieldType;
-  name: string;
-  label: string;
-  description?: string;
-  required?: boolean;
-  validation?: {
-    minLength?: number;
-    maxLength?: number;
-    pattern?: string;
-    min?: number;
-    max?: number;
-  };
-  options?: Array<{ value: string; label: string }>;
-}
-
 interface FormSection {
   id: string;
   title: string;
   description?: string;
   fields: FormField[];
-}
-
-interface FormStructure {
-  sections: FormSection[];
 }
 
 interface BaseFormFieldResponse {
@@ -114,8 +99,14 @@ interface UpdateFormTemplateData {
   structure?: FormStructure;
 }
 
-interface SubmitFormResponseData {
-  fieldResponses: FormFieldResponse[];
+type FieldResponseValue =
+  | { fieldType: 'TEXT' | 'TEXTAREA' | 'DATE' | 'RADIO' | 'SELECT'; value: string }
+  | { fieldType: 'NUMBER' | 'RATING' | 'SCALE'; value: number }
+  | { fieldType: 'BOOLEAN'; value: boolean }
+  | { fieldType: 'CHECKBOX'; value: string[] };
+
+interface FormResponseData {
+  [key: string]: FieldResponseValue;
 }
 
 /**
@@ -157,10 +148,11 @@ async function createFormTemplate(
       return err(new Error('A template with this name already exists'));
     }
 
-    // Validate and prepare form structure
-    const validationResult = validateFormStructure(data.structure);
-    if (validationResult.isErr()) {
-      return err(validationResult.error);
+    // Validate form structure with Zod
+    const validationResult = FormStructureSchema.safeParse(data.structure);
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors.map((e) => e.message).join(', ');
+      return err(new Error(`Invalid form structure: ${errorMessage}`));
     }
 
     const newTemplate = await prisma.journalFormTemplate.create({
@@ -262,9 +254,10 @@ async function updateFormTemplate(
     };
 
     if (data.structure) {
-      const validationResult = validateFormStructure(data.structure);
-      if (validationResult.isErr()) {
-        return err(validationResult.error);
+      const validationResult = FormStructureSchema.safeParse(data.structure);
+      if (!validationResult.success) {
+        const errorMessage = validationResult.error.errors.map((e) => e.message).join(', ');
+        return err(new Error(`Invalid form structure: ${errorMessage}`));
       }
       updateData.structure = data.structure;
     }
@@ -503,7 +496,7 @@ async function getOrCreateFormResponse(
 async function saveFormResponse(
   userId: number,
   responseId: number,
-  data: SubmitFormResponseData,
+  data: FormResponseData,
 ): Promise<Result<JournalFormResponse, Error>> {
   logger.trace({ userId, responseId }, 'Saving form response');
 
@@ -533,22 +526,25 @@ async function saveFormResponse(
       return err(new Error('Cannot modify a submitted form response'));
     }
 
-    // Validate field response types
-    for (const fieldResponse of data.fieldResponses) {
-      const validationResult = validateFieldResponseType(fieldResponse);
-      if (validationResult.isErr()) {
-        return err(validationResult.error);
-      }
+    const templateStructure = response.template.structure as unknown as FormStructure;
+    const responseSchema = createResponseSchema(templateStructure);
+
+    // For saving, we allow partial data
+    const validationResult = responseSchema.partial().safeParse(data);
+
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      return err(new Error(`Invalid form data: ${errorMessage}`));
     }
 
-    // Convert field responses array to object for easier access
-    const formData = convertFieldResponsesToObject(data.fieldResponses);
+    // Update the response, merging with existing data
+    const existingData = (response.formData as Record<string, unknown>) || {};
+    const updatedFormData = { ...existingData, ...validationResult.data };
 
-    // Update the response
     const updatedResponse = await prisma.journalFormResponse.update({
       where: { id: responseId },
       data: {
-        formData,
+        formData: updatedFormData,
         updatedAt: new Date(),
       },
       include: {
@@ -556,11 +552,7 @@ async function saveFormResponse(
         RefereeAssignment: {
           include: {
             referee: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
+              select: { id: true, name: true, email: true },
             },
             submission: true,
           },
@@ -582,7 +574,7 @@ async function saveFormResponse(
 async function submitFormResponse(
   userId: number,
   responseId: number,
-  data: SubmitFormResponseData,
+  data: FormResponseData,
 ): Promise<Result<JournalFormResponse, Error>> {
   logger.trace({ userId, responseId }, 'Submitting form response');
 
@@ -618,20 +610,18 @@ async function submitFormResponse(
 
     // Get template structure
     const templateStructure = response.template.structure as unknown as FormStructure;
+    const responseSchema = createResponseSchema(templateStructure);
 
-    // Validate field response types
-    for (const fieldResponse of data.fieldResponses) {
-      const typeValidationResult = validateFieldResponseType(fieldResponse);
-      if (typeValidationResult.isErr()) {
-        return err(typeValidationResult.error);
-      }
-    }
+    const validationResult = responseSchema.safeParse(data);
 
-    // Validate all required fields are filled
-    const formData = convertFieldResponsesToObject(data.fieldResponses);
-    const validationResult = validateRequiredFields(templateStructure, formData);
-    if (validationResult.isErr()) {
-      return err(validationResult.error);
+    if (!validationResult.success) {
+      const issues = validationResult.error.flatten().fieldErrors;
+      const firstError = Object.values(issues)[0]?.[0] || 'Form submission is invalid';
+      return err(
+        new Error(firstError, {
+          cause: issues,
+        }),
+      );
     }
 
     // Save and submit - create the review if it doesn't exist
@@ -647,8 +637,8 @@ async function submitFormResponse(
       if (!review) {
         review = await tx.journalSubmissionReview.create({
           data: {
-            submissionId: response.RefereeAssignment.submissionId,
-            journalId: response.RefereeAssignment.journalId,
+            submissionId: response.RefereeAssignment!.submissionId,
+            journalId: response.RefereeAssignment!.journalId,
             refereeAssignmentId: response.refereeAssignmentId!,
             createdAt: new Date(),
           },
@@ -659,19 +649,18 @@ async function submitFormResponse(
       await tx.journalFormResponse.update({
         where: { id: responseId },
         data: {
-          formData,
+          formData: validationResult.data,
           status: FormResponseStatus.SUBMITTED,
           submittedAt: new Date(),
           reviewId: review.id,
         },
       });
 
-      // Log the event
       await JournalEventLogService.log({
-        journalId: response.RefereeAssignment.journalId,
+        journalId: response.RefereeAssignment!.journalId,
         action: JournalEventLogAction.REVIEW_SUBMITTED,
         userId,
-        submissionId: response.RefereeAssignment.submissionId,
+        submissionId: response.RefereeAssignment!.submissionId,
         details: {
           formResponseId: responseId,
           templateId: response.templateId,
@@ -861,263 +850,6 @@ async function deleteFormTemplate(userId: number, templateId: number): Promise<R
 }
 
 /**
- * Helper function to validate form structure
- */
-function validateFormStructure(structure: FormStructure): Result<void, Error> {
-  if (!structure.sections || structure.sections.length === 0) {
-    return err(new Error('Form must have at least one section'));
-  }
-
-  const fieldIds = new Set<string>();
-  const fieldNames = new Set<string>();
-  const sectionIds = new Set<string>();
-
-  for (const section of structure.sections) {
-    // Validate section
-    if (!section.id || !section.title) {
-      return err(new Error('Each section must have an id and title'));
-    }
-
-    if (sectionIds.has(section.id)) {
-      return err(new Error(`Duplicate section ID: ${section.id}`));
-    }
-    sectionIds.add(section.id);
-
-    if (!section.fields || section.fields.length === 0) {
-      return err(new Error(`Section "${section.title}" must have at least one field`));
-    }
-
-    // Validate fields in section
-    for (let i = 0; i < section.fields.length; i++) {
-      const field = section.fields[i];
-
-      // Generate ID if not provided
-      if (!field.id) {
-        field.id = `${section.id}_field_${Date.now()}_${i}`;
-      }
-
-      // Check for duplicate IDs
-      if (fieldIds.has(field.id)) {
-        return err(new Error(`Duplicate field ID: ${field.id}`));
-      }
-      fieldIds.add(field.id);
-
-      // Check for duplicate names
-      if (fieldNames.has(field.name)) {
-        return err(new Error(`Duplicate field name: ${field.name}`));
-      }
-      fieldNames.add(field.name);
-
-      // Validate field type specific requirements
-      if (field.fieldType === 'RADIO' || field.fieldType === 'CHECKBOX' || field.fieldType === 'SELECT') {
-        if (!field.options || field.options.length === 0) {
-          return err(new Error(`Field "${field.name}" requires options`));
-        }
-      }
-    }
-  }
-
-  return ok(undefined);
-}
-
-/**
- * Helper function to convert field responses array to object
- */
-function convertFieldResponsesToObject(fieldResponses: FormFieldResponse[]): Record<string, any> {
-  const formData: Record<string, any> = {};
-  for (const response of fieldResponses) {
-    formData[response.fieldId] = response.value;
-  }
-  return formData;
-}
-
-/**
- * Helper function to get the expected value type for a field type
- */
-function getExpectedValueType(fieldType: FormFieldType): string {
-  switch (fieldType) {
-    case 'TEXT':
-    case 'TEXTAREA':
-    case 'RADIO':
-    case 'SELECT':
-    case 'DATE':
-      return 'string';
-    case 'NUMBER':
-    case 'SCALE':
-    case 'RATING':
-      return 'number';
-    case 'BOOLEAN':
-      return 'boolean';
-    case 'CHECKBOX':
-      return 'array';
-    default:
-      return 'unknown';
-  }
-}
-
-/**
- * Validate that a field response value matches its field type
- */
-function validateFieldResponseType(response: FormFieldResponse): Result<void, Error> {
-  const { fieldId, fieldType, value } = response;
-
-  switch (fieldType) {
-    case 'TEXT':
-    case 'TEXTAREA':
-    case 'RADIO':
-    case 'SELECT':
-      if (typeof value !== 'string') {
-        return err(new Error(`Field ${fieldId} expects a string value`));
-      }
-      break;
-
-    case 'DATE':
-      if (typeof value !== 'string') {
-        return err(new Error(`Field ${fieldId} expects a string value`));
-      }
-      // Validate ISO date format
-      if (isNaN(Date.parse(value))) {
-        return err(new Error(`Field ${fieldId} expects a valid date string`));
-      }
-      break;
-
-    case 'NUMBER':
-    case 'SCALE':
-    case 'RATING':
-      if (typeof value !== 'number') {
-        return err(new Error(`Field ${fieldId} expects a number value`));
-      }
-      break;
-
-    case 'BOOLEAN':
-      if (typeof value !== 'boolean') {
-        return err(new Error(`Field ${fieldId} expects a boolean value`));
-      }
-      break;
-
-    case 'CHECKBOX':
-      if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
-        return err(new Error(`Field ${fieldId} expects an array of strings`));
-      }
-      break;
-
-    default:
-      return err(new Error(`Unknown field type: ${fieldType}`));
-  }
-
-  return ok(undefined);
-}
-
-/**
- * Type guard functions for field responses
- */
-function isTextFieldResponse(response: FormFieldResponse): response is TextFieldResponse {
-  return response.fieldType === 'TEXT' || response.fieldType === 'TEXTAREA';
-}
-
-function isNumberFieldResponse(response: FormFieldResponse): response is NumberFieldResponse {
-  return response.fieldType === 'NUMBER' || response.fieldType === 'SCALE' || response.fieldType === 'RATING';
-}
-
-function isBooleanFieldResponse(response: FormFieldResponse): response is BooleanFieldResponse {
-  return response.fieldType === 'BOOLEAN';
-}
-
-function isSingleSelectFieldResponse(response: FormFieldResponse): response is SingleSelectFieldResponse {
-  return response.fieldType === 'RADIO' || response.fieldType === 'SELECT';
-}
-
-function isMultiSelectFieldResponse(response: FormFieldResponse): response is MultiSelectFieldResponse {
-  return response.fieldType === 'CHECKBOX';
-}
-
-function isDateFieldResponse(response: FormFieldResponse): response is DateFieldResponse {
-  return response.fieldType === 'DATE';
-}
-
-/**
- * Helper function to create a map of field IDs to their types from the template structure
- */
-function createFieldTypeMap(structure: FormStructure): Map<string, FormFieldType> {
-  const fieldTypeMap = new Map<string, FormFieldType>();
-
-  for (const section of structure.sections) {
-    for (const field of section.fields) {
-      fieldTypeMap.set(field.id, field.fieldType);
-    }
-  }
-
-  return fieldTypeMap;
-}
-
-/**
- * Helper function to validate required fields
- */
-function validateRequiredFields(structure: FormStructure, formData: Record<string, any>): Result<void, Error> {
-  for (const section of structure.sections) {
-    for (const field of section.fields) {
-      if (field.required) {
-        const value = formData[field.id];
-        if (value === undefined || value === null || value === '') {
-          return err(new Error(`Required field "${field.label}" is missing`));
-        }
-
-        // Additional validation based on field type
-        if (field.validation) {
-          const validationResult = validateFieldValue(field, value);
-          if (validationResult.isErr()) {
-            return validationResult;
-          }
-        }
-      }
-    }
-  }
-  return ok(undefined);
-}
-
-/**
- * Helper function to validate field value against validation rules
- */
-function validateFieldValue(field: FormField, value: any): Result<void, Error> {
-  const validation = field.validation;
-  if (!validation) return ok(undefined);
-
-  switch (field.fieldType) {
-    case 'TEXT':
-    case 'TEXTAREA':
-      if (typeof value !== 'string') {
-        return err(new Error(`Field "${field.label}" must be a string`));
-      }
-      if (validation.minLength && value.length < validation.minLength) {
-        return err(new Error(`Field "${field.label}" must be at least ${validation.minLength} characters`));
-      }
-      if (validation.maxLength && value.length > validation.maxLength) {
-        return err(new Error(`Field "${field.label}" must be at most ${validation.maxLength} characters`));
-      }
-      if (validation.pattern && !new RegExp(validation.pattern).test(value)) {
-        return err(new Error(`Field "${field.label}" does not match the required pattern`));
-      }
-      break;
-
-    case 'NUMBER':
-    case 'RATING':
-    case 'SCALE':
-      if (typeof value !== 'number') {
-        return err(new Error(`Field "${field.label}" must be a number`));
-      }
-      if (validation.min !== undefined && value < validation.min) {
-        return err(new Error(`Field "${field.label}" must be at least ${validation.min}`));
-      }
-      if (validation.max !== undefined && value > validation.max) {
-        return err(new Error(`Field "${field.label}" must be at most ${validation.max}`));
-      }
-      break;
-  }
-
-  return ok(undefined);
-}
-
-/**
  * Get the form completion status for a referee assignment
  */
 async function getRefereeFormStatus(refereeAssignmentId: number): Promise<
@@ -1204,29 +936,4 @@ export const JournalFormService = {
   getRefereeFormStatus,
 };
 
-export type {
-  FormStructure,
-  FormSection,
-  FormField,
-  FormFieldType,
-  FormFieldResponse,
-  TextFieldResponse,
-  NumberFieldResponse,
-  BooleanFieldResponse,
-  SingleSelectFieldResponse,
-  MultiSelectFieldResponse,
-  DateFieldResponse,
-  CreateFormTemplateData,
-  UpdateFormTemplateData,
-  SubmitFormResponseData,
-};
-
-// Export type guards
-export {
-  isTextFieldResponse,
-  isNumberFieldResponse,
-  isBooleanFieldResponse,
-  isSingleSelectFieldResponse,
-  isMultiSelectFieldResponse,
-  isDateFieldResponse,
-};
+export type { CreateFormTemplateData, UpdateFormTemplateData, FormResponseData };

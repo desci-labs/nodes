@@ -2,11 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
 import { sendSuccess } from '../../../core/api.js';
+import { AuthenticatedRequest } from '../../../core/types.js';
 import { JournalFormService } from '../../../services/journals/JournalFormService.js';
 
-export const getFormResponseController = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getFormResponseController = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user.id;
     const { journalId, assignmentId, templateId } = req.params;
 
     const result = await JournalFormService.getOrCreateFormResponse(
