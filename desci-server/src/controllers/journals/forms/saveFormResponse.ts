@@ -46,7 +46,7 @@ export const saveFormResponseController = async (req: AuthenticatedRequest, res:
     const formSaveResult = result.value;
     return sendSuccess(
       res,
-      { saved: _.pick(formSaveResult, ['id', 'formId', 'createdAt', 'updatedAt', 'templateId', 'formData']) },
+      { saved: _.pick(formSaveResult, ['id', 'status', 'createdAt', 'updatedAt', 'templateId', 'formData']) },
       'Form response saved successfully',
     );
   } catch (error: any) {

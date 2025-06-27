@@ -14,10 +14,10 @@ export const submitFormResponseController = async (req: AuthenticatedRequest, re
     const userId = req.user.id;
     const { responseId } = req.params;
     const { fieldResponses } = req.body;
-
+    debugger;
     logger.info({ userId, responseId }, 'Submitting form response');
 
-    const result = await JournalFormService.submitFormResponse(userId, parseInt(responseId), { fieldResponses });
+    const result = await JournalFormService.submitFormResponse(userId, parseInt(responseId), fieldResponses);
 
     if (result.isErr()) {
       const error = result.error;

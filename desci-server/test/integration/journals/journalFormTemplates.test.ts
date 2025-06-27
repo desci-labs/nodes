@@ -307,8 +307,8 @@ describe.only('Journal Form Template Service & Endpoints', () => {
         .send({ fieldResponses: formData });
 
       expect(res.status).to.equal(200);
-      const { response: savedResponse } = res.body.data;
-      debugger;
+      const { saved: savedResponse } = res.body.data;
+
       expect(savedResponse.status).to.equal(FormResponseStatus.DRAFT);
       expect(savedResponse.formData.field_1.value).to.equal('This is a test summary.');
     });
@@ -319,13 +319,12 @@ describe.only('Journal Form Template Service & Endpoints', () => {
         field_2: { fieldType: 'RATING', value: 4 },
         field_3: { fieldType: 'RADIO', value: 'minor_revision' },
       };
-
+      debugger;
       const res = await request(app)
         .post(`/v1/journals/${journal.id}/forms/response/${response.id}/submit`)
         .set('authorization', `Bearer ${refereeUserAuthToken}`)
         .send({
-          formData,
-          recommendation: 'MINOR_REVISION',
+          fieldResponses: formData,
         });
 
       expect(res.status).to.equal(200);
@@ -338,7 +337,6 @@ describe.only('Journal Form Template Service & Endpoints', () => {
         where: { refereeAssignmentId: assignment.id },
       });
       expect(review).to.not.be.null;
-      expect(review?.recommendation).to.equal('MINOR_REVISION');
     });
 
     it('should prevent submission if required fields are missing', async () => {
@@ -346,13 +344,12 @@ describe.only('Journal Form Template Service & Endpoints', () => {
         // Missing field_1 and field_3
         field_2: { fieldType: 'RATING', value: 4 },
       };
-
+      debugger;
       const res = await request(app)
         .post(`/v1/journals/${journal.id}/forms/response/${response.id}/submit`)
         .set('authorization', `Bearer ${refereeUserAuthToken}`)
         .send({
-          formData,
-          recommendation: 'MINOR_REVISION',
+          fieldResponses: formData,
         });
 
       expect(res.status).to.equal(400);

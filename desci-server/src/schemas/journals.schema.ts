@@ -384,9 +384,9 @@ export const saveFormResponseSchema = z.object({
     responseId: z.coerce.number(),
   }),
   body: z.object({
-    fieldResponses: z.array(
+    fieldResponses: z.record(
+      z.string(),
       z.object({
-        fieldId: z.string(),
         fieldType: z.enum([
           'TEXT',
           'TEXTAREA',
@@ -411,9 +411,9 @@ export const submitFormResponseSchema = z.object({
     responseId: z.coerce.number(),
   }),
   body: z.object({
-    fieldResponses: z.array(
+    fieldResponses: z.record(
+      z.string(),
       z.object({
-        fieldId: z.string(),
         fieldType: z.enum([
           'TEXT',
           'TEXTAREA',

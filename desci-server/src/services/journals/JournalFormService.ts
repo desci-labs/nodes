@@ -496,10 +496,9 @@ async function getOrCreateFormResponse(
 async function saveFormResponse(
   userId: number,
   responseId: number,
-  data: FormResponseData,
+  data: { fieldResponses: FormResponseData },
 ): Promise<Result<JournalFormResponse, Error>> {
   logger.trace({ userId, responseId }, 'Saving form response');
-
   try {
     const response = await prisma.journalFormResponse.findUnique({
       where: { id: responseId },
@@ -530,7 +529,7 @@ async function saveFormResponse(
     const responseSchema = createResponseSchema(templateStructure);
 
     // For saving, we allow partial data
-    const validationResult = responseSchema.partial().safeParse(data);
+    const validationResult = responseSchema.partial().safeParse(data.fieldResponses);
 
     if (!validationResult.success) {
       const errorMessage = validationResult.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
