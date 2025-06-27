@@ -37,6 +37,8 @@ async function createSubmission(payload: { journalId: number; authorId: number; 
     },
   });
 
+  logger.trace({ existing }, 'Existing submission');
+
   if (existing) {
     // replace with error class from journals/core/errors.ts
     throw new ForbiddenError('Submission already exists');
@@ -107,28 +109,21 @@ async function getJournalSubmissions(payload: {
     take: payload.limit,
     select: {
       id: true,
-      assignedEditorId: true,
+      // assignedEditorId: true,
       dpid: true,
       version: true,
       status: true,
       submittedAt: true,
       acceptedAt: true,
       rejectedAt: true,
-      doiMintedAt: true,
-      doi: true,
-      author: {
+      node: {
         select: {
-          id: true,
-          name: true,
-          email: true,
-          orcid: true,
+          title: true,
         },
       },
-      assignedEditor: {
+      author: {
         select: {
-          id: true,
           name: true,
-          email: true,
           orcid: true,
         },
       },
@@ -151,26 +146,19 @@ export async function getAssociateEditorSubmissions(payload: {
     take: payload.limit,
     select: {
       id: true,
-      assignedEditorId: true,
       dpid: true,
       version: true,
       status: true,
       submittedAt: true,
       acceptedAt: true,
       rejectedAt: true,
-      doiMintedAt: true,
-      doi: true,
-      author: {
+      node: {
         select: {
-          id: true,
-          name: true,
-          email: true,
-          orcid: true,
+          title: true,
         },
       },
-      assignedEditor: {
+      author: {
         select: {
-          id: true,
           name: true,
           email: true,
           orcid: true,

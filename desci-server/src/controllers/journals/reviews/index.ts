@@ -45,11 +45,11 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
     return sendError(res, 'Submission is not in under review status', 400);
   }
 
-  const refereeId = req.user.id;
+  const refereeUserId = req.user.id;
 
   const isRefereeAssigned = await JournalRefereeManagementService.isRefereeAssignedToSubmission(
     submissionId,
-    refereeId,
+    refereeUserId,
     journalId,
   );
 
@@ -60,7 +60,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
   const existingReview = await checkRefereeSubmissionReview({
     journalId,
     submissionId,
-    refereeId,
+    refereeUserId,
   });
 
   if (existingReview.isOk() && existingReview.value !== null) {
@@ -70,7 +70,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
   const result = await saveReview({
     journalId,
     submissionId,
-    refereeId,
+    refereeUserId,
     update: {
       recommendation,
       editorFeedback,
@@ -133,11 +133,11 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
     return sendError(res, 'Submission is not in under review status', 400);
   }
 
-  const refereeId = req.user.id;
+  const refereeUserId = req.user.id;
 
   const isRefereeAssigned = await JournalRefereeManagementService.isRefereeAssignedToSubmission(
     submissionId,
-    refereeId,
+    refereeUserId,
     journalId,
   );
 
@@ -149,7 +149,7 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
     reviewId,
     journalId,
     submissionId,
-    refereeId,
+    refereeUserId,
     update: {
       recommendation,
       editorFeedback,
@@ -279,7 +279,7 @@ export const getSubmissionReviewsController = async (req: GetSubmissionReviewsRe
     journalId,
   );
   if (isReferee.isOk() && isReferee.value === true) {
-    const reviews = await getAllRefereeReviewsBySubmission({ submissionId, refereeId: userId });
+    const reviews = await getAllRefereeReviewsBySubmission({ submissionId, userId });
     return sendSuccess(res, reviews.isOk() ? reviews.value : []);
   }
 

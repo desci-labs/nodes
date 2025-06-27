@@ -48,15 +48,15 @@ async function isSubmissionReviewed(submissionId: number) {
 
 async function checkRefereeSubmissionReview({
   journalId,
-  refereeId,
+  refereeUserId,
   submissionId,
 }: {
   journalId: number;
-  refereeId: number;
+  refereeUserId: number;
   submissionId: number;
 }) {
   const review = await prisma.journalSubmissionReview.findFirst({
-    where: { journalId, submissionId, refereeAssignment: { refereeId } },
+    where: { journalId, submissionId, refereeAssignment: { userId: refereeUserId } },
     select: {
       id: true,
       refereeAssignmentId: true,
@@ -77,18 +77,18 @@ type SaveReviewUpdateFields = Pick<
 async function saveReview({
   journalId,
   submissionId,
-  refereeId,
+  refereeUserId,
   update,
   reviewId,
 }: {
   journalId: number;
   submissionId: number;
-  refereeId: number;
+  refereeUserId: number;
   update: SaveReviewUpdateFields;
   reviewId?: number;
 }) {
   const refereeAssignment = await prisma.refereeAssignment.findFirst({
-    where: { submissionId, refereeId, journalId },
+    where: { submissionId, journalId, userId: refereeUserId },
   });
 
   if (!refereeAssignment) {
@@ -164,18 +164,24 @@ async function submitReview({ reviewId, update }: { reviewId: number; update: Sa
 }
 
 // function to list referee reviews (refereeId)
-async function getRefereeReviewsByJournalId({ refereeId, journalId }: { refereeId: number; journalId: number }) {
+async function getRefereeReviewsByJournalId({
+  refereeUserId,
+  journalId,
+}: {
+  refereeUserId: number;
+  journalId: number;
+}) {
   // todo: check if referee is assigned to the journal
   const reviews = await prisma.journalSubmissionReview.findMany({
-    where: { journalId, refereeAssignment: { refereeId } },
+    where: { journalId, refereeAssignment: { userId: refereeUserId } },
   });
   return ok(reviews);
 }
 
-async function getAllRefereeReviews({ refereeId }: { refereeId: number }) {
+async function getAllRefereeReviews({ userId }: { userId: number }) {
   const reviews = await prisma.refereeAssignment.findMany({
     where: {
-      refereeId,
+      userId,
       // CompletedAssignment is only false if the referee drops out.
       OR: [{ completedAssignment: true }, { completedAssignment: null }],
     },
@@ -196,17 +202,11 @@ async function getAllRefereeReviews({ refereeId }: { refereeId: number }) {
   return ok(reviews);
 }
 
-async function getAllRefereeReviewsBySubmission({
-  refereeId,
-  submissionId,
-}: {
-  submissionId: number;
-  refereeId: number;
-}) {
+async function getAllRefereeReviewsBySubmission({ userId, submissionId }: { submissionId: number; userId: number }) {
   const reviews = await prisma.journalSubmissionReview.findMany({
     where: {
       refereeAssignment: {
-        refereeId,
+        userId,
         submissionId,
         OR: [{ completedAssignment: true }, { completedAssignment: null }],
       },

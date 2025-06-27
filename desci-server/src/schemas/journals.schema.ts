@@ -140,7 +140,7 @@ export const assignSubmissionToEditorSchema = z.object({
 export const getAuthorJournalSubmissionsSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal'),
-    authorId: z.coerce.number().describe('The ID of the author'),
+    // authorId: z.coerce.number().describe('The ID of the author'),
   }),
   query: z.object({
     limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
@@ -208,6 +208,7 @@ export const updateReviewSchema = z.object({
 export const inviteRefereeSchema = z.object({
   params: z.object({
     submissionId: z.string(),
+    journalId: z.string(),
   }),
   body: z.object({
     refereeUserId: z.number().int().positive(),
@@ -216,6 +217,10 @@ export const inviteRefereeSchema = z.object({
 });
 
 export const refereeInviteDecisionSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
   body: z.object({
     token: z.string(),
     decision: z.enum(['accept', 'decline']),
@@ -300,4 +305,10 @@ export const revisionActionSchema = z.object({
   body: z.object({
     decision: z.enum(['accept', 'reject']),
   }),
+});
+
+export const listRefereeAssignmentsSchema = z.object({
+  // params: z.object({
+  //   journalId: z.coerce.number(),
+  // }),
 });

@@ -453,12 +453,12 @@ describe('Journal Submission Service', () => {
     it('can view all their submissions', async () => {
       // Get author's submissions
       response = await request
-        .get(`/v1/journals/${journal.id}/my-submissions/${author.user.id}`)
+        .get(`/v1/journals/${journal.id}/my-submissions`)
         .set('authorization', `Bearer ${author.token}`);
       // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(200);
-      const submissions = response.body.data.submissions;
+      const submissions = response.body.data.data;
       expect(submissions).to.be.an('array');
       expect(submissions.length).to.equal(2);
       expect(submissions.every((s: any) => s.authorId === author.user.id)).to.be.true;
