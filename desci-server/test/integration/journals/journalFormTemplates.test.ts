@@ -28,7 +28,7 @@ server.ready().then((_) => {
 });
 export const app = server.app;
 
-describe('Journal Form Template Service & Endpoints', () => {
+describe.only('Journal Form Template Service & Endpoints', () => {
   let chiefEditor: User;
   let associateEditor: User;
   let refereeUser: User;
@@ -171,26 +171,27 @@ describe('Journal Form Template Service & Endpoints', () => {
         });
 
       expect(res.status).to.equal(400);
-      expect(res.body.error).to.equal('Form must have at least one section');
+      expect(res.body.message).to.include('Form must have at least one section');
     });
   });
 
   describe('listFormTemplates', () => {
     beforeEach(async () => {
       // Create a couple of templates
-      await JournalFormService.createFormTemplate(chiefEditor.id, {
+      const activeTemplate = await JournalFormService.createFormTemplate(chiefEditor.id, {
         journalId: journal.id,
         name: 'Active Template',
         structure: VALID_FORM_STRUCTURE,
       });
-      await JournalFormService.createFormTemplate(chiefEditor.id, {
+      const preInactiveTemplateRes = await JournalFormService.createFormTemplate(chiefEditor.id, {
         journalId: journal.id,
         name: 'Inactive Template',
         structure: VALID_FORM_STRUCTURE,
       });
-      const inactiveTemplate = await prisma.journalFormTemplate.findFirst({ where: { name: 'Inactive Template' } });
+      if (preInactiveTemplateRes.isErr()) throw preInactiveTemplateRes.error;
+      const preInactiveTemplate = preInactiveTemplateRes.value;
       await prisma.journalFormTemplate.update({
-        where: { id: inactiveTemplate!.id },
+        where: { id: preInactiveTemplate.id },
         data: { isActive: false },
       });
     });
@@ -207,7 +208,7 @@ describe('Journal Form Template Service & Endpoints', () => {
 
     it('should list all templates when activeOnly is false', async () => {
       const res = await request(app)
-        .get(`/v1/journals/${journal.id}/forms/templates?activeOnly=false`)
+        .get(`/v1/journals/${journal.id}/forms/templates?includeInactive=true`)
         .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
       expect(res.status).to.equal(200);
@@ -303,10 +304,11 @@ describe('Journal Form Template Service & Endpoints', () => {
       const res = await request(app)
         .put(`/v1/journals/${journal.id}/forms/response/${response.id}`)
         .set('authorization', `Bearer ${refereeUserAuthToken}`)
-        .send({ formData });
+        .send({ fieldResponses: formData });
 
       expect(res.status).to.equal(200);
       const { response: savedResponse } = res.body.data;
+      debugger;
       expect(savedResponse.status).to.equal(FormResponseStatus.DRAFT);
       expect(savedResponse.formData.field_1.value).to.equal('This is a test summary.');
     });

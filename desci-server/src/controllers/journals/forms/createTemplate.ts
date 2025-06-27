@@ -32,6 +32,10 @@ export const createFormTemplateController = async (req: AuthenticatedRequest, re
         return sendError(res, error.message, 403);
       }
 
+      if (error.message.includes('Form must have at least one section')) {
+        return sendError(res, error.message, 400);
+      }
+
       if (error.message.includes('already exists')) {
         return sendError(res, error.message, 400);
       }

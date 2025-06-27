@@ -13,7 +13,6 @@ export const listFormTemplatesController = async (req: AuthenticatedRequest, res
   try {
     const { journalId } = req.params;
     const { includeInactive } = req.query;
-
     logger.info({ journalId, includeInactive }, 'Listing form templates');
 
     const result = await JournalFormService.getJournalFormTemplates(parseInt(journalId), includeInactive === 'true');

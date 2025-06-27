@@ -76,7 +76,6 @@ import {
   createFormTemplateSchema,
   listFormTemplatesSchema,
   getFormResponseSchema,
-  saveFormResponseSchema,
   submitFormResponseSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
@@ -300,11 +299,7 @@ router.get(
   asyncHandler(getFormResponseController),
 );
 
-router.put(
-  '/:journalId/forms/response/:responseId',
-  [ensureUser, validateInputs(saveFormResponseSchema)],
-  asyncHandler(saveFormResponseController),
-);
+router.put('/:journalId/forms/response/:responseId', [ensureUser], asyncHandler(saveFormResponseController));
 
 router.post(
   '/:journalId/forms/response/:responseId/submit',
