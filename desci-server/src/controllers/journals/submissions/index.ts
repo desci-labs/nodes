@@ -74,7 +74,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     const editor = await JournalManagementService.getUserJournalRole(journalId, req.user.id);
     const role = editor.isOk() ? editor.value : undefined;
-    let submissions: Partial<JournalSubmission>[] = [];
+    let submissions;
 
     if (role === EditorRole.CHIEF_EDITOR) {
       submissions = await journalSubmissionService.getJournalSubmissions({
@@ -98,7 +98,13 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       });
     }
 
-    return sendSuccess(res, { submissions, meta: { count: submissions.length, limit, offset } });
+    const data: Partial<JournalSubmission>[] = submissions.map((submission) => ({
+      ...submission,
+      title: submission.node.title,
+      node: undefined,
+    }));
+    logger.trace({ data }, 'listJournalSubmissionsController');
+    return sendSuccess(res, { data, meta: { count: submissions.length, limit, offset } });
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve journal submissions', 500);
