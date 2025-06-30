@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import _ from 'lodash';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
@@ -43,7 +44,24 @@ export const submitFormResponseController = async (req: AuthenticatedRequest, re
     }
 
     const response = result.value;
-    return sendSuccess(res, { response }, 'Form response submitted successfully');
+    return sendSuccess(
+      res,
+      {
+        submitted: _.pick(response, [
+          'id',
+          'formId',
+          'refereeAssignmentId',
+          'reviewId',
+          'createdAt',
+          'updatedAt',
+          'submittedAt',
+          'templateId',
+          'status',
+          'formData',
+        ]),
+      },
+      'Form response submitted successfully',
+    );
   } catch (error: any) {
     logger.error({ error, userId: req.user.id }, 'Unhandled error in submitFormResponseController');
     return sendError(res, 'An unexpected error occurred', 500);
