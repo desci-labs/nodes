@@ -15,14 +15,14 @@ export const submitFormResponseController = async (req: AuthenticatedRequest, re
     const userId = req.user.id;
     const { responseId } = req.params;
     const { fieldResponses } = req.body;
-    debugger;
+
     logger.info({ userId, responseId }, 'Submitting form response');
 
     const result = await JournalFormService.submitFormResponse(userId, parseInt(responseId), fieldResponses);
 
     if (result.isErr()) {
-      const error = result.error;
-      logger.error({ error, userId }, 'Failed to submit form response');
+      const error = result.error as Error & { cause?: any };
+      logger.error({ error, userId, cause: error.cause }, 'Failed to submit form response');
 
       if (error.message.includes('not found')) {
         return sendError(res, error.message, 404);
@@ -36,8 +36,9 @@ export const submitFormResponseController = async (req: AuthenticatedRequest, re
         return sendError(res, error.message, 400);
       }
 
-      if (error.message.includes('Required field')) {
-        return sendError(res, error.message, 400);
+      // Handle validation errors from the service
+      if (error.cause) {
+        return sendError(res, error.message, 400, error.cause);
       }
 
       return sendError(res, 'Failed to submit form response', 500);

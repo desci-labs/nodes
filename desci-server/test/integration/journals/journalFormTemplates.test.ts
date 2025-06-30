@@ -319,7 +319,7 @@ describe.only('Journal Form Template Service & Endpoints', () => {
         field_2: { fieldType: 'RATING', value: 4 },
         field_3: { fieldType: 'RADIO', value: 'minor_revision' },
       };
-      debugger;
+      // debugger;
       const res = await request(app)
         .post(`/v1/journals/${journal.id}/forms/response/${response.id}/submit`)
         .set('authorization', `Bearer ${refereeUserAuthToken}`)
@@ -328,7 +328,8 @@ describe.only('Journal Form Template Service & Endpoints', () => {
         });
 
       expect(res.status).to.equal(200);
-      const { response: submittedResponse } = res.body.data;
+      const { submitted: submittedResponse } = res.body.data;
+      // debugger;
       expect(submittedResponse.status).to.equal(FormResponseStatus.SUBMITTED);
       expect(submittedResponse.submittedAt).to.not.be.null;
 
@@ -344,7 +345,7 @@ describe.only('Journal Form Template Service & Endpoints', () => {
         // Missing field_1 and field_3
         field_2: { fieldType: 'RATING', value: 4 },
       };
-      debugger;
+      // debugger;
       const res = await request(app)
         .post(`/v1/journals/${journal.id}/forms/response/${response.id}/submit`)
         .set('authorization', `Bearer ${refereeUserAuthToken}`)
@@ -353,8 +354,10 @@ describe.only('Journal Form Template Service & Endpoints', () => {
         });
 
       expect(res.status).to.equal(400);
-      expect(res.body.error).to.equal('Form submission is invalid');
-      expect(res.body.issues[0].message).to.equal('field_1 is required');
+      expect(res.body.message).to.include('Invalid inputs');
+      const errors = res.body.errors;
+      const firstField = errors['field_1'];
+      expect(firstField).to.contain('Required');
     });
   });
 });

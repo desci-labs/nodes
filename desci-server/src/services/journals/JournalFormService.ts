@@ -532,8 +532,14 @@ async function saveFormResponse(
     const validationResult = responseSchema.partial().safeParse(data.fieldResponses);
 
     if (!validationResult.success) {
-      const errorMessage = validationResult.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-      return err(new Error(`Invalid form data: ${errorMessage}`));
+      const issues = validationResult.error.flatten().fieldErrors;
+      const errsJoined = validationResult.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      const errMsg = 'Invalid inputs: ' + errsJoined || 'Invalid form data';
+      return err(
+        new Error(errMsg, {
+          cause: issues,
+        }),
+      );
     }
 
     // Update the response, merging with existing data
@@ -615,9 +621,10 @@ async function submitFormResponse(
 
     if (!validationResult.success) {
       const issues = validationResult.error.flatten().fieldErrors;
-      const firstError = Object.values(issues)[0]?.[0] || 'Form submission is invalid';
+      const errsJoined = validationResult.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      const errMsg = 'Invalid inputs: ' + errsJoined || 'Form submission is invalid';
       return err(
-        new Error(firstError, {
+        new Error(errMsg, {
           cause: issues,
         }),
       );
