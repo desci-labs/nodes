@@ -81,6 +81,16 @@ export const getUserConsent = async (userId?: number) => {
   });
 };
 
+export const getUserQuestionnaireSubmitted = async (userId?: number) => {
+  logger.info({ fn: 'getUserQuestionnaireSubmitted', userId }, 'interactionLog::getUserQuestionnaireSubmitted');
+  return await prisma.interactionLog.findFirst({
+    where: {
+      userId,
+      action: ActionType.SUBMIT_QUESTIONNAIRE,
+    },
+  });
+};
+
 export const getUserPublishConsent = async (userId?: number) => {
   logger.info({ fn: 'getUserPublishConsent', userId }, 'interactionLog::getUserPublishConsent');
   return await prisma.interactionLog.findMany({
