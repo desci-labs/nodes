@@ -89,7 +89,7 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.55.0
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.55.1
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null
@@ -223,14 +223,6 @@ spec:
     App: CeramicReconDev
     statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
   ports:
-    # - port: 4101
-    #   name: swarm-tcp
-    #   protocol: TCP
-    #   targetPort: swarm-tcp
-    # - port: 4102
-    #   name: swarm-udp
-    #   protocol: UDP
-    #   targetPort: swarm-udp
     - port: 5102
       name: flight-sql
       targetPort: flight-sql
@@ -240,25 +232,6 @@ spec:
     - port: 9465
       name: one-metrics
       targetPort: one-metrics
-# ---
-# apiVersion: v1
-# kind: Service
-# metadata:
-#   name: ceramic-recon-dev-0-public
-# spec:
-#   type: LoadBalancer
-#   selector:
-#     App: CeramicReconDev
-#     statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
-#   ports:
-#     - port: 4101
-#       name: swarm-tcp
-#       protocol: TCP
-#       targetPort: swarm-tcp
-#     - port: 4102
-#       name: swarm-udp
-#       protocol: UDP
-#       targetPort: swarm-udp
 ---
 apiVersion: v1
 kind: Service
@@ -299,3 +272,30 @@ spec:
       protocol: TCP
       port: 5102
       targetPort: 5102
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ceramic-recon-dev-rpc-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: 'ip'
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /ceramic/events
+        pathType: Prefix
+        backend:
+          service:
+            name: ceramic-recon-dev-0-internal
+            port:
+              number: 5101
+      - path: /ceramic/streams
+        pathType: Prefix
+        backend:
+          service:
+            name: ceramic-recon-dev-0-internal
+            port:
+              number: 5101
