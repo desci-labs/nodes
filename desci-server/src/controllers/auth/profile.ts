@@ -3,26 +3,29 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
-import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
+import { getUserConsent, getUserQuestionnaireSubmitted, saveInteraction } from '../../services/interactionLog.js';
 
 export const profile = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
-  const wallets = await prisma.wallet.findMany({
-    where: { userId: user.id },
-  });
 
-  const organization = await prisma.userOrganizations.findMany({
-    where: { userId: user.id },
-    include: { organization: true },
-  });
-  // walletAddress: user.walletAddress, orcid: user.orcid
+  const [wallets, userOrganizations, consent, questionnaireSubmitted] = await Promise.all([
+    prisma.wallet.findMany({ where: { userId: user.id } }),
+    prisma.userOrganizations.findMany({
+      where: { userId: user.id },
+      include: { organization: true },
+    }),
+    getUserConsent(user.id),
+    getUserQuestionnaireSubmitted(user.id),
+  ]);
+
   const extra = {
     profile: {
       name: user.name,
       googleScholarUrl: user.googleScholarUrl,
       orcid: user.orcid,
-      userOrganization: organization.map((org) => org.organization),
-      consent: !!(await getUserConsent(user.id)),
+      userOrganization: userOrganizations.map((org) => org.organization),
+      consent: !!consent,
+      questionnaireSubmitted: !!questionnaireSubmitted,
       notificationSettings: user.notificationSettings || {},
     },
   };

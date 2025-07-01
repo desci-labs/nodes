@@ -28,6 +28,7 @@ import {
   getUserSubmissionsOperation,
   updateSubmissionStatusOperation,
 } from './submissions.js';
+import { userPaths } from './users.js';
 
 export const analyticsPaths = {
   '/v1/admin/analytics': {
@@ -126,6 +127,7 @@ export const openaiDocumentation = createDocument({
     ...submissionPaths,
     ...communityPaths,
     ...authorPaths,
+    ...userPaths,
     ...searchPaths,
     ...doiPaths,
     ...openAlexPaths,
