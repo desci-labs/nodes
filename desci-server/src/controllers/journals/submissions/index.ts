@@ -1,4 +1,4 @@
-import { EditorRole, JournalEventLogAction, JournalSubmission, SubmissionStatus } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, JournalSubmission, Prisma, SubmissionStatus } from '@prisma/client';
 import { Response } from 'express';
 
 import { prisma } from '../../../client.js';
@@ -67,35 +67,88 @@ export const createJournalSubmissionController = async (req: CreateSubmissionReq
 
 type ListJournalSubmissionsRequest = ValidatedRequest<typeof listJournalSubmissionsSchema, AuthenticatedRequest>;
 
+const statusMap: Record<string, SubmissionStatus[]> = {
+  new: [SubmissionStatus.SUBMITTED],
+  assigned: [SubmissionStatus.UNDER_REVIEW, SubmissionStatus.REVISION_REQUESTED],
+  under_review: [SubmissionStatus.UNDER_REVIEW],
+  reviewed: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+  under_revision: [SubmissionStatus.REVISION_REQUESTED],
+} as const;
+
 export const listJournalSubmissionsController = async (req: ListJournalSubmissionsRequest, res: Response) => {
   try {
     const { journalId } = req.validatedData.params;
-    const { limit, offset } = req.validatedData.query;
+    const { limit, offset, status, startDate, endDate, assignedToMe, sortBy, sortOrder } = req.validatedData.query;
 
     const editor = await JournalManagementService.getUserJournalRole(journalId, req.user.id);
     const role = editor.isOk() ? editor.value : undefined;
     let submissions;
 
+    const filter: Prisma.JournalSubmissionWhereInput = {
+      journalId,
+      // status: { in: statusMap[status] },
+    };
+
+    if (status) {
+      filter.status = { in: statusMap[status] };
+    }
+
+    if (assignedToMe) {
+      filter.assignedEditorId = req.user.id;
+    }
+
+    if (startDate) {
+      filter.submittedAt = { gte: startDate };
+
+      if (endDate) {
+        filter.submittedAt = { lte: endDate };
+      }
+    }
+
+    let orderBy: Prisma.JournalSubmissionOrderByWithRelationInput;
+    if (sortBy) {
+      if (sortBy === 'newest') {
+        orderBy = {
+          submittedAt: sortOrder,
+        };
+      } else if (sortBy === 'oldest') {
+        orderBy = {
+          submittedAt: sortOrder,
+        };
+      } else if (sortBy === 'title') {
+        orderBy = {
+          node: {
+            title: sortOrder,
+          },
+        };
+      }
+      // TODO: order by impact
+    }
+
+    logger.trace({ filter, orderBy, offset, limit }, 'listJournalSubmissionsController::filter');
+
     if (role === EditorRole.CHIEF_EDITOR) {
-      submissions = await journalSubmissionService.getJournalSubmissions({
-        journalId,
-        limit,
-        offset,
-      });
+      submissions = await journalSubmissionService.getJournalSubmissions(journalId, filter, orderBy, offset, limit);
     } else if (role === EditorRole.ASSOCIATE_EDITOR) {
-      submissions = await journalSubmissionService.getAssociateEditorSubmissions({
+      const assignedEditorId = req.user.id;
+      submissions = await journalSubmissionService.getAssociateEditorSubmissions(
         journalId,
-        assignedEditorId: req.user.id,
-        limit,
+        assignedEditorId,
+        filter,
+        orderBy,
         offset,
-      });
+        limit,
+      );
     } else {
-      submissions = await journalSubmissionService.getJournalSubmissions({
+      submissions = await journalSubmissionService.getJournalSubmissions(
         journalId,
-        limit,
+        {
+          status: SubmissionStatus.ACCEPTED,
+        },
+        orderBy,
         offset,
-        filter: [SubmissionStatus.ACCEPTED],
-      });
+        limit,
+      );
     }
 
     const data: Partial<JournalSubmission>[] = submissions.map((submission) => ({
@@ -269,7 +322,7 @@ export const rejectSubmissionController = async (req: RejectSubmissionRequest, r
   const { comment } = req.validatedData.body;
 
   // check if journal and submission are valid.
-  await journalSubmissionService.rejectSubmission({ submissionId, editorId: req.user.id });
+  const rejectedSubmission = await journalSubmissionService.rejectSubmission({ submissionId, editorId: req.user.id });
 
   // LOG the event
   await JournalEventLogService.log({
@@ -284,13 +337,7 @@ export const rejectSubmissionController = async (req: RejectSubmissionRequest, r
 
   try {
     // Notification logic
-    const submission = await prisma.journalSubmission.findUnique({
-      where: { id: submissionId },
-      include: {
-        journal: true,
-        author: true,
-      },
-    });
+    const submission = rejectedSubmission;
 
     const assignedEditor = await prisma.journalEditor.findUnique({
       where: { userId_journalId: { userId: submission.assignedEditorId, journalId: submission.journalId } },

@@ -1,4 +1,4 @@
-import { EditorRole, JournalEventLogAction, SubmissionStatus } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, Prisma, SubmissionStatus } from '@prisma/client';
 import _ from 'lodash';
 import { err, ok, Result } from 'neverthrow';
 
@@ -21,6 +21,7 @@ import {
 import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
+import { JournalManagementService } from './JournalManagementService.js';
 
 // import { JournalEventLogService } from './JournalEventLogService.js';
 // import { AuthFailureError, ForbiddenError } from '../../core/ApiError.js';
@@ -94,19 +95,18 @@ async function getAuthorSubmissions(payload: { journalId: number; authorId: numb
   });
 }
 
-async function getJournalSubmissions(payload: {
-  journalId: number;
-  limit: number;
-  offset: number;
-  filter?: SubmissionStatus[] | undefined;
-}) {
+async function getJournalSubmissions(
+  journalId: number,
+  filter: Prisma.JournalSubmissionWhereInput,
+  orderBy: Prisma.JournalSubmissionOrderByWithRelationInput,
+  offset: number,
+  limit: number,
+) {
   return await prisma.journalSubmission.findMany({
-    where: {
-      journalId: payload.journalId,
-      ...(payload.filter && { status: { in: payload.filter } }),
-    },
-    skip: payload.offset,
-    take: payload.limit,
+    where: { journalId, ...filter },
+    orderBy,
+    skip: offset,
+    take: limit,
     select: {
       id: true,
       // assignedEditorId: true,
@@ -131,19 +131,24 @@ async function getJournalSubmissions(payload: {
   });
 }
 
-export async function getAssociateEditorSubmissions(payload: {
-  assignedEditorId: number;
-  journalId: number;
-  limit: number;
-  offset: number;
-}) {
+export async function getAssociateEditorSubmissions(
+  journalId: number,
+  assignedEditorId: number,
+  filter: Prisma.JournalSubmissionWhereInput,
+  orderBy: Prisma.JournalSubmissionOrderByWithRelationInput,
+  offset: number,
+  limit: number,
+) {
   return await prisma.journalSubmission.findMany({
     where: {
-      journalId: payload.journalId,
-      OR: [{ assignedEditorId: payload.assignedEditorId }, { status: SubmissionStatus.ACCEPTED }],
+      ...filter,
+      journalId,
+      assignedEditorId,
+      // OR: [{ assignedEditorId }, { status: SubmissionStatus.ACCEPTED }],
     },
-    skip: payload.offset,
-    take: payload.limit,
+    orderBy,
+    skip: offset,
+    take: limit,
     select: {
       id: true,
       dpid: true,
@@ -326,8 +331,18 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
     where: { id: submissionId },
   });
 
-  if (!submission || submission.assignedEditorId !== editorId) {
+  const editorJournalRole = await JournalManagementService.getUserJournalRole(submission.journalId, editorId);
+
+  if (!submission) {
     throw new NotFoundError('Submission not found');
+  }
+
+  const isEditor = editorJournalRole.isOk();
+  const editorRole = isEditor ? editorJournalRole.value : undefined;
+  const isEditorAssigned = submission.assignedEditorId === editorId;
+  logger.trace({ isEditor, isEditorAssigned, editorRole }, 'rejectSubmission::isEditor');
+  if (!isEditorAssigned && !(isEditor && editorRole === EditorRole.CHIEF_EDITOR)) {
+    throw new ForbiddenError('You are not authorized to reject this submission');
   }
 
   if (submission.status === SubmissionStatus.ACCEPTED) {
@@ -345,10 +360,9 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
       rejectedAt: new Date(),
       acceptedAt: null, // reset acceptedAt to null
     },
-    select: {
-      id: true,
-      status: true,
-      rejectedAt: true,
+    include: {
+      journal: true,
+      author: true,
     },
   });
 }

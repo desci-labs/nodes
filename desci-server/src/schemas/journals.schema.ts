@@ -124,6 +124,24 @@ export const listJournalSubmissionsSchema = z.object({
   query: z.object({
     limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
     offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
+    status: z
+      .enum(['new', 'assigned', 'under_review', 'reviewed', 'under_revision'])
+      .optional()
+      .describe('The status of the submissions to return'),
+    startDate: z.coerce.date().optional().describe('The start date of the submissions to return'),
+    endDate: z.coerce.date().optional().describe('The end date of the submissions to return'),
+    assignedToMe: z.coerce
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('If true, only submissions assigned to the current user as an editor will be returned'),
+    sortBy: z
+      .enum(['newest', 'oldest', 'title', 'impact'])
+      .optional()
+      .default('newest')
+      .describe('The field to sort the submissions by'),
+    sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('The order to sort the submissions by'),
+    impact: z.enum(['high', 'medium', 'low']).optional().describe('The impact of the submissions to return'),
   }),
 });
 
