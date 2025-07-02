@@ -58,9 +58,13 @@ const FormSectionSchema = z.object({
   fields: z.array(RefinedFormFieldSchema).min(1, 'Each section must have at least one field.'),
 });
 
+export const CURRENT_FORM_STRUCTURE_VERSION = 'journal-forms-v1.0.0';
+export const KnownFormStructureVersions = { 'journal-forms-v1.0.0': true };
+
 // Schema for the entire form structure
 export const FormStructureSchema = z
   .object({
+    formStructureVersion: z.string().default(CURRENT_FORM_STRUCTURE_VERSION),
     sections: z.array(FormSectionSchema).min(1, 'Form must have at least one section.'),
   })
   .superRefine((structure, ctx) => {

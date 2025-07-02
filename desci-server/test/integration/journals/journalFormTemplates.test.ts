@@ -337,6 +337,30 @@ describe.only('Journal Form Template Service & Endpoints', () => {
       expect(res.status).to.equal(404);
       expect(res.body.message).to.equal('Template not found in this journal');
     });
+
+    it('should enforce server-controlled formStructureVersion regardless of user input', async () => {
+      // Try to create a template with a different version
+      const userStructure = {
+        ...VALID_FORM_STRUCTURE,
+        formStructureVersion: 'user-controlled-v99.0.0', // User tries to override
+      };
+
+      const res = await request(app)
+        .post(`/v1/journals/${journal.id}/forms/templates`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          name: 'Version Test Template',
+          description: 'Testing version control',
+          structure: userStructure,
+        });
+
+      expect(res.status).to.equal(200);
+      const { template: createdTemplate } = res.body.data;
+
+      // Verify the server overwrote the user's version
+      expect(createdTemplate.structure.formStructureVersion).to.equal('journal-forms-v1.0.0');
+      expect(createdTemplate.structure.formStructureVersion).to.not.equal('user-controlled-v99.0.0');
+    });
   });
 
   describe('getOrCreateFormResponse', () => {

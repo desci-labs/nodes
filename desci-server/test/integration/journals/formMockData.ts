@@ -1,6 +1,7 @@
 import { FormStructure } from '../../../src/schemas/journalsForm.schema.js';
 
 export const VALID_FORM_STRUCTURE: FormStructure = {
+  formStructureVersion: 'journal-forms-v1.0.0',
   sections: [
     {
       id: 'section_1',

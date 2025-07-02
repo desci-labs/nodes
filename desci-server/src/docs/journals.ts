@@ -1232,7 +1232,10 @@ export const createFormTemplateOperation: ZodOpenApiOperationObject = {
               description: z.string().nullable(),
               version: z.number(),
               isActive: z.boolean(),
-              structure: z.any(),
+              structure: z.object({
+                formStructureVersion: z.string(),
+                sections: z.array(z.any()),
+              }),
               createdById: z.number(),
               createdAt: z.string(),
               updatedAt: z.string(),
@@ -1298,7 +1301,10 @@ export const listFormTemplatesOperation: ZodOpenApiOperationObject = {
                     description: z.string().nullable(),
                     version: z.number(),
                     isActive: z.boolean(),
-                    structure: z.any(),
+                    structure: z.object({
+                      formStructureVersion: z.string(),
+                      sections: z.array(z.any()),
+                    }),
                     createdById: z.number(),
                     createdAt: z.string(),
                     updatedAt: z.string(),
@@ -1351,7 +1357,10 @@ export const getFormTemplateOperation: ZodOpenApiOperationObject = {
               description: z.string().nullable(),
               version: z.number(),
               isActive: z.boolean(),
-              structure: z.any(),
+              structure: z.object({
+                formStructureVersion: z.string(),
+                sections: z.array(z.any()),
+              }),
               createdById: z.number(),
               updatedAt: z.string(),
               createdBy: z.object({

@@ -16,6 +16,7 @@ import {
   FormStructureSchema,
   createResponseSchema,
   FormField,
+  CURRENT_FORM_STRUCTURE_VERSION,
 } from '../../schemas/journalsForm.schema.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
@@ -121,6 +122,18 @@ interface FormResponseData {
 }
 
 /**
+ * Sanitizes form structure to ensure server controls the formStructureVersion
+ * @param userStructure The structure provided by the user
+ * @returns Sanitized structure with server-controlled version
+ */
+function sanitizeFormStructure(userStructure: FormStructure): FormStructure {
+  return {
+    ...userStructure,
+    formStructureVersion: CURRENT_FORM_STRUCTURE_VERSION, // Always use server-controlled version
+  };
+}
+
+/**
  * Create a new form template for a journal
  * Only chief editors can create form templates
  */
@@ -159,8 +172,11 @@ async function createFormTemplate(
       return err(new Error('A template with this name already exists'));
     }
 
+    // Sanitize structure to ensure server controls the version
+    const sanitizedStructure = sanitizeFormStructure(data.structure);
+
     // Validate form structure with Zod
-    const validationResult = FormStructureSchema.safeParse(data.structure);
+    const validationResult = FormStructureSchema.safeParse(sanitizedStructure);
     if (!validationResult.success) {
       const errorMessage = validationResult.error.errors.map((e) => e.message).join(', ');
       return err(new Error(`Invalid form structure: ${errorMessage}`));
@@ -173,7 +189,7 @@ async function createFormTemplate(
         name: data.name,
         description: data.description,
         createdById: userId,
-        structure: data.structure as unknown as any,
+        structure: sanitizedStructure as unknown as any,
         version: data.version || 1,
       },
       include: {
@@ -221,8 +237,11 @@ async function createFormTemplateVersion(
       return err(new Error('Only chief editors can create form templates'));
     }
 
+    // Sanitize structure to ensure server controls the version
+    const sanitizedStructure = sanitizeFormStructure(data.structure);
+
     // Validate form structure with Zod
-    const validationResult = FormStructureSchema.safeParse(data.structure);
+    const validationResult = FormStructureSchema.safeParse(sanitizedStructure);
     if (!validationResult.success) {
       const errorMessage = validationResult.error.errors.map((e) => e.message).join(', ');
       return err(new Error(`Invalid form structure: ${errorMessage}`));
@@ -235,7 +254,7 @@ async function createFormTemplateVersion(
         name: data.name,
         description: data.description,
         createdById: userId,
-        structure: data.structure as unknown as any,
+        structure: sanitizedStructure as unknown as any,
         version: data.version,
       },
       include: {
@@ -312,12 +331,13 @@ async function updateFormTemplate(
 
       // Create new version with incremented version number
       const currentStructure = template.structure as unknown as FormStructure;
+      const structureToUse = data.structure || currentStructure;
       const newTemplateResult = await createFormTemplateVersion(userId, {
         formUuid: template.formUuid, // Use same formUuid for new version
         journalId: template.journalId,
         name: data.name || template.name,
         description: data.description || template.description,
-        structure: data.structure || currentStructure,
+        structure: structureToUse,
         version: template.version + 1,
       });
 
@@ -332,12 +352,15 @@ async function updateFormTemplate(
     };
 
     if (data.structure) {
-      const validationResult = FormStructureSchema.safeParse(data.structure);
+      // Sanitize structure to ensure server controls the version
+      const sanitizedStructure = sanitizeFormStructure(data.structure);
+
+      const validationResult = FormStructureSchema.safeParse(sanitizedStructure);
       if (!validationResult.success) {
         const errorMessage = validationResult.error.errors.map((e) => e.message).join(', ');
         return err(new Error(`Invalid form structure: ${errorMessage}`));
       }
-      updateData.structure = data.structure;
+      updateData.structure = sanitizedStructure;
     }
 
     const updatedTemplate = await prisma.journalFormTemplate.update({
