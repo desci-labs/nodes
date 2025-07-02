@@ -26,6 +26,11 @@ import {
   inviteRefereeSchema,
   refereeInviteDecisionSchema,
   invalidateRefereeAssignmentSchema,
+  listJournalEditorsSchema,
+  updateEditorSchema,
+  createReviewSchema,
+  updateReviewSchema,
+  submitReviewSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -256,6 +261,70 @@ export const editorInviteDecisionOperation: ZodOpenApiOperationObject = {
   },
 };
 
+// List Journal Editors
+export const listJournalEditorsOperation: ZodOpenApiOperationObject = {
+  operationId: 'listJournalEditors',
+  tags: ['Journals'],
+  summary: 'List all editors for a journal',
+  requestParams: {
+    path: listJournalEditorsSchema.shape.params,
+    query: listJournalEditorsSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Journal editors retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z.object({
+              id: z.number(),
+              userId: z.number(),
+              journalId: z.number(),
+              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+              invitedAt: z.string(),
+              acceptedAt: z.string().nullable(),
+              expertise: z.array(z.string()).nullable(),
+              maxWorkload: z.number().nullable(),
+              currentWorkload: z.number(),
+              available: z.boolean(),
+              user: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+                orcid: z.string().nullable(),
+              }),
+            }),
+          ),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view journal editors',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 // Remove Editor
 export const removeEditorOperation: ZodOpenApiOperationObject = {
   operationId: 'removeEditor',
@@ -323,6 +392,56 @@ export const updateEditorRoleOperation: ZodOpenApiOperationObject = {
     },
     '403': {
       description: 'Cannot demote yourself',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Update Editor Settings
+export const updateEditorOperation: ZodOpenApiOperationObject = {
+  operationId: 'updateEditor',
+  tags: ['Journals'],
+  summary: 'Update editor settings (expertise, workload)',
+  requestParams: { path: updateEditorSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: updateEditorSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Editor settings updated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            editor: z.object({
+              id: z.number(),
+              userId: z.number(),
+              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+              expertise: z.array(z.string()).nullable(),
+              maxWorkload: z.number().nullable(),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Editor not found in this journal',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -660,17 +779,7 @@ export const createReviewOperation: ZodOpenApiOperationObject = {
   requestBody: {
     content: {
       'application/json': {
-        schema: z.object({
-          editorFeedback: z.string().optional(),
-          authorFeedback: z.string().optional(),
-          recommendation: z.enum(['ACCEPT', 'MINOR_REVISION', 'MAJOR_REVISION', 'REJECT']).optional(),
-          review: z.array(
-            z.object({
-              question: z.string(),
-              answer: z.string(),
-            }),
-          ),
-        }),
+        schema: createReviewSchema.shape.body,
       },
     },
   },
@@ -739,19 +848,7 @@ export const updateReviewOperation: ZodOpenApiOperationObject = {
   requestBody: {
     content: {
       'application/json': {
-        schema: z.object({
-          editorFeedback: z.string().optional(),
-          authorFeedback: z.string().optional(),
-          recommendation: z.enum(['ACCEPT', 'MINOR_REVISION', 'MAJOR_REVISION', 'REJECT']).optional(),
-          review: z
-            .array(
-              z.object({
-                question: z.string(),
-                answer: z.string(),
-              }),
-            )
-            .optional(),
-        }),
+        schema: updateReviewSchema.shape.body,
       },
     },
   },
@@ -820,16 +917,7 @@ export const submitReviewOperation: ZodOpenApiOperationObject = {
   requestBody: {
     content: {
       'application/json': {
-        schema: z.object({
-          editorFeedback: z.string(),
-          recommendation: z.enum(['ACCEPT', 'MINOR_REVISION', 'MAJOR_REVISION', 'REJECT']),
-          review: z.array(
-            z.object({
-              question: z.string(),
-              answer: z.string(),
-            }),
-          ),
-        }),
+        schema: submitReviewSchema.shape.body,
       },
     },
   },
@@ -1504,9 +1592,17 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/invitation/editor': {
     post: editorInviteDecisionOperation,
   },
-  '/v1/journals/{journalId}/editors/{editorId}': {
-    patch: updateEditorRoleOperation,
+  '/v1/journals/{journalId}/editors': {
+    get: listJournalEditorsOperation,
+  },
+  '/v1/journals/{journalId}/editors/{editorUserId}': {
     delete: removeEditorOperation,
+  },
+  '/v1/journals/{journalId}/editors/{editorUserId}/manage': {
+    patch: updateEditorRoleOperation,
+  },
+  '/v1/journals/{journalId}/editors/{editorUserId}/settings': {
+    patch: updateEditorOperation,
   },
   '/v1/journals/{journalId}/submissions': {
     post: createJournalSubmissionOperation,

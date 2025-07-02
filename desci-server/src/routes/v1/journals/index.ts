@@ -2,7 +2,7 @@ import { EditorRole } from '@prisma/client';
 import { Router } from 'express';
 
 import { editorInviteDecision } from '../../../controllers/journals/invites/editorInviteDecision.js';
-import { inviteEditor } from '../../../controllers/journals/invites/inviteEditor.js';
+import { inviteEditor, listJournalEditors } from '../../../controllers/journals/invites/inviteEditor.js';
 import { listJournalsController } from '../../../controllers/journals/list.js';
 import { createJournalController } from '../../../controllers/journals/management/create.js';
 import { removeEditorController } from '../../../controllers/journals/management/removeEditor.js';
@@ -72,6 +72,7 @@ import {
   revisionApiSchema,
   listJournalsSchema,
   listRefereeAssignmentsSchema,
+  listJournalEditorsSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -91,15 +92,20 @@ router.get(
 );
 
 // Invites
+router.get(
+  '/:journalId/editors',
+  [ensureUser, validateInputs(listJournalEditorsSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+  asyncHandler(listJournalEditors),
+);
 router.post(
   '/:journalId/invites/editor',
   [ensureUser, validateInputs(inviteEditorSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
-  inviteEditor,
+  asyncHandler(inviteEditor),
 );
 router.post(
   '/:journalId/invitation/editor',
   [attachUser, validateInputs(editorInviteDecisionSchema)],
-  editorInviteDecision,
+  asyncHandler(editorInviteDecision),
 ); // editor accept/deny route
 
 // Management

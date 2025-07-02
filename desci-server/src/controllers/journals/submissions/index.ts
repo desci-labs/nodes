@@ -194,22 +194,14 @@ export const assignSubmissionToEditorController = async (req: AssignSubmissionTo
     const { editorId } = req.validatedData.body;
     const assignerId = req.user?.id;
 
-    const editor = await JournalManagementService.getUserJournalRole(journalId, assignerId);
-    if (editor.isErr()) {
-      return sendError(res, 'Editor not found', 404);
-    }
-
-    if (editor.value !== EditorRole.CHIEF_EDITOR) {
-      return sendError(res, 'Only chief editor can assign submissions to editors', 403);
-    }
-
     const submission = await journalSubmissionService.assignSubmissionToEditor({
+      journalId,
       assignerId,
       submissionId,
       editorId,
     });
 
-    return sendSuccess(res, { submission });
+    return sendSuccess(res, submission);
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to assign submission to editor', 500);

@@ -6,6 +6,7 @@ import {
   Prisma,
   JournalEditor,
   SubmissionStatus,
+  User,
 } from '@prisma/client';
 import _ from 'lodash';
 import { ok, err, Result } from 'neverthrow';
@@ -487,6 +488,57 @@ async function getJournalProfile(userId: number): Promise<
   return ok(result);
 }
 
+type IJournalEditor = JournalEditor & {
+  user: Pick<User, 'id' | 'name' | 'orcid'>;
+  currentWorkload: number;
+  available: boolean;
+};
+
+export async function getJournalEditors(
+  journalId: number,
+  filter: Prisma.JournalEditorWhereInput,
+  orderBy: Prisma.JournalEditorOrderByWithRelationInput,
+  // limit: number,
+  // offset: number,
+): Promise<Result<IJournalEditor[], Error>> {
+  const editors = await prisma.journalEditor.findMany({
+    where: { journalId, ...filter },
+    orderBy,
+    // skip: offset,
+    // take: limit,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          orcid: true,
+        },
+      },
+    },
+  });
+
+  const editorsWithCounts = await Promise.all(
+    editors.map(async (editor) => {
+      const currentWorkload = await prisma.journalSubmission.count({
+        where: {
+          journalId,
+          assignedEditorId: editor.userId,
+          status: {
+            notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+          },
+        },
+      });
+      return {
+        ...editor,
+        currentWorkload,
+        available: currentWorkload < editor.maxWorkload,
+      };
+    }),
+  );
+
+  return ok(editorsWithCounts);
+}
+
 export const JournalManagementService = {
   createJournal,
   updateJournal,
@@ -497,4 +549,5 @@ export const JournalManagementService = {
   updateEditor,
   getUserJournalRole,
   getJournalProfile,
+  getJournalEditors,
 };

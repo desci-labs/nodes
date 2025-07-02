@@ -26,6 +26,38 @@ export const getJournalSchema = z.object({
   }),
 });
 
+export const listJournalEditorsSchema = z.object({
+  params: z.object({
+    journalId: z.string().transform((val, ctx) => {
+      const id = parseInt(val, 10);
+      if (isNaN(id) || id <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Journal ID must be a positive integer.',
+        });
+        return z.NEVER;
+      }
+      return id;
+    }),
+  }),
+  query: z.object({
+    limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
+    workload: z.coerce.number().optional().describe('The workload of the editors to return'),
+    expertise: z.array(z.string()).optional().describe('The expertise of the editors to return'),
+    sortBy: z
+      .enum(['newest', 'oldest', 'workload'])
+      .optional()
+      .default('workload')
+      .describe('The field to sort the submissions by'),
+    sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('The order to sort the submissions by'),
+    availability: z
+      .enum(['all', 'available', 'unavailable'])
+      .optional()
+      .describe('The availability of the editors to return'),
+  }),
+});
+
 export const inviteEditorSchema = z.object({
   params: z.object({
     journalId: z.string().transform((val, ctx) => {
