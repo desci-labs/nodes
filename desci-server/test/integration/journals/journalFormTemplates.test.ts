@@ -216,6 +216,114 @@ describe.only('Journal Form Template Service & Endpoints', () => {
     });
   });
 
+  describe('getFormTemplate (show)', () => {
+    let template: JournalFormTemplate;
+
+    beforeEach(async () => {
+      const templateResult = await JournalFormService.createFormTemplate(chiefEditor.id, {
+        journalId: journal.id,
+        name: 'Test Template',
+        description: 'Template for testing show route',
+        structure: VALID_FORM_STRUCTURE,
+      });
+      if (templateResult.isErr()) throw templateResult.error;
+      template = templateResult.value;
+
+      // Add template to referee assignment expectedFormTemplateIds
+      await prisma.refereeAssignment.update({
+        where: { id: assignment.id },
+        data: { expectedFormTemplateIds: [template.id] },
+      });
+    });
+
+    it('should allow a chief editor to view a template', async () => {
+      const res = await request(app)
+        .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.ok).to.be.true;
+      const { template: responseTemplate } = res.body.data;
+      expect(responseTemplate.id).to.equal(template.id);
+      expect(responseTemplate.name).to.equal('Test Template');
+      expect(responseTemplate.description).to.equal('Template for testing show route');
+    });
+
+    it('should allow an associate editor to view a template', async () => {
+      const res = await request(app)
+        .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${associateEditorAuthToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.ok).to.be.true;
+      const { template: responseTemplate } = res.body.data;
+      expect(responseTemplate.id).to.equal(template.id);
+      expect(responseTemplate.name).to.equal('Test Template');
+    });
+
+    it('should allow a referee with the template assigned to view it', async () => {
+      const res = await request(app)
+        .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${refereeUserAuthToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.ok).to.be.true;
+      const { template: responseTemplate } = res.body.data;
+      expect(responseTemplate.id).to.equal(template.id);
+      expect(responseTemplate.name).to.equal('Test Template');
+    });
+
+    it('should not allow a referee without the template assigned to view it', async () => {
+      // Create another referee not assigned to this template
+      const otherReferee = await prisma.user.create({
+        data: { email: 'other-referee@example.com', name: 'Other Referee' },
+      });
+      const otherRefereeToken = jwt.sign({ email: otherReferee.email }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+
+      const res = await request(app)
+        .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${otherRefereeToken}`);
+
+      expect(res.status).to.equal(403);
+      expect(res.body.message).to.equal('Not authorized to view this template');
+    });
+
+    it('should not allow an unauthorized user to view a template', async () => {
+      const res = await request(app)
+        .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${authorUserAuthToken}`);
+
+      expect(res.status).to.equal(403);
+      expect(res.body.message).to.equal('Not authorized to view this template');
+    });
+
+    it('should return 404 for non-existent template', async () => {
+      const res = await request(app)
+        .get(`/v1/journals/${journal.id}/forms/templates/99999`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`);
+
+      expect(res.status).to.equal(404);
+      expect(res.body.message).to.equal('Template not found');
+    });
+
+    it('should return 404 if template belongs to a different journal', async () => {
+      // Create another journal and template
+      const otherJournalResult = await JournalManagementService.createJournal({
+        name: 'Other Journal',
+        ownerId: chiefEditor.id,
+      });
+      if (otherJournalResult.isErr()) throw otherJournalResult.error;
+      const otherJournal = otherJournalResult.value;
+
+      const res = await request(app)
+        .get(`/v1/journals/${otherJournal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`);
+
+      expect(res.status).to.equal(404);
+      expect(res.body.message).to.equal('Template not found in this journal');
+    });
+  });
+
   describe('getOrCreateFormResponse', () => {
     let template: JournalFormTemplate;
     beforeEach(async () => {

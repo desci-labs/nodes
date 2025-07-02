@@ -24,6 +24,7 @@ import {
   listJournalsSchema,
   createFormTemplateSchema,
   listFormTemplatesSchema,
+  getFormTemplateSchema,
   getFormResponseSchema,
   saveFormResponseSchema,
   submitFormResponseSchema,
@@ -1320,6 +1321,59 @@ export const listFormTemplatesOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Get Form Template
+export const getFormTemplateOperation: ZodOpenApiOperationObject = {
+  operationId: 'getFormTemplate',
+  tags: ['Journals'],
+  summary: 'Get a specific form template',
+  description:
+    'Get details of a specific form template. Accessible by chief editors, associate editors, and referees assigned to the template.',
+  requestParams: { path: getFormTemplateSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Template retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            template: z.object({
+              id: z.number(),
+              journalId: z.number(),
+              name: z.string(),
+              description: z.string().nullable(),
+              version: z.number(),
+              isActive: z.boolean(),
+              structure: z.any(),
+              createdById: z.number(),
+              updatedAt: z.string(),
+              createdBy: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Unauthorized - User is not authorized to view this template',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Template not found or does not belong to the journal',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 // Get or Create Form Response
 export const getFormResponseOperation: ZodOpenApiOperationObject = {
   operationId: 'getFormResponse',
@@ -1677,6 +1731,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/forms/templates': {
     post: createFormTemplateOperation,
     get: listFormTemplatesOperation,
+  },
+  '/v1/journals/{journalId}/forms/templates/{templateId}': {
+    get: getFormTemplateOperation,
   },
   '/v1/journals/{journalId}/forms/response/{assignmentId}/{templateId}': {
     get: getFormResponseOperation,

@@ -366,7 +366,14 @@ export const listFormTemplatesSchema = z.object({
     journalId: z.coerce.number(),
   }),
   query: z.object({
-    activeOnly: z.coerce.boolean().optional().default(true),
+    includeInactive: z.coerce.boolean().optional(),
+  }),
+});
+
+export const getFormTemplateSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    templateId: z.coerce.number(),
   }),
 });
 

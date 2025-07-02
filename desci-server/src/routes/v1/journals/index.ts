@@ -3,6 +3,7 @@ import { Router } from 'express';
 
 import { createFormTemplateController } from '../../../controllers/journals/forms/createTemplate.js';
 import { getFormResponseController } from '../../../controllers/journals/forms/getFormResponse.js';
+import { getFormTemplateController } from '../../../controllers/journals/forms/getFormTemplate.js';
 import { listFormTemplatesController } from '../../../controllers/journals/forms/listTemplates.js';
 import { saveFormResponseController } from '../../../controllers/journals/forms/saveFormResponse.js';
 import { submitFormResponseController } from '../../../controllers/journals/forms/submitFormResponse.js';
@@ -75,6 +76,7 @@ import {
   listJournalsSchema,
   createFormTemplateSchema,
   listFormTemplatesSchema,
+  getFormTemplateSchema,
   getFormResponseSchema,
   submitFormResponseSchema,
 } from '../../../schemas/journals.schema.js';
@@ -290,6 +292,12 @@ router.get(
     validateInputs(listFormTemplatesSchema),
   ],
   asyncHandler(listFormTemplatesController),
+);
+
+router.get(
+  '/:journalId/forms/templates/:templateId',
+  [ensureUser, validateInputs(getFormTemplateSchema)],
+  asyncHandler(getFormTemplateController),
 );
 
 // Form Response Routes (Referees)
