@@ -77,6 +77,7 @@ export const getFormTemplateController = async (req: AuthenticatedRequest, res: 
       {
         template: _.pick(template, [
           'id',
+          'formUuid',
           'name',
           'journalId',
           'description',

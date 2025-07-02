@@ -1226,6 +1226,7 @@ export const createFormTemplateOperation: ZodOpenApiOperationObject = {
           schema: z.object({
             template: z.object({
               id: z.number(),
+              formUuid: z.string(),
               journalId: z.number(),
               name: z.string(),
               description: z.string().nullable(),
@@ -1273,7 +1274,8 @@ export const listFormTemplatesOperation: ZodOpenApiOperationObject = {
   operationId: 'listFormTemplates',
   tags: ['Journals'],
   summary: 'List form templates',
-  description: 'Get all form templates for a journal',
+  description:
+    'Get all form templates for a journal, grouped by form UUID with newest forms first and latest versions first within each form',
   requestParams: {
     path: listFormTemplatesSchema.shape.params,
     query: listFormTemplatesSchema.shape.query,
@@ -1285,25 +1287,31 @@ export const listFormTemplatesOperation: ZodOpenApiOperationObject = {
         'application/json': {
           schema: z.object({
             templates: z.array(
-              z.object({
-                id: z.number(),
-                journalId: z.number(),
-                name: z.string(),
-                description: z.string().nullable(),
-                version: z.number(),
-                isActive: z.boolean(),
-                structure: z.any(),
-                createdById: z.number(),
-                createdAt: z.string(),
-                updatedAt: z.string(),
-                createdBy: z.object({
-                  id: z.number(),
-                  name: z.string().nullable(),
-                }),
-                _count: z.object({
-                  responses: z.number(),
-                }),
-              }),
+              z.record(
+                z.string(),
+                z.array(
+                  z.object({
+                    id: z.number(),
+                    formUuid: z.string(),
+                    journalId: z.number(),
+                    name: z.string(),
+                    description: z.string().nullable(),
+                    version: z.number(),
+                    isActive: z.boolean(),
+                    structure: z.any(),
+                    createdById: z.number(),
+                    createdAt: z.string(),
+                    updatedAt: z.string(),
+                    createdBy: z.object({
+                      id: z.number(),
+                      name: z.string().nullable(),
+                    }),
+                    _count: z.object({
+                      responses: z.number(),
+                    }),
+                  }),
+                ),
+              ),
             ),
           }),
         },
@@ -1337,6 +1345,7 @@ export const getFormTemplateOperation: ZodOpenApiOperationObject = {
           schema: z.object({
             template: z.object({
               id: z.number(),
+              formUuid: z.string(),
               journalId: z.number(),
               name: z.string(),
               description: z.string().nullable(),

@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 import {
   EditorRole,
   FormResponseStatus,
@@ -92,6 +94,15 @@ interface CreateFormTemplateData {
   version?: number;
 }
 
+interface CreateFormTemplateVersionData {
+  formUuid: string;
+  journalId: number;
+  name: string;
+  description?: string;
+  structure: FormStructure;
+  version: number;
+}
+
 interface UpdateFormTemplateData {
   name?: string;
   description?: string;
@@ -157,6 +168,7 @@ async function createFormTemplate(
 
     const newTemplate = await prisma.journalFormTemplate.create({
       data: {
+        formUuid: randomUUID(),
         journalId: data.journalId,
         name: data.name,
         description: data.description,
@@ -181,6 +193,71 @@ async function createFormTemplate(
   } catch (error) {
     logger.error({ error, userId, data }, 'Failed to create form template');
     return err(error instanceof Error ? error : new Error('Failed to create form template'));
+  }
+}
+
+/**
+ * Create a new version of an existing form template
+ * Used when updating a template that has already been used
+ */
+async function createFormTemplateVersion(
+  userId: number,
+  data: CreateFormTemplateVersionData,
+): Promise<Result<JournalFormTemplate, Error>> {
+  logger.trace({ userId, journalId: data.journalId, formUuid: data.formUuid }, 'Creating form template version');
+
+  try {
+    // Check if user is a chief editor of the journal
+    const editor = await prisma.journalEditor.findFirst({
+      where: {
+        userId,
+        journalId: data.journalId,
+        role: EditorRole.CHIEF_EDITOR,
+      },
+    });
+
+    if (!editor) {
+      logger.warn({ userId, journalId: data.journalId }, 'User is not a chief editor');
+      return err(new Error('Only chief editors can create form templates'));
+    }
+
+    // Validate form structure with Zod
+    const validationResult = FormStructureSchema.safeParse(data.structure);
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors.map((e) => e.message).join(', ');
+      return err(new Error(`Invalid form structure: ${errorMessage}`));
+    }
+
+    const newTemplate = await prisma.journalFormTemplate.create({
+      data: {
+        formUuid: data.formUuid, // Use provided formUuid for versioning
+        journalId: data.journalId,
+        name: data.name,
+        description: data.description,
+        createdById: userId,
+        structure: data.structure as unknown as any,
+        version: data.version,
+      },
+      include: {
+        journal: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    logger.info(
+      { userId, journalId: data.journalId, templateId: newTemplate.id, version: data.version },
+      'Form template version created',
+    );
+    return ok(newTemplate);
+  } catch (error) {
+    logger.error({ error, userId, data }, 'Failed to create form template version');
+    return err(error instanceof Error ? error : new Error('Failed to create form template version'));
   }
 }
 
@@ -235,7 +312,8 @@ async function updateFormTemplate(
 
       // Create new version with incremented version number
       const currentStructure = template.structure as unknown as FormStructure;
-      const newTemplateResult = await createFormTemplate(userId, {
+      const newTemplateResult = await createFormTemplateVersion(userId, {
+        formUuid: template.formUuid, // Use same formUuid for new version
         journalId: template.journalId,
         name: data.name || template.name,
         description: data.description || template.description,
@@ -286,12 +364,12 @@ async function updateFormTemplate(
 }
 
 /**
- * Get all active form templates for a journal
+ * Get all active form templates for a journal, grouped by formUuid
  */
 async function getJournalFormTemplates(
   journalId: number,
   includeInactive = false,
-): Promise<Result<JournalFormTemplate[], Error>> {
+): Promise<Result<Array<Record<string, JournalFormTemplate[]>>, Error>> {
   logger.trace({ journalId, includeInactive }, 'Getting journal form templates');
 
   try {
@@ -311,10 +389,39 @@ async function getJournalFormTemplates(
           select: { responses: true },
         },
       },
-      orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+      // Order by formUuid to group them, then by version desc within each group
+      orderBy: [{ formUuid: 'asc' }, { version: 'desc' }],
     });
 
-    return ok(templates);
+    // Group templates by formUuid (they're already sorted by version within each group)
+    const groupedTemplates = templates.reduce(
+      (acc, template) => {
+        if (!acc[template.formUuid]) {
+          acc[template.formUuid] = [];
+        }
+        acc[template.formUuid].push(template);
+        return acc;
+      },
+      {} as Record<string, typeof templates>,
+    );
+
+    // Get form creation order by finding the earliest created template for each form
+    const formCreationOrder = Object.keys(groupedTemplates).sort((a, b) => {
+      const formAEarliest = groupedTemplates[a].reduce((earliest, template) =>
+        template.createdAt < earliest.createdAt ? template : earliest,
+      );
+      const formBEarliest = groupedTemplates[b].reduce((earliest, template) =>
+        template.createdAt < earliest.createdAt ? template : earliest,
+      );
+      return new Date(formBEarliest.createdAt).getTime() - new Date(formAEarliest.createdAt).getTime();
+    });
+
+    // Create ordered array of grouped objects: newest forms first, oldest forms last
+    const orderedGroupedTemplates: Array<Record<string, typeof templates>> = formCreationOrder.map((formUuid) => ({
+      [formUuid]: groupedTemplates[formUuid],
+    }));
+
+    return ok(orderedGroupedTemplates);
   } catch (error) {
     logger.error({ error, journalId, includeInactive }, 'Failed to get journal form templates');
     return err(error instanceof Error ? error : new Error('Failed to get journal form templates'));
@@ -942,4 +1049,4 @@ export const JournalFormService = {
   getRefereeFormStatus,
 };
 
-export type { CreateFormTemplateData, UpdateFormTemplateData, FormResponseData };
+export type { CreateFormTemplateData, CreateFormTemplateVersionData, UpdateFormTemplateData, FormResponseData };

@@ -203,7 +203,15 @@ describe.only('Journal Form Template Service & Endpoints', () => {
 
       expect(res.status).to.equal(200);
       expect(res.body.data.templates).to.be.an('array').with.lengthOf(1);
-      expect(res.body.data.templates[0].name).to.equal('Active Template');
+
+      // Get the first form group (which is an object with formUuid as key)
+      const firstFormGroup = res.body.data.templates[0];
+      const formUuid = Object.keys(firstFormGroup)[0];
+      const templatesInGroup = firstFormGroup[formUuid];
+
+      expect(templatesInGroup).to.be.an('array');
+      expect(templatesInGroup[0].name).to.equal('Active Template');
+      expect(templatesInGroup[0].formUuid).to.be.a('string');
     });
 
     it('should list all templates when activeOnly is false', async () => {
@@ -213,6 +221,13 @@ describe.only('Journal Form Template Service & Endpoints', () => {
 
       expect(res.status).to.equal(200);
       expect(res.body.data.templates).to.be.an('array').with.lengthOf(2);
+
+      // Verify we have 2 form groups (one for active, one for inactive)
+      const firstFormGroup = res.body.data.templates[0];
+      const secondFormGroup = res.body.data.templates[1];
+
+      expect(Object.keys(firstFormGroup)).to.have.lengthOf(1);
+      expect(Object.keys(secondFormGroup)).to.have.lengthOf(1);
     });
   });
 

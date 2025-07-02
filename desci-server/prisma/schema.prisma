@@ -1390,6 +1390,7 @@ model JournalInvoice {
 
 model JournalFormTemplate {
   id          Int      @id @default(autoincrement())
+  formUuid    String // Unique constraint is across journalId + formUuid + version, this groups *like* forms.
   journalId   Int
   name        String
   description String?
@@ -1406,6 +1407,7 @@ model JournalFormTemplate {
   responses JournalFormResponse[]
 
   @@unique([journalId, name, version])
+  @@unique([journalId, formUuid, version])
 }
 
 model JournalFormResponse {
