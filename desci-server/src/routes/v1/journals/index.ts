@@ -38,6 +38,7 @@ import {
   rejectSubmissionController,
   acceptSubmissionController,
   requestRevisionController,
+  getJournalSubmissionController,
 } from '../../../controllers/journals/submissions/index.js';
 import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
@@ -153,6 +154,12 @@ router.get(
   '/:journalId/submissions',
   [ensureUser, validateInputs(listJournalSubmissionsSchema)],
   asyncHandler(listJournalSubmissionsController),
+);
+
+router.get(
+  '/:journalId/submissions/:submissionId',
+  [ensureUser, validateInputs(submissionApiSchema)],
+  asyncHandler(getJournalSubmissionController),
 );
 
 router.get(

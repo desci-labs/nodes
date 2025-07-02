@@ -386,3 +386,20 @@ export const rejectSubmissionController = async (req: RejectSubmissionRequest, r
 
   return sendSuccess(res, null);
 };
+
+type GetJournalSubmissionRequest = ValidatedRequest<typeof submissionApiSchema, AuthenticatedRequest>;
+
+export const getJournalSubmissionController = async (req: GetJournalSubmissionRequest, res: Response) => {
+  const { journalId, submissionId } = req.validatedData.params;
+
+  const submissionExtended = await journalSubmissionService.getSubmissionExtendedData(submissionId);
+  if (submissionExtended.isErr()) {
+    return sendError(res, 'Failed to get submission extended data', 500);
+  }
+  const submission = submissionExtended.value;
+  if (submission.journal.id !== journalId) {
+    return sendError(res, 'Submission not found', 404);
+  }
+
+  return sendSuccess(res, submission);
+};

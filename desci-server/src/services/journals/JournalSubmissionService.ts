@@ -472,6 +472,22 @@ async function requestRevision({
 async function getSubmissionById(submissionId: number) {
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: submissionId },
+    include: {
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      author: true,
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          orcid: true,
+        },
+      },
+    },
   });
 
   if (!submission) {
@@ -528,9 +544,32 @@ const getSubmissionExtendedData = async (submissionId: number): Promise<Result<S
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: submissionId },
     include: {
-      journal: true,
-      node: true,
-      author: true,
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      node: {
+        select: {
+          title: true,
+          uuid: true,
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          id: true,
+          orcid: true,
+        },
+      },
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          orcid: true,
+        },
+      },
     },
   });
   if (process.env.NODE_ENV === 'test') {
