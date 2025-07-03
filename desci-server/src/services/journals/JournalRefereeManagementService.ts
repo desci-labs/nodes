@@ -326,6 +326,7 @@ async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssi
         completedAssignment: true,
         completedAt: true,
         reassignedAt: true,
+        expectedFormTemplateIds: true,
         journal: {
           select: {
             id: true,

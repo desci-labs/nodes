@@ -114,6 +114,7 @@ describe('Journal Referee Management Service', () => {
     // debugger;
     // Assign associate editor to the submission
     const updatedSubmission = await journalSubmissionService.assignSubmissionToEditor({
+      journalId: journal.id,
       submissionId: submission.id,
       editorId: associateEditor.id,
       assignerId: chiefEditor.id, // Chief editor assigns
