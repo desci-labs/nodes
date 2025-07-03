@@ -30,7 +30,7 @@ export const listJournalsController = async (req: ListJournalsRequest, res: Resp
     }
 
     const journals = result.value;
-    return sendSuccess(res, { journals }, 'Journals listed successfully.');
+    return sendSuccess(res, { journals });
   } catch (error) {
     logger.error({ error, userId: (req as any).user?.id }, 'Unhandled error in listJournalsController');
     return sendError(res, 'An unexpected error occurred while retrieving journals.', 500);

@@ -161,6 +161,92 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
 }
 
 /**
+ * Get all referee invites for a referee.
+ */
+export interface IRefereeInvite {
+  submission: {
+    journalId: number;
+    journal: string;
+    title: string;
+    id: number;
+    author: string;
+    dpid: number;
+  };
+  id: number;
+  submissionId: number;
+  accepted: boolean;
+  declined: boolean;
+  expiresAt: Date;
+  token: string;
+}
+
+async function getRefereeInvites(refereeUserId: number): Promise<Result<IRefereeInvite[], Error>> {
+  try {
+    const refereeInvites = await prisma.refereeInvite.findMany({
+      where: {
+        userId: refereeUserId,
+      },
+      select: {
+        id: true,
+        submissionId: true,
+        accepted: true,
+        declined: true,
+        expiresAt: true,
+        token: true,
+        submission: {
+          select: {
+            id: true,
+            dpid: true,
+            node: {
+              select: {
+                title: true,
+              },
+            },
+            author: {
+              select: {
+                name: true,
+              },
+            },
+            journalId: true,
+            journal: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const invites = refereeInvites.map((invite) => ({
+      ...invite,
+      submission: {
+        author: invite.submission.author.name,
+        id: invite.submissionId,
+        journalId: invite.submission.journalId,
+        journal: invite.submission.journal.name,
+        title: invite.submission.node.title,
+        dpid: invite.submission.dpid,
+      },
+    }));
+    return ok(invites);
+  } catch (error) {
+    logger.error({ error, refereeUserId }, 'Failed to get referee invites');
+    return err(
+      error instanceof Error ? error : new Error('An unexpected error occurred during referee invite retrieval'),
+    );
+  }
+}
+
+export async function getRefereeInviteByToken(token: string): Promise<Result<RefereeInvite, Error>> {
+  const refereeInvite = await prisma.refereeInvite.findUnique({
+    where: { token },
+  });
+
+  return ok(refereeInvite);
+}
+
+/**
  * Get all referee assignments for a submission that are either complete, or in progress.
  * Does not retrieve assignments that have been dropped out. (completedAssignment === false)
  */
@@ -186,18 +272,119 @@ async function getActiveRefereeAssignments(submissionId: number): Promise<Result
  * Get all referee assignments for a submission that are either complete, or in progress.
  * Does not retrieve assignments that have been dropped out. (completedAssignment === false)
  */
-async function getRefereeAssignments(refereeId: number): Promise<Result<RefereeAssignment[], Error>> {
+export interface IRefereeAssignment {
+  id: number;
+  submissionId: number;
+  userId: number;
+  assignedById: number;
+  assignedAt: Date;
+  journalId: number;
+  dueDate: Date;
+  completedAssignment: boolean;
+  completedAt: Date;
+  reassignedAt: Date;
+  journal: {
+    id: number;
+    name: string;
+    iconCid: string;
+    description: string;
+  };
+  submission: {
+    id: number;
+    title: string;
+    status: string;
+    author: {
+      name: string;
+      orcid: string;
+    };
+    dpid: number;
+  };
+  reviews: {
+    id: number;
+    recommendation: string;
+    review: string;
+    editorFeedback: string;
+    authorFeedback: string;
+  }[];
+}
+async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssignment[], Error>> {
   try {
     const refereeAssignments = await prisma.refereeAssignment.findMany({
       where: {
-        refereeId,
+        userId,
         // CompletedAssignment is only false if the referee drops out.
         OR: [{ completedAssignment: true }, { completedAssignment: null }],
       },
+      select: {
+        id: true,
+        submissionId: true,
+        userId: true,
+        assignedById: true,
+        assignedAt: true,
+        journalId: true,
+        dueDate: true,
+        completedAssignment: true,
+        completedAt: true,
+        reassignedAt: true,
+        expectedFormTemplateIds: true,
+        journal: {
+          select: {
+            id: true,
+            name: true,
+            iconCid: true,
+            description: true,
+          },
+        },
+        submission: {
+          select: {
+            id: true,
+            node: {
+              select: {
+                title: true,
+              },
+            },
+            status: true,
+            dpid: true,
+            author: {
+              select: {
+                name: true,
+                orcid: true,
+              },
+            },
+          },
+        },
+        reviews: {
+          select: {
+            id: true,
+            recommendation: true,
+            review: true,
+            editorFeedback: true,
+            authorFeedback: true,
+            submittedAt: true,
+          },
+        },
+      },
     });
-    return ok(refereeAssignments);
+    const assignments = refereeAssignments.map((assignment) => ({
+      ...assignment,
+      submission: {
+        id: assignment.submissionId,
+        title: assignment.submission.node.title,
+        status: assignment.submission.status,
+        author: {
+          name: assignment.submission.author.name,
+          orcid: assignment.submission.author.orcid,
+        },
+        dpid: assignment.submission.dpid,
+      },
+      reviews: assignment.reviews.map((review) => ({
+        ...review,
+        review: JSON.parse(review.review as string),
+      })),
+    }));
+    return ok(assignments);
   } catch (error) {
-    logger.error({ error, refereeId }, 'Failed to get active referee assignments');
+    logger.error({ error, refereeUserId: userId }, 'Failed to get active referee assignments');
     return err(
       error instanceof Error ? error : new Error('An unexpected error occurred during referee assignment retrieval'),
     );
@@ -206,11 +393,11 @@ async function getRefereeAssignments(refereeId: number): Promise<Result<RefereeA
 
 async function isRefereeAssignedToSubmission(
   submissionId: number,
-  refereeId: number,
+  refereeUserId: number,
   journalId: number,
 ): Promise<Result<boolean, Error>> {
   const refereeAssignment = await prisma.refereeAssignment.findFirst({
-    where: { submissionId, refereeId, journalId },
+    where: { submissionId, journalId, userId: refereeUserId },
   });
   if (!refereeAssignment) {
     return ok(false);
@@ -389,7 +576,7 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
       prisma.refereeAssignment.create({
         data: {
           submissionId: data.submissionId,
-          refereeId: data.refereeUserId,
+          userId: data.refereeUserId,
           assignedById: data.managerId,
           assignedAt: new Date(),
           ...(data.isReassignment ? { reassignedAt: new Date() } : {}), // Indicate if its a reassignment
@@ -456,7 +643,6 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
     const refereeEmail = refereeUser?.email ?? refereeInvite.email;
 
     const submission = refereeInvite.submission;
-    const journal = submission.journal;
 
     const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(
       refereeInvite.submissionId,
@@ -566,7 +752,7 @@ export async function invalidateRefereeAssignment(
 
     let authMethod: 'referee' | 'editor' | 'chiefEditor' | null = null;
 
-    const isUserReferee = refereeAssignment.refereeId === userId;
+    const isUserReferee = refereeAssignment.userId === userId;
     if (isUserReferee) {
       authMethod = 'referee';
     } else if (refereeAssignment.submission.assignedEditorId === userId) {
@@ -602,10 +788,10 @@ export async function invalidateRefereeAssignment(
         data: {
           journalId: assignment.journalId,
           action: JournalEventLogAction.REFEREE_ASSIGNMENT_DROPPED,
-          userId: refereeAssignment.refereeId,
+          userId: refereeAssignment.userId,
           details: {
             submissionId: assignment.submissionId,
-            refereeId: assignment.refereeId,
+            refereeId: assignment.userId,
             assignedEditorId: assignment.assignedById,
             triggeredByUserId: userId,
             authMethod,
@@ -631,9 +817,11 @@ export async function invalidateRefereeAssignment(
 export const JournalRefereeManagementService = {
   assignReferee,
   inviteReferee,
+  getRefereeInvites,
   acceptRefereeInvite,
   declineRefereeInvite,
   getRefereeAssignments,
   isRefereeAssignedToSubmission,
   invalidateRefereeAssignment,
+  getRefereeInviteByToken,
 };

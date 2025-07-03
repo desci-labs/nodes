@@ -1,4 +1,4 @@
-import { EditorRole, JournalEventLogAction, JournalSubmission, SubmissionStatus } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, JournalSubmission, Prisma, SubmissionStatus } from '@prisma/client';
 import { Response } from 'express';
 
 import { prisma } from '../../../client.js';
@@ -67,38 +67,97 @@ export const createJournalSubmissionController = async (req: CreateSubmissionReq
 
 type ListJournalSubmissionsRequest = ValidatedRequest<typeof listJournalSubmissionsSchema, AuthenticatedRequest>;
 
+const statusMap: Record<string, SubmissionStatus[]> = {
+  new: [SubmissionStatus.SUBMITTED],
+  assigned: [SubmissionStatus.UNDER_REVIEW, SubmissionStatus.REVISION_REQUESTED],
+  under_review: [SubmissionStatus.UNDER_REVIEW],
+  reviewed: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+  under_revision: [SubmissionStatus.REVISION_REQUESTED],
+} as const;
+
 export const listJournalSubmissionsController = async (req: ListJournalSubmissionsRequest, res: Response) => {
   try {
     const { journalId } = req.validatedData.params;
-    const { limit, offset } = req.validatedData.query;
+    const { limit, offset, status, startDate, endDate, assignedToMe, sortBy, sortOrder } = req.validatedData.query;
 
     const editor = await JournalManagementService.getUserJournalRole(journalId, req.user.id);
     const role = editor.isOk() ? editor.value : undefined;
-    let submissions: Partial<JournalSubmission>[] = [];
+    let submissions;
 
-    if (role === EditorRole.CHIEF_EDITOR) {
-      submissions = await journalSubmissionService.getJournalSubmissions({
-        journalId,
-        limit,
-        offset,
-      });
-    } else if (role === EditorRole.ASSOCIATE_EDITOR) {
-      submissions = await journalSubmissionService.getAssociateEditorSubmissions({
-        journalId,
-        assignedEditorId: req.user.id,
-        limit,
-        offset,
-      });
-    } else {
-      submissions = await journalSubmissionService.getJournalSubmissions({
-        journalId,
-        limit,
-        offset,
-        filter: [SubmissionStatus.ACCEPTED],
-      });
+    const filter: Prisma.JournalSubmissionWhereInput = {
+      journalId,
+      // status: { in: statusMap[status] },
+    };
+
+    if (status) {
+      filter.status = { in: statusMap[status] };
     }
 
-    return sendSuccess(res, { submissions, meta: { count: submissions.length, limit, offset } });
+    if (assignedToMe) {
+      filter.assignedEditorId = req.user.id;
+    }
+
+    if (startDate) {
+      filter.submittedAt = { gte: startDate };
+
+      if (endDate) {
+        filter.submittedAt = { lte: endDate };
+      }
+    }
+
+    let orderBy: Prisma.JournalSubmissionOrderByWithRelationInput;
+    if (sortBy) {
+      if (sortBy === 'newest') {
+        orderBy = {
+          submittedAt: sortOrder,
+        };
+      } else if (sortBy === 'oldest') {
+        orderBy = {
+          submittedAt: sortOrder,
+        };
+      } else if (sortBy === 'title') {
+        orderBy = {
+          node: {
+            title: sortOrder,
+          },
+        };
+      }
+      // TODO: order by impact
+    }
+
+    logger.trace({ filter, orderBy, offset, limit }, 'listJournalSubmissionsController::filter');
+
+    if (role === EditorRole.CHIEF_EDITOR) {
+      submissions = await journalSubmissionService.getJournalSubmissions(journalId, filter, orderBy, offset, limit);
+    } else if (role === EditorRole.ASSOCIATE_EDITOR) {
+      const assignedEditorId = req.user.id;
+      submissions = await journalSubmissionService.getAssociateEditorSubmissions(
+        journalId,
+        assignedEditorId,
+        filter,
+        orderBy,
+        offset,
+        limit,
+      );
+    } else {
+      submissions = await journalSubmissionService.getJournalSubmissions(
+        journalId,
+        {
+          status: SubmissionStatus.ACCEPTED,
+        },
+        orderBy,
+        offset,
+        limit,
+      );
+    }
+
+    const data: Partial<JournalSubmission>[] = submissions.map((submission) => ({
+      ...submission,
+      title: submission.node.title,
+      node: undefined,
+    }));
+    logger.trace({ data }, 'listJournalSubmissionsController');
+    return sendSuccess(res, { data, meta: { count: submissions.length, limit, offset } });
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve journal submissions', 500);
@@ -113,14 +172,14 @@ export const getAuthorSubmissionsController = async (req: GetAuthorSubmissionsRe
     const { limit, offset } = req.validatedData.query;
     const authorId = req.user?.id;
 
-    const submissions = await journalSubmissionService.getAuthorSubmissions({
+    const data = await journalSubmissionService.getAuthorSubmissions({
       journalId,
       authorId,
       limit,
       offset,
     });
 
-    return sendSuccess(res, { submissions, meta: { count: submissions.length, limit, offset } });
+    return sendSuccess(res, { data, meta: { count: data.length, limit, offset } });
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve journal submissions', 500);
@@ -135,22 +194,14 @@ export const assignSubmissionToEditorController = async (req: AssignSubmissionTo
     const { editorId } = req.validatedData.body;
     const assignerId = req.user?.id;
 
-    const editor = await JournalManagementService.getUserJournalRole(journalId, assignerId);
-    if (editor.isErr()) {
-      return sendError(res, 'Editor not found', 404);
-    }
-
-    if (editor.value !== EditorRole.CHIEF_EDITOR) {
-      return sendError(res, 'Only chief editor can assign submissions to editors', 403);
-    }
-
     const submission = await journalSubmissionService.assignSubmissionToEditor({
+      journalId,
       assignerId,
       submissionId,
       editorId,
     });
 
-    return sendSuccess(res, { submission });
+    return sendSuccess(res, submission);
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to assign submission to editor', 500);
@@ -263,7 +314,7 @@ export const rejectSubmissionController = async (req: RejectSubmissionRequest, r
   const { comment } = req.validatedData.body;
 
   // check if journal and submission are valid.
-  await journalSubmissionService.rejectSubmission({ submissionId, editorId: req.user.id });
+  const rejectedSubmission = await journalSubmissionService.rejectSubmission({ submissionId, editorId: req.user.id });
 
   // LOG the event
   await JournalEventLogService.log({
@@ -278,13 +329,7 @@ export const rejectSubmissionController = async (req: RejectSubmissionRequest, r
 
   try {
     // Notification logic
-    const submission = await prisma.journalSubmission.findUnique({
-      where: { id: submissionId },
-      include: {
-        journal: true,
-        author: true,
-      },
-    });
+    const submission = rejectedSubmission;
 
     const assignedEditor = await prisma.journalEditor.findUnique({
       where: { userId_journalId: { userId: submission.assignedEditorId, journalId: submission.journalId } },
@@ -340,4 +385,21 @@ export const rejectSubmissionController = async (req: RejectSubmissionRequest, r
   // TODO: notify the referee of the editor decision.
 
   return sendSuccess(res, null);
+};
+
+type GetJournalSubmissionRequest = ValidatedRequest<typeof submissionApiSchema, AuthenticatedRequest>;
+
+export const getJournalSubmissionController = async (req: GetJournalSubmissionRequest, res: Response) => {
+  const { journalId, submissionId } = req.validatedData.params;
+
+  const submissionExtended = await journalSubmissionService.getSubmissionExtendedData(submissionId);
+  if (submissionExtended.isErr()) {
+    return sendError(res, 'Failed to get submission extended data', 500);
+  }
+  const submission = submissionExtended.value;
+  if (submission.journal.id !== journalId) {
+    return sendError(res, 'Submission not found', 404);
+  }
+
+  return sendSuccess(res, submission);
 };
