@@ -12,6 +12,7 @@ import { EmailTypes, sendEmail } from '../email/email.js';
 import {
   MajorRevisionRequestPayload,
   MinorRevisionRequestPayload,
+  SubmissionDetails,
   SubmissionExtended,
 } from '../email/journalEmailTypes.js';
 import {
@@ -612,6 +613,80 @@ const getSubmissionExtendedData = async (submissionId: number): Promise<Result<S
   });
 };
 
+const getSubmissionDetails = async (submissionId: number): Promise<Result<SubmissionDetails, Error>> => {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+    include: {
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      node: {
+        select: {
+          title: true,
+          uuid: true,
+          DoiRecord: {
+            select: {
+              doi: true,
+            },
+          },
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          id: true,
+          orcid: true,
+        },
+      },
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          orcid: true,
+        },
+      },
+    },
+  });
+
+  const doi = submission.node.DoiRecord[0]?.doi;
+  if (process.env.NODE_ENV === 'test') {
+    // The tests don't really care about this data, so just partial dummy data is used
+    // In tests, we can't get resolve the research object, as it's not actually being published.
+    const submissionDetails = {
+      ...submission,
+      researchObject: {
+        ...submission.node,
+        doi,
+        manifest: {
+          version: 'desci-nodes-0.1.0' as const,
+          title: 'Test Title',
+          authors: [{ name: 'Test Author', role: 'author' }],
+          description: 'Test Abstract',
+          components: [],
+        },
+      },
+    };
+    return ok(submissionDetails);
+  }
+  const { researchObjects } = await getIndexedResearchObjects([submission.node.uuid]);
+  if (!researchObjects || researchObjects.length === 0) {
+    return err(new Error('No published version found for submission'));
+  }
+  const researchObject = researchObjects[0];
+
+  const targetVersionIndex = researchObject.versions.length - submission.version;
+  const targetVersion = researchObject.versions[targetVersionIndex];
+  const targetVersionManifestCid = hexToCid(targetVersion.cid);
+  const manifest = await getManifestByCid(targetVersionManifestCid);
+
+  const submissionDetails = { ...submission, researchObject: { ...submission.node, doi, manifest } };
+
+  return ok(submissionDetails);
+};
+
 /**
  * Check if the submission is desk rejected.
  ** Current criteria is if the submission was rejected before any referee invites are sent.
@@ -647,4 +722,5 @@ export const journalSubmissionService = {
   updateSubmissionDoiMintedAt,
   getSubmissionExtendedData,
   isSubmissionDeskRejection,
+  getSubmissionDetails,
 };
