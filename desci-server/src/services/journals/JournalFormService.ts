@@ -6,6 +6,7 @@ import {
   JournalFormTemplate,
   JournalFormResponse,
   JournalEventLogAction,
+  Prisma,
 } from '@prisma/client';
 import { ok, err, Result } from 'neverthrow';
 
@@ -189,7 +190,7 @@ async function createFormTemplate(
         name: data.name,
         description: data.description,
         createdById: userId,
-        structure: sanitizedStructure as unknown as any,
+        structure: sanitizedStructure satisfies Prisma.JsonValue,
         version: data.version || 1,
       },
       include: {
@@ -254,7 +255,7 @@ async function createFormTemplateVersion(
         name: data.name,
         description: data.description,
         createdById: userId,
-        structure: sanitizedStructure as unknown as any,
+        structure: sanitizedStructure satisfies Prisma.JsonValue,
         version: data.version,
       },
       include: {
