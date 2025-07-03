@@ -507,4 +507,297 @@ describe.only('Journal Form Template Service & Endpoints', () => {
       expect(firstField).to.contain('Required');
     });
   });
+
+  describe('updateFormTemplate', () => {
+    let template: JournalFormTemplate;
+    let usedTemplate: JournalFormTemplate;
+
+    beforeEach(async () => {
+      // Create an unused template
+      const templateResult = await JournalFormService.createFormTemplate(chiefEditor.id, {
+        journalId: journal.id,
+        name: 'Unused Template',
+        description: 'This template has no responses',
+        structure: VALID_FORM_STRUCTURE,
+      });
+      if (templateResult.isErr()) throw templateResult.error;
+      template = templateResult.value;
+
+      // Create a used template (with responses)
+      const usedTemplateResult = await JournalFormService.createFormTemplate(chiefEditor.id, {
+        journalId: journal.id,
+        name: 'Used Template',
+        description: 'This template has responses',
+        structure: VALID_FORM_STRUCTURE,
+      });
+      if (usedTemplateResult.isErr()) throw usedTemplateResult.error;
+      usedTemplate = usedTemplateResult.value;
+
+      // Create a form response to make it "used"
+      await prisma.journalFormResponse.create({
+        data: {
+          templateId: usedTemplate.id,
+          refereeAssignmentId: assignment.id,
+          status: FormResponseStatus.DRAFT,
+          formData: {},
+        },
+      });
+    });
+
+    it('should allow a chief editor to update an unused template in-place', async () => {
+      const updatedStructure = {
+        ...VALID_FORM_STRUCTURE,
+        sections: [
+          {
+            ...VALID_FORM_STRUCTURE.sections[0],
+            title: 'Updated Section Title',
+          },
+        ],
+      };
+
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          name: 'Updated Template Name',
+          description: 'Updated description',
+          structure: updatedStructure,
+        });
+
+      expect(res.status).to.equal(200);
+      expect(res.body.ok).to.be.true;
+      const { template: updatedTemplate } = res.body.data;
+
+      expect(updatedTemplate.id).to.equal(template.id); // Same ID (in-place update)
+      expect(updatedTemplate.name).to.equal('Updated Template Name');
+      expect(updatedTemplate.description).to.equal('Updated description');
+      expect(updatedTemplate.version).to.equal(1); // Version unchanged
+      expect(updatedTemplate.structure.sections[0].title).to.equal('Updated Section Title');
+      expect(updatedTemplate.structure.formStructureVersion).to.equal('journal-forms-v1.0.0');
+    });
+
+    it('should create a new version when updating a used template', async () => {
+      const originalVersion = usedTemplate.version;
+      const originalFormUuid = usedTemplate.formUuid;
+
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${usedTemplate.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          name: 'Updated Used Template',
+          description: 'Updated description for used template',
+        });
+
+      expect(res.status).to.equal(200);
+      expect(res.body.ok).to.be.true;
+      const { template: newVersionTemplate } = res.body.data;
+
+      // Should be a new template with incremented version
+      expect(newVersionTemplate.id).to.not.equal(usedTemplate.id); // Different ID (new version)
+      expect(newVersionTemplate.formUuid).to.equal(originalFormUuid); // Same formUuid
+      expect(newVersionTemplate.name).to.equal('Updated Used Template');
+      expect(newVersionTemplate.description).to.equal('Updated description for used template');
+      expect(newVersionTemplate.version).to.equal(originalVersion + 1); // Incremented version
+      expect(newVersionTemplate.isActive).to.be.true;
+
+      // Original template should be deactivated
+      const originalTemplate = await prisma.journalFormTemplate.findUnique({
+        where: { id: usedTemplate.id },
+      });
+      expect(originalTemplate?.isActive).to.be.false;
+    });
+
+    it('should allow updating only specific fields', async () => {
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          name: 'Only Name Updated',
+          // description and structure not provided
+        });
+
+      expect(res.status).to.equal(200);
+      const { template: updatedTemplate } = res.body.data;
+
+      expect(updatedTemplate.name).to.equal('Only Name Updated');
+      expect(updatedTemplate.description).to.equal(template.description); // Unchanged
+      expect(updatedTemplate.structure).to.deep.equal(template.structure); // Unchanged
+    });
+
+    it('should allow updating isActive status', async () => {
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          isActive: false,
+        });
+
+      expect(res.status).to.equal(200);
+      const { template: updatedTemplate } = res.body.data;
+
+      expect(updatedTemplate.isActive).to.be.false;
+    });
+
+    it('should enforce server-controlled formStructureVersion on update', async () => {
+      const userStructure = {
+        ...VALID_FORM_STRUCTURE,
+        formStructureVersion: 'user-controlled-v99.0.0', // User tries to override
+      };
+
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          structure: userStructure,
+        });
+
+      expect(res.status).to.equal(200);
+      const { template: updatedTemplate } = res.body.data;
+
+      // Verify the server overwrote the user's version
+      expect(updatedTemplate.structure.formStructureVersion).to.equal('journal-forms-v1.0.0');
+      expect(updatedTemplate.structure.formStructureVersion).to.not.equal('user-controlled-v99.0.0');
+    });
+
+    it('should not allow an associate editor to update a template', async () => {
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${associateEditorAuthToken}`)
+        .send({
+          name: 'Associate Editor Update Attempt',
+        });
+
+      expect(res.status).to.equal(403);
+      expect(res.body.message).to.include('Forbidden - Insufficient permissions');
+    });
+
+    it('should not allow a referee to update a template', async () => {
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${refereeUserAuthToken}`)
+        .send({
+          name: 'Referee Update Attempt',
+        });
+
+      expect(res.status).to.equal(403);
+      expect(res.body.message).to.include('Forbidden - Not a journal editor');
+    });
+
+    it('should not allow an author to update a template', async () => {
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${authorUserAuthToken}`)
+        .send({
+          name: 'Author Update Attempt',
+        });
+
+      expect(res.status).to.equal(403);
+      expect(res.body.message).to.include('Forbidden - Not a journal editor');
+    });
+
+    it('should return 404 for non-existent template', async () => {
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/99999`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          name: 'Non-existent Template Update',
+        });
+
+      expect(res.status).to.equal(404);
+      expect(res.body.message).to.include('Template not found');
+    });
+
+    it('should return 404 if template belongs to a different journal', async () => {
+      // Create another journal and template
+      const otherJournalResult = await JournalManagementService.createJournal({
+        name: 'Other Journal',
+        ownerId: chiefEditor.id,
+      });
+      if (otherJournalResult.isErr()) throw otherJournalResult.error;
+      const otherJournal = otherJournalResult.value;
+
+      const res = await request(app)
+        .patch(`/v1/journals/${otherJournal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          name: 'Cross-journal Update Attempt',
+        });
+
+      expect(res.status).to.equal(404);
+      expect(res.body.message).to.include('Template not found');
+    });
+
+    it('should reject invalid form structure', async () => {
+      const invalidStructure = {
+        formStructureVersion: 'journal-forms-v1.0.0',
+        sections: [], // Invalid - must have at least one section
+      };
+
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({
+          structure: invalidStructure,
+        });
+
+      expect(res.status).to.equal(400);
+      expect(res.body.message).to.include('Invalid form structure');
+      expect(res.body.message).to.include('Form must have at least one section');
+    });
+
+    it('should preserve formUuid when creating new version', async () => {
+      const originalFormUuid = usedTemplate.formUuid;
+
+      // Update the used template to create version 2
+      const res1 = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${usedTemplate.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({ name: 'Version 2' });
+
+      expect(res1.status).to.equal(200);
+      const version2Template = res1.body.data.template;
+
+      // Add a response to version 2 to make it "used"
+      await prisma.journalFormResponse.create({
+        data: {
+          templateId: version2Template.id,
+          refereeAssignmentId: assignment.id,
+          status: FormResponseStatus.DRAFT,
+          formData: {},
+        },
+      });
+
+      // Now update version 2 to create version 3
+      const res2 = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${version2Template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({ name: 'Version 3' });
+
+      expect(res2.status).to.equal(200);
+      const version3Template = res2.body.data.template;
+
+      // All versions should have the same formUuid
+      expect(version2Template.formUuid).to.equal(originalFormUuid);
+      expect(version3Template.formUuid).to.equal(originalFormUuid);
+
+      // But different versions
+      expect(version2Template.version).to.equal(2);
+      expect(version3Template.version).to.equal(3);
+    });
+
+    it('should handle updating with empty request body gracefully', async () => {
+      const res = await request(app)
+        .patch(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
+        .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+        .send({}); // Empty body
+
+      expect(res.status).to.equal(200);
+      const { template: updatedTemplate } = res.body.data;
+
+      // Template should remain unchanged
+      expect(updatedTemplate.name).to.equal(template.name);
+      expect(updatedTemplate.description).to.equal(template.description);
+      expect(updatedTemplate.version).to.equal(template.version);
+    });
+  });
 });
