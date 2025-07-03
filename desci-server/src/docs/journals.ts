@@ -1158,6 +1158,101 @@ export const submitRevisionOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Get Journal Submission
+export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
+  operationId: 'getJournalSubmission',
+  tags: ['Journals'],
+  summary: 'Get details of a specific journal submission',
+  description:
+    'Retrieve comprehensive details of a journal submission including research object information, author details, and assigned editor information.',
+  requestParams: { path: submissionApiSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Submission details retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+            data: z.object({
+              id: z.number(),
+              journalId: z.number(),
+              authorId: z.number(),
+              assignedEditorId: z.number().nullable(),
+              dpid: z.number(),
+              version: z.number(),
+              status: z.string(),
+              submittedAt: z.string().nullable(),
+              acceptedAt: z.string().nullable(),
+              rejectedAt: z.string().nullable(),
+              doiMintedAt: z.string().nullable(),
+              doi: z.string().nullable(),
+              journal: z.object({
+                id: z.number(),
+                name: z.string(),
+              }),
+              author: z.object({
+                name: z.string().nullable(),
+                id: z.number(),
+                orcid: z.string().nullable(),
+              }),
+              assignedEditor: z
+                .object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                })
+                .nullable(),
+              researchObject: z.object({
+                title: z.string(),
+                uuid: z.string(),
+                doi: z.string().nullable(),
+                manifest: z.object({
+                  version: z.string(),
+                  title: z.string(),
+                  authors: z.array(
+                    z.object({
+                      name: z.string(),
+                      role: z.string(),
+                      orcid: z.string().nullable(),
+                    }),
+                  ),
+                  description: z.string(),
+                  components: z.array(z.object({}).passthrough()),
+                }),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - User is not authorized to view this submission',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Failed to get submission details',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 // Get Revisions
 export const getRevisionsOperation: ZodOpenApiOperationObject = {
   operationId: 'getRevisions',
@@ -1966,6 +2061,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/submissions': {
     post: createJournalSubmissionOperation,
     get: listJournalSubmissionsOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}': {
+    get: getJournalSubmissionOperation,
   },
   '/v1/journals/{journalId}/my-submissions': {
     get: getAuthorJournalSubmissionsOperation,

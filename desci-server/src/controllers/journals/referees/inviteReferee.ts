@@ -56,8 +56,6 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
 export const getRefereeInvitesController = async (req: AuthenticatedRequest, res: Response) => {
   const refereeUserId = req.user.id;
 
-  logger.info({ refereeUserId }, 'Attempting to get referee invites');
-
   const result = await JournalRefereeManagementService.getRefereeInvites(refereeUserId);
 
   if (result.isErr()) {
@@ -67,6 +65,5 @@ export const getRefereeInvitesController = async (req: AuthenticatedRequest, res
   }
 
   const invites = result.value;
-  logger.trace({ invites }, 'Invites');
   return sendSuccess(res, invites);
 };

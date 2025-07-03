@@ -91,6 +91,11 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     if (status) {
       filter.status = { in: statusMap[status] };
+
+      if (status === 'assigned') {
+        filter.status = undefined;
+        filter.assignedEditorId = { not: null };
+      }
     }
 
     if (assignedToMe) {
@@ -392,7 +397,7 @@ type GetJournalSubmissionRequest = ValidatedRequest<typeof submissionApiSchema, 
 export const getJournalSubmissionController = async (req: GetJournalSubmissionRequest, res: Response) => {
   const { journalId, submissionId } = req.validatedData.params;
 
-  const submissionExtended = await journalSubmissionService.getSubmissionExtendedData(submissionId);
+  const submissionExtended = await journalSubmissionService.getSubmissionDetails(submissionId);
   if (submissionExtended.isErr()) {
     return sendError(res, 'Failed to get submission extended data', 500);
   }
