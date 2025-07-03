@@ -1,6 +1,11 @@
 import { EditorRole } from '@prisma/client';
 import { Router } from 'express';
 
+import { createFormTemplateController } from '../../../controllers/journals/forms/createTemplate.js';
+import { getFormResponseController } from '../../../controllers/journals/forms/getFormResponse.js';
+import { listFormTemplatesController } from '../../../controllers/journals/forms/listTemplates.js';
+import { saveFormResponseController } from '../../../controllers/journals/forms/saveFormResponse.js';
+import { submitFormResponseController } from '../../../controllers/journals/forms/submitFormResponse.js';
 import { editorInviteDecision } from '../../../controllers/journals/invites/editorInviteDecision.js';
 import { inviteEditor, listJournalEditors } from '../../../controllers/journals/invites/inviteEditor.js';
 import { listJournalsController } from '../../../controllers/journals/list.js';
@@ -9,6 +14,7 @@ import { removeEditorController } from '../../../controllers/journals/management
 import { updateJournalController } from '../../../controllers/journals/management/update.js';
 import { updateEditorController } from '../../../controllers/journals/management/updateEditor.js';
 import { updateEditorRoleController } from '../../../controllers/journals/management/updateRole.js';
+import { getRefereeFormStatusController } from '../../../controllers/journals/referees/getRefereeFormStatus.js';
 import { listRefereeAssignmentsController } from '../../../controllers/journals/referees/index.js';
 import { invalidateRefereeAssignmentController } from '../../../controllers/journals/referees/invalidateRefereeAssignment.js';
 import {
@@ -72,8 +78,11 @@ import {
   revisionActionSchema,
   revisionApiSchema,
   listJournalsSchema,
-  listRefereeAssignmentsSchema,
   listJournalEditorsSchema,
+  createFormTemplateSchema,
+  listFormTemplatesSchema,
+  getFormResponseSchema,
+  submitFormResponseSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -286,6 +295,45 @@ router.post(
   '/:journalId/submissions/:submissionId/revisions/:revisionId/action',
   [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(revisionActionSchema)],
   asyncHandler(revisionActionController),
+);
+
+// Form Template Routes
+router.post(
+  '/:journalId/forms/templates',
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(createFormTemplateSchema)],
+  asyncHandler(createFormTemplateController),
+);
+
+router.get(
+  '/:journalId/forms/templates',
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+    validateInputs(listFormTemplatesSchema),
+  ],
+  asyncHandler(listFormTemplatesController),
+);
+
+// Form Response Routes (Referees)
+router.get(
+  '/:journalId/forms/response/:assignmentId/:templateId',
+  [ensureUser, validateInputs(getFormResponseSchema)],
+  asyncHandler(getFormResponseController),
+);
+
+router.put('/:journalId/forms/response/:responseId', [ensureUser], asyncHandler(saveFormResponseController));
+
+router.post(
+  '/:journalId/forms/response/:responseId/submit',
+  [ensureUser, validateInputs(submitFormResponseSchema)],
+  asyncHandler(submitFormResponseController),
+);
+
+// Referee form status
+router.get(
+  '/:journalId/submissions/:submissionId/referees/:assignmentId/form-status',
+  [ensureUser],
+  asyncHandler(getRefereeFormStatusController),
 );
 
 export default router;

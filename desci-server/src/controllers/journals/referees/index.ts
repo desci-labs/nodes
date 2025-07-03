@@ -3,14 +3,13 @@ import { Response } from 'express';
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { listRefereeAssignmentsSchema } from '../../../schemas/journals.schema.js';
 import { JournalRefereeManagementService } from '../../../services/journals/JournalRefereeManagementService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::ListRefereeAssignmentsController',
 });
 
-type ListRefereeAssignmentsRequest = ValidatedRequest<typeof listRefereeAssignmentsSchema, AuthenticatedRequest>;
+type ListRefereeAssignmentsRequest = AuthenticatedRequest;
 
 export const listRefereeAssignmentsController = async (req: ListRefereeAssignmentsRequest, res: Response) => {
   try {
