@@ -56,7 +56,7 @@ export const getFormTemplateController = async (req: AuthenticatedRequest, res: 
     if (!isEditor) {
       const refereeAssignment = await prisma.refereeAssignment.findFirst({
         where: {
-          refereeId: userId,
+          userId: userId,
           journalId: parseInt(journalId),
           expectedFormTemplateIds: {
             has: parseInt(templateId),
