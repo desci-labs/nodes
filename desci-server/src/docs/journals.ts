@@ -1306,7 +1306,7 @@ export const listRefereeAssignmentsOperation: ZodOpenApiOperationObject = {
               z.object({
                 id: z.number(),
                 submissionId: z.number(),
-                refereeId: z.number(),
+                userId: z.number(),
                 assignedById: z.number(),
                 assignedAt: z.string(),
                 reassignedAt: z.string().nullable(),

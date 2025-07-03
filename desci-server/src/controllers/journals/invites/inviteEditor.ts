@@ -67,11 +67,11 @@ export const listJournalEditors = async (req: ListJournalEditorsRequest, res: Re
     if (sortBy) {
       if (sortBy === 'newest') {
         orderBy = {
-          acceptedAt: sortOrder,
+          acceptedAt: sortOrder === 'desc' ? 'desc' : 'asc',
         };
       } else if (sortBy === 'oldest') {
         orderBy = {
-          acceptedAt: sortOrder,
+          acceptedAt: sortOrder === 'desc' ? 'asc' : 'desc',
         };
       }
     }
@@ -95,6 +95,6 @@ export const listJournalEditors = async (req: ListJournalEditorsRequest, res: Re
     return sendSuccess(res, editors);
   } catch (error) {
     logger.error({ error: error.toString(), errorMessage: error.message }, 'Failed to list journal editors');
-    return sendError(res, null, 500);
+    return sendError(res, 'Failed to list journal editors', 500);
   }
 };
