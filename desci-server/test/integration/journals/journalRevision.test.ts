@@ -99,6 +99,7 @@ describe('Journal Revisions', () => {
 
     // assign submission to referee
     await journalSubmissionService.assignSubmissionToEditor({
+      journalId: journal.id,
       assignerId: chiefEditor.user.id,
       submissionId: submission.id,
       editorId: associateEditor.user.id,
@@ -199,6 +200,7 @@ describe('Journal Revisions', () => {
 
     // assign submission to referee
     await journalSubmissionService.assignSubmissionToEditor({
+      journalId: journal.id,
       assignerId: chiefEditor.user.id,
       submissionId: submission.id,
       editorId: associateEditor.user.id,

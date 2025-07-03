@@ -521,7 +521,7 @@ async function getOrCreateFormResponse(
     // Authorization rules:
     // 1. Referees can access (get/create) their own form responses
     // 2. Editors (chief or assigned) can only view existing form responses, not create new ones
-    const isReferee = assignment.refereeId === userId;
+    const isReferee = assignment.userId === userId;
 
     // Check if user is an editor of the journal
     const editor = await prisma.journalEditor.findFirst({
@@ -644,7 +644,7 @@ async function saveFormResponse(
     }
 
     // Verify the user is the referee
-    if (response.RefereeAssignment?.refereeId !== userId) {
+    if (response.RefereeAssignment?.userId !== userId) {
       logger.warn({ userId, responseId }, 'User is not authorized to save this form response');
       return err(new Error('Unauthorized to save this form response'));
     }
@@ -732,7 +732,7 @@ async function submitFormResponse(
     }
 
     // Verify the user is the referee
-    if (response.RefereeAssignment.refereeId !== userId) {
+    if (response.RefereeAssignment.userId !== userId) {
       logger.warn({ userId, responseId }, 'User is not authorized to submit this form response');
       return err(new Error('Unauthorized to submit this form response'));
     }

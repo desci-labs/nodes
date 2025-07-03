@@ -37,7 +37,7 @@ export const getRefereeFormStatusController = async (req: AuthenticatedRequest, 
     }
 
     // Check authorization - must be the referee, assigned editor, or chief editor
-    const isReferee = assignment.refereeId === userId;
+    const isReferee = assignment.userId === userId;
     const isAssignedEditor = assignment.submission.assignedEditorId === userId;
 
     const editor = await prisma.journalEditor.findFirst({

@@ -282,7 +282,7 @@ describe('Journal Submission Service', () => {
         });
     });
 
-    it('can view only public submissions (assigned, accepted)', async () => {
+    it('can view only submissions assigned to me', async () => {
       if (!draftNode?.dpidAlias) {
         throw new Error('Failed to create draft node with dpidAlias');
       }
@@ -358,14 +358,14 @@ describe('Journal Submission Service', () => {
         .get(`/v1/journals/${journal.id}/submissions`)
         .set('authorization', `Bearer ${associateEditor.token}`);
 
+      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+
       expect(response.status).to.equal(200);
-      const submissions = response.body.data.submissions;
+      const submissions = response.body.data.data;
+      console.log({ submissions });
       expect(submissions).to.be.an('array');
-      expect(submissions.length).to.equal(2);
-      expect(submissions.map((s: any) => s.status)).to.include.members([
-        SubmissionStatus.UNDER_REVIEW,
-        SubmissionStatus.ACCEPTED,
-      ]);
+      expect(submissions.length).to.equal(1);
+      expect(submissions.map((s: any) => s.status)).to.include.members([SubmissionStatus.UNDER_REVIEW]);
     });
   });
 
@@ -453,12 +453,12 @@ describe('Journal Submission Service', () => {
     it('can view all their submissions', async () => {
       // Get author's submissions
       response = await request
-        .get(`/v1/journals/${journal.id}/my-submissions/${author.user.id}`)
+        .get(`/v1/journals/${journal.id}/my-submissions`)
         .set('authorization', `Bearer ${author.token}`);
       // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(200);
-      const submissions = response.body.data.submissions;
+      const submissions = response.body.data.data;
       expect(submissions).to.be.an('array');
       expect(submissions.length).to.equal(2);
       expect(submissions.every((s: any) => s.authorId === author.user.id)).to.be.true;
@@ -471,7 +471,7 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${author.token}`);
 
       expect(response.status).to.equal(200);
-      const submissions = response.body.data.submissions;
+      const submissions = response.body.data.data;
       expect(submissions).to.be.an('array');
       expect(submissions.length).to.equal(1);
       expect(submissions.map((s: any) => s.status)).to.include.members([SubmissionStatus.ACCEPTED]);
@@ -571,6 +571,7 @@ describe('Journal Submission Service', () => {
 
       // assign submission to referee
       await journalSubmissionService.assignSubmissionToEditor({
+        journalId: journal.id,
         assignerId: chiefEditor.user.id,
         submissionId: submission.id,
         editorId: associateEditor.user.id,

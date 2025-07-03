@@ -52,3 +52,18 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
     return sendError(res, 'An unexpected error occurred', 500);
   }
 };
+
+export const getRefereeInvitesController = async (req: AuthenticatedRequest, res: Response) => {
+  const refereeUserId = req.user.id;
+
+  const result = await JournalRefereeManagementService.getRefereeInvites(refereeUserId);
+
+  if (result.isErr()) {
+    const error = result.error;
+    logger.error({ error, refereeUserId }, 'Failed to get referee invites');
+    return sendError(res, null, 500);
+  }
+
+  const invites = result.value;
+  return sendSuccess(res, invites);
+};

@@ -1234,7 +1234,7 @@ model JournalSubmissionRevision {
 model RefereeAssignment {
   id                      Int       @id @default(autoincrement())
   submissionId            Int
-  refereeId               Int
+  userId                  Int
   assignedById            Int // Editor who assigned
   assignedAt              DateTime  @default(now())
   reassignedAt            DateTime? // Would show if the assignment is a reassignment.
@@ -1246,12 +1246,12 @@ model RefereeAssignment {
 
   // Relationships
   submission          JournalSubmission         @relation(fields: [submissionId], references: [id])
-  referee             User                      @relation(fields: [refereeId], references: [id])
+  referee             User                      @relation(fields: [userId], references: [id])
   reviews             JournalSubmissionReview[]
   journal             Journal                   @relation(fields: [journalId], references: [id])
   JournalFormResponse JournalFormResponse[]
 
-  @@unique([submissionId, refereeId])
+  @@unique([submissionId, userId])
 }
 
 model JournalSubmissionReview {

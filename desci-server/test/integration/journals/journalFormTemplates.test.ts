@@ -28,7 +28,7 @@ server.ready().then((_) => {
 });
 export const app = server.app;
 
-describe.only('Journal Form Template Service & Endpoints', () => {
+describe('Journal Form Template Service & Endpoints', () => {
   let chiefEditor: User;
   let associateEditor: User;
   let refereeUser: User;
@@ -110,6 +110,7 @@ describe.only('Journal Form Template Service & Endpoints', () => {
 
     // Assign editor
     const assignedSubmission = await journalSubmissionService.assignSubmissionToEditor({
+      journalId: journal.id,
       submissionId: createdSubmission.id,
       editorId: associateEditor.id,
       assignerId: chiefEditor.id,

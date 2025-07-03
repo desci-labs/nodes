@@ -46,3 +46,21 @@ export const showJournalController = async (req: ShowJournalRequest, res: Respon
     return sendError(res, 'An unexpected error occurred.', 500);
   }
 };
+
+export const showJournalProfileController = async (req: ShowJournalRequest, res: Response) => {
+  const userId = req.user?.id;
+
+  logger.info({ userId }, 'Attempting to retrieve journal profile');
+
+  const result = await JournalManagementService.getJournalProfile(userId);
+
+  if (result.isErr()) {
+    const error = result.error;
+
+    logger.error({ error, userId: req.user?.id }, 'Failed to retrieve journal profile.');
+    return sendError(res, 'Failed to retrieve journal profile due to a server error.', 500);
+  }
+
+  const profiles = result.value;
+  return sendSuccess(res, { profiles });
+};

@@ -1,3 +1,4 @@
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { JournalSubmission } from '@prisma/client';
 
 import { DeskRejectionEmailProps } from '../../templates/emails/journals/DeskRejection.js';
@@ -26,6 +27,49 @@ export type SubmissionExtended = SubmissionPartial & {
   abstract: string;
   submitterName: string;
   submitterUserId: number;
+  // included for convenience in the db query
+  journal: {
+    id: number;
+    name: string;
+  };
+  node: {
+    title: string;
+    uuid: string;
+  };
+  author: {
+    name: string;
+    id: number;
+    orcid: string;
+  };
+  assignedEditor: {
+    id: number;
+    name: string;
+    orcid: string;
+  };
+};
+
+export type SubmissionDetails = SubmissionPartial & {
+  researchObject: {
+    title: string;
+    uuid: string;
+    doi: string;
+    manifest: ResearchObjectV1;
+  };
+  // included for convenience in the db query
+  journal: {
+    id: number;
+    name: string;
+  };
+  author: {
+    name: string;
+    id: number;
+    orcid: string;
+  };
+  assignedEditor: {
+    id: number;
+    name: string;
+    orcid: string;
+  };
 };
 
 export type EditorInvitePayload = {
