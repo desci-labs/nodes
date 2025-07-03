@@ -3,9 +3,11 @@ import { Router } from 'express';
 
 import { createFormTemplateController } from '../../../controllers/journals/forms/createTemplate.js';
 import { getFormResponseController } from '../../../controllers/journals/forms/getFormResponse.js';
+import { getFormTemplateController } from '../../../controllers/journals/forms/getFormTemplate.js';
 import { listFormTemplatesController } from '../../../controllers/journals/forms/listTemplates.js';
 import { saveFormResponseController } from '../../../controllers/journals/forms/saveFormResponse.js';
 import { submitFormResponseController } from '../../../controllers/journals/forms/submitFormResponse.js';
+import { updateFormTemplateController } from '../../../controllers/journals/forms/updateTemplate.js';
 import { editorInviteDecision } from '../../../controllers/journals/invites/editorInviteDecision.js';
 import { inviteEditor, listJournalEditors } from '../../../controllers/journals/invites/inviteEditor.js';
 import { listJournalsController } from '../../../controllers/journals/list.js';
@@ -81,6 +83,8 @@ import {
   listJournalEditorsSchema,
   createFormTemplateSchema,
   listFormTemplatesSchema,
+  getFormTemplateSchema,
+  updateFormTemplateSchema,
   getFormResponseSchema,
   submitFormResponseSchema,
 } from '../../../schemas/journals.schema.js';
@@ -312,6 +316,18 @@ router.get(
     validateInputs(listFormTemplatesSchema),
   ],
   asyncHandler(listFormTemplatesController),
+);
+
+router.get(
+  '/:journalId/forms/templates/:templateId',
+  [ensureUser, validateInputs(getFormTemplateSchema)],
+  asyncHandler(getFormTemplateController),
+);
+
+router.patch(
+  '/:journalId/forms/templates/:templateId',
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(updateFormTemplateSchema)],
+  asyncHandler(updateFormTemplateController),
 );
 
 // Form Response Routes (Referees)

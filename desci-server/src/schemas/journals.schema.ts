@@ -421,7 +421,75 @@ export const listFormTemplatesSchema = z.object({
     journalId: z.coerce.number(),
   }),
   query: z.object({
-    activeOnly: z.coerce.boolean().optional().default(true),
+    includeInactive: z.coerce.boolean().optional(),
+  }),
+});
+
+export const getFormTemplateSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    templateId: z.coerce.number(),
+  }),
+});
+
+export const updateFormTemplateSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    templateId: z.coerce.number(),
+  }),
+  body: z.object({
+    name: z.string().min(1, 'Template name is required').optional(),
+    description: z.string().optional(),
+    isActive: z.boolean().optional(),
+    structure: z
+      .object({
+        sections: z.array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            description: z.string().optional(),
+            fields: z.array(
+              z.object({
+                id: z.string(),
+                fieldType: z.enum([
+                  'TEXT',
+                  'TEXTAREA',
+                  'NUMBER',
+                  'BOOLEAN',
+                  'RADIO',
+                  'CHECKBOX',
+                  'SELECT',
+                  'SCALE',
+                  'RATING',
+                  'DATE',
+                ]),
+                name: z.string(),
+                label: z.string(),
+                description: z.string().optional(),
+                required: z.boolean(),
+                options: z
+                  .array(
+                    z.object({
+                      value: z.string(),
+                      label: z.string(),
+                    }),
+                  )
+                  .optional(),
+                validation: z
+                  .object({
+                    minLength: z.number().int().positive().optional(),
+                    maxLength: z.number().int().positive().optional(),
+                    min: z.number().optional(),
+                    max: z.number().optional(),
+                    pattern: z.string().optional(),
+                  })
+                  .optional(),
+              }),
+            ),
+          }),
+        ),
+      })
+      .optional(),
   }),
 });
 

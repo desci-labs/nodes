@@ -29,6 +29,8 @@ import {
   submitReviewSchema,
   createFormTemplateSchema,
   listFormTemplatesSchema,
+  getFormTemplateSchema,
+  updateFormTemplateSchema,
   getFormResponseSchema,
   saveFormResponseSchema,
   submitFormResponseSchema,
@@ -1694,12 +1696,16 @@ export const createFormTemplateOperation: ZodOpenApiOperationObject = {
           schema: z.object({
             template: z.object({
               id: z.number(),
+              formUuid: z.string(),
               journalId: z.number(),
               name: z.string(),
               description: z.string().nullable(),
               version: z.number(),
               isActive: z.boolean(),
-              structure: z.any(),
+              structure: z.object({
+                formStructureVersion: z.string(),
+                sections: z.array(z.any()),
+              }),
               createdById: z.number(),
               createdAt: z.string(),
               updatedAt: z.string(),
@@ -1741,7 +1747,8 @@ export const listFormTemplatesOperation: ZodOpenApiOperationObject = {
   operationId: 'listFormTemplates',
   tags: ['Journals'],
   summary: 'List form templates',
-  description: 'Get all form templates for a journal',
+  description:
+    'Get all form templates for a journal, grouped by form UUID with newest forms first and latest versions first within each form',
   requestParams: {
     path: listFormTemplatesSchema.shape.params,
     query: listFormTemplatesSchema.shape.query,
@@ -1753,25 +1760,34 @@ export const listFormTemplatesOperation: ZodOpenApiOperationObject = {
         'application/json': {
           schema: z.object({
             templates: z.array(
-              z.object({
-                id: z.number(),
-                journalId: z.number(),
-                name: z.string(),
-                description: z.string().nullable(),
-                version: z.number(),
-                isActive: z.boolean(),
-                structure: z.any(),
-                createdById: z.number(),
-                createdAt: z.string(),
-                updatedAt: z.string(),
-                createdBy: z.object({
-                  id: z.number(),
-                  name: z.string().nullable(),
-                }),
-                _count: z.object({
-                  responses: z.number(),
-                }),
-              }),
+              z.record(
+                z.string(),
+                z.array(
+                  z.object({
+                    id: z.number(),
+                    formUuid: z.string(),
+                    journalId: z.number(),
+                    name: z.string(),
+                    description: z.string().nullable(),
+                    version: z.number(),
+                    isActive: z.boolean(),
+                    structure: z.object({
+                      formStructureVersion: z.string(),
+                      sections: z.array(z.any()),
+                    }),
+                    createdById: z.number(),
+                    createdAt: z.string(),
+                    updatedAt: z.string(),
+                    createdBy: z.object({
+                      id: z.number(),
+                      name: z.string().nullable(),
+                    }),
+                    _count: z.object({
+                      responses: z.number(),
+                    }),
+                  }),
+                ),
+              ),
             ),
           }),
         },
@@ -1779,6 +1795,132 @@ export const listFormTemplatesOperation: ZodOpenApiOperationObject = {
     },
     '404': {
       description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Form Template
+export const getFormTemplateOperation: ZodOpenApiOperationObject = {
+  operationId: 'getFormTemplate',
+  tags: ['Journals'],
+  summary: 'Get a specific form template',
+  description:
+    'Get details of a specific form template. Accessible by chief editors, associate editors, and referees assigned to the template.',
+  requestParams: { path: getFormTemplateSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Template retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            template: z.object({
+              id: z.number(),
+              formUuid: z.string(),
+              journalId: z.number(),
+              name: z.string(),
+              description: z.string().nullable(),
+              version: z.number(),
+              isActive: z.boolean(),
+              structure: z.object({
+                formStructureVersion: z.string(),
+                sections: z.array(z.any()),
+              }),
+              createdById: z.number(),
+              updatedAt: z.string(),
+              createdBy: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Unauthorized - User is not authorized to view this template',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Template not found or does not belong to the journal',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Update Form Template
+export const updateFormTemplateOperation: ZodOpenApiOperationObject = {
+  operationId: 'updateFormTemplate',
+  tags: ['Journals'],
+  summary: 'Update a form template',
+  description:
+    'Update an existing form template. If the template has been used, creates a new version. (Chief Editors only)',
+  requestParams: { path: updateFormTemplateSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: updateFormTemplateSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Template updated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            template: z.object({
+              id: z.number(),
+              formUuid: z.string(),
+              journalId: z.number(),
+              name: z.string(),
+              description: z.string().nullable(),
+              version: z.number(),
+              isActive: z.boolean(),
+              structure: z.object({
+                formStructureVersion: z.string(),
+                sections: z.array(z.any()),
+              }),
+              createdById: z.number(),
+              createdAt: z.string(),
+              updatedAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Bad request - Invalid form structure',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Unauthorized - not a chief editor',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Template not found',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -2110,6 +2252,10 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/forms/templates': {
     post: createFormTemplateOperation,
     get: listFormTemplatesOperation,
+  },
+  '/v1/journals/{journalId}/forms/templates/{templateId}': {
+    get: getFormTemplateOperation,
+    patch: updateFormTemplateOperation,
   },
   '/v1/journals/{journalId}/forms/response/{assignmentId}/{templateId}': {
     get: getFormResponseOperation,
