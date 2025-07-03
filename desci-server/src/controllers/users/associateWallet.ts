@@ -16,7 +16,7 @@ import { generateAccessToken } from '../auth/magic.js';
 const createWalletNickname = async (user: Prisma.UserWhereInput) => {
   const count = await prisma.wallet.count({
     where: {
-      user,
+      userId: user.id,
     },
   });
   if (count == 0) {
@@ -161,6 +161,7 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
         },
         data: {
           siweNonce: '',
+          notificationSettings: {},
         },
       });
 
