@@ -1488,6 +1488,8 @@ export const inviteRefereeOperation: ZodOpenApiOperationObject = {
   operationId: 'inviteReferee',
   tags: ['Journals'],
   summary: 'Invite a referee to review a submission',
+  description:
+    'Invite a referee (existing user or external email) to review a submission. Supports both internal users (via refereeUserId) and external referees (via refereeEmail). Can specify expected form templates and review deadline.',
   requestParams: { path: inviteRefereeSchema.shape.params },
   requestBody: {
     content: {
@@ -1504,22 +1506,24 @@ export const inviteRefereeOperation: ZodOpenApiOperationObject = {
           schema: z.object({
             invite: z.object({
               id: z.number(),
-              token: z.string(),
-              email: z.string(),
+              userId: z.number().nullable(),
               submissionId: z.number(),
+              relativeDueDateHrs: z.number().nullable(),
+              expectedFormTemplateIds: z.array(z.number()),
+              email: z.string(),
+              token: z.string(),
               invitedById: z.number(),
               createdAt: z.string(),
               expiresAt: z.string(),
               accepted: z.boolean(),
               declined: z.boolean(),
-              relativeDueDateHrs: z.number().nullable(),
             }),
           }),
         },
       },
     },
-    '404': {
-      description: 'Submission or referee not found',
+    '400': {
+      description: 'Bad request - Invalid input parameters',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -1527,7 +1531,23 @@ export const inviteRefereeOperation: ZodOpenApiOperationObject = {
       },
     },
     '403': {
-      description: 'Not authorized to invite referees',
+      description: 'Not authorized to invite referees for this submission',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -1543,6 +1563,8 @@ export const refereeInviteDecisionOperation: ZodOpenApiOperationObject = {
   operationId: 'refereeInviteDecision',
   tags: ['Journals'],
   summary: 'Accept or decline a referee invitation',
+  description:
+    'Process a referee invitation decision. Accepting requires authentication and creates a referee assignment. Declining can be done without authentication.',
   requestParams: { path: refereeInviteDecisionSchema.shape.params },
   requestBody: {
     content: {
@@ -1559,17 +1581,9 @@ export const refereeInviteDecisionOperation: ZodOpenApiOperationObject = {
           schema: z.object({
             invite: z.object({
               id: z.number(),
-              token: z.string(),
-              email: z.string(),
-              submissionId: z.number(),
-              invitedById: z.number(),
-              createdAt: z.string(),
-              expiresAt: z.string(),
-              accepted: z.boolean(),
-              declined: z.boolean(),
-              acceptedAt: z.string().nullable(),
-              declinedAt: z.string().nullable(),
               userId: z.number().nullable(),
+              submissionId: z.number(),
+              relativeDueDateHrs: z.number().nullable(),
             }),
           }),
         },
@@ -1577,6 +1591,14 @@ export const refereeInviteDecisionOperation: ZodOpenApiOperationObject = {
     },
     '400': {
       description: 'Invalid or expired invite',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '401': {
+      description: 'Authentication required to accept invitation',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -1591,7 +1613,24 @@ export const refereeInviteDecisionOperation: ZodOpenApiOperationObject = {
         },
       },
     },
+    '409': {
+      description: 'Maximum number of referees already assigned',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
   },
+  security: [{ BearerAuth: [] }],
 };
 
 // Invalidate Referee Assignment
@@ -1636,6 +1675,7 @@ export const getRefereeInvitationsOperation: ZodOpenApiOperationObject = {
   operationId: 'getRefereeInvitations',
   tags: ['Journals'],
   summary: 'Get all referee invitations for the authenticated user',
+  description: 'Retrieve all referee invitations for the currently authenticated user, including submission details.',
   responses: {
     '200': {
       description: 'Referee invitations retrieved successfully',
@@ -1663,7 +1703,7 @@ export const getRefereeInvitationsOperation: ZodOpenApiOperationObject = {
       },
     },
     '500': {
-      description: 'Internal server error',
+      description: 'Failed to retrieve referee invitations',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
