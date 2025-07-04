@@ -261,7 +261,8 @@ export const inviteRefereeSchema = z.object({
     journalId: z.string(),
   }),
   body: z.object({
-    refereeUserId: z.number().int().positive(),
+    refereeEmail: z.string().email().optional(),
+    refereeUserId: z.number().int().positive().optional(),
     relativeDueDateHrs: z.number().int().positive().optional(), // lets restric tthis further.
     expectedFormTemplateIds: z.array(z.number().int().positive()).optional().default([]),
   }),

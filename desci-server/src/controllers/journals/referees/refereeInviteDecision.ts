@@ -1,5 +1,6 @@
 import { NextFunction, Response } from 'express';
 import _ from 'lodash';
+import { errWithCause } from 'pino-std-serializers';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { OptionalAuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
@@ -44,7 +45,10 @@ export const refereeInviteDecisionController = async (
 
     if (inviteResult.isErr()) {
       const error = inviteResult.error;
-      logger.error({ error, body: req.body, userId: req.user?.id }, 'Failed to process referee invite decision');
+      logger.error(
+        { error: errWithCause(error), body: req.body, userId: req.user?.id },
+        'Failed to process referee invite decision',
+      );
       if (error.message === 'Referee invite not found' || error.message === 'Referee invite not valid') {
         return sendError(res, error.message, 400);
       }

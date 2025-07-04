@@ -16,7 +16,7 @@ type InviteRefereeRequest = ValidatedRequest<typeof inviteRefereeSchema, Authent
 export const inviteRefereeController = async (req: InviteRefereeRequest, res: Response) => {
   try {
     const { submissionId } = req.validatedData.params;
-    const { refereeUserId, relativeDueDateHrs, expectedFormTemplateIds } = req.validatedData.body;
+    const { refereeUserId, refereeEmail, relativeDueDateHrs, expectedFormTemplateIds } = req.validatedData.body;
     const managerUserId = req.user.id;
 
     logger.info(
@@ -26,6 +26,7 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
 
     const result = await JournalRefereeManagementService.inviteReferee({
       submissionId: parseInt(submissionId),
+      refereeEmail,
       refereeUserId,
       managerUserId,
       relativeDueDateHrs,
@@ -35,13 +36,29 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
     if (result.isErr()) {
       const error = result.error;
       logger.error({ error, body: req.body, params: req.params, user: req.user }, 'Failed to invite referee');
-      return sendError(res, 'Failed to invite referee due to a server error.', 500);
+
+      return sendError(res, error.message, 500);
     }
 
     const invite = result.value;
     return sendSuccess(
       res,
-      { invite: _.pick(invite, ['id', 'userId', 'submissionId', 'relativeDueDateHrs', 'expectedFormTemplateIds']) },
+      {
+        invite: _.pick(invite, [
+          'id',
+          'userId',
+          'submissionId',
+          'relativeDueDateHrs',
+          'expectedFormTemplateIds',
+          'email',
+          'token',
+          'invitedById',
+          'createdAt',
+          'expiresAt',
+          'accepted',
+          'declined',
+        ]),
+      },
       'Referee invited successfully.',
     );
   } catch (error) {
@@ -61,7 +78,7 @@ export const getRefereeInvitesController = async (req: AuthenticatedRequest, res
   if (result.isErr()) {
     const error = result.error;
     logger.error({ error, refereeUserId }, 'Failed to get referee invites');
-    return sendError(res, null, 500);
+    return sendError(res, 'Failed to retrieve referee invitations', 500);
   }
 
   const invites = result.value;
