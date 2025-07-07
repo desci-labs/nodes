@@ -1,4 +1,4 @@
-import { EditorRole, JournalEventLogAction, SubmissionStatus } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, Prisma, SubmissionStatus } from '@prisma/client';
 import _ from 'lodash';
 import { err, ok, Result } from 'neverthrow';
 
@@ -12,6 +12,7 @@ import { EmailTypes, sendEmail } from '../email/email.js';
 import {
   MajorRevisionRequestPayload,
   MinorRevisionRequestPayload,
+  SubmissionDetails,
   SubmissionExtended,
 } from '../email/journalEmailTypes.js';
 import {
@@ -21,6 +22,7 @@ import {
 import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
+import { JournalManagementService } from './JournalManagementService.js';
 
 // import { JournalEventLogService } from './JournalEventLogService.js';
 // import { AuthFailureError, ForbiddenError } from '../../core/ApiError.js';
@@ -36,6 +38,8 @@ async function createSubmission(payload: { journalId: number; authorId: number; 
       journalId: payload.journalId,
     },
   });
+
+  logger.trace({ existing }, 'Existing submission');
 
   if (existing) {
     // replace with error class from journals/core/errors.ts
@@ -92,41 +96,75 @@ async function getAuthorSubmissions(payload: { journalId: number; authorId: numb
   });
 }
 
-async function getJournalSubmissions(payload: {
-  journalId: number;
-  limit: number;
-  offset: number;
-  filter?: SubmissionStatus[] | undefined;
-}) {
+async function getJournalSubmissions(
+  journalId: number,
+  filter: Prisma.JournalSubmissionWhereInput,
+  orderBy: Prisma.JournalSubmissionOrderByWithRelationInput,
+  offset: number,
+  limit: number,
+) {
   return await prisma.journalSubmission.findMany({
-    where: {
-      journalId: payload.journalId,
-      ...(payload.filter && { status: { in: payload.filter } }),
-    },
-    skip: payload.offset,
-    take: payload.limit,
+    where: { journalId, ...filter },
+    orderBy,
+    skip: offset,
+    take: limit,
     select: {
       id: true,
-      assignedEditorId: true,
+      // assignedEditorId: true,
       dpid: true,
       version: true,
       status: true,
       submittedAt: true,
       acceptedAt: true,
       rejectedAt: true,
-      doiMintedAt: true,
-      doi: true,
+      node: {
+        select: {
+          title: true,
+        },
+      },
       author: {
         select: {
-          id: true,
           name: true,
-          email: true,
           orcid: true,
         },
       },
-      assignedEditor: {
+    },
+  });
+}
+
+export async function getAssociateEditorSubmissions(
+  journalId: number,
+  assignedEditorId: number,
+  filter: Prisma.JournalSubmissionWhereInput,
+  orderBy: Prisma.JournalSubmissionOrderByWithRelationInput,
+  offset: number,
+  limit: number,
+) {
+  return await prisma.journalSubmission.findMany({
+    where: {
+      ...filter,
+      journalId,
+      assignedEditorId,
+      // OR: [{ assignedEditorId }, { status: SubmissionStatus.ACCEPTED }],
+    },
+    orderBy,
+    skip: offset,
+    take: limit,
+    select: {
+      id: true,
+      dpid: true,
+      version: true,
+      status: true,
+      submittedAt: true,
+      acceptedAt: true,
+      rejectedAt: true,
+      node: {
         select: {
-          id: true,
+          title: true,
+        },
+      },
+      author: {
+        select: {
           name: true,
           email: true,
           orcid: true,
@@ -136,53 +174,14 @@ async function getJournalSubmissions(payload: {
   });
 }
 
-export async function getAssociateEditorSubmissions(payload: {
-  assignedEditorId: number;
+async function assignSubmissionToEditor(payload: {
   journalId: number;
-  limit: number;
-  offset: number;
+  assignerId: number;
+  submissionId: number;
+  editorId: number;
 }) {
-  return await prisma.journalSubmission.findMany({
-    where: {
-      journalId: payload.journalId,
-      OR: [{ assignedEditorId: payload.assignedEditorId }, { status: SubmissionStatus.ACCEPTED }],
-    },
-    skip: payload.offset,
-    take: payload.limit,
-    select: {
-      id: true,
-      assignedEditorId: true,
-      dpid: true,
-      version: true,
-      status: true,
-      submittedAt: true,
-      acceptedAt: true,
-      rejectedAt: true,
-      doiMintedAt: true,
-      doi: true,
-      author: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          orcid: true,
-        },
-      },
-      assignedEditor: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          orcid: true,
-        },
-      },
-    },
-  });
-}
-
-async function assignSubmissionToEditor(payload: { assignerId: number; submissionId: number; editorId: number }) {
   const chiefEditor = await prisma.journalEditor.findFirst({
-    where: { userId: payload.assignerId, role: EditorRole.CHIEF_EDITOR },
+    where: { userId: payload.assignerId, role: EditorRole.CHIEF_EDITOR, journalId: payload.journalId },
     include: {
       user: true,
     },
@@ -338,8 +337,18 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
     where: { id: submissionId },
   });
 
-  if (!submission || submission.assignedEditorId !== editorId) {
+  const editorJournalRole = await JournalManagementService.getUserJournalRole(submission.journalId, editorId);
+
+  if (!submission) {
     throw new NotFoundError('Submission not found');
+  }
+
+  const isEditor = editorJournalRole.isOk();
+  const editorRole = isEditor ? editorJournalRole.value : undefined;
+  const isEditorAssigned = submission.assignedEditorId === editorId;
+  logger.trace({ isEditor, isEditorAssigned, editorRole }, 'rejectSubmission::isEditor');
+  if (!isEditorAssigned && !(isEditor && editorRole === EditorRole.CHIEF_EDITOR)) {
+    throw new ForbiddenError('You are not authorized to reject this submission');
   }
 
   if (submission.status === SubmissionStatus.ACCEPTED) {
@@ -357,10 +366,9 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
       rejectedAt: new Date(),
       acceptedAt: null, // reset acceptedAt to null
     },
-    select: {
-      id: true,
-      status: true,
-      rejectedAt: true,
+    include: {
+      journal: true,
+      author: true,
     },
   });
 }
@@ -465,6 +473,22 @@ async function requestRevision({
 async function getSubmissionById(submissionId: number) {
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: submissionId },
+    include: {
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      author: true,
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          orcid: true,
+        },
+      },
+    },
   });
 
   if (!submission) {
@@ -521,9 +545,32 @@ const getSubmissionExtendedData = async (submissionId: number): Promise<Result<S
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: submissionId },
     include: {
-      journal: true,
-      node: true,
-      author: true,
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      node: {
+        select: {
+          title: true,
+          uuid: true,
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          id: true,
+          orcid: true,
+        },
+      },
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          orcid: true,
+        },
+      },
     },
   });
   if (process.env.NODE_ENV === 'test') {
@@ -566,6 +613,80 @@ const getSubmissionExtendedData = async (submissionId: number): Promise<Result<S
   });
 };
 
+const getSubmissionDetails = async (submissionId: number): Promise<Result<SubmissionDetails, Error>> => {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+    include: {
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      node: {
+        select: {
+          title: true,
+          uuid: true,
+          DoiRecord: {
+            select: {
+              doi: true,
+            },
+          },
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          id: true,
+          orcid: true,
+        },
+      },
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          orcid: true,
+        },
+      },
+    },
+  });
+
+  const doi = submission.node.DoiRecord[0]?.doi;
+  if (process.env.NODE_ENV === 'test') {
+    // The tests don't really care about this data, so just partial dummy data is used
+    // In tests, we can't get resolve the research object, as it's not actually being published.
+    const submissionDetails = {
+      ...submission,
+      researchObject: {
+        ...submission.node,
+        doi,
+        manifest: {
+          version: 'desci-nodes-0.1.0' as const,
+          title: 'Test Title',
+          authors: [{ name: 'Test Author', role: 'author' }],
+          description: 'Test Abstract',
+          components: [],
+        },
+      },
+    };
+    return ok(submissionDetails);
+  }
+  const { researchObjects } = await getIndexedResearchObjects([submission.node.uuid]);
+  if (!researchObjects || researchObjects.length === 0) {
+    return err(new Error('No published version found for submission'));
+  }
+  const researchObject = researchObjects[0];
+
+  const targetVersionIndex = researchObject.versions.length - submission.version;
+  const targetVersion = researchObject.versions[targetVersionIndex];
+  const targetVersionManifestCid = hexToCid(targetVersion.cid);
+  const manifest = await getManifestByCid(targetVersionManifestCid);
+
+  const submissionDetails = { ...submission, researchObject: { ...submission.node, doi, manifest } };
+
+  return ok(submissionDetails);
+};
+
 /**
  * Check if the submission is desk rejected.
  ** Current criteria is if the submission was rejected before any referee invites are sent.
@@ -601,4 +722,5 @@ export const journalSubmissionService = {
   updateSubmissionDoiMintedAt,
   getSubmissionExtendedData,
   isSubmissionDeskRejection,
+  getSubmissionDetails,
 };

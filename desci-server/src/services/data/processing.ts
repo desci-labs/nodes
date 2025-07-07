@@ -22,6 +22,7 @@ import { prisma } from '../../client.js';
 import { UpdateResponse } from '../../controllers/data/update.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, redisClient, setToCache } from '../../redisClient.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
 import {
@@ -386,9 +387,14 @@ export async function getManifestFromNode(
 }
 
 export async function getManifestByCid(manifestCid: string, queryString?: string): Promise<ResearchObjectV1> {
+  const cachedManifest = await getFromCache<ResearchObjectV1>(`manifest:${manifestCid}`);
+  if (cachedManifest) {
+    return cachedManifest;
+  }
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid, queryString as string) : null;
   try {
     const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
+    await setToCache(`manifest:${manifestCid}`, fetchedManifest);
     return fetchedManifest;
   } catch (e) {
     throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);

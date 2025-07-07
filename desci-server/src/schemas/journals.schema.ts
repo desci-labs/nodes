@@ -26,6 +26,38 @@ export const getJournalSchema = z.object({
   }),
 });
 
+export const listJournalEditorsSchema = z.object({
+  params: z.object({
+    journalId: z.string().transform((val, ctx) => {
+      const id = parseInt(val, 10);
+      if (isNaN(id) || id <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Journal ID must be a positive integer.',
+        });
+        return z.NEVER;
+      }
+      return id;
+    }),
+  }),
+  query: z.object({
+    limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
+    workload: z.coerce.number().optional().describe('The workload of the editors to return'),
+    expertise: z.array(z.string()).optional().describe('The expertise of the editors to return'),
+    sortBy: z
+      .enum(['newest', 'oldest', 'workload'])
+      .optional()
+      .default('workload')
+      .describe('The field to sort the submissions by'),
+    sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('The order to sort the submissions by'),
+    availability: z
+      .enum(['all', 'available', 'unavailable'])
+      .optional()
+      .describe('The availability of the editors to return'),
+  }),
+});
+
 export const inviteEditorSchema = z.object({
   params: z.object({
     journalId: z.string().transform((val, ctx) => {
@@ -124,6 +156,24 @@ export const listJournalSubmissionsSchema = z.object({
   query: z.object({
     limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
     offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
+    status: z
+      .enum(['new', 'assigned', 'under_review', 'reviewed', 'under_revision'])
+      .optional()
+      .describe('The status of the submissions to return'),
+    startDate: z.coerce.date().optional().describe('The start date of the submissions to return'),
+    endDate: z.coerce.date().optional().describe('The end date of the submissions to return'),
+    assignedToMe: z.coerce
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('If true, only submissions assigned to the current user as an editor will be returned'),
+    sortBy: z
+      .enum(['newest', 'oldest', 'title', 'impact'])
+      .optional()
+      .default('newest')
+      .describe('The field to sort the submissions by'),
+    sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('The order to sort the submissions by'),
+    impact: z.enum(['high', 'medium', 'low']).optional().describe('The impact of the submissions to return'),
   }),
 });
 
@@ -140,7 +190,7 @@ export const assignSubmissionToEditorSchema = z.object({
 export const getAuthorJournalSubmissionsSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal'),
-    authorId: z.coerce.number().describe('The ID of the author'),
+    // authorId: z.coerce.number().describe('The ID of the author'),
   }),
   query: z.object({
     limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
@@ -208,14 +258,21 @@ export const updateReviewSchema = z.object({
 export const inviteRefereeSchema = z.object({
   params: z.object({
     submissionId: z.string(),
+    journalId: z.string(),
   }),
   body: z.object({
-    refereeUserId: z.number().int().positive(),
+    refereeEmail: z.string().email().optional(),
+    refereeUserId: z.number().int().positive().optional(),
     relativeDueDateHrs: z.number().int().positive().optional(), // lets restric tthis further.
+    expectedFormTemplateIds: z.array(z.number().int().positive()).optional().default([]),
   }),
 });
 
 export const refereeInviteDecisionSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
   body: z.object({
     token: z.string(),
     decision: z.enum(['accept', 'decline']),
@@ -299,5 +356,202 @@ export const revisionActionSchema = z.object({
   }),
   body: z.object({
     decision: z.enum(['accept', 'reject']),
+  }),
+});
+
+// Form Template Schemas
+export const createFormTemplateSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+  }),
+  body: z.object({
+    name: z.string().min(1, 'Template name is required'),
+    description: z.string().optional(),
+    structure: z.object({
+      sections: z.array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          description: z.string().optional(),
+          fields: z.array(
+            z.object({
+              id: z.string(),
+              fieldType: z.enum([
+                'TEXT',
+                'TEXTAREA',
+                'NUMBER',
+                'BOOLEAN',
+                'RADIO',
+                'CHECKBOX',
+                'SELECT',
+                'SCALE',
+                'RATING',
+                'DATE',
+              ]),
+              name: z.string(),
+              label: z.string(),
+              description: z.string().optional(),
+              required: z.boolean(),
+              options: z
+                .array(
+                  z.object({
+                    value: z.string(),
+                    label: z.string(),
+                  }),
+                )
+                .optional(),
+              validation: z
+                .object({
+                  minLength: z.number().int().positive().optional(),
+                  maxLength: z.number().int().positive().optional(),
+                  min: z.number().optional(),
+                  max: z.number().optional(),
+                  pattern: z.string().optional(),
+                })
+                .optional(),
+            }),
+          ),
+        }),
+      ),
+    }),
+  }),
+});
+
+export const listFormTemplatesSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+  }),
+  query: z.object({
+    includeInactive: z.coerce.boolean().optional(),
+  }),
+});
+
+export const getFormTemplateSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    templateId: z.coerce.number(),
+  }),
+});
+
+export const updateFormTemplateSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    templateId: z.coerce.number(),
+  }),
+  body: z.object({
+    name: z.string().min(1, 'Template name is required').optional(),
+    description: z.string().optional(),
+    isActive: z.boolean().optional(),
+    structure: z
+      .object({
+        sections: z.array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            description: z.string().optional(),
+            fields: z.array(
+              z.object({
+                id: z.string(),
+                fieldType: z.enum([
+                  'TEXT',
+                  'TEXTAREA',
+                  'NUMBER',
+                  'BOOLEAN',
+                  'RADIO',
+                  'CHECKBOX',
+                  'SELECT',
+                  'SCALE',
+                  'RATING',
+                  'DATE',
+                ]),
+                name: z.string(),
+                label: z.string(),
+                description: z.string().optional(),
+                required: z.boolean(),
+                options: z
+                  .array(
+                    z.object({
+                      value: z.string(),
+                      label: z.string(),
+                    }),
+                  )
+                  .optional(),
+                validation: z
+                  .object({
+                    minLength: z.number().int().positive().optional(),
+                    maxLength: z.number().int().positive().optional(),
+                    min: z.number().optional(),
+                    max: z.number().optional(),
+                    pattern: z.string().optional(),
+                  })
+                  .optional(),
+              }),
+            ),
+          }),
+        ),
+      })
+      .optional(),
+  }),
+});
+
+export const getFormResponseSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    assignmentId: z.coerce.number(),
+    templateId: z.coerce.number(),
+  }),
+});
+
+export const saveFormResponseSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    responseId: z.coerce.number(),
+  }),
+  body: z.object({
+    fieldResponses: z.record(
+      z.string(),
+      z.object({
+        fieldType: z.enum([
+          'TEXT',
+          'TEXTAREA',
+          'NUMBER',
+          'BOOLEAN',
+          'RADIO',
+          'CHECKBOX',
+          'SELECT',
+          'SCALE',
+          'RATING',
+          'DATE',
+        ]),
+        value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
+      }),
+    ),
+  }),
+});
+
+export const submitFormResponseSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    responseId: z.coerce.number(),
+  }),
+  body: z.object({
+    fieldResponses: z.record(
+      z.string(),
+      z.object({
+        fieldType: z.enum([
+          'TEXT',
+          'TEXTAREA',
+          'NUMBER',
+          'BOOLEAN',
+          'RADIO',
+          'CHECKBOX',
+          'SELECT',
+          'SCALE',
+          'RATING',
+          'DATE',
+        ]),
+        value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
+      }),
+    ),
   }),
 });
