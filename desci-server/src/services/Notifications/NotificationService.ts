@@ -144,6 +144,7 @@ const createUserNotification = async (
     dismissed: false,
     node: data.nodeUuid ? { connect: { uuid: data.nodeUuid } } : undefined,
     payload: data.payload ? (data.payload as Prisma.JsonObject) : undefined,
+    category: data.category ?? NotificationCategory.DESCI_PUBLISH,
   };
 
   const notification = await prisma.userNotifications.create({
