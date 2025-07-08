@@ -217,6 +217,14 @@ export const submissionApiSchema = z.object({
     journalId: z.coerce.number(),
     submissionId: z.coerce.number(),
   }),
+  query: z.object({
+    includeTree: z.coerce.boolean().optional().default(false),
+    filterHiddenFiles: z.coerce
+      .boolean()
+      .optional()
+      .default(true)
+      .describe('Filter out .nodeKeep and .DS_Store files from the tree'),
+  }),
 });
 
 export const reviewsApiSchema = z.object({
