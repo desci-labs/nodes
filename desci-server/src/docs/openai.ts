@@ -17,6 +17,7 @@ import {
 import { authorPaths } from './authors.js';
 import { communityPaths } from './communities.js';
 import { doiPaths } from './doi.js';
+import { dpidPaths } from './dpid.js';
 import { journalPaths } from './journals.js';
 import { openAlexPaths } from './openalex.js';
 import { searchPaths } from './search.js';
@@ -89,6 +90,7 @@ export const openaiDocumentation = createDocument({
     { name: 'Nodes', description: 'Nodes-related operations' },
     { name: 'Data', description: 'Data-related operations' },
     { name: 'DOI', description: 'DOI related operations' },
+    { name: 'DPID', description: 'DPID (Decentralized Persistent Identifier) related operations' },
     { name: 'OpenAlex', description: 'OpenAlex related operations' },
     { name: 'Authors', description: 'Authors-related operations' },
     { name: 'Search', description: 'Elastic search api operations' },
@@ -130,6 +132,7 @@ export const openaiDocumentation = createDocument({
     ...userPaths,
     ...searchPaths,
     ...doiPaths,
+    ...dpidPaths,
     ...openAlexPaths,
     ...journalPaths,
     ...adminNodesPaths,
