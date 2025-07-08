@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import _ from 'lodash';
 
+import { prisma } from '../../../client.js';
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
