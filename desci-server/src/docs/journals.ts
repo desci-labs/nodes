@@ -1166,8 +1166,11 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
   tags: ['Journals'],
   summary: 'Get details of a specific journal submission',
   description:
-    'Retrieve comprehensive details of a journal submission including research object information, author details, and assigned editor information.',
-  requestParams: { path: submissionApiSchema.shape.params },
+    'Retrieve comprehensive details of a journal submission including research object information, author details, and assigned editor information. Optionally include the published file tree structure.',
+  requestParams: {
+    path: submissionApiSchema.shape.params,
+    query: submissionApiSchema.shape.query,
+  },
   responses: {
     '200': {
       description: 'Submission details retrieved successfully',
@@ -1222,6 +1225,61 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
                   components: z.array(z.object({}).passthrough()),
                 }),
               }),
+              tree: z
+                .array(
+                  z.object({
+                    uid: z.string().optional(),
+                    name: z.string(),
+                    lastModified: z.string(),
+                    componentType: z.enum([
+                      'data-bucket',
+                      'unknown',
+                      'pdf',
+                      'code',
+                      'video',
+                      'terminal',
+                      'data',
+                      'link',
+                      'manifest',
+                    ]),
+                    componentSubtype: z.string().optional(),
+                    componentId: z.string().optional(),
+                    accessStatus: z.enum(['Public', 'Private', 'Partial', 'External']),
+                    size: z.number(),
+                    metadata: z
+                      .object({
+                        title: z.string().optional(),
+                        description: z.string().optional(),
+                        keywords: z.array(z.string()).optional(),
+                        licenseType: z.string().optional(),
+                        path: z.string(),
+                        ontologyPurl: z.string().optional(),
+                        cedarLink: z.string().optional(),
+                        controlledVocabTerms: z.array(z.string()).optional(),
+                      })
+                      .optional(),
+                    cid: z.string(),
+                    type: z.enum(['file', 'dir']),
+                    contains: z.array(z.any()).optional(),
+                    componentStats: z
+                      .object({
+                        dirs: z.number(),
+                        code: z.object({ count: z.number(), size: z.number() }),
+                        data: z.object({ count: z.number(), size: z.number() }),
+                        pdf: z.object({ count: z.number(), size: z.number() }),
+                        unknown: z.object({ count: z.number(), size: z.number() }),
+                      })
+                      .optional(),
+                    path: z.string().optional(),
+                    starred: z.boolean().optional(),
+                    external: z.boolean().optional(),
+                    dataSource: z.enum(['private', 'guest', 'public']).optional(),
+                  }),
+                )
+                .optional()
+                .describe(
+                  'File tree structure (DriveObject[]) of the published research object. Only included when includeTree=true',
+                ),
             }),
           }),
         },
@@ -1236,7 +1294,7 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
       },
     },
     '404': {
-      description: 'Submission not found',
+      description: 'Submission not found, or published tree not found when includeTree=true',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -1244,7 +1302,7 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
       },
     },
     '500': {
-      description: 'Failed to get submission details',
+      description: 'Failed to get submission details or retrieve tree data',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
