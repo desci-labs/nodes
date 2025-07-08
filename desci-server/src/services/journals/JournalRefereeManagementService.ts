@@ -38,10 +38,20 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
     const existingReferee = data.refereeUserId
       ? await prisma.user.findUnique({
           where: { id: data.refereeUserId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         })
       : await prisma.user.findFirst({
           where: {
             email: data.refereeEmail,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
           },
         });
 
