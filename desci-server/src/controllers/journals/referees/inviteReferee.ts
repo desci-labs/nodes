@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import _ from 'lodash';
 
+import { prisma } from '../../../client.js';
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
@@ -24,10 +25,23 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
       'Attempting to invite referee',
     );
 
+    let invitedUserId = refereeUserId;
+    if (!invitedUserId) {
+      const refereeEmailIsExists = await prisma.user.findFirst({
+        where: {
+          email: refereeEmail,
+        },
+      });
+
+      if (refereeEmailIsExists) {
+        invitedUserId = refereeEmailIsExists.id;
+      }
+    }
+
     const result = await JournalRefereeManagementService.inviteReferee({
       submissionId: parseInt(submissionId),
       refereeEmail,
-      refereeUserId,
+      refereeUserId: invitedUserId,
       managerUserId,
       relativeDueDateHrs,
       expectedFormTemplateIds,
