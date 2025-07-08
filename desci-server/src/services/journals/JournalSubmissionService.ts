@@ -667,6 +667,7 @@ const getSubmissionDetails = async (submissionId: number): Promise<Result<Submis
           description: 'Test Abstract',
           components: [],
         },
+        manifestCid: 'test-manifest-cid',
       },
     };
     return ok(submissionDetails);
@@ -682,7 +683,10 @@ const getSubmissionDetails = async (submissionId: number): Promise<Result<Submis
   const targetVersionManifestCid = hexToCid(targetVersion.cid);
   const manifest = await getManifestByCid(targetVersionManifestCid);
 
-  const submissionDetails = { ...submission, researchObject: { ...submission.node, doi, manifest } };
+  const submissionDetails = {
+    ...submission,
+    researchObject: { ...submission.node, doi, manifest, manifestCid: targetVersionManifestCid },
+  };
 
   return ok(submissionDetails);
 };
