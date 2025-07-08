@@ -618,7 +618,7 @@ const emitOnRefereeInvitation = async ({
   editor: JournalEditor;
   submission: JournalSubmission;
   submissionTitle: string;
-  referee: User;
+  referee: Pick<User, 'id' | 'name' | 'email'>;
   inviteToken: string;
   dueDateHrs: number;
 }) => {
