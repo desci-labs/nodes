@@ -54,6 +54,7 @@ export type SubmissionDetails = SubmissionPartial & {
     uuid: string;
     doi: string;
     manifest: ResearchObjectV1;
+    manifestCid: string;
   };
   // included for convenience in the db query
   journal: {

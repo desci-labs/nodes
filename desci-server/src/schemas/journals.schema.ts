@@ -217,6 +217,9 @@ export const submissionApiSchema = z.object({
     journalId: z.coerce.number(),
     submissionId: z.coerce.number(),
   }),
+  query: z.object({
+    includeTree: z.coerce.boolean().optional().default(false),
+  }),
 });
 
 export const reviewsApiSchema = z.object({
