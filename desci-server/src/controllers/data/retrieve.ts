@@ -140,6 +140,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     dataPath,
     depth,
     manifestFetchGateway: req.query?.g as string,
+    filterHiddenFiles: true, // Filter out .nodeKeep and .DS_Store files
   });
 
   if (result.isErr()) {

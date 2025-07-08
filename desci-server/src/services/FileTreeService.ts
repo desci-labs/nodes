@@ -31,11 +31,35 @@ type GetPublishedTreeInput = {
   depth?: number;
   manifestFetchGateway?: string; // Almost never needed, supposedly if the manifests sit in a different IPFS cluster we may need this.
   rootCid?: string; // Only required for retrieving deprecated trees
+  filterHiddenFiles?: boolean; // Filter out .nodeKeep, .DS_Store, etc. files - defaults to true
 };
+
+// Hidden files to filter out
+const HIDDEN_FILES = ['.nodeKeep', '.DS_Store'];
+
+/**
+ * Recursively filter out hidden files from the tree
+ */
+function filterHiddenFiles(tree: DriveObject[]): DriveObject[] {
+  return tree
+    .filter((item) => !HIDDEN_FILES.includes(item.name))
+    .map((item) => ({
+      ...item,
+      contains: item.contains ? filterHiddenFiles(item.contains) : item.contains,
+    }));
+}
 
 async function getPublishedTree(data: GetPublishedTreeInput): Promise<Result<PublishedTreeResponse, Error>> {
   try {
-    const { manifestCid, rootCid, uuid, dataPath = 'root', depth, manifestFetchGateway } = data;
+    const {
+      manifestCid,
+      rootCid,
+      uuid,
+      dataPath = 'root',
+      depth,
+      manifestFetchGateway,
+      filterHiddenFiles: shouldFilterHiddenFiles = true,
+    } = data;
 
     logger.trace({ fn: 'getPublishedTree', data }, 'Getting published tree');
 
@@ -126,10 +150,16 @@ async function getPublishedTree(data: GetPublishedTreeInput): Promise<Result<Pub
       }
     });
 
-    logger.info({ fn: 'getPublishedTree', uuid, manifestCid }, 'Successfully retrieved published tree');
+    // Apply hidden file filtering if requested
+    const finalTree = shouldFilterHiddenFiles ? filterHiddenFiles(depthTree) : depthTree;
+
+    logger.info(
+      { fn: 'getPublishedTree', uuid, manifestCid, filteredHiddenFiles: shouldFilterHiddenFiles },
+      'Successfully retrieved published tree',
+    );
 
     return ok({
-      tree: depthTree,
+      tree: finalTree,
       date: manifestPDR.updatedAt.toString(),
     });
   } catch (error) {
