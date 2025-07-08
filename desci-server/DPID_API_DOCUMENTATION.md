@@ -273,7 +273,9 @@ curl -X GET "https://nodes-api.desci.com/v1/dpid/12345?version=2" \
 
 - [DeSci Nodes Platform](https://nodes.desci.com)
 - [DPID Registry Documentation](https://dpid.org)
-- [OpenAPI Specification](http://localhost:5420/documentation/#/DPID)
+- [OpenAPI Specification - Development](http://localhost:5420/documentation/#/DPID)
+- [OpenAPI Specification - Staging](https://nodes-api-dev.desci.com/documentation/#/DPID)
+- [OpenAPI Specification - Production](https://nodes-api.desci.com/documentation/#/DPID)
 
 ## Support
 
