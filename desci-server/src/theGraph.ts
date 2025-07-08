@@ -132,7 +132,6 @@ const getHistoryFromDpids = async (dpidsToUuidsMap: Record<number, string>): Pro
   const historyRes = await axios.post<ResolverIndexResult[]>(`${RESOLVER_URL}/api/v2/query/history`, {
     ids: Object.keys(dpidsToUuidsMap),
   });
-  logger.trace({ historyRes });
 
   const uuids = Object.values(dpidsToUuidsMap);
   let indexedHistory: IndexedResearchObject[];
