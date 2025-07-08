@@ -1,24 +1,16 @@
-import { DriveObject, FileDir, findAndPruneNode, isNodeRoot } from '@desci-labs/desci-models';
-import { DataType } from '@prisma/client';
-import axios from 'axios';
+import { DriveObject, FileDir, findAndPruneNode } from '@desci-labs/desci-models';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { redisClient, getOrCache } from '../../redisClient.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
+import { FileTreeService } from '../../services/FileTreeService.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import { showNodeDraftManifest } from '../../services/nodeManager.js';
-import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
-import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { getTreeAndFill } from '../../utils/driveUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
-
-export enum DataReferenceSrc {
-  PRIVATE = 'private',
-  PUBLIC = 'public',
-}
 
 interface RetrieveResponse {
   status?: number;
@@ -127,7 +119,6 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   }
 
   const logger = parentLogger.child({
-    // id: req.id,
     module: 'DATA::RetrievePubTreeController',
     uuid: uuid,
     manifestCid,
@@ -136,83 +127,40 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     dataPath,
     depth,
   });
+
   logger.trace(`pubTree called, cid received: ${manifestCid} uuid provided: ${uuid}`);
+
   if (!manifestCid) return res.status(400).json({ error: 'no manifest CID provided' });
   if (!uuid) return res.status(400).json({ error: 'no UUID provided' });
 
-  // TODO: Later expand to datasets that aren't originated locally, currently the fn will fail if we don't store a pubDataRef to the dataset
-  let dataSource = DataReferenceSrc.PRIVATE;
-  const publicDataset = await prisma.publicDataReference.findFirst({
-    where: {
-      type: DataType.MANIFEST,
-      cid: manifestCid,
-      node: {
-        uuid: ensureUuidEndsWithDot(uuid),
-      },
-    },
+  const result = await FileTreeService.getPublishedTree({
+    manifestCid,
+    rootCid,
+    uuid,
+    dataPath,
+    depth,
+    manifestFetchGateway: req.query?.g as string,
   });
 
-  if (publicDataset) dataSource = DataReferenceSrc.PUBLIC;
+  if (result.isErr()) {
+    const error = result.error;
+    logger.error({ error }, 'Failed to get published tree');
 
-  if (!publicDataset) {
-    logger.info(
-      `Databucket public data reference not found, manifest cid provided: ${manifestCid}, nodeUuid provided: ${uuid}`,
-    );
-    return res.status(400).json({ error: 'Failed to retrieve' });
+    if (error.message === 'Published manifest PDR not found') {
+      return res.status(404).json({ error: 'Published dataset not found' });
+    }
+
+    if (error.message === 'Manifest not found') {
+      return res.status(404).json({ error: 'Manifest not found' });
+    }
+
+    if (error.message === 'Failed to retrieve tree') {
+      return res.status(500).json({ error: 'Failed to retrieve tree data' });
+    }
+
+    return res.status(500).json({ error: 'Failed to retrieve published tree' });
   }
 
-  // Try early return if depth chunk cached
-  const depthCacheKey = `pubTree-depth-${depth}-${manifestCid}-${dataPath}`;
-  try {
-    if (redisClient.isOpen) {
-      const cached = await redisClient.get(depthCacheKey);
-      if (cached) {
-        const tree = JSON.parse(cached);
-        return res.status(200).json({ tree: tree, date: publicDataset?.updatedAt.toString() });
-      }
-    }
-  } catch (err) {
-    logger.debug({ err, depthCacheKey }, 'Failed to retrieve from cache, continuing');
-  }
-
-  const manifestUrl = cleanupManifestUrl(manifestCid as string, req.query?.g as string);
-
-  const manifest = await (await axios.get(manifestUrl)).data;
-
-  if (!uuid) return res.status(400).json({ error: 'Manifest not found' });
-
-  const hasDataBucket = manifest.components.find((c) => isNodeRoot(c));
-
-  const fetchCb = hasDataBucket
-    ? async () => await getTreeAndFill(manifest, uuid, undefined, true)
-    : async () => await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
-
-  const cacheKey = hasDataBucket ? `pub-filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;
-
-  let filledTree;
-  try {
-    filledTree = await getOrCache(cacheKey, fetchCb as any);
-    if (!filledTree) throw new Error('[pubTree] Failed to retrieve tree from cache');
-  } catch (err) {
-    logger.warn({ fn: 'pubTree', err }, '[pubTree] error');
-    logger.info('[pubTree] Falling back on uncached tree retrieval');
-    try {
-      return await fetchCb();
-    } catch (err2) {
-      logger.error({ fn: 'pubTree', err: err2 }, '[pubTree] retrieve retry error');
-      return res.status(400).json({ error: 'pubTree failed' });
-    }
-  }
-
-  const depthTree = await getOrCache(depthCacheKey, async () => {
-    const tree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
-    if (tree[0]?.type === 'file' && hasDataBucket) {
-      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
-      return hasDataBucket ? [findAndPruneNode(filledTree[0], poppedDataPath, depth)] : filledTree;
-    } else {
-      return tree;
-    }
-  });
-
-  return res.status(200).json({ tree: depthTree, date: publicDataset.updatedAt.toString() });
+  const { tree, date } = result.value;
+  return res.status(200).json({ tree, date });
 };
