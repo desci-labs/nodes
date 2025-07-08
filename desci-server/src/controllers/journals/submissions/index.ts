@@ -398,7 +398,7 @@ type GetJournalSubmissionRequest = ValidatedRequest<typeof submissionApiSchema, 
 
 export const getJournalSubmissionController = async (req: GetJournalSubmissionRequest, res: Response) => {
   const { journalId, submissionId } = req.validatedData.params;
-  const { includeTree } = req.validatedData.query;
+  const { includeTree, filterHiddenFiles } = req.validatedData.query;
 
   const submissionExtended = await journalSubmissionService.getSubmissionDetails(submissionId);
   if (submissionExtended.isErr()) {
@@ -416,6 +416,7 @@ export const getJournalSubmissionController = async (req: GetJournalSubmissionRe
     const treeResult = await FileTreeService.getPublishedTree({
       manifestCid,
       uuid,
+      filterHiddenFiles, // Filter out .nodeKeep and .DS_Store files
     });
     if (treeResult.isOk()) {
       tree = treeResult.value.tree;

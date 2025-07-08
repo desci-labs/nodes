@@ -219,6 +219,11 @@ export const submissionApiSchema = z.object({
   }),
   query: z.object({
     includeTree: z.coerce.boolean().optional().default(false),
+    filterHiddenFiles: z.coerce
+      .boolean()
+      .optional()
+      .default(true)
+      .describe('Filter out .nodeKeep and .DS_Store files from the tree'),
   }),
 });
 
