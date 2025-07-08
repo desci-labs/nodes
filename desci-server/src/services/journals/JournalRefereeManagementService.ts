@@ -39,7 +39,11 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
       ? await prisma.user.findUnique({
           where: { id: data.refereeUserId },
         })
-      : null;
+      : await prisma.user.findFirst({
+          where: {
+            email: data.refereeEmail,
+          },
+        });
 
     const submission = await prisma.journalSubmission.findUnique({
       where: { id: data.submissionId },
