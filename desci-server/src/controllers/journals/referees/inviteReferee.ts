@@ -25,23 +25,10 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
       'Attempting to invite referee',
     );
 
-    let invitedUserId = refereeUserId;
-    if (!invitedUserId) {
-      const refereeEmailIsExists = await prisma.user.findFirst({
-        where: {
-          email: refereeEmail,
-        },
-      });
-
-      if (refereeEmailIsExists) {
-        invitedUserId = refereeEmailIsExists.id;
-      }
-    }
-
     const result = await JournalRefereeManagementService.inviteReferee({
       submissionId: parseInt(submissionId),
       refereeEmail,
-      refereeUserId: invitedUserId,
+      refereeUserId,
       managerUserId,
       relativeDueDateHrs,
       expectedFormTemplateIds,
