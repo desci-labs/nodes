@@ -1,4 +1,4 @@
-import { DriveObject, FileDir, findAndPruneNode, isNodeRoot } from '@desci-labs/desci-models';
+import { DriveObject, findAndPruneNode, isNodeRoot } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import axios from 'axios';
 import { ok, err, Result } from 'neverthrow';
@@ -20,7 +20,7 @@ export enum DataReferenceSrc {
 }
 
 export interface PublishedTreeResponse {
-  tree: DriveObject[] | FileDir[];
+  tree: DriveObject[];
   date: string;
 }
 
