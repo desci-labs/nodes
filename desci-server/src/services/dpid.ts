@@ -32,9 +32,13 @@ export async function getDpidMetadata(dpid: number, version?: number): Promise<D
     },
   });
 
+  if (!node) {
+    throw new NotFoundError(`No research object found for DPID: ${dpid}`);
+  }
+
   const { researchObjects } = await getIndexedResearchObjects([node.uuid]);
   if (!researchObjects || researchObjects.length === 0) {
-    throw new NotFoundError('No published version found for dpid');
+    throw new NotFoundError(`No published version found for DPID: ${dpid}`);
   }
 
   const doi = node.DoiRecord[0]?.doi;
