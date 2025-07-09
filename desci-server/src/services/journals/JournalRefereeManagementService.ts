@@ -20,6 +20,7 @@ const MAX_ASSIGNED_REFEREES = 3;
 type InviteRefereeInput = {
   submissionId: number;
   refereeUserId?: number;
+  refereeName?: string;
   managerUserId: number; // Editor who is inviting the referee
   relativeDueDateHrs?: number;
   refereeEmail?: string; // If not an existing user.
@@ -87,6 +88,8 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
       return err(new Error('Editor not found for submission'));
     }
 
+    const refereeName = existingReferee?.name ?? data.refereeName ?? 'Researcher';
+
     const refereeEmail = existingReferee?.email ?? data.refereeEmail;
     if (!refereeEmail) {
       return err(new Error('Referee email is required'));
@@ -115,6 +118,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
         data: {
           userId: existingReferee?.id ?? null, // If referee doesn't have an account yet, userId is null. (External referee)
           submissionId: data.submissionId,
+          name: refereeName,
           email: refereeEmail,
           invitedById: data.managerUserId,
           token,
@@ -133,6 +137,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
             submissionId: invite.submissionId,
             refereeId: invite.userId,
             refereeEmail,
+            refereeName,
             assignedSubmissionEditorId: submission.assignedEditorId,
             relativeDueDateHrs: data.relativeDueDateHrs,
           },
@@ -149,7 +154,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
         journal: submission.journal,
         inviterName: editor.user.name,
         inviteToken: token,
-        refereeName: existingReferee?.name ?? '',
+        refereeName: refereeName,
         submission: submissionExtended,
       },
     });

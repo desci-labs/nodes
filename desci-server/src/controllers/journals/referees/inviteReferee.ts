@@ -17,7 +17,8 @@ type InviteRefereeRequest = ValidatedRequest<typeof inviteRefereeSchema, Authent
 export const inviteRefereeController = async (req: InviteRefereeRequest, res: Response) => {
   try {
     const { submissionId } = req.validatedData.params;
-    const { refereeUserId, refereeEmail, relativeDueDateHrs, expectedFormTemplateIds } = req.validatedData.body;
+    const { refereeUserId, refereeName, refereeEmail, relativeDueDateHrs, expectedFormTemplateIds } =
+      req.validatedData.body;
     const managerUserId = req.user.id;
 
     logger.info(
@@ -27,6 +28,7 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
 
     const result = await JournalRefereeManagementService.inviteReferee({
       submissionId: parseInt(submissionId),
+      refereeName,
       refereeEmail,
       refereeUserId,
       managerUserId,

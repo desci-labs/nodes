@@ -272,6 +272,7 @@ export const inviteRefereeSchema = z.object({
     journalId: z.string(),
   }),
   body: z.object({
+    refereeName: z.string().optional(),
     refereeEmail: z
       .string()
       .email()
