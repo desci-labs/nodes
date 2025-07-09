@@ -1309,6 +1309,7 @@ model EditorInvite {
 model RefereeInvite {
   id                      Int       @id @default(autoincrement())
   email                   String
+  name                    String?
   userId                  Int?
   submissionId            Int
   invitedById             Int
