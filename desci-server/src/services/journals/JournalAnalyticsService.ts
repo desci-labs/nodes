@@ -74,7 +74,9 @@ async function getJournalAnalytics({
     }),
   ]);
 
-  const acceptedSubmissions = submissions.filter((submission) => submission.status === SubmissionStatus.ACCEPTED);
+  const acceptedSubmissions = submissions.filter(
+    (submission) => submission.acceptedAt !== null && submission.status === SubmissionStatus.ACCEPTED,
+  );
   const acceptanceRate =
     submissions.length > 0 ? Math.round((acceptedSubmissions.length / submissions.length) * 100) : 0;
 
