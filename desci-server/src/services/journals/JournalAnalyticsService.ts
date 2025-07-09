@@ -25,7 +25,7 @@ async function getJournalAnalytics({
         journalId,
         ...(startDate && endDate
           ? {
-              submittedAt: { gte: startDate, lt: endDate },
+              submittedAt: { gte: startDate, lte: endDate },
             }
           : {}),
       },
@@ -67,7 +67,7 @@ async function getJournalAnalytics({
         status: JournalRevisionStatus.PENDING,
         ...(startDate && endDate
           ? {
-              submittedAt: { gte: startDate, lt: endDate },
+              submittedAt: { gte: startDate, lte: endDate },
             }
           : {}),
       },
@@ -78,6 +78,7 @@ async function getJournalAnalytics({
   const acceptanceRate =
     submissions.length > 0 ? Math.round((acceptedSubmissions.length / submissions.length) * 100) : 0;
 
+  // for all accpeted submissions calculate the average acceptance time
   const averageTimeToAcceptance =
     acceptedSubmissions.length > 0
       ? acceptedSubmissions.reduce((acc, submission) => {
@@ -90,8 +91,7 @@ async function getJournalAnalytics({
       review.submittedAt !== null &&
       ([SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED] as SubmissionStatus[]).includes(review.submission.status),
   );
-  const reviewCompletionRate =
-    completedReviews.length > 0 ? Math.round((completedReviews.length / reviews.length) * 100) : 0;
+  const reviewCompletionRate = reviews.length > 0 ? Math.round((completedReviews.length / reviews.length) * 100) : 0;
 
   const averageReviewTime =
     completedReviews.length > 0

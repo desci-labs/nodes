@@ -1,5 +1,5 @@
 import { SubmissionStatus } from '@prisma/client';
-import { isAfter, isBefore } from 'date-fns';
+import { endOfDay, isAfter, startOfDay, isBefore } from 'date-fns';
 import { Response } from 'express';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
@@ -23,21 +23,23 @@ export const showUrgentJournalSubmissionsController = async (
     const { journalId } = req.validatedData.params;
     const { startDate, endDate } = req.validatedData.query;
 
-    logger.info({ journalId, userId: req.user?.id }, 'Attempting to retrieve urgent journal submissions');
-
     const journal = await JournalManagementService.getJournalById(journalId);
 
     if (journal.isErr()) {
       return sendError(res, 'Journal not found.', 404);
     }
 
+    const from = startDate ? startOfDay(startDate) : null;
+    const to = endDate ? endOfDay(endDate) : null;
+    logger.info({ journalId, userId: req.user?.id, from, to }, 'Attempting to retrieve urgent journal submissions');
+
     const submissions = await journalSubmissionService.getUrgentJournalSubmissions(
       journalId,
       {
         status: { notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED] },
-        ...(startDate && endDate
+        ...(from && to
           ? {
-              submittedAt: { gte: startDate, lte: endDate },
+              submittedAt: { gte: from, lte: to },
             }
           : {}),
       },

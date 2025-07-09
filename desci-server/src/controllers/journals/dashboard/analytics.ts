@@ -21,7 +21,7 @@ export const showJournalAnalyticsController = async (req: ShowJournalAnalyticsRe
     const { journalId } = req.validatedData.params;
     const { startDate, endDate } = req.validatedData.query;
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // await new Promise((resolve) => setTimeout(resolve, 3000));
     const journal = await JournalManagementService.getJournalById(journalId);
 
     if (journal.isErr()) {
