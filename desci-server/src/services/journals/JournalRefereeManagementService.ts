@@ -199,11 +199,14 @@ export interface IRefereeInvite {
   token: string;
 }
 
-async function getRefereeInvites(refereeUserId: number): Promise<Result<IRefereeInvite[], Error>> {
+async function getRefereeInvites(
+  refereeUserId: number,
+  refereeEmail?: string,
+): Promise<Result<IRefereeInvite[], Error>> {
   try {
     const refereeInvites = await prisma.refereeInvite.findMany({
       where: {
-        userId: refereeUserId,
+        OR: [{ userId: refereeUserId }, { email: refereeEmail }],
       },
       select: {
         id: true,

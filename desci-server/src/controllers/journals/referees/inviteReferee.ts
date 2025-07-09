@@ -1,3 +1,4 @@
+import { id } from 'ethers/lib/utils.js';
 import { Response } from 'express';
 import _ from 'lodash';
 
@@ -74,9 +75,9 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
 };
 
 export const getRefereeInvitesController = async (req: AuthenticatedRequest, res: Response) => {
-  const refereeUserId = req.user.id;
+  const { id: refereeUserId, email: refereeEmail } = req.user;
 
-  const result = await JournalRefereeManagementService.getRefereeInvites(refereeUserId);
+  const result = await JournalRefereeManagementService.getRefereeInvites(refereeUserId, refereeEmail);
 
   if (result.isErr()) {
     const error = result.error;
