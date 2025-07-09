@@ -1745,6 +1745,7 @@ export const getRefereeInvitationsOperation: ZodOpenApiOperationObject = {
               submissionId: z.number(),
               accepted: z.boolean(),
               declined: z.boolean(),
+              relativeDueDateHrs: z.number(),
               expiresAt: z.string(),
               token: z.string(),
               submission: z.object({
