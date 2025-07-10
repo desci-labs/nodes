@@ -1,6 +1,8 @@
 import { EditorRole } from '@prisma/client';
 import { Router } from 'express';
 
+import { showJournalAnalyticsController } from '../../../controllers/journals/dashboard/analytics.js';
+import { showUrgentJournalSubmissionsController } from '../../../controllers/journals/dashboard/urgentSubmissions.js';
 import { createFormTemplateController } from '../../../controllers/journals/forms/createTemplate.js';
 import { getFormResponseController } from '../../../controllers/journals/forms/getFormResponse.js';
 import { getFormTemplateController } from '../../../controllers/journals/forms/getFormTemplate.js';
@@ -87,6 +89,8 @@ import {
   updateFormTemplateSchema,
   getFormResponseSchema,
   submitFormResponseSchema,
+  getJournalAnalyticsSchema,
+  showUrgentSubmissionsSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -350,6 +354,19 @@ router.get(
   '/:journalId/submissions/:submissionId/referees/:assignmentId/form-status',
   [ensureUser],
   asyncHandler(getRefereeFormStatusController),
+);
+
+// admin dashboard apis
+router.get(
+  '/:journalId/analytics',
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(getJournalAnalyticsSchema)],
+  asyncHandler(showJournalAnalyticsController),
+);
+
+router.get(
+  '/:journalId/urgentSubmissions',
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(showUrgentSubmissionsSchema)],
+  asyncHandler(showUrgentJournalSubmissionsController),
 );
 
 export default router;

@@ -9,23 +9,11 @@ import { getIndexedResearchObjects } from '../../theGraph.js';
 import { hexToCid } from '../../utils.js';
 import { getManifestByCid } from '../data/processing.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
-import {
-  MajorRevisionRequestPayload,
-  MinorRevisionRequestPayload,
-  SubmissionDetails,
-  SubmissionExtended,
-} from '../email/journalEmailTypes.js';
-import {
-  MajorRevisionRequestedPayload,
-  MinorRevisionRequestedPayload,
-} from '../Notifications/notificationPayloadTypes.js';
+import { SubmissionDetails, SubmissionExtended } from '../email/journalEmailTypes.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
 import { JournalManagementService } from './JournalManagementService.js';
-
-// import { JournalEventLogService } from './JournalEventLogService.js';
-// import { AuthFailureError, ForbiddenError } from '../../core/ApiError.js';
 
 const logger = parentLogger.child({
   module: 'Journals::JournalInviteService',
@@ -110,7 +98,6 @@ async function getJournalSubmissions(
     take: limit,
     select: {
       id: true,
-      // assignedEditorId: true,
       dpid: true,
       version: true,
       status: true,
@@ -126,6 +113,42 @@ async function getJournalSubmissions(
         select: {
           name: true,
           orcid: true,
+        },
+      },
+    },
+  });
+}
+
+async function getUrgentJournalSubmissions(
+  journalId: number,
+  filter: Prisma.JournalSubmissionWhereInput,
+  limit: number,
+) {
+  return await prisma.journalSubmission.findMany({
+    where: { journalId, ...filter },
+    take: limit,
+    select: {
+      id: true,
+      dpid: true,
+      version: true,
+      status: true,
+      submittedAt: true,
+      acceptedAt: true,
+      rejectedAt: true,
+      node: {
+        select: {
+          title: true,
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          orcid: true,
+        },
+      },
+      refereeAssignments: {
+        select: {
+          dueDate: true,
         },
       },
     },
@@ -727,4 +750,5 @@ export const journalSubmissionService = {
   getSubmissionExtendedData,
   isSubmissionDeskRejection,
   getSubmissionDetails,
+  getUrgentJournalSubmissions,
 };
