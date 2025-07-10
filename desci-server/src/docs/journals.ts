@@ -2215,6 +2215,7 @@ export const getRefereeFormStatusOperation: ZodOpenApiOperationObject = {
   requestParams: {
     path: z.object({
       journalId: z.coerce.number(),
+      submissionId: z.coerce.number(),
       assignmentId: z.coerce.number(),
     }),
   },
@@ -2374,7 +2375,7 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/submissions/{submissionId}/referees/{assignmentId}/invalidate': {
     patch: invalidateRefereeAssignmentOperation,
   },
-  '/v1/journals/{journalId}/referees/assignments/{assignmentId}/form-status': {
+  '/v1/journals/{journalId}/submissions/{submissionId}/referees/assignments/{assignmentId}/form-status': {
     get: getRefereeFormStatusOperation,
   },
 };

@@ -347,7 +347,7 @@ router.post(
 
 // Referee form status
 router.get(
-  '/:journalId/submissions/:submissionId/referees/:assignmentId/form-status',
+  '/:journalId/submissions/:submissionId/referees/assignments/:assignmentId/form-status',
   [ensureUser],
   asyncHandler(getRefereeFormStatusController),
 );
