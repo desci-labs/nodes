@@ -333,6 +333,7 @@ export interface IRefereeAssignment {
 }
 async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssignment[], Error>> {
   try {
+    // debugger;
     const refereeAssignments = await prisma.refereeAssignment.findMany({
       where: {
         userId,
@@ -401,10 +402,10 @@ async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssi
         },
         dpid: assignment.submission.dpid,
       },
-      reviews: assignment.reviews.map((review) => ({
-        ...review,
-        review: JSON.parse(review.review as string),
-      })),
+      // reviews: assignment.reviews.map((review) => ({
+      //   ...review,
+      //   review: JSON.parse(review.review as string),
+      // })),
     }));
     return ok(assignments);
   } catch (error) {
