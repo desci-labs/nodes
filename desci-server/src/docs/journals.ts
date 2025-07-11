@@ -748,12 +748,14 @@ export const getReviewDetailsOperation: ZodOpenApiOperationObject = {
                 email: z.string().nullable(),
                 orcid: z.string().nullable(),
               }),
-              review: z.array(
-                z.object({
-                  question: z.string(),
-                  answer: z.string(),
-                }),
-              ),
+              review: z
+                .array(
+                  z.object({
+                    question: z.string(),
+                    answer: z.string(),
+                  }),
+                )
+                .optional(),
             }),
           }),
         },
@@ -808,12 +810,14 @@ export const createReviewOperation: ZodOpenApiOperationObject = {
                 email: z.string().nullable(),
                 orcid: z.string().nullable(),
               }),
-              review: z.array(
-                z.object({
-                  question: z.string(),
-                  answer: z.string(),
-                }),
-              ),
+              review: z
+                .array(
+                  z.object({
+                    question: z.string(),
+                    answer: z.string(),
+                  }),
+                )
+                .optional(),
             }),
           }),
         },
@@ -877,12 +881,14 @@ export const updateReviewOperation: ZodOpenApiOperationObject = {
                 email: z.string().nullable(),
                 orcid: z.string().nullable(),
               }),
-              review: z.array(
-                z.object({
-                  question: z.string(),
-                  answer: z.string(),
-                }),
-              ),
+              review: z
+                .array(
+                  z.object({
+                    question: z.string(),
+                    answer: z.string(),
+                  }),
+                )
+                .optional(),
             }),
           }),
         },

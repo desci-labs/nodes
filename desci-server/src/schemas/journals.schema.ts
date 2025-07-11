@@ -205,14 +205,16 @@ const reviewSchema = z.object({
   editorFeedback: z.string().optional(),
   authorFeedback: z.string().optional(),
   recommendation: z.nativeEnum(ReviewDecision).optional(),
-  review: z.array(
-    z
-      .object({
-        question: z.string(),
-        answer: z.string(),
-      })
-      .optional(),
-  ),
+  review: z
+    .array(
+      z
+        .object({
+          question: z.string(),
+          answer: z.string(),
+        })
+        .optional(),
+    )
+    .optional(),
 });
 
 export const submissionApiSchema = z.object({

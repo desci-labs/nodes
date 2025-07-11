@@ -75,7 +75,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review: JSON.stringify(review),
+      // review: review ? JSON.stringify(review) : JSON.stringify([]),
     },
   });
 
@@ -154,7 +154,7 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review: JSON.stringify(review),
+      // review: review ? JSON.stringify(review) : JSON.stringify([]),
     },
   });
 
@@ -226,7 +226,7 @@ export const submitReviewController = async (req: SubmitReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review: JSON.stringify(review),
+      // review: review ? JSON.stringify(review) : JSON.stringify([]),
     },
   });
 
