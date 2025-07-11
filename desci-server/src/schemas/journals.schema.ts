@@ -377,6 +377,16 @@ export const revisionActionSchema = z.object({
   }),
 });
 
+export const getReviewsByAssignmentSchema = z.object({
+  params: z.object({
+    assignmentId: z.coerce.number(),
+  }),
+  query: z.object({
+    limit: z.coerce.number().optional().default(20).describe('The number of reviews to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of reviews to skip'),
+  }),
+});
+
 // Form Template Schemas
 export const createFormTemplateSchema = z.object({
   params: z.object({

@@ -37,6 +37,7 @@ import {
   inviteRefereeSchema,
   refereeInviteDecisionSchema,
   invalidateRefereeAssignmentSchema,
+  getReviewsByAssignmentSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -2276,6 +2277,94 @@ export const getRefereeFormStatusOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Get Reviews by Assignment
+export const getReviewsByAssignmentOperation: ZodOpenApiOperationObject = {
+  operationId: 'getReviewsByAssignment',
+  tags: ['Journals'],
+  summary: 'Get all reviews for a referee assignment',
+  description:
+    'Get all reviews associated with a specific referee assignment, including associated form responses and templates. Only the assigned referee can access their reviews.',
+  requestParams: {
+    path: getReviewsByAssignmentSchema.shape.params,
+    query: getReviewsByAssignmentSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Reviews retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            reviews: z.array(
+              z.object({
+                id: z.number(),
+                recommendation: z.string().nullable(),
+                editorFeedback: z.string().nullable(),
+                authorFeedback: z.string().nullable(),
+                review: z.array(z.any()).nullable(),
+                submittedAt: z.string().nullable(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+                formResponse: z
+                  .object({
+                    id: z.number(),
+                    templateId: z.number(),
+                    status: z.enum(['DRAFT', 'SUBMITTED']),
+                    formData: z.any(),
+                    startedAt: z.string(),
+                    submittedAt: z.string().nullable(),
+                    updatedAt: z.string(),
+                    template: z
+                      .object({
+                        id: z.number(),
+                        name: z.string(),
+                        description: z.string().nullable(),
+                        version: z.number(),
+                        structure: z.any(),
+                      })
+                      .nullable(),
+                  })
+                  .nullable(),
+              }),
+            ),
+            assignment: z.object({
+              id: z.number(),
+              submissionId: z.number(),
+              journalId: z.number(),
+              assignedAt: z.string(),
+              dueDate: z.string().nullable(),
+              completedAt: z.string().nullable(),
+              submission: z.object({
+                id: z.number(),
+                title: z.string(),
+                status: z.string(),
+                author: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
+              }),
+              journal: z.object({
+                id: z.number(),
+                name: z.string(),
+                iconCid: z.string().nullable(),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Assignment not found or not accessible',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -2354,6 +2443,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/referee/invitations': {
     get: getRefereeInvitationsOperation,
+  },
+  '/v1/journals/referee/assignments/{assignmentId}/reviews': {
+    get: getReviewsByAssignmentOperation,
   },
   '/v1/journals/{journalId}/forms/templates': {
     post: createFormTemplateOperation,

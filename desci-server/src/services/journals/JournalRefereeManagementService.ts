@@ -402,11 +402,9 @@ async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssi
         },
         dpid: assignment.submission.dpid,
       },
-      // reviews: assignment.reviews.map((review) => ({
-      //   ...review,
-      //   review: JSON.parse(review.review as string),
-      // })),
+      reviews: assignment.reviews,
     }));
+    // debugger;
     return ok(assignments);
   } catch (error) {
     logger.error({ error, refereeUserId: userId }, 'Failed to get active referee assignments');
