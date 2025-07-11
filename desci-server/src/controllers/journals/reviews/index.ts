@@ -75,7 +75,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      // review: review ? JSON.stringify(review) : JSON.stringify([]),
+      // review: review ? JSON.stringify(review) : undefined,
     },
   });
 
@@ -107,7 +107,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
     'submittedAt',
   ]);
 
-  data.review = JSON.parse(data.review as string);
+  // data.review = data.review ? JSON.parse(data.review as string) : null;
 
   return sendSuccess(res, data);
 };
@@ -154,7 +154,7 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      // review: review ? JSON.stringify(review) : JSON.stringify([]),
+      // review: review ? JSON.stringify(review) : undefined,
     },
   });
 
@@ -183,7 +183,7 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
     'journalId',
     'submittedAt',
   ]);
-  data.review = JSON.parse(data.review as string);
+  // data.review = data.review ? JSON.parse(data.review as string) : null;
   return sendSuccess(res, data);
 };
 
@@ -226,7 +226,7 @@ export const submitReviewController = async (req: SubmitReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      // review: review ? JSON.stringify(review) : JSON.stringify([]),
+      // review: JSON.stringify(review),
     },
   });
 
@@ -254,7 +254,7 @@ export const submitReviewController = async (req: SubmitReviewRequest, res: Resp
     'review',
     'submittedAt',
   ]);
-  data.review = JSON.parse(data.review as string);
+  // data.review = data.review ? JSON.parse(data.review as string) : null;
   return sendSuccess(res, data);
 };
 

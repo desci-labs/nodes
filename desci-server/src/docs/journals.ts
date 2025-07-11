@@ -755,7 +755,7 @@ export const getReviewDetailsOperation: ZodOpenApiOperationObject = {
                     answer: z.string(),
                   }),
                 )
-                .optional(),
+                .nullable(),
             }),
           }),
         },
@@ -817,7 +817,7 @@ export const createReviewOperation: ZodOpenApiOperationObject = {
                     answer: z.string(),
                   }),
                 )
-                .optional(),
+                .nullable(),
             }),
           }),
         },
@@ -888,7 +888,7 @@ export const updateReviewOperation: ZodOpenApiOperationObject = {
                     answer: z.string(),
                   }),
                 )
-                .optional(),
+                .nullable(),
             }),
           }),
         },

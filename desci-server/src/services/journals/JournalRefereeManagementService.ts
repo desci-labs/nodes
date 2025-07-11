@@ -1,4 +1,4 @@
-import { EditorRole, JournalEventLogAction, RefereeAssignment, RefereeInvite } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, RefereeAssignment, RefereeInvite, SubmissionStatus } from '@prisma/client';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
@@ -603,8 +603,17 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
     const relativeDueDateMs = data.dueDateHrs * 60 * 60 * 1000; // hours to ms conversion
     const dueDate = new Date(Date.now() + relativeDueDateMs);
 
-    const [refereeAssignment] = await prisma.$transaction([
-      prisma.refereeAssignment.create({
+    const [refereeAssignment] = await prisma.$transaction(async (tx) => {
+      // Check if this is the first referee assignment for this submission
+      const existingAssignments = await tx.refereeAssignment.count({
+        where: {
+          submissionId: data.submissionId,
+          OR: [{ completedAssignment: true }, { completedAssignment: null }],
+        },
+      });
+
+      // Create the referee assignment
+      const assignment = await tx.refereeAssignment.create({
         data: {
           submissionId: data.submissionId,
           userId: data.refereeUserId,
@@ -615,8 +624,18 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
           journalId: data.journalId,
           expectedFormTemplateIds: data.expectedFormTemplateIds || [],
         },
-      }),
-      prisma.journalEventLog.create({
+      });
+
+      // If this is the first referee assignment, update submission status to UNDER_REVIEW
+      if (existingAssignments === 0) {
+        await tx.journalSubmission.update({
+          where: { id: data.submissionId },
+          data: { status: SubmissionStatus.UNDER_REVIEW },
+        });
+      }
+
+      // Create event log
+      await tx.journalEventLog.create({
         data: {
           journalId: submission.journalId,
           action: JournalEventLogAction.REFEREE_ACCEPTED,
@@ -628,8 +647,10 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
             dueDate: dueDate.toISOString(),
           },
         },
-      }),
-    ]);
+      });
+
+      return [assignment];
+    });
 
     logger.info({ fn: 'assignReferee', data, refereeAssignmentId: refereeAssignment.id }, 'Assigned referee');
     return ok(refereeAssignment);
