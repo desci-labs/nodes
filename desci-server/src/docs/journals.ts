@@ -1557,7 +1557,7 @@ export const inviteRefereeOperation: ZodOpenApiOperationObject = {
   tags: ['Journals'],
   summary: 'Invite a referee to review a submission',
   description:
-    'Invite a referee (existing user or external email) to review a submission. Supports both internal users (via refereeUserId) and external referees (via refereeEmail). Can specify expected form templates and review deadline.',
+    "Invite a referee (existing user or external email) to review a submission. Supports both internal users (via refereeUserId) and external referees (via refereeEmail). Can specify expected form templates, review deadline, and invite expiry time. All times must fall within the journal's configured bounds.",
   requestParams: { path: inviteRefereeSchema.shape.params },
   requestBody: {
     content: {
@@ -2530,10 +2530,10 @@ export const getJournalSettingsOperation: ZodOpenApiOperationObject = {
                 max: z.number().describe('Maximum review due hours'),
                 default: z.number().describe('Default review due hours'),
               }),
-              inviteExpiryHours: z.object({
-                min: z.number().describe('Minimum invite expiry hours'),
-                max: z.number().describe('Maximum invite expiry hours'),
-                default: z.number().describe('Default invite expiry hours'),
+              refereeInviteExpiryHours: z.object({
+                min: z.number().describe('Minimum referee invite expiry hours'),
+                max: z.number().describe('Maximum referee invite expiry hours'),
+                default: z.number().describe('Default referee invite expiry hours'),
               }),
               refereeCount: z.object({
                 value: z.number().describe('Number of referees per submission'),
@@ -2593,10 +2593,10 @@ export const updateJournalSettingsOperation: ZodOpenApiOperationObject = {
                 max: z.number().describe('Maximum review due hours'),
                 default: z.number().describe('Default review due hours'),
               }),
-              inviteExpiryHours: z.object({
-                min: z.number().describe('Minimum invite expiry hours'),
-                max: z.number().describe('Maximum invite expiry hours'),
-                default: z.number().describe('Default invite expiry hours'),
+              refereeInviteExpiryHours: z.object({
+                min: z.number().describe('Minimum referee invite expiry hours'),
+                max: z.number().describe('Maximum referee invite expiry hours'),
+                default: z.number().describe('Default referee invite expiry hours'),
               }),
               refereeCount: z.object({
                 value: z.number().describe('Number of referees per submission'),

@@ -282,6 +282,7 @@ export const inviteRefereeSchema = z.object({
       .transform((val) => val?.toLowerCase()),
     refereeUserId: z.number().int().positive().optional(),
     relativeDueDateHrs: z.number().int().positive().optional(), // lets restric tthis further.
+    inviteExpiryHours: z.number().int().positive().optional(),
     expectedFormTemplateIds: z.array(z.number().int().positive()).optional().default([]),
   }),
 });
@@ -611,7 +612,7 @@ export const getJournalSettingsSchema = z.object({
 });
 
 export const MAX_REVIEW_DUE_HOURS = 2160; // 90 days
-export const MAX_INVITE_EXPIRY_HOURS = 720; // 30 days
+export const MAX_REFEREE_INVITE_EXPIRY_HOURS = 720; // 30 days
 
 export const updateJournalSettingsSchema = z.object({
   params: z.object({
@@ -647,17 +648,29 @@ export const updateJournalSettingsSchema = z.object({
                 .describe('Default review due hours (max 90 days)'),
             })
             .optional(),
-          inviteExpiryHours: z
+          refereeInviteExpiryHours: z
             .object({
-              min: z.number().int().min(1).max(720).optional().describe('Minimum invite expiry hours (max 30 days)'),
-              max: z.number().int().min(1).max(720).optional().describe('Maximum invite expiry hours (max 30 days)'),
+              min: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
+                .optional()
+                .describe('Minimum referee invite expiry hours (max 30 days)'),
+              max: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
+                .optional()
+                .describe('Maximum referee invite expiry hours (max 30 days)'),
               default: z
                 .number()
                 .int()
                 .min(1)
-                .max(720)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
                 .optional()
-                .describe('Default invite expiry hours (max 30 days)'),
+                .describe('Default referee invite expiry hours (max 30 days)'),
             })
             .optional(),
           refereeCount: z
@@ -678,9 +691,9 @@ export const updateJournalSettingsSchema = z.object({
           if (max && defaultVal && defaultVal > max) return false;
         }
 
-        // Validate that min <= default <= max for inviteExpiryHours
-        if (data.settings?.inviteExpiryHours) {
-          const { min, max, default: defaultVal } = data.settings.inviteExpiryHours;
+        // Validate that min <= default <= max for refereeInviteExpiryHours
+        if (data.settings?.refereeInviteExpiryHours) {
+          const { min, max, default: defaultVal } = data.settings.refereeInviteExpiryHours;
           if (min && max && min > max) return false;
           if (min && defaultVal && min > defaultVal) return false;
           if (max && defaultVal && defaultVal > max) return false;

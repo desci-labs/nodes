@@ -22,7 +22,7 @@ export const DEFAULT_JOURNAL_SETTINGS = {
     max: 336, // 14 days
     default: 72, // 3 days
   },
-  inviteExpiryHours: {
+  refereeInviteExpiryHours: {
     min: 24, // 1 day
     max: 168, // 7 days
     default: 168, // 7 days
@@ -38,7 +38,7 @@ export type JournalSettings = {
     max: number;
     default: number;
   };
-  inviteExpiryHours: {
+  refereeInviteExpiryHours: {
     min: number;
     max: number;
     default: number;
@@ -57,10 +57,11 @@ export function getJournalSettingsWithDefaults(settings: Prisma.JsonValue): Jour
       max: parsedSettings.reviewDueHours?.max ?? DEFAULT_JOURNAL_SETTINGS.reviewDueHours.max,
       default: parsedSettings.reviewDueHours?.default ?? DEFAULT_JOURNAL_SETTINGS.reviewDueHours.default,
     },
-    inviteExpiryHours: {
-      min: parsedSettings.inviteExpiryHours?.min ?? DEFAULT_JOURNAL_SETTINGS.inviteExpiryHours.min,
-      max: parsedSettings.inviteExpiryHours?.max ?? DEFAULT_JOURNAL_SETTINGS.inviteExpiryHours.max,
-      default: parsedSettings.inviteExpiryHours?.default ?? DEFAULT_JOURNAL_SETTINGS.inviteExpiryHours.default,
+    refereeInviteExpiryHours: {
+      min: parsedSettings.refereeInviteExpiryHours?.min ?? DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours.min,
+      max: parsedSettings.refereeInviteExpiryHours?.max ?? DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours.max,
+      default:
+        parsedSettings.refereeInviteExpiryHours?.default ?? DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours.default,
     },
     refereeCount: {
       value: parsedSettings.refereeCount?.value ?? DEFAULT_JOURNAL_SETTINGS.refereeCount.value,
@@ -622,7 +623,7 @@ interface JournalSettingsInput {
       max?: number;
       default?: number;
     };
-    inviteExpiryHours?: {
+    refereeInviteExpiryHours?: {
       min?: number;
       max?: number;
       default?: number;
@@ -705,12 +706,15 @@ async function updateJournalSettings(
         }
       }
 
-      if (data.settings.inviteExpiryHours) {
-        const oldInviteExpiryHours = currentSettings.inviteExpiryHours;
-        const newInviteExpiryHours = { ...oldInviteExpiryHours, ...data.settings.inviteExpiryHours };
-        if (JSON.stringify(oldInviteExpiryHours) !== JSON.stringify(newInviteExpiryHours)) {
-          newSettings.inviteExpiryHours = newInviteExpiryHours;
-          changes.inviteExpiryHours = { old: oldInviteExpiryHours, new: newInviteExpiryHours };
+      if (data.settings.refereeInviteExpiryHours) {
+        const oldRefereeInviteExpiryHours = currentSettings.refereeInviteExpiryHours;
+        const newRefereeInviteExpiryHours = {
+          ...oldRefereeInviteExpiryHours,
+          ...data.settings.refereeInviteExpiryHours,
+        };
+        if (JSON.stringify(oldRefereeInviteExpiryHours) !== JSON.stringify(newRefereeInviteExpiryHours)) {
+          newSettings.refereeInviteExpiryHours = newRefereeInviteExpiryHours;
+          changes.refereeInviteExpiryHours = { old: oldRefereeInviteExpiryHours, new: newRefereeInviteExpiryHours };
         }
       }
 
