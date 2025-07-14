@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
+import { getJournalAnalyticsSchema, showUrgentSubmissionsSchema } from '../schemas/journals.schema.js';
 import {
   getJournalSchema,
   inviteEditorSchema,
@@ -2365,6 +2366,145 @@ export const getReviewsByAssignmentOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Show Journal Analytics
+export const showJournalAnalyticsOperation: ZodOpenApiOperationObject = {
+  operationId: 'showJournalAnalytics',
+  tags: ['Journals'],
+  summary: 'Get journal analytics dashboard data',
+  description:
+    'Retrieve comprehensive analytics data for a journal including submission statistics, review metrics, and performance indicators. Includes a 3-second delay for demonstration purposes.',
+  requestParams: {
+    path: getJournalAnalyticsSchema.shape.params,
+    query: getJournalAnalyticsSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Journal analytics retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            overview: z
+              .array(
+                z.object({
+                  value: z.number().describe('Numeric value for the metric'),
+                  label: z.string().describe('Human-readable label for the metric'),
+                }),
+              )
+              .describe(
+                'Array of overview metrics including total submissions, acceptance rate, average time to acceptance, review completion rate, time to first review, average review time, overdue reviews, and revisions per article',
+              ),
+            chartData: z
+              .array(
+                z.object({
+                  month: z.string().describe('Month abbreviation (e.g., "Jan", "Feb")'),
+                  totalSubmissions: z.number().describe('Number of submissions in that month'),
+                }),
+              )
+              .describe('Monthly submission data for charting, sorted chronologically'),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view journal analytics',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Show Urgent Journal Submissions
+export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = {
+  operationId: 'showUrgentJournalSubmissions',
+  tags: ['Journals'],
+  summary: 'Get urgent journal submissions',
+  description:
+    'Retrieve submissions that have referee assignments due within the next 7 days, requiring immediate attention. Only returns submissions that are not in ACCEPTED or REJECTED status.',
+  requestParams: {
+    path: showUrgentSubmissionsSchema.shape.params,
+    query: showUrgentSubmissionsSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Urgent submissions retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z.object({
+              id: z.number().describe('Submission ID'),
+              dpid: z.number().describe('DPID of the submitted node'),
+              version: z.number().describe('Version of the submitted node'),
+              status: z
+                .enum(['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'PENDING'])
+                .describe('Current submission status'),
+              submittedAt: z.string().describe('Date when the submission was made'),
+              acceptedAt: z.string().nullable().describe('Date when the submission was accepted (if applicable)'),
+              rejectedAt: z.string().nullable().describe('Date when the submission was rejected (if applicable)'),
+              title: z.string().describe('Title of the submitted research object'),
+              author: z.object({
+                name: z.string().describe('Name of the submission author'),
+                orcid: z.string().nullable().describe('ORCID of the submission author'),
+              }),
+              refereeAssignments: z
+                .array(
+                  z.object({
+                    dueDate: z.string().describe('Due date for the referee assignment'),
+                  }),
+                )
+                .describe('Referee assignments for this submission'),
+            }),
+          ),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view urgent submissions',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -2475,5 +2615,11 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/referees/assignments/{assignmentId}/form-status': {
     get: getRefereeFormStatusOperation,
+  },
+  '/v1/journals/{journalId}/analytics': {
+    get: showJournalAnalyticsOperation,
+  },
+  '/v1/journals/{journalId}/urgentSubmissions': {
+    get: showUrgentJournalSubmissionsOperation,
   },
 };

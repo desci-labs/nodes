@@ -583,3 +583,23 @@ export const submitFormResponseSchema = z.object({
     ),
   }),
 });
+
+export const getJournalAnalyticsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to get analytics for'),
+  }),
+  query: z.object({
+    startDate: z.string().datetime({ offset: true }).optional().describe('The start date of the analytics period'),
+    endDate: z.string().datetime({ offset: true }).optional().describe('The end date of the analytics period'),
+  }),
+});
+
+export const showUrgentSubmissionsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to get urgent submissions for'),
+  }),
+  query: z.object({
+    startDate: z.string().datetime({ offset: true }).optional().describe('The start date of the analytics period'),
+    endDate: z.string().datetime({ offset: true }).optional().describe('The end date of the analytics period'),
+  }),
+});
