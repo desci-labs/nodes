@@ -1154,6 +1154,7 @@ model Journal {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   isCommercial Boolean  @default(false)
+  settings     Json?    @default("{}")
 
   // Relationships
   editors                   JournalEditor[]
