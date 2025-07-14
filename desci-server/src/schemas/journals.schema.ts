@@ -603,3 +603,94 @@ export const showUrgentSubmissionsSchema = z.object({
     endDate: z.string().datetime({ offset: true }).optional().describe('The end date of the analytics period'),
   }),
 });
+
+export const getJournalSettingsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to get settings for'),
+  }),
+});
+
+export const MAX_REVIEW_DUE_HOURS = 2160; // 90 days
+export const MAX_INVITE_EXPIRY_HOURS = 720; // 30 days
+
+export const updateJournalSettingsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to update settings for'),
+  }),
+  body: z
+    .object({
+      description: z.string().optional(),
+      settings: z
+        .object({
+          reviewDueHours: z
+            .object({
+              min: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Minimum review due hours (max 90 days)'),
+              max: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Maximum review due hours (max 90 days)'),
+              default: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Default review due hours (max 90 days)'),
+            })
+            .optional(),
+          inviteExpiryHours: z
+            .object({
+              min: z.number().int().min(1).max(720).optional().describe('Minimum invite expiry hours (max 30 days)'),
+              max: z.number().int().min(1).max(720).optional().describe('Maximum invite expiry hours (max 30 days)'),
+              default: z
+                .number()
+                .int()
+                .min(1)
+                .max(720)
+                .optional()
+                .describe('Default invite expiry hours (max 30 days)'),
+            })
+            .optional(),
+          refereeCount: z
+            .object({
+              value: z.number().int().min(1).max(10).optional().describe('Number of referees per submission'),
+            })
+            .optional(),
+        })
+        .optional(),
+    })
+    .refine(
+      (data) => {
+        // Validate that min <= default <= max for reviewDueHours
+        if (data.settings?.reviewDueHours) {
+          const { min, max, default: defaultVal } = data.settings.reviewDueHours;
+          if (min && max && min > max) return false;
+          if (min && defaultVal && min > defaultVal) return false;
+          if (max && defaultVal && defaultVal > max) return false;
+        }
+
+        // Validate that min <= default <= max for inviteExpiryHours
+        if (data.settings?.inviteExpiryHours) {
+          const { min, max, default: defaultVal } = data.settings.inviteExpiryHours;
+          if (min && max && min > max) return false;
+          if (min && defaultVal && min > defaultVal) return false;
+          if (max && defaultVal && defaultVal > max) return false;
+        }
+
+        return true;
+      },
+      {
+        message:
+          'Invalid settings: minimum values must be less than or equal to maximum values, and default values must be within the min/max range',
+      },
+    ),
+});

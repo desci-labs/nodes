@@ -15,6 +15,80 @@ import { logger } from '../../logger.js';
 
 const prisma = new PrismaClient();
 
+// Default journal settings
+export const DEFAULT_JOURNAL_SETTINGS = {
+  reviewDueHours: {
+    min: 24, // 3 days
+    max: 336, // 14 days
+    default: 72, // 3 days
+  },
+  inviteExpiryHours: {
+    min: 24, // 1 day
+    max: 168, // 7 days
+    default: 168, // 7 days
+  },
+  refereeCount: {
+    value: 2,
+  },
+} as const;
+
+export type JournalSettings = {
+  reviewDueHours: {
+    min: number;
+    max: number;
+    default: number;
+  };
+  inviteExpiryHours: {
+    min: number;
+    max: number;
+    default: number;
+  };
+  refereeCount: {
+    value: number;
+  };
+};
+
+export function getJournalSettingsWithDefaults(settings: Prisma.JsonValue): JournalSettings {
+  const parsedSettings = (settings as Record<string, any>) || {};
+
+  return {
+    reviewDueHours: {
+      min: parsedSettings.reviewDueHours?.min ?? DEFAULT_JOURNAL_SETTINGS.reviewDueHours.min,
+      max: parsedSettings.reviewDueHours?.max ?? DEFAULT_JOURNAL_SETTINGS.reviewDueHours.max,
+      default: parsedSettings.reviewDueHours?.default ?? DEFAULT_JOURNAL_SETTINGS.reviewDueHours.default,
+    },
+    inviteExpiryHours: {
+      min: parsedSettings.inviteExpiryHours?.min ?? DEFAULT_JOURNAL_SETTINGS.inviteExpiryHours.min,
+      max: parsedSettings.inviteExpiryHours?.max ?? DEFAULT_JOURNAL_SETTINGS.inviteExpiryHours.max,
+      default: parsedSettings.inviteExpiryHours?.default ?? DEFAULT_JOURNAL_SETTINGS.inviteExpiryHours.default,
+    },
+    refereeCount: {
+      value: parsedSettings.refereeCount?.value ?? DEFAULT_JOURNAL_SETTINGS.refereeCount.value,
+    },
+  };
+}
+
+/**
+ * Helper function to get journal settings by ID with defaults.
+ */
+export async function getJournalSettingsByIdWithDefaults(journalId: number): Promise<Result<JournalSettings, Error>> {
+  try {
+    const journal = await prisma.journal.findUnique({
+      where: { id: journalId },
+      select: { settings: true },
+    });
+
+    if (!journal) {
+      return err(new Error('Journal not found'));
+    }
+
+    return ok(getJournalSettingsWithDefaults(journal.settings));
+  } catch (error) {
+    logger.error({ error, journalId }, 'Failed to get journal settings by ID');
+    return err(error instanceof Error ? error : new Error('Failed to get journal settings'));
+  }
+}
+
 interface CreateJournalInput {
   name: string;
   description?: string;
@@ -28,6 +102,7 @@ async function createJournal(data: CreateJournalInput): Promise<Result<Journal, 
         name: data.name,
         description: data.description,
         iconCid: data.iconCid,
+        settings: DEFAULT_JOURNAL_SETTINGS,
         editors: {
           create: {
             userId: data.ownerId,
@@ -539,6 +614,159 @@ export async function getJournalEditors(
   return ok(editorsWithCounts);
 }
 
+interface JournalSettingsInput {
+  description?: string;
+  settings?: {
+    reviewDueHours?: {
+      min?: number;
+      max?: number;
+      default?: number;
+    };
+    inviteExpiryHours?: {
+      min?: number;
+      max?: number;
+      default?: number;
+    };
+    refereeCount?: {
+      value?: number;
+    };
+  };
+}
+
+async function getJournalSettings(
+  journalId: number,
+): Promise<Result<{ description: string | null; settings: JournalSettings }, Error>> {
+  try {
+    const journal = await prisma.journal.findUnique({
+      where: { id: journalId },
+      select: {
+        description: true,
+        settings: true,
+      },
+    });
+
+    if (!journal) {
+      logger.warn({ journalId }, 'Journal not found for settings');
+      return err(new Error('Journal not found.'));
+    }
+
+    const settings = getJournalSettingsWithDefaults(journal.settings);
+
+    return ok({
+      description: journal.description,
+      settings,
+    });
+  } catch (error) {
+    logger.error({ error, journalId }, 'Failed to get journal settings');
+    return err(
+      error instanceof Error ? error : new Error('An unexpected error occurred while fetching journal settings'),
+    );
+  }
+}
+
+async function updateJournalSettings(
+  journalId: number,
+  userId: number,
+  data: JournalSettingsInput,
+): Promise<Result<{ description: string | null; settings: JournalSettings }, Error>> {
+  logger.trace({ journalId, userId, data }, 'Updating journal settings');
+
+  try {
+    const journalBeforeUpdate = await prisma.journal.findUnique({
+      where: { id: journalId },
+      select: {
+        description: true,
+        settings: true,
+      },
+    });
+
+    if (!journalBeforeUpdate) {
+      logger.warn({ journalId }, 'Journal not found for settings update');
+      return err(new Error('Journal not found.'));
+    }
+
+    const changes: Record<string, { old: any; new: any }> = {};
+    const currentSettings = getJournalSettingsWithDefaults(journalBeforeUpdate.settings);
+
+    // Check for description change
+    if (data.description !== undefined && data.description !== journalBeforeUpdate.description) {
+      changes.description = { old: journalBeforeUpdate.description, new: data.description };
+    }
+
+    // Check for settings changes
+    const newSettings = { ...currentSettings };
+    if (data.settings) {
+      if (data.settings.reviewDueHours) {
+        const oldReviewDueHours = currentSettings.reviewDueHours;
+        const newReviewDueHours = { ...oldReviewDueHours, ...data.settings.reviewDueHours };
+        if (JSON.stringify(oldReviewDueHours) !== JSON.stringify(newReviewDueHours)) {
+          newSettings.reviewDueHours = newReviewDueHours;
+          changes.reviewDueHours = { old: oldReviewDueHours, new: newReviewDueHours };
+        }
+      }
+
+      if (data.settings.inviteExpiryHours) {
+        const oldInviteExpiryHours = currentSettings.inviteExpiryHours;
+        const newInviteExpiryHours = { ...oldInviteExpiryHours, ...data.settings.inviteExpiryHours };
+        if (JSON.stringify(oldInviteExpiryHours) !== JSON.stringify(newInviteExpiryHours)) {
+          newSettings.inviteExpiryHours = newInviteExpiryHours;
+          changes.inviteExpiryHours = { old: oldInviteExpiryHours, new: newInviteExpiryHours };
+        }
+      }
+
+      if (data.settings.refereeCount) {
+        const oldRefereeCount = currentSettings.refereeCount;
+        const newRefereeCount = { ...oldRefereeCount, ...data.settings.refereeCount };
+        if (JSON.stringify(oldRefereeCount) !== JSON.stringify(newRefereeCount)) {
+          newSettings.refereeCount = newRefereeCount;
+          changes.refereeCount = { old: oldRefereeCount, new: newRefereeCount };
+        }
+      }
+    }
+
+    if (Object.keys(changes).length === 0) {
+      logger.info({ journalId, userId, receivedData: data }, 'No changes to update in journal settings.');
+      return ok({
+        description: journalBeforeUpdate.description,
+        settings: currentSettings,
+      });
+    }
+
+    const [updatedJournal] = await prisma.$transaction([
+      prisma.journal.update({
+        where: { id: journalId },
+        data: {
+          description: data.description,
+          settings: newSettings,
+        },
+        select: {
+          description: true,
+          settings: true,
+        },
+      }),
+      prisma.journalEventLog.create({
+        data: {
+          journalId: journalId,
+          action: JournalEventLogAction.JOURNAL_UPDATED,
+          userId,
+          details: changes,
+        },
+      }),
+    ]);
+
+    logger.info({ journalId, userId, actualChanges: changes }, 'Journal settings updated successfully');
+    return ok({
+      description: updatedJournal.description,
+      settings: getJournalSettingsWithDefaults(updatedJournal.settings),
+    });
+  } catch (error) {
+    logger.error({ error, journalId, userId, data }, 'Failed to update journal settings');
+    return err(
+      error instanceof Error ? error : new Error('An unexpected error occurred during journal settings update'),
+    );
+  }
+}
+
 export const JournalManagementService = {
   createJournal,
   updateJournal,
@@ -550,4 +778,6 @@ export const JournalManagementService = {
   getUserJournalRole,
   getJournalProfile,
   getJournalEditors,
+  getJournalSettings,
+  updateJournalSettings,
 };
