@@ -1,4 +1,4 @@
-import { EditorRole, JournalEventLogAction, RefereeAssignment, RefereeInvite } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, RefereeAssignment, RefereeInvite, SubmissionStatus } from '@prisma/client';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
@@ -20,6 +20,7 @@ const MAX_ASSIGNED_REFEREES = 3;
 type InviteRefereeInput = {
   submissionId: number;
   refereeUserId?: number;
+  refereeName?: string;
   managerUserId: number; // Editor who is inviting the referee
   relativeDueDateHrs?: number;
   refereeEmail?: string; // If not an existing user.
@@ -87,6 +88,8 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
       return err(new Error('Editor not found for submission'));
     }
 
+    const refereeName = existingReferee?.name ?? data.refereeName ?? 'Researcher';
+
     const refereeEmail = existingReferee?.email ?? data.refereeEmail;
     if (!refereeEmail) {
       return err(new Error('Referee email is required'));
@@ -115,6 +118,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
         data: {
           userId: existingReferee?.id ?? null, // If referee doesn't have an account yet, userId is null. (External referee)
           submissionId: data.submissionId,
+          name: refereeName,
           email: refereeEmail,
           invitedById: data.managerUserId,
           token,
@@ -133,6 +137,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
             submissionId: invite.submissionId,
             refereeId: invite.userId,
             refereeEmail,
+            refereeName,
             assignedSubmissionEditorId: submission.assignedEditorId,
             relativeDueDateHrs: data.relativeDueDateHrs,
           },
@@ -149,7 +154,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
         journal: submission.journal,
         inviterName: editor.user.name,
         inviteToken: token,
-        refereeName: existingReferee?.name ?? '',
+        refereeName: refereeName,
         submission: submissionExtended,
       },
     });
@@ -190,15 +195,19 @@ export interface IRefereeInvite {
   submissionId: number;
   accepted: boolean;
   declined: boolean;
-  expiresAt: Date;
+  expiresAt: Date; // Refers to the invite expiration date.
+  relativeDueDateHrs: number; // Refers to the review due date, from the time of acceptance.
   token: string;
 }
 
-async function getRefereeInvites(refereeUserId: number): Promise<Result<IRefereeInvite[], Error>> {
+async function getRefereeInvites(
+  refereeUserId: number,
+  refereeEmail?: string,
+): Promise<Result<IRefereeInvite[], Error>> {
   try {
     const refereeInvites = await prisma.refereeInvite.findMany({
       where: {
-        userId: refereeUserId,
+        OR: [{ userId: refereeUserId }, { email: refereeEmail }],
       },
       select: {
         id: true,
@@ -206,6 +215,7 @@ async function getRefereeInvites(refereeUserId: number): Promise<Result<IReferee
         accepted: true,
         declined: true,
         expiresAt: true,
+        relativeDueDateHrs: true,
         token: true,
         submission: {
           select: {
@@ -323,6 +333,7 @@ export interface IRefereeAssignment {
 }
 async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssignment[], Error>> {
   try {
+    // debugger;
     const refereeAssignments = await prisma.refereeAssignment.findMany({
       where: {
         userId,
@@ -391,11 +402,9 @@ async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssi
         },
         dpid: assignment.submission.dpid,
       },
-      reviews: assignment.reviews.map((review) => ({
-        ...review,
-        review: JSON.parse(review.review as string),
-      })),
+      reviews: assignment.reviews,
     }));
+    // debugger;
     return ok(assignments);
   } catch (error) {
     logger.error({ error, refereeUserId: userId }, 'Failed to get active referee assignments');
@@ -592,8 +601,17 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
     const relativeDueDateMs = data.dueDateHrs * 60 * 60 * 1000; // hours to ms conversion
     const dueDate = new Date(Date.now() + relativeDueDateMs);
 
-    const [refereeAssignment] = await prisma.$transaction([
-      prisma.refereeAssignment.create({
+    const [refereeAssignment] = await prisma.$transaction(async (tx) => {
+      // Check if this is the first referee assignment for this submission
+      const existingAssignments = await tx.refereeAssignment.count({
+        where: {
+          submissionId: data.submissionId,
+          OR: [{ completedAssignment: true }, { completedAssignment: null }],
+        },
+      });
+
+      // Create the referee assignment
+      const assignment = await tx.refereeAssignment.create({
         data: {
           submissionId: data.submissionId,
           userId: data.refereeUserId,
@@ -604,8 +622,18 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
           journalId: data.journalId,
           expectedFormTemplateIds: data.expectedFormTemplateIds || [],
         },
-      }),
-      prisma.journalEventLog.create({
+      });
+
+      // If this is the first referee assignment, update submission status to UNDER_REVIEW
+      if (existingAssignments === 0) {
+        await tx.journalSubmission.update({
+          where: { id: data.submissionId },
+          data: { status: SubmissionStatus.UNDER_REVIEW },
+        });
+      }
+
+      // Create event log
+      await tx.journalEventLog.create({
         data: {
           journalId: submission.journalId,
           action: JournalEventLogAction.REFEREE_ACCEPTED,
@@ -617,8 +645,10 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
             dueDate: dueDate.toISOString(),
           },
         },
-      }),
-    ]);
+      });
+
+      return [assignment];
+    });
 
     logger.info({ fn: 'assignReferee', data, refereeAssignmentId: refereeAssignment.id }, 'Assigned referee');
     return ok(refereeAssignment);

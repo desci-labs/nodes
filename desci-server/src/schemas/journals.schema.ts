@@ -73,7 +73,10 @@ export const inviteEditorSchema = z.object({
     }),
   }),
   body: z.object({
-    email: z.string().email(),
+    email: z
+      .string()
+      .email()
+      .transform((val) => val?.toLowerCase()),
     role: z.nativeEnum(EditorRole),
   }),
 });
@@ -202,14 +205,16 @@ const reviewSchema = z.object({
   editorFeedback: z.string().optional(),
   authorFeedback: z.string().optional(),
   recommendation: z.nativeEnum(ReviewDecision).optional(),
-  review: z.array(
-    z
-      .object({
-        question: z.string(),
-        answer: z.string(),
-      })
-      .optional(),
-  ),
+  review: z
+    .array(
+      z
+        .object({
+          question: z.string(),
+          answer: z.string(),
+        })
+        .optional(),
+    )
+    .optional(),
 });
 
 export const submissionApiSchema = z.object({
@@ -269,7 +274,12 @@ export const inviteRefereeSchema = z.object({
     journalId: z.string(),
   }),
   body: z.object({
-    refereeEmail: z.string().email().optional(),
+    refereeName: z.string().optional(),
+    refereeEmail: z
+      .string()
+      .email()
+      .optional()
+      .transform((val) => val?.toLowerCase()),
     refereeUserId: z.number().int().positive().optional(),
     relativeDueDateHrs: z.number().int().positive().optional(), // lets restric tthis further.
     expectedFormTemplateIds: z.array(z.number().int().positive()).optional().default([]),
@@ -364,6 +374,16 @@ export const revisionActionSchema = z.object({
   }),
   body: z.object({
     decision: z.enum(['accept', 'reject']),
+  }),
+});
+
+export const getReviewsByAssignmentSchema = z.object({
+  params: z.object({
+    assignmentId: z.coerce.number(),
+  }),
+  query: z.object({
+    limit: z.coerce.number().optional().default(20).describe('The number of reviews to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of reviews to skip'),
   }),
 });
 

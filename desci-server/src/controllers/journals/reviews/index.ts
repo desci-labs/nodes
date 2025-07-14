@@ -5,7 +5,11 @@ import _ from 'lodash';
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { createReviewSchema, updateReviewSchema } from '../../../schemas/journals.schema.js';
+import {
+  createReviewSchema,
+  getReviewsByAssignmentSchema,
+  updateReviewSchema,
+} from '../../../schemas/journals.schema.js';
 import { JournalEventLogService } from '../../../services/journals/JournalEventLogService.js';
 import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
 import { JournalRefereeManagementService } from '../../../services/journals/JournalRefereeManagementService.js';
@@ -14,6 +18,7 @@ import {
   getAllRefereeReviewsBySubmission,
   getAuthorSubmissionReviews,
   getJournalReviewById,
+  getReviewsByAssignment,
   getSubmissionReviews,
   saveReview,
   submitReview,
@@ -75,7 +80,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review: JSON.stringify(review),
+      // review: review ? JSON.stringify(review) : undefined,
     },
   });
 
@@ -107,7 +112,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
     'submittedAt',
   ]);
 
-  data.review = JSON.parse(data.review as string);
+  // data.review = data.review ? JSON.parse(data.review as string) : null;
 
   return sendSuccess(res, data);
 };
@@ -154,7 +159,7 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review: JSON.stringify(review),
+      // review: review ? JSON.stringify(review) : undefined,
     },
   });
 
@@ -183,7 +188,7 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
     'journalId',
     'submittedAt',
   ]);
-  data.review = JSON.parse(data.review as string);
+  // data.review = data.review ? JSON.parse(data.review as string) : null;
   return sendSuccess(res, data);
 };
 
@@ -226,7 +231,7 @@ export const submitReviewController = async (req: SubmitReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review: JSON.stringify(review),
+      // review: JSON.stringify(review),
     },
   });
 
@@ -254,7 +259,7 @@ export const submitReviewController = async (req: SubmitReviewRequest, res: Resp
     'review',
     'submittedAt',
   ]);
-  data.review = JSON.parse(data.review as string);
+  // data.review = data.review ? JSON.parse(data.review as string) : null;
   return sendSuccess(res, data);
 };
 
@@ -340,4 +345,75 @@ export const getReviewByIdController = async (req: GetReviewByIdRequest, res: Re
   }
 
   return sendSuccess(res, null);
+};
+
+type GetReviewsByAssignmentRequest = ValidatedRequest<typeof getReviewsByAssignmentSchema, AuthenticatedRequest>;
+export const getReviewsByAssignmentController = async (req: GetReviewsByAssignmentRequest, res: Response) => {
+  const { assignmentId } = req.validatedData.params;
+  const { limit, offset } = req.validatedData.query;
+
+  const userId = req.user.id;
+
+  const result = await getReviewsByAssignment({
+    assignmentId,
+    userId,
+    limit,
+    offset,
+  });
+
+  if (result.isErr()) {
+    return sendError(res, result.error, 403);
+  }
+
+  const { reviews, assignment } = result.value;
+
+  const response = {
+    reviews: reviews.map((review) => ({
+      id: review.id,
+      recommendation: review.recommendation,
+      editorFeedback: review.editorFeedback,
+      authorFeedback: review.authorFeedback,
+      review: review.review,
+      submittedAt: review.submittedAt,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      formResponse: review.formResponse
+        ? {
+            id: review.formResponse.id,
+            templateId: review.formResponse.templateId,
+            status: review.formResponse.status,
+            formData: review.formResponse.formData,
+            startedAt: review.formResponse.startedAt,
+            submittedAt: review.formResponse.submittedAt,
+            updatedAt: review.formResponse.updatedAt,
+            template: review.formResponse.template
+              ? {
+                  id: review.formResponse.template.id,
+                  name: review.formResponse.template.name,
+                  description: review.formResponse.template.description,
+                  version: review.formResponse.template.version,
+                  structure: review.formResponse.template.structure,
+                }
+              : null,
+          }
+        : null,
+    })),
+    assignment: {
+      id: assignment.id,
+      submissionId: assignment.submissionId,
+      journalId: assignment.journalId,
+      assignedAt: assignment.assignedAt,
+      dueDate: assignment.dueDate,
+      completedAt: assignment.completedAt,
+      submission: {
+        id: assignment.submission.id,
+        title: assignment.submission.node.title,
+        status: assignment.submission.status,
+        author: assignment.submission.author,
+      },
+      journal: assignment.journal,
+    },
+  };
+
+  return sendSuccess(res, response);
 };

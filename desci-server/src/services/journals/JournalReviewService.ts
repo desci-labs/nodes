@@ -160,6 +160,11 @@ async function submitReview({ reviewId, update }: { reviewId: number; update: Sa
     },
   });
 
+  const updatedRefereeAssignment = await prisma.refereeAssignment.update({
+    where: { id: review.refereeAssignmentId },
+    data: { completedAssignment: true, completedAt: new Date() },
+  });
+
   return ok(updatedReview);
 }
 
@@ -292,6 +297,106 @@ async function getJournalReviewById({
   return ok(review);
 }
 
+async function getReviewsByAssignment({
+  assignmentId,
+  userId,
+  limit = 20,
+  offset = 0,
+}: {
+  assignmentId: number;
+  userId: number;
+  limit?: number;
+  offset?: number;
+}) {
+  // First verify the assignment exists and belongs to the user
+  const assignment = await prisma.refereeAssignment.findFirst({
+    where: {
+      id: assignmentId,
+      userId,
+      // CompletedAssignment is only false if the referee drops out.
+      OR: [{ completedAssignment: true }, { completedAssignment: null }],
+    },
+    include: {
+      submission: {
+        select: {
+          id: true,
+          status: true,
+          author: { select: { id: true, name: true, orcid: true } },
+          node: { select: { title: true } },
+        },
+      },
+      journal: {
+        select: {
+          id: true,
+          name: true,
+          iconCid: true,
+        },
+      },
+    },
+  });
+
+  if (!assignment) {
+    return err('Assignment not found or not accessible');
+  }
+
+  // Get all reviews for this assignment
+  const reviews = await prisma.journalSubmissionReview.findMany({
+    where: {
+      refereeAssignmentId: assignmentId,
+    },
+    skip: offset,
+    take: limit,
+    include: {
+      refereeAssignment: {
+        select: {
+          referee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+      submission: {
+        select: {
+          id: true,
+          status: true,
+          author: { select: { id: true, name: true, orcid: true } },
+        },
+      },
+      journal: {
+        select: {
+          id: true,
+          name: true,
+          iconCid: true,
+        },
+      },
+      formResponse: {
+        include: {
+          template: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              version: true,
+              structure: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  return ok({
+    reviews,
+    assignment,
+  });
+}
+
 export {
   getSubmissionReviews,
   isSubmissionReviewed,
@@ -303,4 +408,5 @@ export {
   getAllRefereeReviewsBySubmission,
   getAuthorSubmissionReviews,
   getJournalReviewById,
+  getReviewsByAssignment,
 };

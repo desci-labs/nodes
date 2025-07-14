@@ -1263,7 +1263,7 @@ model JournalSubmissionReview {
   submittedAt         DateTime?
   editorFeedback      String?
   authorFeedback      String?
-  review              Json            @default("[]")
+  review              Json            @default("[]") // Ignore/unused, in favor of formResponse.
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -1309,6 +1309,7 @@ model EditorInvite {
 model RefereeInvite {
   id                      Int       @id @default(autoincrement())
   email                   String
+  name                    String?
   userId                  Int?
   submissionId            Int
   invitedById             Int
