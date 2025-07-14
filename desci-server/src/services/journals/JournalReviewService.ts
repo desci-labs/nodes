@@ -160,6 +160,11 @@ async function submitReview({ reviewId, update }: { reviewId: number; update: Sa
     },
   });
 
+  const updatedRefereeAssignment = await prisma.refereeAssignment.update({
+    where: { id: review.refereeAssignmentId },
+    data: { completedAssignment: true, completedAt: new Date() },
+  });
+
   return ok(updatedReview);
 }
 
