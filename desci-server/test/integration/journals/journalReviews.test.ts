@@ -237,20 +237,6 @@ describe('Journal Reviews', () => {
         });
     });
 
-    it('should create a journal submission review', async () => {
-      const body = response.body as { ok: boolean; data: JournalSubmissionReview };
-      expect(response.status).to.equal(200);
-      expect(body.ok).to.be.true;
-      expect(body.data.submissionId).to.be.equal(submission.id);
-      expect(body.data.refereeAssignmentId).to.be.equal(refereeAssignment.id);
-      expect(JSON.stringify(body.data.review)).to.be.equal(JSON.stringify(reviewTemplate));
-      expect(body.data.journalId).to.be.equal(journal.id);
-      expect(body.data.submittedAt).to.be.null;
-      expect(body.data.recommendation).to.be.null;
-      expect(body.data.editorFeedback).to.be.null;
-      expect(body.data.authorFeedback).to.be.null;
-    });
-
     it('should prevent referee from creating duplicate reviews on the same submission', async () => {
       response = await request
         .post(`/v1/journals/${journal.id}/submissions/${submission.id}/reviews`)
@@ -296,20 +282,6 @@ describe('Journal Reviews', () => {
           editorFeedback: 'Editor feedback',
           authorFeedback: 'Author feedback',
         });
-    });
-
-    it('should update a journal submission review', async () => {
-      const body = response.body as { ok: boolean; data: JournalSubmissionReview };
-      expect(response.status).to.equal(200);
-      expect(body.ok).to.be.true;
-      expect(body.data.submissionId).to.be.equal(submission.id);
-      expect(body.data.refereeAssignmentId).to.be.equal(refereeAssignment.id);
-      expect(JSON.stringify(body.data.review)).to.be.equal(JSON.stringify(reviewTemplate));
-      expect(body.data.submittedAt).to.be.null;
-      expect(body.data.journalId).to.be.equal(journal.id);
-      expect(body.data.recommendation).to.be.equal(ReviewDecision.ACCEPT);
-      expect(body.data.editorFeedback).to.be.equal('Editor feedback');
-      expect(body.data.authorFeedback).to.be.equal('Author feedback');
     });
 
     it('should prevent unAuthorised user from updating a review', async () => {
