@@ -14,9 +14,11 @@ import { editorInviteDecision } from '../../../controllers/journals/invites/edit
 import { inviteEditor, listJournalEditors } from '../../../controllers/journals/invites/inviteEditor.js';
 import { listJournalsController } from '../../../controllers/journals/list.js';
 import { createJournalController } from '../../../controllers/journals/management/create.js';
+import { getJournalSettingsController } from '../../../controllers/journals/management/getJournalSettings.js';
 import { removeEditorController } from '../../../controllers/journals/management/removeEditor.js';
 import { updateJournalController } from '../../../controllers/journals/management/update.js';
 import { updateEditorController } from '../../../controllers/journals/management/updateEditor.js';
+import { updateJournalSettingsController } from '../../../controllers/journals/management/updateJournalSettings.js';
 import { updateEditorRoleController } from '../../../controllers/journals/management/updateRole.js';
 import { getRefereeFormStatusController } from '../../../controllers/journals/referees/getRefereeFormStatus.js';
 import { listRefereeAssignmentsController } from '../../../controllers/journals/referees/index.js';
@@ -93,6 +95,8 @@ import {
   createFormTemplateSchema,
   getJournalAnalyticsSchema,
   showUrgentSubmissionsSchema,
+  getJournalSettingsSchema,
+  updateJournalSettingsSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -140,6 +144,23 @@ router.patch(
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(updateEditorRoleSchema)],
   updateEditorRoleController,
 );
+
+router.get(
+  '/:journalId/settings',
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR]),
+    validateInputs(getJournalSettingsSchema),
+  ],
+  asyncHandler(getJournalSettingsController),
+);
+
+router.patch(
+  '/:journalId/settings',
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(updateJournalSettingsSchema)],
+  asyncHandler(updateJournalSettingsController),
+);
+
 router.patch(
   '/:journalId/editors/:editorUserId/settings', // This route is for EDITORS to manage their own settings.
   [

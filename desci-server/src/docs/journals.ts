@@ -39,6 +39,8 @@ import {
   refereeInviteDecisionSchema,
   invalidateRefereeAssignmentSchema,
   getReviewsByAssignmentSchema,
+  getJournalSettingsSchema,
+  updateJournalSettingsSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -2505,6 +2507,141 @@ export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = 
   security: [{ BearerAuth: [] }],
 };
 
+// Get Journal Settings
+export const getJournalSettingsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getJournalSettings',
+  tags: ['Journals'],
+  summary: 'Get journal settings',
+  description:
+    'Retrieve the settings for a journal including description and custom settings like review due hours, invite expiry hours, and referee count.',
+  requestParams: {
+    path: getJournalSettingsSchema.shape.params,
+  },
+  responses: {
+    '200': {
+      description: 'Journal settings retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            description: z.string().nullable(),
+            settings: z.object({
+              reviewDueHours: z.object({
+                min: z.number().describe('Minimum review due hours'),
+                max: z.number().describe('Maximum review due hours'),
+                default: z.number().describe('Default review due hours'),
+              }),
+              inviteExpiryHours: z.object({
+                min: z.number().describe('Minimum invite expiry hours'),
+                max: z.number().describe('Maximum invite expiry hours'),
+                default: z.number().describe('Default invite expiry hours'),
+              }),
+              refereeCount: z.object({
+                value: z.number().describe('Number of referees per submission'),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Update Journal Settings
+export const updateJournalSettingsOperation: ZodOpenApiOperationObject = {
+  operationId: 'updateJournalSettings',
+  tags: ['Journals'],
+  summary: 'Update journal settings',
+  description:
+    'Update the settings for a journal including description and custom settings like review due hours, invite expiry hours, and referee count. Only chief editors can update settings.',
+  requestParams: {
+    path: updateJournalSettingsSchema.shape.params,
+  },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: updateJournalSettingsSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Journal settings updated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            description: z.string().nullable(),
+            settings: z.object({
+              reviewDueHours: z.object({
+                min: z.number().describe('Minimum review due hours'),
+                max: z.number().describe('Maximum review due hours'),
+                default: z.number().describe('Default review due hours'),
+              }),
+              inviteExpiryHours: z.object({
+                min: z.number().describe('Minimum invite expiry hours'),
+                max: z.number().describe('Maximum invite expiry hours'),
+                default: z.number().describe('Default invite expiry hours'),
+              }),
+              refereeCount: z.object({
+                value: z.number().describe('Number of referees per submission'),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid input data',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '409': {
+      description: 'Conflict - settings validation failed',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -2621,5 +2758,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/urgentSubmissions': {
     get: showUrgentJournalSubmissionsOperation,
+  },
+  '/v1/journals/{journalId}/settings': {
+    get: getJournalSettingsOperation,
+    patch: updateJournalSettingsOperation,
   },
 };
