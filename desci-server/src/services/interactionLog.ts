@@ -105,22 +105,50 @@ export const getUserPublishConsent = async (userId?: number) => {
 export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
   logger.info({ fn: 'getCountActiveUsersInXDays', dateXDaysAgo }, 'interactionLog::getCountActiveUsersInXDays');
 
-  return await prisma.interactionLog.findMany({
-    distinct: ['userId'],
+  const res = (await prisma.$queryRaw`
+    SELECT DISTINCT ON (il."userId")
+      il.id,
+      il.action,
+      u.id as "userId",
+      u.email,
+      u.orcid,
+      u."createdAt" as "userCreatedAt"
+    FROM "InteractionLog" il
+    LEFT JOIN "User" u ON il."userId" = u.id
+    WHERE il."createdAt" >= ${dateXDaysAgo}
+      AND il."userId" IS NOT NULL
+      AND (
+          --- exploring user actions ---
+          extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          --- publishing user actions ---
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+        )
+      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+  `) as { id: number; action: string; userId: number; email: string; orcid: string; userCreatedAt: string }[];
 
-    where: {
-      createdAt: {
-        gte: dateXDaysAgo,
-      },
-      // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
-      // from poluting returned data
-      userId: {
-        not: null,
-      },
-      OR: [{ isGuest: false }, { isGuest: null }],
-    },
-    select: { id: true, action: true, user: { select: { id: true, email: true, orcid: true, createdAt: true } } },
-  });
+  logger.trace({ res }, 'getActiveUsersInXDays');
+  return res.map((r) => ({
+    id: r.id,
+    user: { id: r.userId, email: r.email, orcid: r.orcid, createdAt: r.userCreatedAt },
+  }));
 };
 
 export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<number> => {
@@ -129,40 +157,92 @@ export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<
   const now = new Date();
 
   const utcMidnightXDaysAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo));
-  return (
-    await prisma.interactionLog.findMany({
-      distinct: ['userId'],
-      where: {
-        createdAt: {
-          gte: utcMidnightXDaysAgo,
-        },
-        user: {
-          orcid: {
-            not: null,
-          },
-        },
-      },
-    })
-  ).length;
+
+  const res = (await prisma.$queryRaw`
+    SELECT DISTINCT "userId"
+    FROM "InteractionLog" il
+    LEFT JOIN "User" u ON u.id = "userId"
+    WHERE il."createdAt" >= ${utcMidnightXDaysAgo}
+      AND il."userId" IS NOT NULL
+      AND u.orcid IS NOT NULL
+      AND (
+          --- exploring user actions ---
+          extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          --- publishing user actions ---
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+        )
+      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+  `) as { userId: number }[];
+
+  logger.trace({ res }, 'getCountActiveOrcidUsersInXDays');
+  return res.length;
 };
 
 export const getActiveOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
   logger.info({ fn: 'getActiveOrcidUsersInXDays', dateXDaysAgo }, 'interactionLog::getActiveOrcidUsersInXDays');
-  return await prisma.interactionLog.findMany({
-    distinct: ['userId'],
-    where: {
-      createdAt: {
-        gte: dateXDaysAgo,
-      },
-      user: {
-        orcid: {
-          not: null,
-        },
-      },
-    },
-    select: { user: { select: { id: true, email: true, orcid: true } } },
-    // include: { user: { select: { id: true, email: true, orcid: true } } },
-  });
+
+  const res = (await prisma.$queryRaw`
+    SELECT DISTINCT ON (il."userId")
+      il.id,
+      il.action,
+      u.id as "userId",
+      u.email,
+      u.orcid,
+      u."createdAt" as "userCreatedAt"
+    FROM "InteractionLog" il
+    LEFT JOIN "User" u ON il."userId" = u.id
+    WHERE il."createdAt" >= ${dateXDaysAgo}
+      AND il."userId" IS NOT NULL
+      AND u.orcid IS NOT NULL
+      AND (
+          --- exploring user actions ---
+          extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          --- publishing user actions ---
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+        )
+      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+  `) as { id: number; action: string; userId: number; email: string; orcid: string; userCreatedAt: string }[];
+
+  return res.map((r) => ({
+    id: r.id,
+    user: { id: r.userId, email: r.email, orcid: r.orcid, createdAt: r.userCreatedAt },
+  }));
 };
 
 export const getCountActiveUsersInMonth = async (month: number, year: number): Promise<number> => {
@@ -257,44 +337,88 @@ export const getNodeViewsInMonth = async (month: number, year: number): Promise<
  */
 
 export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => {
-  logger.trace({ fn: 'getNewUsersInRange' }, 'user::getNewUsersInRange');
+  const res = (await prisma.$queryRaw`
+    SELECT DISTINCT ON (il."userId") 
+      il."createdAt",
+      u.id as "userId"
+    FROM "InteractionLog" il
+    LEFT JOIN "User" u ON u.id = il."userId" 
+    WHERE il."createdAt" >= ${range.from}
+      AND il."createdAt" <= ${range.to}
+      AND il."userId" IS NOT NULL
+      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+      AND (
+          --- exploring user actions ---
+          extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          --- publishing user actions ---
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+        )
+  `) as { createdAt: string; userId: number }[];
 
-  return await prisma.interactionLog.findMany({
-    distinct: ['userId'],
-    where: {
-      createdAt: {
-        gte: range.from,
-        lt: range.to,
-      },
-      // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
-      // from poluting returned data
-      userId: {
-        not: null,
-      },
-      OR: [{ isGuest: false }, { isGuest: null }],
-    },
-    select: { createdAt: true, user: { select: { id: true } } },
-  });
+  logger.trace({ res }, 'getActiveUsersInRange');
+  return res;
 };
 
 export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }) => {
   logger.trace({ fn: 'getActiveOrcidUsersInRange' }, 'user::getActiveOrcidUsersInRange');
 
-  return await prisma.interactionLog.findMany({
-    distinct: ['userId'],
-    where: {
-      createdAt: {
-        gte: range.from,
-        lt: range.to,
-      },
-      user: {
-        orcid: {
-          not: null,
-        },
-      },
-    },
-    select: { createdAt: true },
-  });
+  const res = (await prisma.$queryRaw`
+    SELECT DISTINCT ON (il."userId") 
+      il."createdAt",
+      u.id as "userId"
+    FROM "InteractionLog" il
+    LEFT JOIN "User" u ON u.id = il."userId" 
+    WHERE il."createdAt" >= ${range.from}
+      AND il."createdAt" < ${range.to}
+      AND il."userId" IS NOT NULL
+      AND u.orcid IS NOT NULL
+      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+      AND (
+          --- exploring user actions ---
+          extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          --- publishing user actions ---
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+        )
+  `) as { createdAt: string; userId: number }[];
+
+  logger.trace({ res }, 'getActiveOrcidUsersInRange');
+  return res;
 };
 
 export const getNodeViewsInRange = async (range: { from: Date; to: Date }) => {
