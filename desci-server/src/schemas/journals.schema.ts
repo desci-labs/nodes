@@ -78,6 +78,13 @@ export const inviteEditorSchema = z.object({
       .email()
       .transform((val) => val?.toLowerCase()),
     role: z.nativeEnum(EditorRole),
+    inviteTtlDays: z
+      .number()
+      .int()
+      .min(1, 'Invite TTL must be at least 1 day')
+      .max(30, 'Invite TTL cannot exceed 30 days')
+      .optional()
+      .describe('Time to live for the editor invite in days (1-30 days, default: 7)'),
   }),
 });
 

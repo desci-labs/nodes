@@ -209,6 +209,8 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
   operationId: 'inviteEditor',
   tags: ['Journals'],
   summary: 'Invite an editor to a journal',
+  description:
+    'Invite a user to become an editor for a journal. The invite will expire after the specified TTL (time to live) period, defaulting to 7 days if not specified. TTL can be set between 1-30 days.',
   requestParams: { path: inviteEditorSchema.shape.params },
   requestBody: {
     content: {
@@ -222,12 +224,38 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
       description: 'Editor invited successfully',
       content: {
         'application/json': {
-          schema: z.object({ invite: z.object({}) }), // Details omitted for brevity
+          schema: z.object({
+            invite: z.object({
+              id: z.number(),
+              journalId: z.number(),
+              email: z.string(),
+              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+              inviterId: z.number(),
+              expiresAt: z.string(),
+              createdAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid input data',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
         },
       },
     },
     '404': {
       description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
