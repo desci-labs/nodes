@@ -18,12 +18,12 @@ type InviteRefereeRequest = ValidatedRequest<typeof inviteRefereeSchema, Authent
 export const inviteRefereeController = async (req: InviteRefereeRequest, res: Response) => {
   try {
     const { submissionId } = req.validatedData.params;
-    const { refereeUserId, refereeName, refereeEmail, relativeDueDateHrs, expectedFormTemplateIds } =
+    const { refereeUserId, refereeName, refereeEmail, relativeDueDateHrs, inviteExpiryHours, expectedFormTemplateIds } =
       req.validatedData.body;
     const managerUserId = req.user.id;
 
     logger.info(
-      { submissionId, refereeUserId, managerUserId, relativeDueDateHrs, expectedFormTemplateIds },
+      { submissionId, refereeUserId, managerUserId, relativeDueDateHrs, inviteExpiryHours, expectedFormTemplateIds },
       'Attempting to invite referee',
     );
 
@@ -34,12 +34,33 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
       refereeUserId,
       managerUserId,
       relativeDueDateHrs,
+      inviteExpiryHours,
       expectedFormTemplateIds,
     });
 
     if (result.isErr()) {
       const error = result.error;
       logger.error({ error, body: req.body, params: req.params, user: req.user }, 'Failed to invite referee');
+
+      // Handle specific controlled errors with appropriate HTTP status codes
+      if (error.message === 'Submission not found') {
+        return sendError(res, error.message, 404);
+      }
+      if (error.message === 'Editor not found for submission') {
+        return sendError(res, error.message, 403);
+      }
+      if (error.message === 'Referee email is required') {
+        return sendError(res, error.message, 400);
+      }
+      if (error.message === 'One or more form templates are invalid or inactive') {
+        return sendError(res, error.message, 400);
+      }
+      if (error.message.includes('Review due date must be between')) {
+        return sendError(res, error.message, 400);
+      }
+      if (error.message.includes('Invite expiry must be between')) {
+        return sendError(res, error.message, 400);
+      }
 
       return sendError(res, error.message, 500);
     }

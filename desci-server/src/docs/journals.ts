@@ -39,6 +39,8 @@ import {
   refereeInviteDecisionSchema,
   invalidateRefereeAssignmentSchema,
   getReviewsByAssignmentSchema,
+  getJournalSettingsSchema,
+  updateJournalSettingsSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -207,6 +209,8 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
   operationId: 'inviteEditor',
   tags: ['Journals'],
   summary: 'Invite an editor to a journal',
+  description:
+    'Invite a user to become an editor for a journal. The invite will expire after the specified TTL (time to live) period, defaulting to 7 days if not specified. TTL can be set between 1-30 days.',
   requestParams: { path: inviteEditorSchema.shape.params },
   requestBody: {
     content: {
@@ -220,12 +224,38 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
       description: 'Editor invited successfully',
       content: {
         'application/json': {
-          schema: z.object({ invite: z.object({}) }), // Details omitted for brevity
+          schema: z.object({
+            invite: z.object({
+              id: z.number(),
+              journalId: z.number(),
+              email: z.string(),
+              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+              inviterId: z.number(),
+              expiresAt: z.string(),
+              createdAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid input data',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
         },
       },
     },
     '404': {
       description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -1555,7 +1585,7 @@ export const inviteRefereeOperation: ZodOpenApiOperationObject = {
   tags: ['Journals'],
   summary: 'Invite a referee to review a submission',
   description:
-    'Invite a referee (existing user or external email) to review a submission. Supports both internal users (via refereeUserId) and external referees (via refereeEmail). Can specify expected form templates and review deadline.',
+    "Invite a referee (existing user or external email) to review a submission. Supports both internal users (via refereeUserId) and external referees (via refereeEmail). Can specify expected form templates, review deadline, and invite expiry time. All times must fall within the journal's configured bounds.",
   requestParams: { path: inviteRefereeSchema.shape.params },
   requestBody: {
     content: {
@@ -2505,6 +2535,141 @@ export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = 
   security: [{ BearerAuth: [] }],
 };
 
+// Get Journal Settings
+export const getJournalSettingsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getJournalSettings',
+  tags: ['Journals'],
+  summary: 'Get journal settings',
+  description:
+    'Retrieve the settings for a journal including description and custom settings like review due hours, invite expiry hours, and referee count.',
+  requestParams: {
+    path: getJournalSettingsSchema.shape.params,
+  },
+  responses: {
+    '200': {
+      description: 'Journal settings retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            description: z.string().nullable(),
+            settings: z.object({
+              reviewDueHours: z.object({
+                min: z.number().describe('Minimum review due hours'),
+                max: z.number().describe('Maximum review due hours'),
+                default: z.number().describe('Default review due hours'),
+              }),
+              refereeInviteExpiryHours: z.object({
+                min: z.number().describe('Minimum referee invite expiry hours'),
+                max: z.number().describe('Maximum referee invite expiry hours'),
+                default: z.number().describe('Default referee invite expiry hours'),
+              }),
+              refereeCount: z.object({
+                value: z.number().describe('Number of referees per submission'),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Update Journal Settings
+export const updateJournalSettingsOperation: ZodOpenApiOperationObject = {
+  operationId: 'updateJournalSettings',
+  tags: ['Journals'],
+  summary: 'Update journal settings',
+  description:
+    'Update the settings for a journal including description and custom settings like review due hours, invite expiry hours, and referee count. Only chief editors can update settings.',
+  requestParams: {
+    path: updateJournalSettingsSchema.shape.params,
+  },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: updateJournalSettingsSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Journal settings updated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            description: z.string().nullable(),
+            settings: z.object({
+              reviewDueHours: z.object({
+                min: z.number().describe('Minimum review due hours'),
+                max: z.number().describe('Maximum review due hours'),
+                default: z.number().describe('Default review due hours'),
+              }),
+              refereeInviteExpiryHours: z.object({
+                min: z.number().describe('Minimum referee invite expiry hours'),
+                max: z.number().describe('Maximum referee invite expiry hours'),
+                default: z.number().describe('Default referee invite expiry hours'),
+              }),
+              refereeCount: z.object({
+                value: z.number().describe('Number of referees per submission'),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid input data',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '409': {
+      description: 'Conflict - settings validation failed',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -2621,5 +2786,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/urgentSubmissions': {
     get: showUrgentJournalSubmissionsOperation,
+  },
+  '/v1/journals/{journalId}/settings': {
+    get: getJournalSettingsOperation,
+    patch: updateJournalSettingsOperation,
   },
 };

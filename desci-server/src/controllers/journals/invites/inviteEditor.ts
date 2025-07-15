@@ -18,16 +18,17 @@ type InviteEditorRequest = ValidatedRequest<typeof inviteEditorSchema, Authentic
 export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
   try {
     const { journalId } = req.validatedData.params;
-    const { email, role } = req.validatedData.body;
+    const { email, role, inviteTtlDays } = req.validatedData.body;
     const inviterId = req.user.id;
 
-    logger.info({ journalId, email, role, inviterId }, 'Attempting to invite editor');
+    logger.info({ journalId, email, role, inviteTtlDays, inviterId }, 'Attempting to invite editor');
 
     const invite = await JournalInviteService.inviteJournalEditor({
       journalId,
       inviterId,
       email,
       role,
+      inviteTtlDays,
     });
 
     return sendSuccess(

@@ -78,6 +78,13 @@ export const inviteEditorSchema = z.object({
       .email()
       .transform((val) => val?.toLowerCase()),
     role: z.nativeEnum(EditorRole),
+    inviteTtlDays: z
+      .number()
+      .int()
+      .min(1, 'Invite TTL must be at least 1 day')
+      .max(30, 'Invite TTL cannot exceed 30 days')
+      .optional()
+      .describe('Time to live for the editor invite in days (1-30 days, default: 7)'),
   }),
 });
 
@@ -282,6 +289,7 @@ export const inviteRefereeSchema = z.object({
       .transform((val) => val?.toLowerCase()),
     refereeUserId: z.number().int().positive().optional(),
     relativeDueDateHrs: z.number().int().positive().optional(), // lets restric tthis further.
+    inviteExpiryHours: z.number().int().positive().optional(),
     expectedFormTemplateIds: z.array(z.number().int().positive()).optional().default([]),
   }),
 });
@@ -602,4 +610,120 @@ export const showUrgentSubmissionsSchema = z.object({
     startDate: z.string().datetime({ offset: true }).optional().describe('The start date of the analytics period'),
     endDate: z.string().datetime({ offset: true }).optional().describe('The end date of the analytics period'),
   }),
+});
+
+export const getJournalSettingsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to get settings for'),
+  }),
+});
+
+export const MAX_REVIEW_DUE_HOURS = 2160; // 90 days
+export const MAX_REFEREE_INVITE_EXPIRY_HOURS = 720; // 30 days
+
+export const updateJournalSettingsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to update settings for'),
+  }),
+  body: z
+    .object({
+      description: z.string().optional(),
+      settings: z
+        .object({
+          reviewDueHours: z
+            .object({
+              min: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Minimum review due hours (max 90 days)'),
+              max: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Maximum review due hours (max 90 days)'),
+              default: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Default review due hours (max 90 days)'),
+            })
+            .optional(),
+          refereeInviteExpiryHours: z
+            .object({
+              min: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
+                .optional()
+                .describe('Minimum referee invite expiry hours (max 30 days)'),
+              max: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
+                .optional()
+                .describe('Maximum referee invite expiry hours (max 30 days)'),
+              default: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
+                .optional()
+                .describe('Default referee invite expiry hours (max 30 days)'),
+            })
+            .optional(),
+          refereeCount: z
+            .object({
+              value: z.number().int().min(1).max(10).optional().describe('Number of referees per submission'),
+            })
+            .optional(),
+        })
+        .optional(),
+    })
+    .refine(
+      (data) => {
+        // Validate max > min for reviewDueHours
+        if (data.settings?.reviewDueHours) {
+          const { min, max } = data.settings.reviewDueHours;
+          if (min && max && min > max) return false;
+        }
+        // Validate max > min for refereeInviteExpiryHours
+        if (data.settings?.refereeInviteExpiryHours) {
+          const { min, max } = data.settings.refereeInviteExpiryHours;
+          if (min && max && min > max) return false;
+        }
+        return true;
+      },
+      {
+        message: 'Max must be greater than min',
+      },
+    )
+    .refine(
+      (data) => {
+        // Validate default within min/max range for reviewDueHours
+        if (data.settings?.reviewDueHours) {
+          const { min, max, default: defaultVal } = data.settings.reviewDueHours;
+          if (min && defaultVal && min > defaultVal) return false;
+          if (max && defaultVal && defaultVal > max) return false;
+        }
+        // Validate default within min/max range for refereeInviteExpiryHours
+        if (data.settings?.refereeInviteExpiryHours) {
+          const { min, max, default: defaultVal } = data.settings.refereeInviteExpiryHours;
+          if (min && defaultVal && min > defaultVal) return false;
+          if (max && defaultVal && defaultVal > max) return false;
+        }
+        return true;
+      },
+      {
+        message: 'Default must be between min and max',
+      },
+    ),
 });
