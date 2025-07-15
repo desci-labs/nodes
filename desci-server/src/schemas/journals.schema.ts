@@ -683,27 +683,40 @@ export const updateJournalSettingsSchema = z.object({
     })
     .refine(
       (data) => {
-        // Validate that min <= default <= max for reviewDueHours
+        // Validate max > min for reviewDueHours
         if (data.settings?.reviewDueHours) {
-          const { min, max, default: defaultVal } = data.settings.reviewDueHours;
+          const { min, max } = data.settings.reviewDueHours;
           if (min && max && min > max) return false;
-          if (min && defaultVal && min > defaultVal) return false;
-          if (max && defaultVal && defaultVal > max) return false;
         }
-
-        // Validate that min <= default <= max for refereeInviteExpiryHours
+        // Validate max > min for refereeInviteExpiryHours
         if (data.settings?.refereeInviteExpiryHours) {
-          const { min, max, default: defaultVal } = data.settings.refereeInviteExpiryHours;
+          const { min, max } = data.settings.refereeInviteExpiryHours;
           if (min && max && min > max) return false;
-          if (min && defaultVal && min > defaultVal) return false;
-          if (max && defaultVal && defaultVal > max) return false;
         }
-
         return true;
       },
       {
-        message:
-          'Invalid settings: minimum values must be less than or equal to maximum values, and default values must be within the min/max range',
+        message: 'Max must be greater than min',
+      },
+    )
+    .refine(
+      (data) => {
+        // Validate default within min/max range for reviewDueHours
+        if (data.settings?.reviewDueHours) {
+          const { min, max, default: defaultVal } = data.settings.reviewDueHours;
+          if (min && defaultVal && min > defaultVal) return false;
+          if (max && defaultVal && defaultVal > max) return false;
+        }
+        // Validate default within min/max range for refereeInviteExpiryHours
+        if (data.settings?.refereeInviteExpiryHours) {
+          const { min, max, default: defaultVal } = data.settings.refereeInviteExpiryHours;
+          if (min && defaultVal && min > defaultVal) return false;
+          if (max && defaultVal && defaultVal > max) return false;
+        }
+        return true;
+      },
+      {
+        message: 'Default must be between min and max',
       },
     ),
 });
