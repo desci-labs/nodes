@@ -358,6 +358,10 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
 async function rejectSubmission({ editorId, submissionId }: { editorId: number; submissionId: number }) {
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: submissionId },
+    include: {
+      journal: true,
+      author: true,
+    },
   });
 
   const editorJournalRole = await JournalManagementService.getUserJournalRole(submission.journalId, editorId);
@@ -378,8 +382,9 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
     throw new ForbiddenError('Submission is already accepted');
   }
 
-  if (submission.status !== SubmissionStatus.UNDER_REVIEW) {
-    throw new ForbiddenError('Submission is not under review');
+  if (submission.status === SubmissionStatus.REJECTED) {
+    // throw new ForbiddenError('Submission is already rejected');
+    return submission;
   }
 
   return await prisma.journalSubmission.update({
