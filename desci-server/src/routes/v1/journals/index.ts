@@ -35,6 +35,7 @@ import {
   getSubmissionReviewsController,
   submitReviewController,
   updateReviewController,
+  getAssignmentsBySubmissionController,
 } from '../../../controllers/journals/reviews/index.js';
 import {
   getRevisionByIdController,
@@ -68,6 +69,7 @@ import {
   getFormTemplateSchema,
   getJournalSchema,
   getReviewsByAssignmentSchema,
+  getAssignmentsBySubmissionSchema,
   inviteEditorSchema,
   invalidateRefereeAssignmentSchema,
   inviteRefereeSchema,
@@ -271,6 +273,17 @@ router.get(
   '/:journalId/submissions/:submissionId/reviews/:reviewId',
   [ensureUser, validateInputs(reviewDetailsApiSchema)],
   asyncHandler(getReviewByIdController),
+);
+
+// Get all assignments for a submission (with reviews and form responses)
+router.get(
+  '/:journalId/submissions/:submissionId/assignments',
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+    validateInputs(getAssignmentsBySubmissionSchema),
+  ],
+  asyncHandler(getAssignmentsBySubmissionController),
 );
 
 // Referee Management for Submissions

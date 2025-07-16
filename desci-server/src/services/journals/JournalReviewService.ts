@@ -397,6 +397,92 @@ async function getReviewsByAssignment({
   });
 }
 
+async function getAssignmentsBySubmission({
+  submissionId,
+  journalId,
+  userId,
+  limit = 20,
+  offset = 0,
+}: {
+  submissionId: number;
+  journalId: number;
+  userId: number;
+  limit?: number;
+  offset?: number;
+}) {
+  // Get all assignments for this submission
+  const assignments = await prisma.refereeAssignment.findMany({
+    where: {
+      submissionId,
+      journalId,
+      // // CompletedAssignment is only false if the referee drops out.
+      // OR: [{ completedAssignment: true }, { completedAssignment: null }],
+      // Commented this out, because I think we want to see assignments that were dropped out of.
+    },
+    skip: offset,
+    take: limit,
+    include: {
+      referee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          orcid: true,
+        },
+      },
+      submission: {
+        select: {
+          id: true,
+          status: true,
+          author: { select: { id: true, name: true, orcid: true } },
+          node: { select: { title: true } },
+        },
+      },
+      reviews: {
+        include: {
+          formResponse: {
+            include: {
+              template: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  version: true,
+                  structure: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
+      JournalFormResponse: {
+        include: {
+          template: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              version: true,
+              structure: true,
+            },
+          },
+        },
+        orderBy: {
+          startedAt: 'desc',
+        },
+      },
+    },
+    orderBy: {
+      assignedAt: 'desc',
+    },
+  });
+
+  return ok(assignments);
+}
+
 export {
   getSubmissionReviews,
   isSubmissionReviewed,
@@ -409,4 +495,5 @@ export {
   getAuthorSubmissionReviews,
   getJournalReviewById,
   getReviewsByAssignment,
+  getAssignmentsBySubmission,
 };
