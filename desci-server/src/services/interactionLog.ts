@@ -178,10 +178,6 @@ export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<
           OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
-          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
-          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
-          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
@@ -226,10 +222,6 @@ export const getActiveOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
           OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
-          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
-          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
-          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
@@ -383,7 +375,7 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
     FROM "InteractionLog" il
     LEFT JOIN "User" u ON u.id = il."userId" 
     WHERE il."createdAt" >= ${range.from}
-      AND il."createdAt" < ${range.to}
+      AND il."createdAt" <= ${range.to}
       AND il."userId" IS NOT NULL
       AND u.orcid IS NOT NULL
       AND (il."isGuest" = false OR il."isGuest" IS NULL)
