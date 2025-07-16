@@ -78,7 +78,7 @@ export const countExploringUsersInRange = async (range: { from: Date; to: Date }
             OR  extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
-            OR  extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb
         ) and "createdAt" >= ${range.from} and "createdAt" <= ${range.to}`) as {
     count: number;
   }[];
