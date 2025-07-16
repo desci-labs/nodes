@@ -120,6 +120,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
@@ -132,10 +133,6 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
           OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
@@ -168,6 +165,7 @@ export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
@@ -180,9 +178,9 @@ export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<
           OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
+          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
+          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
@@ -215,6 +213,7 @@ export const getActiveOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
@@ -227,9 +226,9 @@ export const getActiveOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
           OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
+          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
+          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
+          -- OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
@@ -350,6 +349,7 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
@@ -362,10 +362,6 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
           OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
@@ -394,6 +390,7 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
@@ -406,10 +403,6 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
           OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationModalViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepViewed"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionPublishConfirmationStepCompleted"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb

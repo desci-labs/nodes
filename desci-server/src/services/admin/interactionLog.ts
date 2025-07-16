@@ -28,6 +28,7 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
         AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
@@ -71,6 +72,7 @@ export const countExploringUsersInRange = async (range: { from: Date; to: Date }
         AND "userId" IS NOT NULL
         AND (
             extra :: jsonb -> 'action' = '"search"' :: jsonb
+            OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
