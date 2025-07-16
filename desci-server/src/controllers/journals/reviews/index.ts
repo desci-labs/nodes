@@ -462,7 +462,6 @@ export const getAssignmentsBySubmissionController = async (req: GetAssignmentsBy
       status: assignment.submission.status,
       author: assignment.submission.author,
     },
-    journal: assignment.journal,
     reviews: assignment.reviews.map((review) => ({
       id: review.id,
       recommendation: review.recommendation,

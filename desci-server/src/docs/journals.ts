@@ -2440,11 +2440,6 @@ export const getAssignmentsBySubmissionOperation: ZodOpenApiOperationObject = {
                   orcid: z.string().nullable(),
                 }),
               }),
-              journal: z.object({
-                id: z.number(),
-                name: z.string(),
-                iconCid: z.string().nullable(),
-              }),
               reviews: z.array(
                 z.object({
                   id: z.number(),

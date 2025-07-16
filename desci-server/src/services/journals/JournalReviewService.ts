@@ -151,7 +151,7 @@ async function submitReview({ reviewId, update }: { reviewId: number; update: Sa
   if (!updateArgs.recommendation || !updateArgs.review || !updateArgs.editorFeedback || !updateArgs.authorFeedback) {
     return err('Review, recommendation, editor feedback and author feedback are required');
   }
-
+  debugger;
   const updatedReview = await prisma.journalSubmissionReview.update({
     where: { id: review.id },
     data: {
