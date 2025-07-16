@@ -27,7 +27,7 @@ import zod, { z } from 'zod';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
-import { getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
+import { delFromCache, getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
 import { getCountActiveUsersInXDays } from '../../services/admin/interactionLog.js';
 import { communityService } from '../../services/Communities.js';
 import { crossRefClient } from '../../services/index.js';
@@ -287,11 +287,11 @@ export const getAnalytics = async (req: Request, res: Response) => {
       }),
       countPublishedNodesInRange({
         to: endOfDay(new Date()),
-        from: startOfDay(subDays(new Date(), 7)),
+        from: startOfDay(subDays(new Date(), 6)),
       }),
       countPublishedNodesInRange({
         to: endOfDay(new Date()),
-        from: startOfDay(subDays(new Date(), 30)),
+        from: startOfDay(subDays(new Date(), 29)),
       }),
       getBytesInXDays(1),
       getBytesInXDays(7),
@@ -307,11 +307,11 @@ export const getAnalytics = async (req: Request, res: Response) => {
     });
     const nodeLikesInLast7Days = await getNodeLikesCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 7)),
+      from: startOfDay(subDays(new Date(), 6)),
     });
     const nodeLikesInLast30Days = await getNodeLikesCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 30)),
+      from: startOfDay(subDays(new Date(), 29)),
     });
 
     const badgeVerificationsToday = await getBadgeVerificationsCountInRange({
@@ -320,11 +320,11 @@ export const getAnalytics = async (req: Request, res: Response) => {
     });
     const badgeVerificationsInLast7Days = await getBadgeVerificationsCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 7)),
+      from: startOfDay(subDays(new Date(), 6)),
     });
     const badgeVerificationsInLast30Days = await getBadgeVerificationsCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 30)),
+      from: startOfDay(subDays(new Date(), 29)),
     });
 
     const communitySubmissionsToday = await communityService.getCommunitySubmissionCountInRange({
@@ -333,11 +333,11 @@ export const getAnalytics = async (req: Request, res: Response) => {
     });
     const communitySubmissionsInLast7Days = await communityService.getCommunitySubmissionCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 7)),
+      from: startOfDay(subDays(new Date(), 6)),
     });
     const communitySubmissionsInLast30Days = await communityService.getCommunitySubmissionCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 30)),
+      from: startOfDay(subDays(new Date(), 29)),
     });
 
     const analytics = {
@@ -450,11 +450,6 @@ async function aggregateAnalytics(from: Date, to: Date) {
 }
 
 export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response) => {
-  const user = req.user;
-  logger.info(
-    { fn: 'getAggregatedAnalytics', query: req.query },
-    `GET getAggregatedAnalytics called by ${user.email} at ${new Date().toLocaleTimeString()}`,
-  );
   const {
     query: { from, to, interval: timeInterval },
   } = req as zod.infer<typeof analyticsChartSchema>;
@@ -463,15 +458,18 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
   const fromDate = new Date(from.split('GMT')[0]);
 
   const diffInDays = differenceInDays(toDate, fromDate);
-  // const startDate = fromDate;
+  const startDate = startOfDay(fromDate);
   const endDate = endOfDay(toDate);
-  logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, fromDate, endDate }, 'getAggregatedAnalytics');
+  logger.trace(
+    { fn: 'getAggregatedAnalytics', diffInDays, from, to, fromDate, toDate, startDate, endDate },
+    'getAggregatedAnalytics',
+  );
 
-  const selectedDates = { from: startOfDay(fromDate), to: endDate };
-  const selectedDatesInterval = interval(selectedDates.from, selectedDates.to);
+  const selectedDates = { from: startDate, to: endDate };
 
   const cacheKey = `aggregateAnalytics-${selectedDates.from.toDateString()}-${selectedDates.to.toDateString()}-${timeInterval}`;
   logger.trace({ cacheKey }, 'GET: CACHE KEY');
+
   let aggregatedData = await getFromCache<AnalyticsData[]>(cacheKey);
 
   if (!aggregatedData) {
@@ -516,8 +514,6 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
     };
 
     const allDatesInInterval = getIntervals();
-    logger.trace({ allDatesInInterval }, 'allDatesInInterval');
-    logger.trace({ selectedDatesInterval }, 'selectedDatesInterval');
 
     aggregatedData = allDatesInInterval.map((period) => {
       const selectedDatesInterval =
@@ -537,6 +533,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
         isWithinInterval(user.createdAt, selectedDatesInterval),
       );
+
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const bytesAgg = bytes.filter((byte) => isWithinInterval(byte.createdAt, selectedDatesInterval));
@@ -558,6 +555,19 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       const peggedPeriod = isWithinInterval(period, interval(selectedDates.from, selectedDates.to))
         ? period
         : selectedDates.from;
+
+      logger.trace(
+        {
+          selectedDatesInterval,
+          period,
+          peggedPeriod,
+          activeOrcidUsersAgg,
+          activeOrcidUsers,
+          activeUsersAgg,
+          activeUsers,
+        },
+        'getAggregatedAnalytics#aggregatedData',
+      );
 
       return {
         date: peggedPeriod.toISOString(),

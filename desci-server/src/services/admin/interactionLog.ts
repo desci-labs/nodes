@@ -13,21 +13,45 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
   logger.info({ fn: 'getCountActiveUsersInXDays' }, 'interactionLog::getCountActiveUsersInXDays');
 
   const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
-  return (
-    await prisma.interactionLog.findMany({
-      distinct: ['userId'],
-      where: {
-        createdAt: {
-          gte: utcMidnightXDaysAgo,
-        },
-        // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
-        // from poluting returned data
-        userId: {
-          not: null,
-        },
-      },
-    })
-  ).length;
+
+  const res = (await prisma.$queryRaw`
+    SELECT
+      count(DISTINCT "userId")::integer
+    FROM
+        "InteractionLog" z
+        LEFT JOIN "User" usr ON usr.id = "userId"
+        -- AND usr.email NOT LIKE '%desci.com%'
+    WHERE
+        ACTION = 'USER_ACTION'
+        AND "userId" IS NOT NULL
+        AND z."createdAt" >= ${utcMidnightXDaysAgo}
+        AND (
+          --- exploring user actions ---
+          extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          --- publishing user actions ---
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+        )
+    `) as {
+    count: number;
+  }[];
+
+  logger.trace({ res, utcMidnightXDaysAgo }, 'getCountActiveUsersInXDays');
+  return Number(res[0]?.count || 0);
 };
 
 /**
@@ -48,13 +72,48 @@ export const countExploringUsersInRange = async (range: { from: Date; to: Date }
         AND "userId" IS NOT NULL
         AND (
             extra :: jsonb -> 'action' = '"search"' :: jsonb
+            OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
-        ) and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`) as {
+        ) and "createdAt" >= ${range.from} and "createdAt" <= ${range.to}`) as {
+    count: number;
+  }[];
+
+  logger.trace({ res }, 'countExploringUsersInRange');
+  return Number(res[0]?.count || 0);
+};
+
+/**
+ * Count the number of users who have explored the app within an optional time range.
+ * @param range - The time range to count exploring users for.
+ * @returns The number of users who have explored the app within the time range.
+ */
+export const countPublishingUsersInRange = async (range: { from: Date; to: Date }): Promise<number> => {
+  logger.trace({ fn: 'countPublishingUsersInRange' }, 'interactionLog::countPublishingUsersInRange');
+
+  const res = (await prisma.$queryRaw`
+    SELECT
+        count(distinct "userId")
+    FROM
+        "InteractionLog" z
+    WHERE
+        ACTION = 'USER_ACTION'
+        AND "userId" IS NOT NULL
+        AND (
+            extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+        ) and "createdAt" >= ${range.from} and "createdAt" <= ${range.to}`) as {
     count: number;
   }[];
 
