@@ -40,12 +40,12 @@ export default function settingsRoute(router: Router) {
       ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
       validateInputs(updateEditorSchema),
     ],
-    updateEditorController,
+    asyncHandler(updateEditorController),
   );
 
   router.delete(
     '/:journalId/editors/:editorUserId',
     [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(removeEditorSchema)],
-    removeEditorController,
+    asyncHandler(removeEditorController),
   );
 }

@@ -17,6 +17,7 @@ import {
   getFormResponseSchema,
   getFormTemplateSchema,
   listFormTemplatesSchema,
+  saveFormResponseSchema,
   submitFormResponseSchema,
   updateFormTemplateSchema,
 } from '../../../schemas/journals.schema.js';
@@ -59,7 +60,11 @@ export default function formsRoute(router: Router) {
     asyncHandler(getFormResponseController),
   );
 
-  router.put('/:journalId/forms/response/:responseId', [ensureUser], asyncHandler(saveFormResponseController));
+  router.put(
+    '/:journalId/forms/response/:responseId',
+    [ensureUser, validateInputs(saveFormResponseSchema)],
+    asyncHandler(saveFormResponseController),
+  );
 
   router.post(
     '/:journalId/forms/response/:responseId/submit',
