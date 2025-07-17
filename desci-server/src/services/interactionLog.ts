@@ -4,6 +4,7 @@ import { subDays } from 'date-fns';
 import { Request } from 'express';
 
 import { prisma } from '../client.js';
+import { IS_PRODUCTION } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { getUtcDateXDaysAgo } from '../utils/clock.js';
 
@@ -117,6 +118,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
     LEFT JOIN "User" u ON il."userId" = u.id
     WHERE il."createdAt" >= ${dateXDaysAgo}
       AND il."userId" IS NOT NULL
+      AND (u."isGuest" = false OR u."isGuest" IS NULL)
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
@@ -126,7 +128,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          OR extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb 
           --- publishing user actions ---
           OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
@@ -138,7 +140,8 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
         )
-      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+      ${IS_PRODUCTION ? Prisma.sql`AND u.email NOT LIKE '%desci.com%'` : Prisma.sql``}
+
   `) as { id: number; action: string; userId: number; email: string; orcid: string; userCreatedAt: string }[];
 
   logger.trace({ res }, 'getActiveUsersInXDays');
@@ -162,6 +165,7 @@ export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<
     WHERE il."createdAt" >= ${utcMidnightXDaysAgo}
       AND il."userId" IS NOT NULL
       AND u.orcid IS NOT NULL
+      AND (u."isGuest" = false OR u."isGuest" IS NULL)
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
@@ -171,7 +175,7 @@ export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          OR extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb 
           --- publishing user actions ---
           OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
@@ -183,7 +187,7 @@ export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
         )
-      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+      ${IS_PRODUCTION ? Prisma.sql`AND u.email NOT LIKE '%desci.com%'` : Prisma.sql``}
   `) as { userId: number }[];
 
   logger.trace({ res }, 'getCountActiveOrcidUsersInXDays');
@@ -206,6 +210,7 @@ export const getActiveOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
     WHERE il."createdAt" >= ${dateXDaysAgo}
       AND il."userId" IS NOT NULL
       AND u.orcid IS NOT NULL
+      AND (u."isGuest" = false OR u."isGuest" IS NULL)
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
@@ -215,7 +220,7 @@ export const getActiveOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          OR extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb 
           --- publishing user actions ---
           OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
@@ -227,7 +232,7 @@ export const getActiveOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
         )
-      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+      ${IS_PRODUCTION ? Prisma.sql`AND u.email NOT LIKE '%desci.com%'` : Prisma.sql``}
   `) as { id: number; action: string; userId: number; email: string; orcid: string; userCreatedAt: string }[];
 
   return res.map((r) => ({
@@ -249,9 +254,9 @@ export const getCountActiveUsersInMonth = async (month: number, year: number): P
       },
       // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
       // from poluting returned data
-      // userId: {
-      //   not: null,
-      // },
+      userId: {
+        not: null,
+      },
     },
   });
   return activeCount.length;
@@ -337,7 +342,7 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
     WHERE il."createdAt" >= ${range.from}
       AND il."createdAt" <= ${range.to}
       AND il."userId" IS NOT NULL
-      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+      AND (u."isGuest" = false OR u."isGuest" IS NULL)
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
@@ -347,7 +352,7 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          OR extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb 
           --- publishing user actions ---
           OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
@@ -359,6 +364,7 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
         )
+      ${IS_PRODUCTION ? Prisma.sql`AND u.email NOT LIKE '%desci.com%'` : Prisma.sql``}
   `) as { createdAt: string; userId: number }[];
 
   logger.trace({ res }, 'getActiveUsersInRange');
@@ -378,7 +384,7 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
       AND il."createdAt" <= ${range.to}
       AND il."userId" IS NOT NULL
       AND u.orcid IS NOT NULL
-      AND (il."isGuest" = false OR il."isGuest" IS NULL)
+      AND (u."isGuest" = false OR u."isGuest" IS NULL)
       AND (
           --- exploring user actions ---
           extra :: jsonb -> 'action' = '"search"' :: jsonb
@@ -388,7 +394,7 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          OR extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb 
           --- publishing user actions ---
           OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
@@ -400,6 +406,7 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
           OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
         )
+      ${IS_PRODUCTION ? Prisma.sql`AND u.email NOT LIKE '%desci.com%'` : Prisma.sql``}
   `) as { createdAt: string; userId: number }[];
 
   logger.trace({ res }, 'getActiveOrcidUsersInRange');
