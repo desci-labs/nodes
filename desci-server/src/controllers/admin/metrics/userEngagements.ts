@@ -6,8 +6,9 @@ import { logger } from '../../../logger.js';
 import { RequestWithUser } from '../../../middleware/index.js';
 import {
   countExploringUsersInRange,
-  countResearchObjectsShared,
-  countResearchObjectsUpdated,
+  countPublishingUsersInRange,
+  // countResearchObjectsShared,
+  // countResearchObjectsUpdated,
   getCountActiveUsersInXDays,
 } from '../../../services/admin/interactionLog.js';
 import { countAllCommunityNodes, countAllNodes, countAllPublishedNodes } from '../../../services/node.js';
@@ -23,26 +24,16 @@ const getActiveUsersEngagementMetrics = async () => {
 };
 
 const getPublishingUsersEngagementMetrics = async () => {
-  const [
-    researchObjectsCreated,
-    researchObjectsUpdated,
-    researchObjectsShared,
-    researchObjectsPublished,
-    communityPublications,
-  ] = await Promise.all([
-    countAllNodes(),
-    countResearchObjectsUpdated(),
-    countResearchObjectsShared(),
-    countAllPublishedNodes(),
-    countAllCommunityNodes(),
+  const [daily, weekly, monthly] = await Promise.all([
+    countPublishingUsersInRange({ from: startOfDay(subDays(new Date(), 1)), to: endOfDay(new Date()) }),
+    countPublishingUsersInRange({ from: startOfDay(subDays(new Date(), 6)), to: endOfDay(new Date()) }),
+    countPublishingUsersInRange({ from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) }),
   ]);
 
   return {
-    researchObjectsCreated,
-    researchObjectsUpdated,
-    researchObjectsShared,
-    researchObjectsPublished,
-    communityPublications,
+    daily,
+    weekly,
+    monthly,
   };
 };
 
@@ -52,11 +43,11 @@ const getExploringUsersEngagementMetrics = async () => {
     to: endOfDay(new Date()),
   });
   const weekly = await countExploringUsersInRange({
-    from: startOfDay(subDays(new Date(), 7)),
+    from: startOfDay(subDays(new Date(), 6)),
     to: endOfDay(new Date()),
   });
   const monthly = await countExploringUsersInRange({
-    from: startOfDay(subDays(new Date(), 30)),
+    from: startOfDay(subDays(new Date(), 29)),
     to: endOfDay(new Date()),
   });
 
