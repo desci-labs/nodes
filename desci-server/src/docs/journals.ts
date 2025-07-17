@@ -761,6 +761,8 @@ export const getReviewDetailsOperation: ZodOpenApiOperationObject = {
   operationId: 'getReviewDetails',
   tags: ['Journals'],
   summary: 'Get details of a specific review',
+  description:
+    'Get details of a specific review including associated form responses and template data. Authors only receive reviews that are completed and do not see editorFeedback fields.',
   requestParams: { path: reviewDetailsApiSchema.shape.params },
   responses: {
     '200': {
@@ -775,12 +777,48 @@ export const getReviewDetailsOperation: ZodOpenApiOperationObject = {
               recommendation: z.string().nullable(),
               createdAt: z.string(),
               updatedAt: z.string(),
-              editor: z.object({
-                id: z.number(),
-                name: z.string().nullable(),
-                email: z.string().nullable(),
-                orcid: z.string().nullable(),
+              submittedAt: z.string().nullable(),
+              refereeAssignment: z.object({
+                referee: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  email: z.string().nullable(),
+                }),
               }),
+              submission: z.object({
+                id: z.number(),
+                status: z.string(),
+                author: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
+              }),
+              journal: z.object({
+                id: z.number(),
+                name: z.string(),
+                iconCid: z.string().nullable(),
+              }),
+              formResponse: z
+                .object({
+                  id: z.number(),
+                  templateId: z.number(),
+                  status: z.enum(['DRAFT', 'SUBMITTED']),
+                  formData: z.any(),
+                  startedAt: z.string(),
+                  submittedAt: z.string().nullable(),
+                  updatedAt: z.string(),
+                  template: z
+                    .object({
+                      id: z.number(),
+                      name: z.string(),
+                      description: z.string().nullable(),
+                      version: z.number(),
+                      structure: z.any(),
+                    })
+                    .nullable(),
+                })
+                .nullable(),
               review: z
                 .array(
                   z.object({

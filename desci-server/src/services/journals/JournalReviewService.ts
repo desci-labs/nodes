@@ -373,6 +373,26 @@ async function getJournalReviewById({
           iconCid: true,
         },
       },
+      formResponse: {
+        select: {
+          id: true,
+          templateId: true,
+          status: true,
+          formData: true,
+          startedAt: true,
+          submittedAt: true,
+          updatedAt: true,
+          template: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              version: true,
+              structure: true,
+            },
+          },
+        },
+      },
     },
   });
   return ok(review);
