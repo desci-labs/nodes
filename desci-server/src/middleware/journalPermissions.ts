@@ -81,6 +81,7 @@ export const ensureJournalRole = (requiredRole: EditorRole | EditorRole[]) => {
         },
       });
 
+      logger.trace({ editor }, 'Editor found');
       if (!editor) {
         sendError(res, 'Forbidden - Not a journal editor', 403);
         return;
