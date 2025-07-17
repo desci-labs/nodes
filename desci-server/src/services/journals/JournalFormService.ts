@@ -770,6 +770,7 @@ async function submitFormResponse(
         },
       });
 
+      debugger;
       // Create review if it doesn't exist
       if (!review) {
         review = await tx.journalSubmissionReview.create({
