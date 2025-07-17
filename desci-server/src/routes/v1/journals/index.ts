@@ -44,13 +44,21 @@ router.get(
 // admin dashboard apis
 router.get(
   '/:journalId/analytics',
-  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(getJournalAnalyticsSchema)],
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR]),
+    validateInputs(getJournalAnalyticsSchema),
+  ],
   asyncHandler(showJournalAnalyticsController),
 );
 
 router.get(
   '/:journalId/urgentSubmissions',
-  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(showUrgentSubmissionsSchema)],
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR]),
+    validateInputs(showUrgentSubmissionsSchema),
+  ],
   asyncHandler(showUrgentJournalSubmissionsController),
 );
 
