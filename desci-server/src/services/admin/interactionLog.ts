@@ -35,7 +35,7 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
           OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
           OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
-          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb 
+          OR extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb 
           --- publishing user actions ---
           OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
           OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
