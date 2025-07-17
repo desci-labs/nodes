@@ -343,7 +343,10 @@ export const getReviewByIdController = async (req: GetReviewByIdRequest, res: Re
     ) {
       return sendSuccess(res, null);
     }
-    return sendSuccess(res, review);
+
+    // Filter out editorFeedback for authors
+    const authorSafeReview = _.omit(review, ['editorFeedback']);
+    return sendSuccess(res, authorSafeReview);
   }
 
   return sendSuccess(res, null);
