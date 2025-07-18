@@ -1,8 +1,10 @@
-import { Prisma, SubmissionStatus } from '@prisma/client';
+import { FormResponseStatus, Prisma, SubmissionStatus } from '@prisma/client';
 import { err, ok } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
+
+import { JournalFormService } from './JournalFormService.js';
 
 export type JournalReview = Record<string, any>[];
 
@@ -137,6 +139,17 @@ async function saveReview({
 async function submitReview({ reviewId, update }: { reviewId: number; update: SaveReviewUpdateFields }) {
   const review = await prisma.journalSubmissionReview.findFirst({
     where: { id: reviewId },
+    include: {
+      refereeAssignment: {
+        include: {
+          referee: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!review) {
@@ -147,7 +160,75 @@ async function submitReview({ reviewId, update }: { reviewId: number; update: Sa
     return err('Review already submitted');
   }
 
-  const updateArgs = { ...review, ...update };
+  // Check and auto-submit all form responses for this referee assignment
+  const formResponses = await prisma.journalFormResponse.findMany({
+    where: {
+      refereeAssignmentId: review.refereeAssignmentId,
+    },
+    include: {
+      template: true,
+    },
+  });
+
+  // Find any form responses that are still in DRAFT status
+  const draftFormResponses = formResponses.filter((response) => response.status === FormResponseStatus.DRAFT);
+
+  if (draftFormResponses.length > 0) {
+    logger.info(
+      { reviewId, draftResponseCount: draftFormResponses.length },
+      'Auto-submitting draft form responses before review submission',
+    );
+
+    // Try to submit each draft form response
+    const submissionResults = [];
+    for (const draftResponse of draftFormResponses) {
+      try {
+        const submitResult = await JournalFormService.submitFormResponse(
+          review.refereeAssignment.referee.id,
+          draftResponse.id,
+          draftResponse.formData as any,
+        );
+
+        if (submitResult.isErr()) {
+          logger.warn(
+            { reviewId, responseId: draftResponse.id, error: submitResult.error },
+            'Failed to auto-submit form response',
+          );
+
+          // Check if it's a validation error
+          if (submitResult.error.message.includes('Invalid inputs')) {
+            const templateName = draftResponse.template?.name || `Template ${draftResponse.templateId}`;
+            return err(`Form validation failed for "${templateName}": ${submitResult.error.message}`);
+          }
+
+          return err(
+            `Failed to submit required form "${draftResponse.template?.name || 'Form'}": ${submitResult.error.message}`,
+          );
+        }
+
+        submissionResults.push({ responseId: draftResponse.id, success: true });
+      } catch (error) {
+        logger.error(
+          { reviewId, responseId: draftResponse.id, error },
+          'Unexpected error during form response auto-submission',
+        );
+        return err(
+          `Unexpected error submitting form "${draftResponse.template?.name || 'Form'}": ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      }
+    }
+
+    logger.info({ reviewId, submissionResults }, 'Successfully auto-submitted all draft form responses');
+  }
+
+  // Now proceed with the review submission
+  const updateArgs = {
+    recommendation: update.recommendation || review.recommendation,
+    editorFeedback: update.editorFeedback || review.editorFeedback,
+    authorFeedback: update.authorFeedback || review.authorFeedback,
+    review: update.review || review.review,
+  };
+
   if (!updateArgs.recommendation || !updateArgs.review || !updateArgs.editorFeedback || !updateArgs.authorFeedback) {
     return err('Review, recommendation, editor feedback and author feedback are required');
   }
@@ -292,6 +373,26 @@ async function getJournalReviewById({
           iconCid: true,
         },
       },
+      formResponse: {
+        select: {
+          id: true,
+          templateId: true,
+          status: true,
+          formData: true,
+          startedAt: true,
+          submittedAt: true,
+          updatedAt: true,
+          template: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              version: true,
+              structure: true,
+            },
+          },
+        },
+      },
     },
   });
   return ok(review);
@@ -397,6 +498,92 @@ async function getReviewsByAssignment({
   });
 }
 
+async function getAssignmentsBySubmission({
+  submissionId,
+  journalId,
+  userId,
+  limit = 20,
+  offset = 0,
+}: {
+  submissionId: number;
+  journalId: number;
+  userId: number;
+  limit?: number;
+  offset?: number;
+}) {
+  // Get all assignments for this submission
+  const assignments = await prisma.refereeAssignment.findMany({
+    where: {
+      submissionId,
+      journalId,
+      // // CompletedAssignment is only false if the referee drops out.
+      // OR: [{ completedAssignment: true }, { completedAssignment: null }],
+      // Commented this out, because I think we want to see assignments that were dropped out of.
+    },
+    skip: offset,
+    take: limit,
+    include: {
+      referee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          orcid: true,
+        },
+      },
+      submission: {
+        select: {
+          id: true,
+          status: true,
+          author: { select: { id: true, name: true, orcid: true } },
+          node: { select: { title: true } },
+        },
+      },
+      reviews: {
+        include: {
+          formResponse: {
+            include: {
+              template: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  version: true,
+                  structure: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
+      JournalFormResponse: {
+        include: {
+          template: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              version: true,
+              structure: true,
+            },
+          },
+        },
+        orderBy: {
+          startedAt: 'desc',
+        },
+      },
+    },
+    orderBy: {
+      assignedAt: 'desc',
+    },
+  });
+
+  return ok(assignments);
+}
+
 export {
   getSubmissionReviews,
   isSubmissionReviewed,
@@ -409,4 +596,5 @@ export {
   getAuthorSubmissionReviews,
   getJournalReviewById,
   getReviewsByAssignment,
+  getAssignmentsBySubmission,
 };

@@ -40,7 +40,6 @@ router.get(
   ],
   showJournalController,
 );
-
 // admin dashboard apis
 router.get(
   '/:journalId/analytics',
