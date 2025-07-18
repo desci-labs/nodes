@@ -195,6 +195,7 @@ model User {
   mergedIntoAt                DateTime[] // Timestamps for when a guest was merged into this existing user.
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
+  receiveMarketingEmails      Boolean                       @default(false)
   isAdmin                     Boolean                       @default(false)
   isVerified                  Boolean                       @default(false)
   verificationCode            String                        @default("")
@@ -1543,6 +1544,8 @@ enum ActionType {
   MERGE_GUEST_INTO_EXISTING_USER_FAIL
   SUBMIT_QUESTIONNAIRE
   RETRIEVE_DPID_METADATA
+  MARKETING_EMAIL_OPT_IN
+  MARKETING_EMAIL_OPT_OUT
 }
 
 enum ChainTransactionType {

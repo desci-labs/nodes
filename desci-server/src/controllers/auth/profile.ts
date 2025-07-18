@@ -25,6 +25,7 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
       orcid: user.orcid,
       userOrganization: userOrganizations.map((org) => org.organization),
       consent: !!consent,
+      receiveMarketingEmails: user.receiveMarketingEmails,
       questionnaireSubmitted: !!questionnaireSubmitted,
       notificationSettings: user.notificationSettings || {},
     },

@@ -35,3 +35,12 @@ export const submitQuestionnaireSchema = z.object({
       }
     }),
 });
+
+/**
+ * Schema for updating marketing email consent preference.
+ */
+export const updateMarketingConsentSchema = z.object({
+  body: z.object({
+    receiveMarketingEmails: z.boolean().describe('Whether the user consents to receive marketing emails'),
+  }),
+});
