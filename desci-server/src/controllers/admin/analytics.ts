@@ -303,7 +303,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
 
     const nodeLikesToday = await getNodeLikesCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 1)),
+      from: startOfDay(new Date()),
     });
     const nodeLikesInLast7Days = await getNodeLikesCountInRange({
       to: endOfDay(new Date()),
@@ -316,7 +316,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
 
     const badgeVerificationsToday = await getBadgeVerificationsCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 1)),
+      from: startOfDay(new Date()),
     });
     const badgeVerificationsInLast7Days = await getBadgeVerificationsCountInRange({
       to: endOfDay(new Date()),
@@ -329,7 +329,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
 
     const communitySubmissionsToday = await communityService.getCommunitySubmissionCountInRange({
       to: endOfDay(new Date()),
-      from: startOfDay(subDays(new Date(), 1)),
+      from: startOfDay(new Date()),
     });
     const communitySubmissionsInLast7Days = await communityService.getCommunitySubmissionCountInRange({
       to: endOfDay(new Date()),

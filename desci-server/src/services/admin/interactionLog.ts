@@ -52,7 +52,7 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
     count: number;
   }[];
 
-  logger.trace({ res, utcMidnightXDaysAgo }, 'getCountActiveUsersInXDays');
+  logger.info({ res, daysAgo, utcMidnightXDaysAgo }, 'getCountActiveUsersInXDays');
   return Number(res[0]?.count || 0);
 };
 
