@@ -144,7 +144,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
 
   `) as { id: number; action: string; userId: number; email: string; orcid: string; userCreatedAt: string }[];
 
-  logger.trace({ res }, 'getActiveUsersInXDays');
+  logger.info({ dateXDaysAgo, res }, 'getActiveUsersInXDays');
   return res.map((r) => ({
     id: r.id,
     user: { id: r.userId, email: r.email, orcid: r.orcid, createdAt: r.userCreatedAt },
@@ -154,9 +154,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
 export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<number> => {
   logger.info({ fn: 'getCountActiveOrcidUsersInXDays' }, 'interactionLog::getCountActiveOrcidUsersInXDays');
 
-  const now = new Date();
-
-  const utcMidnightXDaysAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo));
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
   const res = (await prisma.$queryRaw`
     SELECT DISTINCT "userId"
@@ -190,7 +188,7 @@ export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<
       ${IS_PRODUCTION ? Prisma.sql`AND u.email NOT LIKE '%desci.com%'` : Prisma.sql``}
   `) as { userId: number }[];
 
-  logger.trace({ res }, 'getCountActiveOrcidUsersInXDays');
+  logger.info({ daysAgo, utcMidnightXDaysAgo, res }, 'getCountActiveOrcidUsersInXDays');
   return res.length;
 };
 

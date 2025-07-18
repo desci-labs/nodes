@@ -7,11 +7,8 @@ import { RequestWithUser } from '../../../middleware/index.js';
 import {
   countExploringUsersInRange,
   countPublishingUsersInRange,
-  // countResearchObjectsShared,
-  // countResearchObjectsUpdated,
   getCountActiveUsersInXDays,
 } from '../../../services/admin/interactionLog.js';
-import { countAllCommunityNodes, countAllNodes, countAllPublishedNodes } from '../../../services/node.js';
 
 const getActiveUsersEngagementMetrics = async () => {
   const [daily, weekly, monthly] = await Promise.all([
@@ -25,7 +22,7 @@ const getActiveUsersEngagementMetrics = async () => {
 
 const getPublishingUsersEngagementMetrics = async () => {
   const [daily, weekly, monthly] = await Promise.all([
-    countPublishingUsersInRange({ from: startOfDay(subDays(new Date(), 1)), to: endOfDay(new Date()) }),
+    countPublishingUsersInRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) }),
     countPublishingUsersInRange({ from: startOfDay(subDays(new Date(), 6)), to: endOfDay(new Date()) }),
     countPublishingUsersInRange({ from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) }),
   ]);
@@ -39,7 +36,7 @@ const getPublishingUsersEngagementMetrics = async () => {
 
 const getExploringUsersEngagementMetrics = async () => {
   const daily = await countExploringUsersInRange({
-    from: startOfDay(subDays(new Date(), 1)),
+    from: startOfDay(new Date()),
     to: endOfDay(new Date()),
   });
   const weekly = await countExploringUsersInRange({
