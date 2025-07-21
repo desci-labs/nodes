@@ -2,7 +2,11 @@ import { EditorRole } from '@prisma/client';
 import { Router } from 'express';
 
 import { editorInviteDecision } from '../../../controllers/journals/invites/editorInviteDecision.js';
-import { inviteEditor, listJournalEditors } from '../../../controllers/journals/invites/inviteEditor.js';
+import {
+  inviteEditor,
+  listJournalEditorialBoard,
+  listJournalEditors,
+} from '../../../controllers/journals/invites/inviteEditor.js';
 import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
 import { ensureUser } from '../../../middleware/permissions.js';
@@ -20,6 +24,11 @@ export default function invitesRoute(router: Router) {
     '/:journalId/editors',
     [ensureUser, validateInputs(listJournalEditorsSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
     asyncHandler(listJournalEditors),
+  );
+  router.get(
+    '/:journalId/editorial-board',
+    [ensureUser, validateInputs(listJournalEditorsSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+    asyncHandler(listJournalEditorialBoard),
   );
   router.post(
     '/:journalId/invites/editor',
