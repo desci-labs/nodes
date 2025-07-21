@@ -2829,6 +2829,79 @@ export const updateJournalSettingsOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// List Journal Editorial Board
+export const listJournalEditorialBoardOperation: ZodOpenApiOperationObject = {
+  operationId: 'listJournalEditorialBoard',
+  tags: ['Journals'],
+  summary: 'List all editorial board members for a journal (including pending invites)',
+  requestParams: {
+    path: getJournalSchema.shape.params,
+  },
+  responses: {
+    '200': {
+      description: 'Editorial board retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z
+              .object({
+                id: z.number(),
+                userId: z.number(),
+                role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+                invitedAt: z.string(),
+                acceptedAt: z.string().nullable(),
+                expertise: z.array(z.string()).nullable(),
+                maxWorkload: z.number().nullable(),
+                currentWorkload: z.number(),
+                expired: z.boolean().nullable(),
+                user: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  email: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
+              })
+              .partial({
+                // For pending invites, some fields may be missing or null
+                userId: true,
+                acceptedAt: true,
+                expertise: true,
+                maxWorkload: true,
+                user: true,
+                expired: true,
+              }),
+          ),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view editorial board',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -2952,5 +3025,8 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/settings': {
     get: getJournalSettingsOperation,
     patch: updateJournalSettingsOperation,
+  },
+  '/v1/journals/{journalId}/editorial-board': {
+    get: listJournalEditorialBoardOperation,
   },
 };

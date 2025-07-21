@@ -301,6 +301,125 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
   }
 }
 
+export type JournalEditorialBoard = Array<
+  Prisma.JournalEditorGetPayload<{
+    select: {
+      id: true;
+      userId: true;
+      role: true;
+      invitedAt: true;
+      acceptedAt: true;
+      expertise: true;
+      maxWorkload: true;
+      user: {
+        select: {
+          id: true;
+          name: true;
+          email: true;
+          orcid: true;
+        };
+      };
+    };
+  }> & { currentWorkload: number; expired?: boolean }
+>;
+
+async function getJournalEditorialBoardById(journalId: number): Promise<Result<JournalEditorialBoard, Error>> {
+  try {
+    const journal = await prisma.journal.findUnique({
+      where: { id: journalId },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!journal) {
+      logger.warn({ journalId }, 'Journal not found by ID');
+      return err(new Error('Journal not found.'));
+    }
+
+    const editors = await prisma.journalEditor.findMany({
+      where: { journalId },
+      select: {
+        id: true,
+        userId: true,
+        role: true,
+        invitedAt: true,
+        acceptedAt: true,
+        maxWorkload: true,
+        expertise: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            orcid: true,
+          },
+        },
+      },
+    });
+
+    // Calculate current workload for each editor
+    const workloadCounts = await prisma.journalSubmission.groupBy({
+      by: ['assignedEditorId'],
+      where: {
+        journalId,
+        assignedEditorId: { in: editors.map((e) => e.userId) },
+        status: {
+          notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const workloadMap = new Map(workloadCounts.map((w) => [w.assignedEditorId, w._count.id]));
+
+    const editorsWithWorkload = editors.map((editor) => ({
+      ...editor,
+      currentWorkload: workloadMap.get(editor.userId) || 0,
+    }));
+
+    const acceptedEditorEmails = editors.map((e) => e.user.email).filter(Boolean);
+    logger.info({ acceptedEditorEmails }, 'Accepted editor emails');
+    const pendingEditorInvites = await prisma.editorInvite.findMany({
+      where: {
+        journalId,
+        accepted: null,
+        email: {
+          notIn: acceptedEditorEmails,
+        },
+      },
+      orderBy: {
+        expiresAt: 'desc',
+      },
+    });
+    logger.info({ pendingEditorInvites }, 'Pending editor invites');
+    const uniqueEditorInvites = _.uniqBy(pendingEditorInvites, 'email');
+    logger.info({ uniqueEditorInvites }, 'Unique editor invites');
+    const pendingEditors = uniqueEditorInvites.map((e) => ({
+      id: e.id,
+      invitedAt: e.createdAt,
+      acceptedAt: null,
+      user: { id: 0, email: e.email, name: e.email, orcid: '' },
+      currentWorkload: 0,
+      maxWorkload: 0,
+      role: e.role,
+      expertise: [],
+      userId: 0,
+      expired: e.expiresAt < new Date(),
+    }));
+    logger.info({ pendingEditors }, 'Pending editors');
+
+    const journalWithWorkload = [...editorsWithWorkload, ...pendingEditors];
+    logger.info({ journalWithWorkload }, 'Journal editorial board');
+    return ok(journalWithWorkload);
+  } catch (error) {
+    logger.error({ error, journalId }, 'Failed to get journal by ID');
+    return err(error instanceof Error ? error : new Error('An unexpected error occurred while fetching journal by ID'));
+  }
+}
+
 export type ListedJournal = Prisma.JournalGetPayload<{
   select: {
     id: true;
@@ -784,4 +903,5 @@ export const JournalManagementService = {
   getJournalEditors,
   getJournalSettings,
   updateJournalSettings,
+  getJournalEditorialBoardById,
 };
