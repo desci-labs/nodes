@@ -359,6 +359,9 @@ async function sendRefereeDeclinedEmail({
         description: journal.description,
         iconCid: journal.iconCid,
       },
+      editor: {
+        name: editorName,
+      },
       referee: {
         name: refereeName,
         email: refereeEmail,
@@ -557,12 +560,17 @@ async function sendOverdueAlertEditorEmail({
   submission,
 }: OverdueAlertEditorPayload['payload']) {
   const deadlineFromNow = getRelativeTime(new Date(reviewDeadline));
+  const overdueInDays = Math.ceil((new Date().getTime() - new Date(reviewDeadline).getTime()) / (1000 * 60 * 60 * 24));
+  const overdueDays = overdueInDays === 1 ? '1 day' : `${overdueInDays} days`;
   const message = {
     to: email,
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.OVERDUE_ALERT_TO_EDITOR],
     dynamicTemplateData: {
       envSuffix: deploymentEnvironmentString,
+      editor: {
+        name: submission.assignedEditor.name,
+      },
       journal: {
         id: journal.id,
         name: journal.name,
@@ -572,6 +580,7 @@ async function sendOverdueAlertEditorEmail({
       submission,
       reviewDeadline,
       deadlineFromNow,
+      overdueDays,
     },
   };
   await sendSgMail(message);
