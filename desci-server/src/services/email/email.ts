@@ -43,6 +43,8 @@ export enum EmailTypes {
 
   // Journals
   EDITOR_INVITE = 'EDITOR_INVITE',
+  ASSOCIATE_EDITOR_INVITE = 'ASSOCIATE_EDITOR_INVITE',
+  CHIEF_EDITOR_INVITE = 'CHIEF_EDITOR_INVITE',
   EXTERNAL_REFEREE_INVITE = 'EXTERNAL_REFEREE_INVITE',
   REFEREE_INVITE = 'REFEREE_INVITE',
   REFEREE_DECLINED = 'REFEREE_DECLINED',
@@ -262,10 +264,16 @@ async function sendInviteEditorEmail({
   role,
   inviteToken,
 }: EditorInvitePayload['payload']) {
+  // We separated out the Associate Editor invite and the Chief Editor emails, as they have different copies.
+  // Both have different templateIds.
+  const emailType =
+    role === EditorRole.CHIEF_EDITOR ? EmailTypes.CHIEF_EDITOR_INVITE : EmailTypes.ASSOCIATE_EDITOR_INVITE;
+  const templateId = templateIdMap[emailType];
+
   const message = {
     to: email,
     from: 'no-reply@desci.com',
-    templateId: templateIdMap[EmailTypes.EDITOR_INVITE],
+    templateId,
     dynamicTemplateData: {
       envSuffix: deploymentEnvironmentString,
       journal: {
