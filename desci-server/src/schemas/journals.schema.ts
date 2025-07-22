@@ -78,6 +78,7 @@ export const inviteEditorSchema = z.object({
       .email()
       .transform((val) => val?.toLowerCase()),
     role: z.nativeEnum(EditorRole),
+    name: z.string(),
     inviteTtlDays: z
       .number()
       .int()

@@ -16,12 +16,14 @@ async function inviteJournalEditor({
   inviterId,
   email,
   role,
+  name,
   inviteTtlDays = 7,
 }: {
   journalId: number;
   inviterId: number;
   email?: string;
   role: EditorRole;
+  name: string;
   inviteTtlDays?: number;
 }) {
   logger.trace(
@@ -93,11 +95,13 @@ async function inviteJournalEditor({
   });
 
   try {
+    const recipientName = inviteeExistingUser?.name || name;
     await sendEmail({
       type: EmailTypes.EDITOR_INVITE,
       payload: {
         email,
         journal,
+        recipientName,
         inviterName: inviter.name,
         role,
         inviteToken: token,

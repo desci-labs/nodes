@@ -261,6 +261,7 @@ async function sendInviteEditorEmail({
   email,
   journal,
   inviterName,
+  recipientName,
   role,
   inviteToken,
 }: EditorInvitePayload['payload']) {
@@ -284,6 +285,9 @@ async function sendInviteEditorEmail({
       },
       inviter: {
         name: inviterName,
+      },
+      recipient: {
+        name: recipientName,
       },
       role: role === EditorRole.CHIEF_EDITOR ? 'Chief Editor' : 'Associate Editor',
       roleWithArticle: prependIndefiniteArticle(role === EditorRole.CHIEF_EDITOR ? 'Chief Editor' : 'Associate Editor'),
