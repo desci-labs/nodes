@@ -397,6 +397,9 @@ async function sendRefereeAcceptedEmail({
         description: journal.description,
         iconCid: journal.iconCid,
       },
+      editor: {
+        name: submission.assignedEditor.name,
+      },
       referee: {
         name: refereeName,
         email: refereeEmail,
@@ -541,6 +544,12 @@ async function sendRevisionSubmittedEmail({ email, journal, submission }: Revisi
     templateId: templateIdMap[EmailTypes.REVISION_SUBMITTED],
     dynamicTemplateData: {
       envSuffix: deploymentEnvironmentString,
+      author: {
+        name: submission.author.name || 'Author',
+      },
+      editor: {
+        name: submission.assignedEditor.name,
+      },
       journal: {
         id: journal.id,
         name: journal.name,
@@ -674,12 +683,15 @@ async function sendSubmissionDeskRejectedEmail({
         description: journal.description,
         iconCid: journal.iconCid,
       },
+      author: {
+        name: submission.author.name || 'Researcher',
+      },
       submission,
       editor: {
         name: editor.name,
         userId: editor.userId,
       },
-      comments,
+      comments: comments || 'No comments provided',
       submittedAtFromNow,
     },
   };
