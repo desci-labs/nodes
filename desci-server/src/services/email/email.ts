@@ -640,6 +640,9 @@ async function sendSubmissionAcceptedEmail({
         description: journal.description,
         iconCid: journal.iconCid,
       },
+      author: {
+        name: submission.author.name || 'Researcher',
+      },
       submission,
       editor: {
         name: editor.name,
@@ -702,6 +705,9 @@ async function sendSubmissionFinalRejectedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+      },
+      author: {
+        name: submission.author.name || 'Researcher',
       },
       submission,
       editor: {
