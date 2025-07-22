@@ -339,6 +339,7 @@ async function sendExternalRefereeInviteEmail({
 async function sendRefereeDeclinedEmail({
   email,
   journal,
+  editorName,
   refereeName,
   refereeEmail,
   submission,

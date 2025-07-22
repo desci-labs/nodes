@@ -303,6 +303,7 @@ export const refereeInviteDecisionSchema = z.object({
   body: z.object({
     token: z.string(),
     decision: z.enum(['accept', 'decline']),
+    reason: z.string().optional().describe('Reason for declining the invitation (only needed for decline decisions)'),
   }),
 });
 
