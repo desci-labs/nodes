@@ -5,7 +5,7 @@ import _ from 'lodash';
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { inviteEditorSchema, listJournalEditorsSchema } from '../../../schemas/journals.schema.js';
+import { getJournalSchema, inviteEditorSchema, listJournalEditorsSchema } from '../../../schemas/journals.schema.js';
 import { JournalInviteService } from '../../../services/journals/JournalInviteService.js';
 import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
 
@@ -18,16 +18,17 @@ type InviteEditorRequest = ValidatedRequest<typeof inviteEditorSchema, Authentic
 export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
   try {
     const { journalId } = req.validatedData.params;
-    const { email, role } = req.validatedData.body;
+    const { email, role, inviteTtlDays } = req.validatedData.body;
     const inviterId = req.user.id;
 
-    logger.info({ journalId, email, role, inviterId }, 'Attempting to invite editor');
+    logger.info({ journalId, email, role, inviteTtlDays, inviterId }, 'Attempting to invite editor');
 
     const invite = await JournalInviteService.inviteJournalEditor({
       journalId,
       inviterId,
       email,
       role,
+      inviteTtlDays,
     });
 
     return sendSuccess(
@@ -96,5 +97,42 @@ export const listJournalEditors = async (req: ListJournalEditorsRequest, res: Re
   } catch (error) {
     logger.error({ error: error.toString(), errorMessage: error.message }, 'Failed to list journal editors');
     return sendError(res, 'Failed to list journal editors', 500);
+  }
+};
+
+type ListJournalEditorialBoardRequest = ValidatedRequest<typeof getJournalSchema, AuthenticatedRequest>;
+
+export const listJournalEditorialBoard = async (req: ListJournalEditorialBoardRequest, res: Response) => {
+  try {
+    const { journalId } = req.validatedData.params;
+
+    logger.info({ journalId, userId: req.user?.id }, 'Attempting to retrieve journal by ID');
+
+    const result = await JournalManagementService.getJournalEditorialBoardById(journalId);
+
+    if (result.isErr()) {
+      const error = result.error;
+
+      if (error.message === 'Journal not found.') {
+        logger.warn({ journalId, error: error.message, userId: req.user?.id }, 'Journal not found by ID.');
+        return sendError(res, 'Journal not found.', 404);
+      }
+
+      logger.error({ error, journalId, userId: req.user?.id }, 'Failed to retrieve journal by ID.');
+      return sendError(res, 'Failed to retrieve journal due to a server error.', 500);
+    }
+
+    const data = result.value;
+    return sendSuccess(res, data);
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        validatedParams: req.validatedData?.params,
+        userId: req.user?.id,
+      },
+      'Unhandled error in listJournalEditorialBoard',
+    );
+    return sendError(res, 'An unexpected error occurred.', 500);
   }
 };

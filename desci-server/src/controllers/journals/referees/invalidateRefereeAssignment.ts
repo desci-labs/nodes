@@ -29,8 +29,14 @@ export const invalidateRefereeAssignmentController = async (req: InvalidateRefer
       const error = result.error;
       logger.error({ error, assignmentId, userId }, 'Failed to invalidate referee assignment');
 
-      if (error.message.toLowerCase().includes('not found')) {
+      if (error.message === 'Referee assignment not found') {
         return sendError(res, 'Referee assignment not found.', 404);
+      }
+      if (error.message === 'User ID is required') {
+        return sendError(res, 'User ID is required.', 400);
+      }
+      if (error.message === 'Unauthorized') {
+        return sendError(res, 'Not authorized to invalidate this referee assignment.', 403);
       }
 
       return sendError(res, 'Failed to invalidate referee assignment due to a server error.', 500);

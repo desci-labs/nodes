@@ -20,10 +20,10 @@ import {
 import { DataReference, DataType, GuestDataReference, MigrationType, Node, PublicDataReference } from '@prisma/client';
 
 import { prisma } from '../client.js';
-import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
 import { DataMigrationService } from '../services/DataMigration/DataMigrationService.js';
+import { DataReferenceSrc } from '../services/FileTreeService.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
 import { NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';

@@ -64,3 +64,6 @@ if (serverIsLocal) {
   console.error('Cannot derive configuration due to ambiguous environment');
   throw new Error('Ambiguous environment');
 }
+
+export const IPFS_RESOLVER = process.env.IPFS_RESOLVER_OVERRIDE || 'https://ipfs.desci.com/ipfs';
+export const IS_PRODUCTION = SERVER_ENV === 'PRODUCTION';

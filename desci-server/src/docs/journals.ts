@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
+import { getJournalAnalyticsSchema, showUrgentSubmissionsSchema } from '../schemas/journals.schema.js';
 import {
   getJournalSchema,
   inviteEditorSchema,
@@ -37,6 +38,10 @@ import {
   inviteRefereeSchema,
   refereeInviteDecisionSchema,
   invalidateRefereeAssignmentSchema,
+  getReviewsByAssignmentSchema,
+  getAssignmentsBySubmissionSchema,
+  getJournalSettingsSchema,
+  updateJournalSettingsSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -205,6 +210,8 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
   operationId: 'inviteEditor',
   tags: ['Journals'],
   summary: 'Invite an editor to a journal',
+  description:
+    'Invite a user to become an editor for a journal. The invite will expire after the specified TTL (time to live) period, defaulting to 7 days if not specified. TTL can be set between 1-30 days.',
   requestParams: { path: inviteEditorSchema.shape.params },
   requestBody: {
     content: {
@@ -218,12 +225,38 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
       description: 'Editor invited successfully',
       content: {
         'application/json': {
-          schema: z.object({ invite: z.object({}) }), // Details omitted for brevity
+          schema: z.object({
+            invite: z.object({
+              id: z.number(),
+              journalId: z.number(),
+              email: z.string(),
+              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+              inviterId: z.number(),
+              expiresAt: z.string(),
+              createdAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid input data',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
         },
       },
     },
     '404': {
       description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -728,6 +761,8 @@ export const getReviewDetailsOperation: ZodOpenApiOperationObject = {
   operationId: 'getReviewDetails',
   tags: ['Journals'],
   summary: 'Get details of a specific review',
+  description:
+    'Get details of a specific review including associated form responses and template data. Authors only receive reviews that are completed and do not see editorFeedback fields.',
   requestParams: { path: reviewDetailsApiSchema.shape.params },
   responses: {
     '200': {
@@ -742,18 +777,56 @@ export const getReviewDetailsOperation: ZodOpenApiOperationObject = {
               recommendation: z.string().nullable(),
               createdAt: z.string(),
               updatedAt: z.string(),
-              editor: z.object({
-                id: z.number(),
-                name: z.string().nullable(),
-                email: z.string().nullable(),
-                orcid: z.string().nullable(),
-              }),
-              review: z.array(
-                z.object({
-                  question: z.string(),
-                  answer: z.string(),
+              submittedAt: z.string().nullable(),
+              refereeAssignment: z.object({
+                referee: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  email: z.string().nullable(),
                 }),
-              ),
+              }),
+              submission: z.object({
+                id: z.number(),
+                status: z.string(),
+                author: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
+              }),
+              journal: z.object({
+                id: z.number(),
+                name: z.string(),
+                iconCid: z.string().nullable(),
+              }),
+              formResponse: z
+                .object({
+                  id: z.number(),
+                  templateId: z.number(),
+                  status: z.enum(['DRAFT', 'SUBMITTED']),
+                  formData: z.any(),
+                  startedAt: z.string(),
+                  submittedAt: z.string().nullable(),
+                  updatedAt: z.string(),
+                  template: z
+                    .object({
+                      id: z.number(),
+                      name: z.string(),
+                      description: z.string().nullable(),
+                      version: z.number(),
+                      structure: z.any(),
+                    })
+                    .nullable(),
+                })
+                .nullable(),
+              review: z
+                .array(
+                  z.object({
+                    question: z.string(),
+                    answer: z.string(),
+                  }),
+                )
+                .nullable(),
             }),
           }),
         },
@@ -808,12 +881,14 @@ export const createReviewOperation: ZodOpenApiOperationObject = {
                 email: z.string().nullable(),
                 orcid: z.string().nullable(),
               }),
-              review: z.array(
-                z.object({
-                  question: z.string(),
-                  answer: z.string(),
-                }),
-              ),
+              review: z
+                .array(
+                  z.object({
+                    question: z.string(),
+                    answer: z.string(),
+                  }),
+                )
+                .nullable(),
             }),
           }),
         },
@@ -877,12 +952,14 @@ export const updateReviewOperation: ZodOpenApiOperationObject = {
                 email: z.string().nullable(),
                 orcid: z.string().nullable(),
               }),
-              review: z.array(
-                z.object({
-                  question: z.string(),
-                  answer: z.string(),
-                }),
-              ),
+              review: z
+                .array(
+                  z.object({
+                    question: z.string(),
+                    answer: z.string(),
+                  }),
+                )
+                .nullable(),
             }),
           }),
         },
@@ -1166,8 +1243,11 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
   tags: ['Journals'],
   summary: 'Get details of a specific journal submission',
   description:
-    'Retrieve comprehensive details of a journal submission including research object information, author details, and assigned editor information.',
-  requestParams: { path: submissionApiSchema.shape.params },
+    'Retrieve comprehensive details of a journal submission including research object information, author details, and assigned editor information. Optionally include the published file tree structure.',
+  requestParams: {
+    path: submissionApiSchema.shape.params,
+    query: submissionApiSchema.shape.query,
+  },
   responses: {
     '200': {
       description: 'Submission details retrieved successfully',
@@ -1222,6 +1302,61 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
                   components: z.array(z.object({}).passthrough()),
                 }),
               }),
+              tree: z
+                .array(
+                  z.object({
+                    uid: z.string().optional(),
+                    name: z.string(),
+                    lastModified: z.string(),
+                    componentType: z.enum([
+                      'data-bucket',
+                      'unknown',
+                      'pdf',
+                      'code',
+                      'video',
+                      'terminal',
+                      'data',
+                      'link',
+                      'manifest',
+                    ]),
+                    componentSubtype: z.string().optional(),
+                    componentId: z.string().optional(),
+                    accessStatus: z.enum(['Public', 'Private', 'Partial', 'External']),
+                    size: z.number(),
+                    metadata: z
+                      .object({
+                        title: z.string().optional(),
+                        description: z.string().optional(),
+                        keywords: z.array(z.string()).optional(),
+                        licenseType: z.string().optional(),
+                        path: z.string(),
+                        ontologyPurl: z.string().optional(),
+                        cedarLink: z.string().optional(),
+                        controlledVocabTerms: z.array(z.string()).optional(),
+                      })
+                      .optional(),
+                    cid: z.string(),
+                    type: z.enum(['file', 'dir']),
+                    contains: z.array(z.any()).optional(),
+                    componentStats: z
+                      .object({
+                        dirs: z.number(),
+                        code: z.object({ count: z.number(), size: z.number() }),
+                        data: z.object({ count: z.number(), size: z.number() }),
+                        pdf: z.object({ count: z.number(), size: z.number() }),
+                        unknown: z.object({ count: z.number(), size: z.number() }),
+                      })
+                      .optional(),
+                    path: z.string().optional(),
+                    starred: z.boolean().optional(),
+                    external: z.boolean().optional(),
+                    dataSource: z.enum(['private', 'guest', 'public']).optional(),
+                  }),
+                )
+                .optional()
+                .describe(
+                  'File tree structure (DriveObject[]) of the published research object. Only included when includeTree=true',
+                ),
             }),
           }),
         },
@@ -1236,7 +1371,7 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
       },
     },
     '404': {
-      description: 'Submission not found',
+      description: 'Submission not found, or published tree not found when includeTree=true',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -1244,7 +1379,7 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
       },
     },
     '500': {
-      description: 'Failed to get submission details',
+      description: 'Failed to get submission details or retrieve tree data',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -1489,7 +1624,7 @@ export const inviteRefereeOperation: ZodOpenApiOperationObject = {
   tags: ['Journals'],
   summary: 'Invite a referee to review a submission',
   description:
-    'Invite a referee (existing user or external email) to review a submission. Supports both internal users (via refereeUserId) and external referees (via refereeEmail). Can specify expected form templates and review deadline.',
+    "Invite a referee (existing user or external email) to review a submission. Supports both internal users (via refereeUserId) and external referees (via refereeEmail). Can specify expected form templates, review deadline, and invite expiry time. All times must fall within the journal's configured bounds.",
   requestParams: { path: inviteRefereeSchema.shape.params },
   requestBody: {
     content: {
@@ -1687,6 +1822,7 @@ export const getRefereeInvitationsOperation: ZodOpenApiOperationObject = {
               submissionId: z.number(),
               accepted: z.boolean(),
               declined: z.boolean(),
+              relativeDueDateHrs: z.number(),
               expiresAt: z.string(),
               token: z.string(),
               submission: z.object({
@@ -2156,6 +2292,7 @@ export const getRefereeFormStatusOperation: ZodOpenApiOperationObject = {
   requestParams: {
     path: z.object({
       journalId: z.coerce.number(),
+      submissionId: z.coerce.number(),
       assignmentId: z.coerce.number(),
     }),
   },
@@ -2200,6 +2337,561 @@ export const getRefereeFormStatusOperation: ZodOpenApiOperationObject = {
     },
     '404': {
       description: 'Referee assignment not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Reviews by Assignment
+export const getReviewsByAssignmentOperation: ZodOpenApiOperationObject = {
+  operationId: 'getReviewsByAssignment',
+  tags: ['Journals'],
+  summary: 'Get all reviews for a referee assignment',
+  description:
+    'Get all reviews associated with a specific referee assignment, including associated form responses and templates. Only the assigned referee can access their reviews.',
+  requestParams: {
+    path: getReviewsByAssignmentSchema.shape.params,
+    query: getReviewsByAssignmentSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Reviews retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            reviews: z.array(
+              z.object({
+                id: z.number(),
+                recommendation: z.string().nullable(),
+                editorFeedback: z.string().nullable(),
+                authorFeedback: z.string().nullable(),
+                review: z.array(z.any()).nullable(),
+                submittedAt: z.string().nullable(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+                formResponse: z
+                  .object({
+                    id: z.number(),
+                    templateId: z.number(),
+                    status: z.enum(['DRAFT', 'SUBMITTED']),
+                    formData: z.any(),
+                    startedAt: z.string(),
+                    submittedAt: z.string().nullable(),
+                    updatedAt: z.string(),
+                    template: z
+                      .object({
+                        id: z.number(),
+                        name: z.string(),
+                        description: z.string().nullable(),
+                        version: z.number(),
+                        structure: z.any(),
+                      })
+                      .nullable(),
+                  })
+                  .nullable(),
+              }),
+            ),
+            assignment: z.object({
+              id: z.number(),
+              submissionId: z.number(),
+              journalId: z.number(),
+              assignedAt: z.string(),
+              dueDate: z.string().nullable(),
+              completedAt: z.string().nullable(),
+              submission: z.object({
+                id: z.number(),
+                title: z.string(),
+                status: z.string(),
+                author: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
+              }),
+              journal: z.object({
+                id: z.number(),
+                name: z.string(),
+                iconCid: z.string().nullable(),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Assignment not found or not accessible',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Assignments by Submission
+export const getAssignmentsBySubmissionOperation: ZodOpenApiOperationObject = {
+  operationId: 'getAssignmentsBySubmission',
+  tags: ['Journals'],
+  summary: 'Get all referee assignments for a submission',
+  description:
+    'Get all referee assignments for a specific submission, including their reviews and form responses. Only editors can access this endpoint.',
+  requestParams: {
+    path: getAssignmentsBySubmissionSchema.shape.params,
+    query: getAssignmentsBySubmissionSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Assignments retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z.object({
+              id: z.number(),
+              submissionId: z.number(),
+              journalId: z.number(),
+              assignedAt: z.string(),
+              reassignedAt: z.string().nullable(),
+              dueDate: z.string().nullable(),
+              completedAt: z.string().nullable(),
+              completedAssignment: z.boolean().nullable(),
+              expectedFormTemplateIds: z.array(z.number()),
+              referee: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+                email: z.string(),
+                orcid: z.string().nullable(),
+              }),
+              submission: z.object({
+                id: z.number(),
+                title: z.string(),
+                status: z.string(),
+                author: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
+              }),
+              reviews: z.array(
+                z.object({
+                  id: z.number(),
+                  recommendation: z.string().nullable(),
+                  editorFeedback: z.string().nullable(),
+                  authorFeedback: z.string().nullable(),
+                  review: z.array(z.any()).nullable(),
+                  submittedAt: z.string().nullable(),
+                  createdAt: z.string(),
+                  updatedAt: z.string(),
+                  formResponse: z
+                    .object({
+                      id: z.number(),
+                      templateId: z.number(),
+                      status: z.enum(['DRAFT', 'SUBMITTED']),
+                      formData: z.any(),
+                      startedAt: z.string(),
+                      submittedAt: z.string().nullable(),
+                      updatedAt: z.string(),
+                      template: z
+                        .object({
+                          id: z.number(),
+                          name: z.string(),
+                          description: z.string().nullable(),
+                          version: z.number(),
+                          structure: z.any(),
+                        })
+                        .nullable(),
+                    })
+                    .nullable(),
+                }),
+              ),
+              formResponses: z.array(
+                z.object({
+                  id: z.number(),
+                  templateId: z.number(),
+                  status: z.enum(['DRAFT', 'SUBMITTED']),
+                  formData: z.any(),
+                  startedAt: z.string(),
+                  submittedAt: z.string().nullable(),
+                  updatedAt: z.string(),
+                  template: z
+                    .object({
+                      id: z.number(),
+                      name: z.string(),
+                      description: z.string().nullable(),
+                      version: z.number(),
+                      structure: z.any(),
+                    })
+                    .nullable(),
+                }),
+              ),
+            }),
+          ),
+        },
+      },
+    },
+    '403': {
+      description: 'User is not an editor of this journal',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission or journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Show Journal Analytics
+export const showJournalAnalyticsOperation: ZodOpenApiOperationObject = {
+  operationId: 'showJournalAnalytics',
+  tags: ['Journals'],
+  summary: 'Get journal analytics dashboard data',
+  description:
+    'Retrieve comprehensive analytics data for a journal including submission statistics, review metrics, and performance indicators. Includes a 3-second delay for demonstration purposes.',
+  requestParams: {
+    path: getJournalAnalyticsSchema.shape.params,
+    query: getJournalAnalyticsSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Journal analytics retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            overview: z
+              .array(
+                z.object({
+                  value: z.number().describe('Numeric value for the metric'),
+                  label: z.string().describe('Human-readable label for the metric'),
+                }),
+              )
+              .describe(
+                'Array of overview metrics including total submissions, acceptance rate, average time to acceptance, review completion rate, time to first review, average review time, overdue reviews, and revisions per article',
+              ),
+            chartData: z
+              .array(
+                z.object({
+                  month: z.string().describe('Month abbreviation (e.g., "Jan", "Feb")'),
+                  totalSubmissions: z.number().describe('Number of submissions in that month'),
+                }),
+              )
+              .describe('Monthly submission data for charting, sorted chronologically'),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view journal analytics',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Show Urgent Journal Submissions
+export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = {
+  operationId: 'showUrgentJournalSubmissions',
+  tags: ['Journals'],
+  summary: 'Get urgent journal submissions',
+  description:
+    'Retrieve submissions that have referee assignments due within the next 7 days, requiring immediate attention. Only returns submissions that are not in ACCEPTED or REJECTED status.',
+  requestParams: {
+    path: showUrgentSubmissionsSchema.shape.params,
+    query: showUrgentSubmissionsSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Urgent submissions retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z.object({
+              id: z.number().describe('Submission ID'),
+              dpid: z.number().describe('DPID of the submitted node'),
+              version: z.number().describe('Version of the submitted node'),
+              status: z
+                .enum(['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'PENDING'])
+                .describe('Current submission status'),
+              submittedAt: z.string().describe('Date when the submission was made'),
+              acceptedAt: z.string().nullable().describe('Date when the submission was accepted (if applicable)'),
+              rejectedAt: z.string().nullable().describe('Date when the submission was rejected (if applicable)'),
+              title: z.string().describe('Title of the submitted research object'),
+              author: z.object({
+                name: z.string().describe('Name of the submission author'),
+                orcid: z.string().nullable().describe('ORCID of the submission author'),
+              }),
+              refereeAssignments: z
+                .array(
+                  z.object({
+                    dueDate: z.string().describe('Due date for the referee assignment'),
+                  }),
+                )
+                .describe('Referee assignments for this submission'),
+            }),
+          ),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view urgent submissions',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Journal Settings
+export const getJournalSettingsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getJournalSettings',
+  tags: ['Journals'],
+  summary: 'Get journal settings',
+  description:
+    'Retrieve the settings for a journal including description and custom settings like review due hours, invite expiry hours, and referee count.',
+  requestParams: {
+    path: getJournalSettingsSchema.shape.params,
+  },
+  responses: {
+    '200': {
+      description: 'Journal settings retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            description: z.string().nullable(),
+            settings: z.object({
+              reviewDueHours: z.object({
+                min: z.number().describe('Minimum review due hours'),
+                max: z.number().describe('Maximum review due hours'),
+                default: z.number().describe('Default review due hours'),
+              }),
+              refereeInviteExpiryHours: z.object({
+                min: z.number().describe('Minimum referee invite expiry hours'),
+                max: z.number().describe('Maximum referee invite expiry hours'),
+                default: z.number().describe('Default referee invite expiry hours'),
+              }),
+              refereeCount: z.object({
+                value: z.number().describe('Number of referees per submission'),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Update Journal Settings
+export const updateJournalSettingsOperation: ZodOpenApiOperationObject = {
+  operationId: 'updateJournalSettings',
+  tags: ['Journals'],
+  summary: 'Update journal settings',
+  description:
+    'Update the settings for a journal including description and custom settings like review due hours, invite expiry hours, and referee count. Only chief editors can update settings.',
+  requestParams: {
+    path: updateJournalSettingsSchema.shape.params,
+  },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: updateJournalSettingsSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Journal settings updated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            description: z.string().nullable(),
+            settings: z.object({
+              reviewDueHours: z.object({
+                min: z.number().describe('Minimum review due hours'),
+                max: z.number().describe('Maximum review due hours'),
+                default: z.number().describe('Default review due hours'),
+              }),
+              refereeInviteExpiryHours: z.object({
+                min: z.number().describe('Minimum referee invite expiry hours'),
+                max: z.number().describe('Maximum referee invite expiry hours'),
+                default: z.number().describe('Default referee invite expiry hours'),
+              }),
+              refereeCount: z.object({
+                value: z.number().describe('Number of referees per submission'),
+              }),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid input data',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '409': {
+      description: 'Conflict - settings validation failed',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// List Journal Editorial Board
+export const listJournalEditorialBoardOperation: ZodOpenApiOperationObject = {
+  operationId: 'listJournalEditorialBoard',
+  tags: ['Journals'],
+  summary: 'List all editorial board members for a journal (including pending invites)',
+  requestParams: {
+    path: getJournalSchema.shape.params,
+  },
+  responses: {
+    '200': {
+      description: 'Editorial board retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z
+              .object({
+                id: z.number(),
+                userId: z.number(),
+                role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+                invitedAt: z.string(),
+                acceptedAt: z.string().nullable(),
+                expertise: z.array(z.string()).nullable(),
+                maxWorkload: z.number().nullable(),
+                currentWorkload: z.number(),
+                expired: z.boolean().nullable(),
+                user: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  email: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
+              })
+              .partial({
+                // For pending invites, some fields may be missing or null
+                userId: true,
+                acceptedAt: true,
+                expertise: true,
+                maxWorkload: true,
+                user: true,
+                expired: true,
+              }),
+          ),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view editorial board',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -2264,6 +2956,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/submissions/{submissionId}/reviews/{reviewId}/submit': {
     post: submitReviewOperation,
   },
+  '/v1/journals/{journalId}/submissions/{submissionId}/assignments': {
+    get: getAssignmentsBySubmissionOperation,
+  },
   '/v1/journals/{journalId}/submissions/{submissionId}/request-revision': {
     post: requestRevisionOperation,
   },
@@ -2288,6 +2983,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/referee/invitations': {
     get: getRefereeInvitationsOperation,
+  },
+  '/v1/journals/referee/assignments/{assignmentId}/reviews': {
+    get: getReviewsByAssignmentOperation,
   },
   '/v1/journals/{journalId}/forms/templates': {
     post: createFormTemplateOperation,
@@ -2315,7 +3013,20 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/{journalId}/submissions/{submissionId}/referees/{assignmentId}/invalidate': {
     patch: invalidateRefereeAssignmentOperation,
   },
-  '/v1/journals/{journalId}/referees/assignments/{assignmentId}/form-status': {
+  '/v1/journals/{journalId}/submissions/{submissionId}/referees/assignments/{assignmentId}/form-status': {
     get: getRefereeFormStatusOperation,
+  },
+  '/v1/journals/{journalId}/analytics': {
+    get: showJournalAnalyticsOperation,
+  },
+  '/v1/journals/{journalId}/urgentSubmissions': {
+    get: showUrgentJournalSubmissionsOperation,
+  },
+  '/v1/journals/{journalId}/settings': {
+    get: getJournalSettingsOperation,
+    patch: updateJournalSettingsOperation,
+  },
+  '/v1/journals/{journalId}/editorial-board': {
+    get: listJournalEditorialBoardOperation,
   },
 };

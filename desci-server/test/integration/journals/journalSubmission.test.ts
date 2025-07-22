@@ -202,6 +202,8 @@ describe('Journal Submission Service', () => {
   });
 
   describe('Chief Editor', () => {
+    let unAssignedSubmission: JournalSubmission;
+
     beforeEach(async () => {
       // create a draft node
       draftNode = await createDraftNode({
@@ -221,17 +223,153 @@ describe('Journal Submission Service', () => {
         },
       });
 
-      response = await request
-        .post(`/v1/journals/${journal.id}/submissions`)
-        .set('authorization', `Bearer ${author.token}`)
-        .send({
-          dpid: draftNode?.dpidAlias,
+      if (!draftNode?.dpidAlias) {
+        throw new Error('Failed to create draft node with dpidAlias');
+      }
+
+      // Create multiple submissions with different statuses
+      unAssignedSubmission = await prisma.journalSubmission.create({
+        data: {
+          journalId: journal.id,
+          authorId: author.user.id,
+          dpid: draftNode.dpidAlias,
           version: 1,
-        });
+          status: SubmissionStatus.SUBMITTED,
+        },
+      });
+
+      let draftNode2: Node | null = await createDraftNode({
+        title: 'Test Node 2',
+        ownerId: author.user.id,
+        manifestUrl: 'https://example.com/manifest.json',
+        replicationFactor: 1,
+        uuid: uuidv4(),
+      });
+      await publishMockNode(draftNode2, new Date());
+      draftNode2 = await prisma.node.findFirst({
+        where: {
+          id: draftNode2.id,
+        },
+      });
+
+      if (!draftNode2?.dpidAlias) {
+        throw new Error('Failed to create draft node with dpidAlias');
+      }
+
+      await prisma.journalSubmission.create({
+        data: {
+          journalId: journal.id,
+          authorId: author.user.id,
+          dpid: draftNode2.dpidAlias,
+          version: 1,
+          status: SubmissionStatus.UNDER_REVIEW,
+          assignedEditorId: associateEditor.user.id,
+        },
+      });
+
+      let draftNode3: Node | null = await createDraftNode({
+        title: 'Test Node 2',
+        ownerId: author.user.id,
+        manifestUrl: 'https://example.com/manifest.json',
+        replicationFactor: 1,
+        uuid: uuidv4(),
+      });
+      await publishMockNode(draftNode3, new Date());
+      draftNode3 = await prisma.node.findFirst({
+        where: {
+          id: draftNode3.id,
+        },
+      });
+      if (!draftNode3?.dpidAlias) {
+        throw new Error('Failed to create draft node with dpidAlias');
+      }
+      await prisma.journalSubmission.create({
+        data: {
+          journalId: journal.id,
+          authorId: author.user.id,
+          dpid: draftNode3.dpidAlias,
+          version: 1,
+          status: SubmissionStatus.ACCEPTED,
+        },
+      });
     });
 
-    it('can view submissions', async () => {});
-    it('can assign submissions to associate editors', async () => {});
+    it('can view all submissions', async () => {
+      // Get submissions as associate editor
+      response = await request
+        .get(`/v1/journals/${journal.id}/submissions`)
+        .set('authorization', `Bearer ${chiefEditor.token}`);
+
+      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+
+      expect(response.status).to.equal(200);
+      const submissions = response.body.data.data;
+      console.log({ submissions });
+      expect(submissions).to.be.an('array');
+      expect(submissions.length).to.equal(3);
+      expect(submissions.map((s: any) => s.status)).to.include.members([
+        SubmissionStatus.SUBMITTED,
+        SubmissionStatus.UNDER_REVIEW,
+        SubmissionStatus.ACCEPTED,
+      ]);
+    });
+
+    it('can assign submissions to associate editors', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${unAssignedSubmission.id}/assign`)
+        .set('authorization', `Bearer ${chiefEditor.token}`)
+        .send({
+          editorId: associateEditor.user.id,
+        });
+      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+      expect(response.status).to.equal(200);
+      expect(response.body.data.assignedEditorId).to.equal(associateEditor.user.id);
+    });
+
+    it('can desk reject unreviewed submissions', async () => {
+      // create a draft node
+      draftNode = await createDraftNode({
+        title: 'Test Node',
+        ownerId: author.user.id,
+        manifestUrl: 'https://example.com/manifest.json',
+        replicationFactor: 1,
+        uuid: uuidv4(),
+      });
+
+      // publish the draft node
+      await publishMockNode(draftNode, new Date());
+
+      draftNode = await prisma.node.findFirst({
+        where: {
+          id: draftNode.id,
+        },
+      });
+
+      if (!draftNode?.dpidAlias) {
+        throw new Error('Failed to create draft node with dpidAlias');
+      }
+
+      // Create multiple submissions with different statuses
+      const unReviewedSubmission = await prisma.journalSubmission.create({
+        data: {
+          journalId: journal.id,
+          authorId: author.user.id,
+          dpid: draftNode.dpidAlias,
+          version: 1,
+          assignedEditorId: associateEditor.user.id,
+          status: SubmissionStatus.SUBMITTED,
+        },
+      });
+
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${unReviewedSubmission.id}/reject`)
+        .set('authorization', `Bearer ${chiefEditor.token}`)
+        .send({
+          reason: 'Test reason',
+        });
+      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+      expect(response.status).to.equal(200);
+    });
   });
 
   describe('Associate Editor', () => {

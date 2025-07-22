@@ -78,6 +78,16 @@ describe('Journal Referee Management Service', () => {
     if (journalResult.isErr()) throw journalResult.error;
     journal = journalResult.value;
 
+    // Update journal settings to allow 3 referees for testing
+    const updateResult = await JournalManagementService.updateJournalSettings(journal.id, chiefEditor.id, {
+      settings: {
+        refereeCount: {
+          value: 3,
+        },
+      },
+    });
+    if (updateResult.isErr()) throw updateResult.error;
+
     // Add associate editor to the journal
     await prisma.journalEditor.create({
       data: {
@@ -289,7 +299,7 @@ describe('Journal Referee Management Service', () => {
         userId: refereeUser.id,
       });
       expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Maximum number of referees already assigned');
+      expect(result._unsafeUnwrapErr().message).to.equal('Maximum number of referees (3) already assigned');
       const updatedInvite = await prisma.refereeInvite.findUnique({ where: { id: invite.id } });
       expect(updatedInvite?.declined).to.be.true; // Invite should be marked as declined
     });
@@ -522,7 +532,7 @@ describe('Journal Referee Management Service', () => {
         userId: extraReferee.id,
       });
       expect(finalAcceptResult.isErr()).to.be.true;
-      expect(finalAcceptResult._unsafeUnwrapErr().message).to.equal('Maximum number of referees already assigned');
+      expect(finalAcceptResult._unsafeUnwrapErr().message).to.equal('Maximum number of referees (3) already assigned');
 
       // Verify the invite for extraReferee was marked as declined
       const declinedInvite = await prisma.refereeInvite.findUnique({ where: { token: extraInviteRes.value.token } });

@@ -52,7 +52,7 @@ export const refereeInviteDecisionController = async (
       if (error.message === 'Referee invite not found' || error.message === 'Referee invite not valid') {
         return sendError(res, error.message, 400);
       }
-      if (error.message === 'Maximum number of referees already assigned') {
+      if (error.message.startsWith('Maximum number of referees') && error.message.includes('already assigned')) {
         return sendError(res, error.message, 409);
       }
       return sendError(res, 'Failed to process referee invite decision', 500);

@@ -20,8 +20,11 @@ import {
   listApiKey,
   check,
 } from '../../controllers/auth/index.js';
+import { updateMarketingConsentController } from '../../controllers/auth/marketingConsent.js';
 import { walletLogin, walletNonce } from '../../controllers/users/associateWallet.js';
 import { ensureGuest, ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
+import { validate } from '../../middleware/validator.js';
+import { updateMarketingConsentSchema } from '../../schemas/users.schema.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 const router = Router();
 
@@ -31,6 +34,11 @@ router.post('/login/did', asyncHandler(walletLogin));
 router.get('/login/did/:walletAddress', asyncHandler(walletNonce));
 router.delete('/logout', logout);
 router.get('/profile', [ensureGuestOrUser], profile);
+router.patch(
+  '/marketing-consent',
+  [ensureUser, validate(updateMarketingConsentSchema)],
+  asyncHandler(updateMarketingConsentController),
+);
 router.get('/orcid/auth', orcidAuth);
 router.get('/orcid/auth/close', orcidAuthClose);
 router.get('/orcid/connect', orcidConnect);

@@ -195,6 +195,7 @@ model User {
   mergedIntoAt                DateTime[] // Timestamps for when a guest was merged into this existing user.
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
+  receiveMarketingEmails      Boolean                       @default(false)
   isAdmin                     Boolean                       @default(false)
   isVerified                  Boolean                       @default(false)
   verificationCode            String                        @default("")
@@ -1154,6 +1155,7 @@ model Journal {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   isCommercial Boolean  @default(false)
+  settings     Json?    @default("{}")
 
   // Relationships
   editors                   JournalEditor[]
@@ -1263,7 +1265,7 @@ model JournalSubmissionReview {
   submittedAt         DateTime?
   editorFeedback      String?
   authorFeedback      String?
-  review              Json            @default("[]")
+  review              Json            @default("[]") // Ignore/unused, in favor of formResponse.
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -1309,6 +1311,7 @@ model EditorInvite {
 model RefereeInvite {
   id                      Int       @id @default(autoincrement())
   email                   String
+  name                    String?
   userId                  Int?
   submissionId            Int
   invitedById             Int
@@ -1540,6 +1543,9 @@ enum ActionType {
   MERGE_GUEST_INTO_EXISTING_USER_SUCCESS
   MERGE_GUEST_INTO_EXISTING_USER_FAIL
   SUBMIT_QUESTIONNAIRE
+  RETRIEVE_DPID_METADATA
+  MARKETING_EMAIL_OPT_IN
+  MARKETING_EMAIL_OPT_OUT
 }
 
 enum ChainTransactionType {

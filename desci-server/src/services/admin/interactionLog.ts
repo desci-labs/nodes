@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../../client.js';
+import { IS_PRODUCTION } from '../../config/index.js';
 import { logger } from '../../logger.js';
 import { getUtcDateXDaysAgo } from '../../utils/clock.js';
 
@@ -13,21 +14,46 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
   logger.info({ fn: 'getCountActiveUsersInXDays' }, 'interactionLog::getCountActiveUsersInXDays');
 
   const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
-  return (
-    await prisma.interactionLog.findMany({
-      distinct: ['userId'],
-      where: {
-        createdAt: {
-          gte: utcMidnightXDaysAgo,
-        },
-        // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
-        // from poluting returned data
-        userId: {
-          not: null,
-        },
-      },
-    })
-  ).length;
+
+  const res = (await prisma.$queryRaw`
+    SELECT
+      count(DISTINCT "userId")::integer
+    FROM
+        "InteractionLog" z
+        LEFT JOIN "User" usr ON usr.id = "userId"
+    WHERE
+        ACTION = 'USER_ACTION'
+        AND "userId" IS NOT NULL
+        AND z."createdAt" >= ${utcMidnightXDaysAgo}
+        AND (usr."isGuest" = false OR usr."isGuest" IS NULL)
+        AND (
+          --- exploring user actions ---
+          extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb 
+          --- publishing user actions ---
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
+          OR extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+        )
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
+    `) as {
+    count: number;
+  }[];
+
+  logger.info({ res, daysAgo, utcMidnightXDaysAgo }, 'getCountActiveUsersInXDays');
+  return Number(res[0]?.count || 0);
 };
 
 /**
@@ -43,18 +69,59 @@ export const countExploringUsersInRange = async (range: { from: Date; to: Date }
         count(distinct "userId")
     FROM
         "InteractionLog" z
+    LEFT JOIN "User" usr ON usr.id = "userId"
     WHERE
         ACTION = 'USER_ACTION'
         AND "userId" IS NOT NULL
         AND (
             extra :: jsonb -> 'action' = '"search"' :: jsonb
+            OR extra :: jsonb -> 'action' = '"viewedNode"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionRelatedLinkClicked"' :: jsonb
+        ) and z."createdAt" >= ${range.from} and z."createdAt" <= ${range.to}
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
+        `) as {
+    count: number;
+  }[];
+
+  logger.trace({ res }, 'countExploringUsersInRange');
+  return Number(res[0]?.count || 0);
+};
+
+/**
+ * Count the number of users who have explored the app within an optional time range.
+ * @param range - The time range to count exploring users for.
+ * @returns The number of users who have explored the app within the time range.
+ */
+export const countPublishingUsersInRange = async (range: { from: Date; to: Date }): Promise<number> => {
+  logger.trace({ fn: 'countPublishingUsersInRange' }, 'interactionLog::countPublishingUsersInRange');
+
+  const res = (await prisma.$queryRaw`
+    SELECT
+        count(distinct "userId")
+    FROM
+        "InteractionLog" z
+    LEFT JOIN "User" usr ON usr.id = "userId"
+    WHERE
+        ACTION = 'USER_ACTION'
+        AND "userId" IS NOT NULL
+        AND (
+            extra :: jsonb -> 'action' = '"actionResearchObjectCreated"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionResearchObjectPublished"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionPublishResearchObjectInitiated"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionCommunityPublicationCreated"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
+            OR  extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
             OR  extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
-        ) and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`) as {
+        ) and z."createdAt" >= ${range.from} and z."createdAt" <= ${range.to}
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
+        `) as {
     count: number;
   }[];
 
@@ -125,7 +192,6 @@ export const getUserRetention = async (days: number) => {
     FROM
         "InteractionLog" z
         LEFT JOIN "User" usr ON usr.id = "userId"    
-        -- AND usr.email NOT LIKE '%desci.com%'
     WHERE
         ACTION = 'USER_ACTION'
         AND "userId" IS NOT NULL
@@ -140,8 +206,9 @@ export const getUserRetention = async (days: number) => {
                 FROM
                     (z."createdAt" - usr."createdAt")
             ) / 86400
-        ) < ${days};
-    `) as {
+        ) < ${days}
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
+      ;`) as {
     count: number;
   }[];
 
@@ -162,6 +229,7 @@ export const countResearchObjectSharedLogs = async (range?: { from: Date; to: Da
         count(*)::integer
       FROM
           "InteractionLog" z
+          LEFT JOIN "User" usr ON usr.id = "userId"
       WHERE
           ACTION = 'USER_ACTION'
           AND "userId" IS NOT NULL
@@ -170,8 +238,9 @@ export const countResearchObjectSharedLogs = async (range?: { from: Date; to: Da
               OR extra :: jsonb -> 'action' = '"btnShare"' :: jsonb
               OR extra :: jsonb -> 'action' = '"clickedShareYourResearch"' :: jsonb
           )
-          AND "createdAt" >= ${from} 
-          AND "createdAt" < ${to}
+          AND z."createdAt" >= ${from} 
+          AND z."createdAt" <= ${to}
+          ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
       ;`;
   return Number(count[0].count);
 };
@@ -189,14 +258,16 @@ export const countCoAuthorInvitations = async (range?: { from: Date; to: Date })
         count(*)::integer
       FROM
           "InteractionLog" z
+          LEFT JOIN "User" usr ON usr.id = "userId"
       WHERE
         ACTION = 'USER_ACTION'
         AND "userId" IS NOT NULL
         AND (
             extra :: jsonb -> 'action' = '"actionCoAuthorInvited"' :: jsonb
         )
-        AND "createdAt" >= ${from} 
-        AND "createdAt" < ${to}
+        AND z."createdAt" >= ${from} 
+        AND z."createdAt" <= ${to}
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
       ;`;
   return Number(count[0].count);
 };
@@ -214,14 +285,16 @@ export const countAiAnalyticsTabsClicks = async (range?: { from: Date; to: Date 
         count(*)::integer
       FROM
           "InteractionLog" z
+          LEFT JOIN "User" usr ON usr.id = "userId"
       WHERE
         ACTION = 'USER_ACTION'
         AND "userId" IS NOT NULL
         AND (
             extra :: jsonb -> 'action' = '"actionAiAnalyticsTabClicked"' :: jsonb
         )
-        AND "createdAt" >= ${from} 
-        AND "createdAt" < ${to}
+        AND z."createdAt" >= ${from} 
+        AND z."createdAt" <= ${to}
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
       ;`;
   return Number(count[0]?.count || 0);
 };
@@ -239,14 +312,16 @@ export const countRelatedArticleClickedInAiAnalytics = async (range?: { from: Da
         count(*)::integer
       FROM
           "InteractionLog" z
+          LEFT JOIN "User" usr ON usr.id = "userId"
       WHERE
         ACTION = 'USER_ACTION'
         AND "userId" IS NOT NULL
         AND (
             extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
         )
-        AND "createdAt" >= ${from} 
-        AND "createdAt" < ${to}
+        AND z."createdAt" >= ${from} 
+        AND z."createdAt" <= ${to}
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
       ;`;
   return Number(count[0]?.count || 0);
 };
@@ -264,10 +339,13 @@ export const countClaimedBadgesLogs = async (range?: { from: Date; to: Date }) =
         count(*)::integer
       FROM
           "InteractionLog" z
+          LEFT JOIN "User" usr ON usr.id = "userId"
       WHERE
         ACTION = 'CLAIM_ATTESTATION'
-        AND "createdAt" >= ${from} 
-        AND "createdAt" < ${to}
+        AND "userId" IS NOT NULL
+        AND z."createdAt" >= ${from} 
+        AND z."createdAt" <= ${to}
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
       ;`;
   return Number(count[0]?.count || 0);
 };
@@ -299,14 +377,16 @@ export const countProfileViews = async (range?: { from: Date; to: Date }) => {
         count(*)::integer
       FROM
           "InteractionLog" z
+          LEFT JOIN "User" usr ON usr.id = "userId"
       WHERE
         ACTION = 'USER_ACTION'
         AND "userId" IS NOT NULL
         AND (
             extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
         )
-        AND "createdAt" >= ${from} 
-        AND "createdAt" < ${to}
+        AND z."createdAt" >= ${from} 
+        AND z."createdAt" <= ${to}
+        ${IS_PRODUCTION ? Prisma.sql`AND usr.email NOT LIKE '%desci.com%'` : Prisma.sql``}
       ;`;
   return Number(count[0]?.count || 0);
 };

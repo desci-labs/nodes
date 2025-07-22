@@ -117,11 +117,9 @@ describe('KPI Metrics', async () => {
         monthly: number;
       };
       publishingUsers: {
-        researchObjectsCreated: number;
-        researchObjectsUpdated: number;
-        researchObjectsShared: number;
-        researchObjectsPublished: number;
-        communityPublications: number;
+        daily: number;
+        weekly: number;
+        monthly: number;
       };
       exploringUsers: {
         daily: number;
@@ -195,7 +193,7 @@ describe('KPI Metrics', async () => {
       const response = await request
         .get('/v1/admin/metrics/user-engagements')
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
+      console.log('response.body', JSON.stringify(response.body, null, 2));
       const data = response.body.data as UserEngagementMetricsData;
 
       // assert response status
@@ -207,16 +205,14 @@ describe('KPI Metrics', async () => {
       expect(data.activeUsers.monthly).to.equal(25);
 
       // assert publishing users KPIs
-      expect(data.publishingUsers.researchObjectsCreated).to.equal(30);
-      expect(data.publishingUsers.researchObjectsUpdated).to.equal(5);
-      expect(data.publishingUsers.researchObjectsShared).to.equal(10);
-      expect(data.publishingUsers.researchObjectsPublished).to.equal(17);
-      expect(data.publishingUsers.communityPublications).to.equal(1);
+      expect(data.publishingUsers.daily).to.equal(5);
+      expect(data.publishingUsers.weekly).to.equal(15);
+      expect(data.publishingUsers.monthly).to.equal(15);
 
       // assert exploring users KPIs
       expect(data.exploringUsers.daily).to.equal(5);
-      expect(data.exploringUsers.weekly).to.equal(10);
-      expect(data.exploringUsers.monthly).to.equal(11);
+      expect(data.exploringUsers.weekly).to.equal(15);
+      expect(data.exploringUsers.monthly).to.equal(25);
     });
   });
 

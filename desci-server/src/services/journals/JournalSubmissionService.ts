@@ -9,23 +9,11 @@ import { getIndexedResearchObjects } from '../../theGraph.js';
 import { hexToCid } from '../../utils.js';
 import { getManifestByCid } from '../data/processing.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
-import {
-  MajorRevisionRequestPayload,
-  MinorRevisionRequestPayload,
-  SubmissionDetails,
-  SubmissionExtended,
-} from '../email/journalEmailTypes.js';
-import {
-  MajorRevisionRequestedPayload,
-  MinorRevisionRequestedPayload,
-} from '../Notifications/notificationPayloadTypes.js';
+import { SubmissionDetails, SubmissionExtended } from '../email/journalEmailTypes.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
 import { JournalManagementService } from './JournalManagementService.js';
-
-// import { JournalEventLogService } from './JournalEventLogService.js';
-// import { AuthFailureError, ForbiddenError } from '../../core/ApiError.js';
 
 const logger = parentLogger.child({
   module: 'Journals::JournalInviteService',
@@ -110,7 +98,6 @@ async function getJournalSubmissions(
     take: limit,
     select: {
       id: true,
-      // assignedEditorId: true,
       dpid: true,
       version: true,
       status: true,
@@ -126,6 +113,42 @@ async function getJournalSubmissions(
         select: {
           name: true,
           orcid: true,
+        },
+      },
+    },
+  });
+}
+
+async function getUrgentJournalSubmissions(
+  journalId: number,
+  filter: Prisma.JournalSubmissionWhereInput,
+  limit: number,
+) {
+  return await prisma.journalSubmission.findMany({
+    where: { journalId, ...filter },
+    take: limit,
+    select: {
+      id: true,
+      dpid: true,
+      version: true,
+      status: true,
+      submittedAt: true,
+      acceptedAt: true,
+      rejectedAt: true,
+      node: {
+        select: {
+          title: true,
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          orcid: true,
+        },
+      },
+      refereeAssignments: {
+        select: {
+          dueDate: true,
         },
       },
     },
@@ -335,6 +358,10 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
 async function rejectSubmission({ editorId, submissionId }: { editorId: number; submissionId: number }) {
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: submissionId },
+    include: {
+      journal: true,
+      author: true,
+    },
   });
 
   const editorJournalRole = await JournalManagementService.getUserJournalRole(submission.journalId, editorId);
@@ -355,8 +382,9 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
     throw new ForbiddenError('Submission is already accepted');
   }
 
-  if (submission.status !== SubmissionStatus.UNDER_REVIEW) {
-    throw new ForbiddenError('Submission is not under review');
+  if (submission.status === SubmissionStatus.REJECTED) {
+    // throw new ForbiddenError('Submission is already rejected');
+    return submission;
   }
 
   return await prisma.journalSubmission.update({
@@ -667,6 +695,7 @@ const getSubmissionDetails = async (submissionId: number): Promise<Result<Submis
           description: 'Test Abstract',
           components: [],
         },
+        manifestCid: 'test-manifest-cid',
       },
     };
     return ok(submissionDetails);
@@ -682,7 +711,10 @@ const getSubmissionDetails = async (submissionId: number): Promise<Result<Submis
   const targetVersionManifestCid = hexToCid(targetVersion.cid);
   const manifest = await getManifestByCid(targetVersionManifestCid);
 
-  const submissionDetails = { ...submission, researchObject: { ...submission.node, doi, manifest } };
+  const submissionDetails = {
+    ...submission,
+    researchObject: { ...submission.node, doi, manifest, manifestCid: targetVersionManifestCid },
+  };
 
   return ok(submissionDetails);
 };
@@ -723,4 +755,5 @@ export const journalSubmissionService = {
   getSubmissionExtendedData,
   isSubmissionDeskRejection,
   getSubmissionDetails,
+  getUrgentJournalSubmissions,
 };

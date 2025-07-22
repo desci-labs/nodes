@@ -73,8 +73,18 @@ export const inviteEditorSchema = z.object({
     }),
   }),
   body: z.object({
-    email: z.string().email(),
+    email: z
+      .string()
+      .email()
+      .transform((val) => val?.toLowerCase()),
     role: z.nativeEnum(EditorRole),
+    inviteTtlDays: z
+      .number()
+      .int()
+      .min(1, 'Invite TTL must be at least 1 day')
+      .max(30, 'Invite TTL cannot exceed 30 days')
+      .optional()
+      .describe('Time to live for the editor invite in days (1-30 days, default: 7)'),
   }),
 });
 
@@ -202,20 +212,30 @@ const reviewSchema = z.object({
   editorFeedback: z.string().optional(),
   authorFeedback: z.string().optional(),
   recommendation: z.nativeEnum(ReviewDecision).optional(),
-  review: z.array(
-    z
-      .object({
-        question: z.string(),
-        answer: z.string(),
-      })
-      .optional(),
-  ),
+  review: z
+    .array(
+      z
+        .object({
+          question: z.string(),
+          answer: z.string(),
+        })
+        .optional(),
+    )
+    .optional(),
 });
 
 export const submissionApiSchema = z.object({
   params: z.object({
     journalId: z.coerce.number(),
     submissionId: z.coerce.number(),
+  }),
+  query: z.object({
+    includeTree: z.coerce.boolean().optional().default(false),
+    filterHiddenFiles: z.coerce
+      .boolean()
+      .optional()
+      .default(true)
+      .describe('Filter out .nodeKeep and .DS_Store files from the tree'),
   }),
 });
 
@@ -261,9 +281,15 @@ export const inviteRefereeSchema = z.object({
     journalId: z.string(),
   }),
   body: z.object({
-    refereeEmail: z.string().email().optional(),
+    refereeName: z.string().optional(),
+    refereeEmail: z
+      .string()
+      .email()
+      .optional()
+      .transform((val) => val?.toLowerCase()),
     refereeUserId: z.number().int().positive().optional(),
     relativeDueDateHrs: z.number().int().positive().optional(), // lets restric tthis further.
+    inviteExpiryHours: z.number().int().positive().optional(),
     expectedFormTemplateIds: z.array(z.number().int().positive()).optional().default([]),
   }),
 });
@@ -356,6 +382,27 @@ export const revisionActionSchema = z.object({
   }),
   body: z.object({
     decision: z.enum(['accept', 'reject']),
+  }),
+});
+
+export const getReviewsByAssignmentSchema = z.object({
+  params: z.object({
+    assignmentId: z.coerce.number(),
+  }),
+  query: z.object({
+    limit: z.coerce.number().optional().default(20).describe('The number of reviews to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of reviews to skip'),
+  }),
+});
+
+export const getAssignmentsBySubmissionSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
+  query: z.object({
+    limit: z.coerce.number().optional().default(20).describe('The number of assignments to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of assignments to skip'),
   }),
 });
 
@@ -554,4 +601,140 @@ export const submitFormResponseSchema = z.object({
       }),
     ),
   }),
+});
+
+export const getJournalAnalyticsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to get analytics for'),
+  }),
+  query: z.object({
+    startDate: z.string().datetime({ offset: true }).optional().describe('The start date of the analytics period'),
+    endDate: z.string().datetime({ offset: true }).optional().describe('The end date of the analytics period'),
+  }),
+});
+
+export const showUrgentSubmissionsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to get urgent submissions for'),
+  }),
+  query: z.object({
+    startDate: z.string().datetime({ offset: true }).optional().describe('The start date of the analytics period'),
+    endDate: z.string().datetime({ offset: true }).optional().describe('The end date of the analytics period'),
+  }),
+});
+
+export const getJournalSettingsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to get settings for'),
+  }),
+});
+
+export const MAX_REVIEW_DUE_HOURS = 2160; // 90 days
+export const MAX_REFEREE_INVITE_EXPIRY_HOURS = 720; // 30 days
+
+export const updateJournalSettingsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal to update settings for'),
+  }),
+  body: z
+    .object({
+      description: z.string().optional(),
+      settings: z
+        .object({
+          reviewDueHours: z
+            .object({
+              min: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Minimum review due hours (max 90 days)'),
+              max: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Maximum review due hours (max 90 days)'),
+              default: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REVIEW_DUE_HOURS)
+                .optional()
+                .describe('Default review due hours (max 90 days)'),
+            })
+            .optional(),
+          refereeInviteExpiryHours: z
+            .object({
+              min: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
+                .optional()
+                .describe('Minimum referee invite expiry hours (max 30 days)'),
+              max: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
+                .optional()
+                .describe('Maximum referee invite expiry hours (max 30 days)'),
+              default: z
+                .number()
+                .int()
+                .min(1)
+                .max(MAX_REFEREE_INVITE_EXPIRY_HOURS)
+                .optional()
+                .describe('Default referee invite expiry hours (max 30 days)'),
+            })
+            .optional(),
+          refereeCount: z
+            .object({
+              value: z.number().int().min(1).max(10).optional().describe('Number of referees per submission'),
+            })
+            .optional(),
+        })
+        .optional(),
+    })
+    .refine(
+      (data) => {
+        // Validate max > min for reviewDueHours
+        if (data.settings?.reviewDueHours) {
+          const { min, max } = data.settings.reviewDueHours;
+          if (min && max && min > max) return false;
+        }
+        // Validate max > min for refereeInviteExpiryHours
+        if (data.settings?.refereeInviteExpiryHours) {
+          const { min, max } = data.settings.refereeInviteExpiryHours;
+          if (min && max && min > max) return false;
+        }
+        return true;
+      },
+      {
+        message: 'Max must be greater than min',
+      },
+    )
+    .refine(
+      (data) => {
+        // Validate default within min/max range for reviewDueHours
+        if (data.settings?.reviewDueHours) {
+          const { min, max, default: defaultVal } = data.settings.reviewDueHours;
+          if (min && defaultVal && min > defaultVal) return false;
+          if (max && defaultVal && defaultVal > max) return false;
+        }
+        // Validate default within min/max range for refereeInviteExpiryHours
+        if (data.settings?.refereeInviteExpiryHours) {
+          const { min, max, default: defaultVal } = data.settings.refereeInviteExpiryHours;
+          if (min && defaultVal && min > defaultVal) return false;
+          if (max && defaultVal && defaultVal > max) return false;
+        }
+        return true;
+      },
+      {
+        message: 'Default must be between min and max',
+      },
+    ),
 });

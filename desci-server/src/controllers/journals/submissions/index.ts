@@ -1,3 +1,4 @@
+import { DriveObject } from '@desci-labs/desci-models';
 import { EditorRole, JournalEventLogAction, JournalSubmission, Prisma, SubmissionStatus } from '@prisma/client';
 import { Response } from 'express';
 
@@ -16,6 +17,7 @@ import {
   rejectSubmissionSchema,
 } from '../../../schemas/journals.schema.js';
 import { EmailTypes, sendEmail } from '../../../services/email/email.js';
+import { FileTreeService } from '../../../services/FileTreeService.js';
 import { getTargetDpidUrl } from '../../../services/fixDpid.js';
 import { doiService } from '../../../services/index.js';
 import { JournalEventLogService } from '../../../services/journals/JournalEventLogService.js';
@@ -396,6 +398,7 @@ type GetJournalSubmissionRequest = ValidatedRequest<typeof submissionApiSchema, 
 
 export const getJournalSubmissionController = async (req: GetJournalSubmissionRequest, res: Response) => {
   const { journalId, submissionId } = req.validatedData.params;
+  const { includeTree, filterHiddenFiles } = req.validatedData.query;
 
   const submissionExtended = await journalSubmissionService.getSubmissionDetails(submissionId);
   if (submissionExtended.isErr()) {
@@ -406,5 +409,19 @@ export const getJournalSubmissionController = async (req: GetJournalSubmissionRe
     return sendError(res, 'Submission not found', 404);
   }
 
-  return sendSuccess(res, submission);
+  const { manifestCid, uuid } = submission.researchObject;
+
+  let tree;
+  if (includeTree) {
+    const treeResult = await FileTreeService.getPublishedTree({
+      manifestCid,
+      uuid,
+      filterHiddenFiles, // Filter out .nodeKeep and .DS_Store files
+    });
+    if (treeResult.isOk()) {
+      tree = treeResult.value.tree;
+    }
+  }
+
+  return sendSuccess(res, { ...submission, ...(includeTree ? { tree } : {}) });
 };

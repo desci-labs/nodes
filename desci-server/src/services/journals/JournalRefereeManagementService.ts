@@ -1,4 +1,4 @@
-import { EditorRole, JournalEventLogAction, RefereeAssignment, RefereeInvite } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, RefereeAssignment, RefereeInvite, SubmissionStatus } from '@prisma/client';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
@@ -6,22 +6,20 @@ import { logger as parentLogger } from '../../logger.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
+import { getJournalSettingsByIdWithDefaults } from './JournalManagementService.js';
 import { journalSubmissionService } from './JournalSubmissionService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::JournalRefereeManagementService',
 });
 
-const DEFAULT_INVITE_DUE_DATE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
-const DEFAULT_REVIEW_DUE_DATE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
-const DEFAULT_REVIEW_DUE_DATE_HRS = DEFAULT_REVIEW_DUE_DATE / (60 * 60 * 1000); // ms to hours conversion
-const MAX_ASSIGNED_REFEREES = 3;
-
 type InviteRefereeInput = {
   submissionId: number;
   refereeUserId?: number;
+  refereeName?: string;
   managerUserId: number; // Editor who is inviting the referee
   relativeDueDateHrs?: number;
+  inviteExpiryHours?: number;
   refereeEmail?: string; // If not an existing user.
   expectedFormTemplateIds?: number[]; // Form templates the referee is expected to complete
 };
@@ -31,15 +29,26 @@ type InviteRefereeInput = {
  */
 async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeInvite, Error>> {
   try {
-    if (!data.relativeDueDateHrs) {
-      data.relativeDueDateHrs = DEFAULT_REVIEW_DUE_DATE_HRS;
-    }
     logger.trace({ fn: 'inviteReferee', data }, 'Inviting referee');
     const existingReferee = data.refereeUserId
       ? await prisma.user.findUnique({
           where: { id: data.refereeUserId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         })
-      : null;
+      : await prisma.user.findFirst({
+          where: {
+            email: data.refereeEmail,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        });
 
     const submission = await prisma.journalSubmission.findUnique({
       where: { id: data.submissionId },
@@ -51,6 +60,47 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
 
     if (!submission) {
       return err(new Error('Submission not found'));
+    }
+
+    // Get journal settings for this journal
+    const settingsResult = await getJournalSettingsByIdWithDefaults(submission.journalId);
+    if (settingsResult.isErr()) {
+      return err(settingsResult.error);
+    }
+    const settings = settingsResult.value;
+
+    // Use journal settings for default due date or validate provided value
+    if (!data.relativeDueDateHrs) {
+      data.relativeDueDateHrs = settings.reviewDueHours.default;
+    } else {
+      // Validate that the provided due date falls within the journal settings bounds
+      if (
+        data.relativeDueDateHrs < settings.reviewDueHours.min ||
+        data.relativeDueDateHrs > settings.reviewDueHours.max
+      ) {
+        return err(
+          new Error(
+            `Review due date must be between ${settings.reviewDueHours.min} and ${settings.reviewDueHours.max} hours`,
+          ),
+        );
+      }
+    }
+
+    // Use journal settings for default invite expiry or validate provided value
+    if (!data.inviteExpiryHours) {
+      data.inviteExpiryHours = settings.refereeInviteExpiryHours.default;
+    } else {
+      // Validate that the provided invite expiry falls within the journal settings bounds
+      if (
+        data.inviteExpiryHours < settings.refereeInviteExpiryHours.min ||
+        data.inviteExpiryHours > settings.refereeInviteExpiryHours.max
+      ) {
+        return err(
+          new Error(
+            `Invite expiry must be between ${settings.refereeInviteExpiryHours.min} and ${settings.refereeInviteExpiryHours.max} hours`,
+          ),
+        );
+      }
     }
 
     const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(data.submissionId);
@@ -72,6 +122,8 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
     if (!editor) {
       return err(new Error('Editor not found for submission'));
     }
+
+    const refereeName = existingReferee?.name ?? data.refereeName ?? 'Researcher';
 
     const refereeEmail = existingReferee?.email ?? data.refereeEmail;
     if (!refereeEmail) {
@@ -96,15 +148,19 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
     }
 
     const refereeInvite = await prisma.$transaction(async (tx) => {
-      //   const relativeDueDateHrs = DEFAULT_REVIEW_DUE_DATE / (60 * 60 * 1000); // ms to hours conversion
+      // Calculate invite expiry date using validated invite expiry hours
+      const inviteExpiryHours = data.inviteExpiryHours;
+      const expiresAt = new Date(Date.now() + inviteExpiryHours * 60 * 60 * 1000); // hours to ms
+
       const invite = await tx.refereeInvite.create({
         data: {
           userId: existingReferee?.id ?? null, // If referee doesn't have an account yet, userId is null. (External referee)
           submissionId: data.submissionId,
+          name: refereeName,
           email: refereeEmail,
           invitedById: data.managerUserId,
           token,
-          expiresAt: new Date(Date.now() + DEFAULT_INVITE_DUE_DATE),
+          expiresAt,
           relativeDueDateHrs: data.relativeDueDateHrs,
           expectedFormTemplateIds: data.expectedFormTemplateIds || [],
         },
@@ -119,8 +175,10 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
             submissionId: invite.submissionId,
             refereeId: invite.userId,
             refereeEmail,
+            refereeName,
             assignedSubmissionEditorId: submission.assignedEditorId,
             relativeDueDateHrs: data.relativeDueDateHrs,
+            inviteExpiryHours: data.inviteExpiryHours,
           },
         },
       });
@@ -135,7 +193,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
         journal: submission.journal,
         inviterName: editor.user.name,
         inviteToken: token,
-        refereeName: existingReferee?.name ?? '',
+        refereeName: refereeName,
         submission: submissionExtended,
       },
     });
@@ -176,15 +234,19 @@ export interface IRefereeInvite {
   submissionId: number;
   accepted: boolean;
   declined: boolean;
-  expiresAt: Date;
+  expiresAt: Date; // Refers to the invite expiration date.
+  relativeDueDateHrs: number; // Refers to the review due date, from the time of acceptance.
   token: string;
 }
 
-async function getRefereeInvites(refereeUserId: number): Promise<Result<IRefereeInvite[], Error>> {
+async function getRefereeInvites(
+  refereeUserId: number,
+  refereeEmail?: string,
+): Promise<Result<IRefereeInvite[], Error>> {
   try {
     const refereeInvites = await prisma.refereeInvite.findMany({
       where: {
-        userId: refereeUserId,
+        OR: [{ userId: refereeUserId }, { email: refereeEmail }],
       },
       select: {
         id: true,
@@ -192,6 +254,7 @@ async function getRefereeInvites(refereeUserId: number): Promise<Result<IReferee
         accepted: true,
         declined: true,
         expiresAt: true,
+        relativeDueDateHrs: true,
         token: true,
         submission: {
           select: {
@@ -309,6 +372,7 @@ export interface IRefereeAssignment {
 }
 async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssignment[], Error>> {
   try {
+    // debugger;
     const refereeAssignments = await prisma.refereeAssignment.findMany({
       where: {
         userId,
@@ -377,11 +441,9 @@ async function getRefereeAssignments(userId: number): Promise<Result<RefereeAssi
         },
         dpid: assignment.submission.dpid,
       },
-      reviews: assignment.reviews.map((review) => ({
-        ...review,
-        review: JSON.parse(review.review as string),
-      })),
+      reviews: assignment.reviews,
     }));
+    // debugger;
     return ok(assignments);
   } catch (error) {
     logger.error({ error, refereeUserId: userId }, 'Failed to get active referee assignments');
@@ -461,11 +523,19 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
       return err(new Error('Submission not found'));
     }
 
+    // Get journal settings to check referee count limit
+    const settingsResult = await getJournalSettingsByIdWithDefaults(submission.journalId);
+    if (settingsResult.isErr()) {
+      return err(settingsResult.error);
+    }
+    const settings = settingsResult.value;
+    const maxReferees = settings.refereeCount.value;
+
     const activeRefereeAssignments = await getActiveRefereeAssignments(refereeInvite.submissionId);
     if (activeRefereeAssignments.isErr()) {
       return err(activeRefereeAssignments.error);
     }
-    if (activeRefereeAssignments.value.length >= MAX_ASSIGNED_REFEREES) {
+    if (activeRefereeAssignments.value.length >= maxReferees) {
       // Invalidate invite
       await prisma.refereeInvite.update({
         where: { id: refereeInvite.id },
@@ -475,8 +545,8 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
         },
       });
       // Note: We could consider handling this differently.
-      logger.info({ fn: 'acceptRefereeInvite', data }, 'Maximum number of referees already assigned');
-      return err(new Error('Maximum number of referees already assigned'));
+      logger.info({ fn: 'acceptRefereeInvite', data, maxReferees }, 'Maximum number of referees already assigned');
+      return err(new Error(`Maximum number of referees (${maxReferees}) already assigned`));
     }
 
     const updatedRefereeInvite = await prisma.refereeInvite.update({
@@ -501,7 +571,7 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
 
     try {
       if (submission.assignedEditorId) {
-        const relativeDueDateHrs = refereeInvite.relativeDueDateHrs ?? DEFAULT_REVIEW_DUE_DATE_HRS;
+        const relativeDueDateHrs = refereeInvite.relativeDueDateHrs;
         const dueDate = new Date(Date.now() + relativeDueDateHrs * 60 * 60 * 1000); // hours to ms conversion
         // Acceptance notif to editor
         await NotificationService.emitOnRefereeAcceptance({
@@ -575,11 +645,38 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
       return err(new Error('Referee not found'));
     }
 
+    // Get journal settings to check referee count limit
+    const settingsResult = await getJournalSettingsByIdWithDefaults(submission.journalId);
+    if (settingsResult.isErr()) {
+      return err(settingsResult.error);
+    }
+    const settings = settingsResult.value;
+    const maxReferees = settings.refereeCount.value;
+
+    // Check if we're exceeding the referee limit
+    const activeRefereeAssignments = await getActiveRefereeAssignments(data.submissionId);
+    if (activeRefereeAssignments.isErr()) {
+      return err(activeRefereeAssignments.error);
+    }
+    if (activeRefereeAssignments.value.length >= maxReferees) {
+      logger.info({ fn: 'assignReferee', data, maxReferees }, 'Maximum number of referees already assigned');
+      return err(new Error(`Maximum number of referees (${maxReferees}) already assigned`));
+    }
+
     const relativeDueDateMs = data.dueDateHrs * 60 * 60 * 1000; // hours to ms conversion
     const dueDate = new Date(Date.now() + relativeDueDateMs);
 
-    const [refereeAssignment] = await prisma.$transaction([
-      prisma.refereeAssignment.create({
+    const [refereeAssignment] = await prisma.$transaction(async (tx) => {
+      // Check if this is the first referee assignment for this submission
+      const existingAssignments = await tx.refereeAssignment.count({
+        where: {
+          submissionId: data.submissionId,
+          OR: [{ completedAssignment: true }, { completedAssignment: null }],
+        },
+      });
+
+      // Create the referee assignment
+      const assignment = await tx.refereeAssignment.create({
         data: {
           submissionId: data.submissionId,
           userId: data.refereeUserId,
@@ -590,8 +687,18 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
           journalId: data.journalId,
           expectedFormTemplateIds: data.expectedFormTemplateIds || [],
         },
-      }),
-      prisma.journalEventLog.create({
+      });
+
+      // If this is the first referee assignment, update submission status to UNDER_REVIEW
+      if (existingAssignments === 0) {
+        await tx.journalSubmission.update({
+          where: { id: data.submissionId },
+          data: { status: SubmissionStatus.UNDER_REVIEW },
+        });
+      }
+
+      // Create event log
+      await tx.journalEventLog.create({
         data: {
           journalId: submission.journalId,
           action: JournalEventLogAction.REFEREE_ACCEPTED,
@@ -603,8 +710,10 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
             dueDate: dueDate.toISOString(),
           },
         },
-      }),
-    ]);
+      });
+
+      return [assignment];
+    });
 
     logger.info({ fn: 'assignReferee', data, refereeAssignmentId: refereeAssignment.id }, 'Assigned referee');
     return ok(refereeAssignment);
