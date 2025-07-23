@@ -7,6 +7,7 @@ import MainLayout, { baseStyles } from '../MainLayout.js';
 
 export interface RefereeDeclinedEmailProps {
   journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  editorName: string;
   refereeName: string;
   refereeEmail: string;
   submission: SubmissionExtended;

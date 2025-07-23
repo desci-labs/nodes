@@ -7,6 +7,7 @@ import MainLayout, { baseStyles } from '../MainLayout.js';
 export interface InviteEditorEmailProps {
   journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   inviterName: string;
+  recipientName: string;
   role: string;
   inviteToken: string;
 }
