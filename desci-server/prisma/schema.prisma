@@ -263,6 +263,7 @@ model User {
   refereeInvitesSent     RefereeInvite[]       @relation("InvitedBy")
   refereeInvitesReceived RefereeInvite[]       @relation("RefereeUser")
   journalFormTemplates   JournalFormTemplate[]
+  ExternalApiUsage       ExternalApiUsage[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1430,6 +1431,26 @@ model JournalFormResponse {
   journalSubmissionId Int?
   RefereeAssignment   RefereeAssignment?       @relation(fields: [refereeAssignmentId], references: [id])
   refereeAssignmentId Int?
+}
+
+model ExternalApiUsage {
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  apiType   ExternalApi
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  data      Json?
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, apiType])
+  @@index([userId, apiType, createdAt])
+}
+
+enum ExternalApi {
+  REFEREE_FINDER
 }
 
 enum MigrationType {
