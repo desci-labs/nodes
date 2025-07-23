@@ -293,6 +293,7 @@ describe('Journal Invite Service', () => {
           .send({
             email: 'neweditor@example.com',
             role: EditorRole.ASSOCIATE_EDITOR,
+            name: 'Test Editor',
           });
 
         expect(res.status).to.equal(200);
@@ -323,6 +324,7 @@ describe('Journal Invite Service', () => {
           .send({
             email: 'neweditor@example.com',
             role: EditorRole.ASSOCIATE_EDITOR,
+            name: 'Test Editor',
           });
 
         expect(res.status).to.equal(403);

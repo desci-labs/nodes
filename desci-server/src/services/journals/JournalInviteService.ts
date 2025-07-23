@@ -27,7 +27,7 @@ async function inviteJournalEditor({
   inviteTtlDays?: number;
 }) {
   logger.trace(
-    { fn: 'inviteJournalEditor', journalId, inviterId, email, role, inviteTtlDays },
+    { fn: 'inviteJournalEditor', journalId, inviterId, email, role, inviteTtlDays, name },
     'Inviting journal editor',
   );
 
