@@ -30,11 +30,17 @@ jobs:
     steps:
       - name: Cleanup expired PR deployments (15 days TTL)
         run: |
-          # Setup kubectl
+          # Setup kubectl and aws-iam-authenticator
           version=v1.23.6
           curl -sL "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
           chmod +x kubectl
           mv kubectl /usr/local/bin
+
+          # Install aws-iam-authenticator for EKS authentication
+          curl -sL "https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.6.14/aws-iam-authenticator_0.6.14_linux_amd64" -o aws-iam-authenticator
+          chmod +x aws-iam-authenticator
+          mv aws-iam-authenticator /usr/local/bin
+
           mkdir -p $HOME/.kube
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
 
@@ -68,11 +74,17 @@ jobs:
     steps:
       - name: Cleanup PR deployment
         run: |
-          # Setup kubectl
+          # Setup kubectl and aws-iam-authenticator
           version=v1.23.6
           curl -sL "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
           chmod +x kubectl
           mv kubectl /usr/local/bin
+
+          # Install aws-iam-authenticator for EKS authentication
+          curl -sL "https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.6.14/aws-iam-authenticator_0.6.14_linux_amd64" -o aws-iam-authenticator
+          chmod +x aws-iam-authenticator
+          mv aws-iam-authenticator /usr/local/bin
+
           mkdir -p $HOME/.kube
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
 
@@ -98,11 +110,17 @@ jobs:
 
       - name: Check concurrent deployment limit and cleanup orphaned resources (max 10)
         run: |
-          # Setup kubectl
+          # Setup kubectl and aws-iam-authenticator
           version=v1.23.6
           curl -sL "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
           chmod +x kubectl
           mv kubectl /usr/local/bin
+
+          # Install aws-iam-authenticator for EKS authentication
+          curl -sL "https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.6.14/aws-iam-authenticator_0.6.14_linux_amd64" -o aws-iam-authenticator
+          chmod +x aws-iam-authenticator
+          mv aws-iam-authenticator /usr/local/bin
+
           mkdir -p $HOME/.kube
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
 
@@ -264,11 +282,17 @@ jobs:
 
       - name: Deploy to EKS
         run: |
-          # Setup kubectl
+          # Setup kubectl and aws-iam-authenticator
           version=v1.23.6
           curl -sL "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
           chmod +x kubectl
           mv kubectl /usr/local/bin
+
+          # Install aws-iam-authenticator for EKS authentication
+          curl -sL "https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.6.14/aws-iam-authenticator_0.6.14_linux_amd64" -o aws-iam-authenticator
+          chmod +x aws-iam-authenticator
+          mv aws-iam-authenticator /usr/local/bin
+
           mkdir -p $HOME/.kube
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
 
