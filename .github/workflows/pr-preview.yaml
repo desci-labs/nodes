@@ -1,0 +1,431 @@
+name: PR Preview Deployment
+
+on:
+  pull_request:
+    paths:
+      - desci-server/**
+      - desci-contracts/**
+      - Dockerfile
+    types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [closed]
+  schedule:
+    # Run cleanup daily at 2 AM UTC
+    - cron: "0 2 * * *"
+
+env:
+  AWS_DEFAULT_REGION: us-east-2
+  AWS_DEFAULT_OUTPUT: json
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+  CONTAINER_IMAGE: desci-server
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  cleanup-expired-deployments:
+    if: github.event_name == 'schedule'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - name: Cleanup expired PR deployments (15 days TTL)
+        run: |
+          # Setup kubectl
+          version=v1.23.6
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+
+          # Calculate cutoff timestamp (15 days ago)
+          CUTOFF_DATE=$(date -d "15 days ago" +%s)
+
+          # Get all PR deployments with their creation timestamps
+          kubectl get deployments -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.created-at}{" "}{.metadata.labels.pr-number}{"\n"}{end}' | \
+          while read deployment_name created_at pr_number; do
+            if [ ! -z "$created_at" ] && [ "$created_at" -lt "$CUTOFF_DATE" ]; then
+              echo "Cleaning up expired deployment: $deployment_name (PR #$pr_number, created: $(date -d @$created_at))"
+              
+              # Delete Kubernetes resources
+              kubectl delete deployment $deployment_name --ignore-not-found=true
+              kubectl delete service desci-server-pr-${pr_number}-service --ignore-not-found=true
+              kubectl delete ingress desci-server-pr-${pr_number}-ingress --ignore-not-found=true
+              
+              # Clean up ECR image
+              aws ecr batch-delete-image \
+                --repository-name desci-server-pr \
+                --image-ids imageTag=pr-${pr_number} || true
+              
+              echo "Cleaned up PR #$pr_number deployment"
+            fi
+          done
+
+  cleanup-closed-pr:
+    if: github.event.action == 'closed'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - name: Cleanup PR deployment
+        run: |
+          # Setup kubectl
+          version=v1.23.6
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+
+          # Clean up resources
+          PR_NUMBER=${{ github.event.number }}
+          kubectl delete deployment desci-server-pr-${PR_NUMBER} --ignore-not-found=true
+          kubectl delete service desci-server-pr-${PR_NUMBER}-service --ignore-not-found=true
+          kubectl delete ingress desci-server-pr-${PR_NUMBER}-ingress --ignore-not-found=true
+
+          # Clean up ECR images
+          aws ecr batch-delete-image \
+            --repository-name desci-server-pr \
+            --image-ids imageTag=pr-${PR_NUMBER} || true
+
+  build-and-deploy-pr:
+    if: github.event.action != 'closed' && github.event_name != 'schedule'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check concurrent deployment limit (max 10)
+        run: |
+          # Setup kubectl
+          version=v1.23.6
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+
+          PR_NUMBER=${{ github.event.number }}
+
+          # Count current PR deployments (excluding the current one if it exists)
+          CURRENT_COUNT=$(kubectl get deployments -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{.items[*].metadata.labels.pr-number}' | \
+            tr ' ' '\n' | grep -v "^$PR_NUMBER$" | wc -l)
+
+          echo "Current PR deployments: $CURRENT_COUNT/10"
+
+          if [ "$CURRENT_COUNT" -ge 10 ]; then
+            echo "::error::Maximum concurrent PR deployments (10) reached. Please close some PRs or wait for cleanup."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: useblacksmith/setup-node@v5
+        with:
+          node-version-file: ".nvmrc"
+          check-latest: false
+          cache: "yarn"
+          cache-dependency-path: |
+            desci-models/yarn.lock
+            desci-server/yarn.lock
+
+      - name: Install dependencies and test
+        run: |
+          cd desci-models && npm i -g yarn && yarn && yarn build
+          cd ../desci-server && yarn --ignore-engines
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > src/desci-contracts-config/unknown-research-object.json
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > src/desci-contracts-config/unknown-dpid.json
+          yarn test
+
+      - name: Build and push PR image
+        run: |
+          PR_NUMBER=${{ github.event.number }}
+
+          # Setup Sentry
+          npm install -g @sentry/cli
+          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
+          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> desci-server/.env
+
+          # Build and tag image
+          docker build \
+            -t $CONTAINER_IMAGE-pr:pr-$PR_NUMBER \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-pr:pr-$PR_NUMBER \
+            .
+
+          # Push to ECR
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+          # Create repository if it doesn't exist
+          aws ecr describe-repositories --repository-names desci-server-pr || \
+          aws ecr create-repository --repository-name desci-server-pr
+
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-pr:pr-$PR_NUMBER
+
+      - name: Deploy to EKS
+        run: |
+          # Setup kubectl
+          version=v1.23.6
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+
+          PR_NUMBER=${{ github.event.number }}
+          PR_URL="pr-${PR_NUMBER}.nodes-api-dev.desci.com"
+          CREATED_AT=$(date +%s)
+
+          # Create temporary deployment manifest
+          cat << EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: desci-server-pr-${PR_NUMBER}
+            labels:
+              App: DesciServerPR${PR_NUMBER}
+              app.kubernetes.io/component: pr-preview
+              app.kubernetes.io/managed-by: github-actions
+              pr-number: "${PR_NUMBER}"
+              created-at: "${CREATED_AT}"
+              ttl: "15d"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                App: DesciServerPR${PR_NUMBER}
+            template:
+              metadata:
+                annotations:
+                  vault.hashicorp.com/agent-inject: 'true'
+                  vault.hashicorp.com/agent-inject-status: 'update'
+                  vault.hashicorp.com/role: app-vault-reader
+                  vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/db
+                  vault.hashicorp.com/agent-inject-template-config: |
+                    {{- with secret "secrets/desci-server/dev/db" -}}
+                    export PG_HOST={{ .Data.host }}
+                    export PG_PORT={{ .Data.port }}
+                    export POSTGRES_USER={{ .Data.user }}
+                    export POSTGRES_PASSWORD={{ .Data.password }}
+                    export POSTGRES_DB={{ .Data.db }}
+                    export DATABASE_URL={{ .Data.url }}
+                    export IPFS_NODE_URL="http://ipfs-gateway-staging-internal.default.svc.cluster.local:5001"
+                    export NODE_ENV=production
+                    echo "dbset"; 
+                    {{- end -}}
+                    {{- with secret "secrets/desci-server/dev/app" -}}
+                    echo "appstart"; 
+                    export PINO_LOG_LEVEL={{ .Data.PINO_LOG_LEVEL }}
+                    export JWT_SECRET={{ .Data.JWT_SECRET }}
+                    export JWT_EXPIRATION=15m
+                    export SESSION_KEY={{ .Data.SESSION_KEY }}
+                    export COOKIE_DOMAIN=.nodes-api-dev.desci.com
+                    export OLD_COOKIE_DOMAINS={{ .Data.OLD_COOKIE_DOMAINS }}
+                    export ORCID_API_DOMAIN={{ .Data.ORCID_API_DOMAIN }}
+                    export DPID_URL_OVERRIDE={{ .Data.DPID_URL_OVERRIDE }}
+                    export ORCID_CLIENT_ID={{ .Data.ORCID_CLIENT_ID }}
+                    export ORCID_CLIENT_SECRET={{ .Data.ORCID_CLIENT_SECRET }}
+                    export SERVER_URL=https://${PR_URL}
+                    export DAPP_URL=https://nodes-dev.desci.com
+                    export REDIS_HOST={{ .Data.REDIS_HOST }}
+                    export REDIS_PORT={{ .Data.REDIS_PORT }}
+                    export REDIS_URL={{ .Data.REDIS_URL }}
+                    export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}
+                    export SENDGRID_TEMPLATE_ID_MAP={{ .Data.SENDGRID_TEMPLATE_ID_MAP }}
+                    export SHOULD_SEND_EMAIL=false
+                    export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
+                    export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
+                    export AWS_S3_BUCKET_NAME={{ .Data.AWS_S3_BUCKET_NAME }}
+                    export AWS_S3_BUCKET_REGION={{ .Data.AWS_S3_BUCKET_REGION }}
+                    export THEGRAPH_API_URL={{ .Data.THEGRAPH_API_URL }}
+                    export HOT_WALLET_KEY={{ .Data.HOT_WALLET_KEY }}
+                    export REGISTRY_OWNER_PKEY={{ .Data.REGISTRY_OWNER_PKEY }}
+                    export CSO_CLASSIFIER_API={{ .Data.CSO_CLASSIFIER_API }}
+                    export VSCODE_ACCESS_TOKEN={{ .Data.VSCODE_ACCESS_TOKEN }}
+                    export NODES_MEDIA_SERVER_URL={{ .Data.NODES_MEDIA_SERVER_URL }}
+                    export OTEL_SERVICE_NAME={{ .Data.OTEL_SERVICE_NAME }}
+                    export HONEYCOMB_API_KEY={{ .Data.HONEYCOMB_API_KEY }}
+                    export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
+                    export DISCORD_NOTIFICATIONS_DOI_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_DOI_WEBHOOK_URL }}
+                    export PUBLIC_IPFS_RESOLVER={{ .Data.PUBLIC_IPFS_RESOLVER }}
+                    export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
+                    export ESTUARY_API_KEY={{ .Data.ESTUARY_API_KEY }}
+                    export ESTUARY_API_URL={{ .Data.ESTUARY_API_URL }}
+                    export REPO_SERVER_URL={{ .Data.REPO_SERVER_URL }}
+                    export REPO_SERVICE_SECRET_KEY={{ .Data.REPO_SERVICE_SECRET_KEY }}
+                    export ISOLATED_MEDIA_SERVER_URL={{ .Data.ISOLATED_MEDIA_SERVER_URL }}
+                    export IPFS_READ_ONLY_GATEWAY_SERVER_URL={{ .Data.IPFS_READ_ONLY_GATEWAY_SERVER_URL }}
+                    export ETHEREUM_RPC_URL={{ .Data.ETHEREUM_RPC_URL }}
+                    export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
+                    export DOI_PREFIX={{ .Data.DOI_PREFIX }}
+                    export CROSSREF_EMAIL={{ .Data.CROSSREF_EMAIL }}
+                    export CROSSREF_DOI_URL={{ .Data.CROSSREF_DOI_URL }}
+                    export CROSSREF_LOGIN={{ .Data.CROSSREF_LOGIN }}
+                    export CROSSREF_PASSWORD={{ .Data.CROSSREF_PASSWORD }}
+                    export CROSSREF_METADATA_API={{ .Data.CROSSREF_METADATA_API }}
+                    export CROSSREF_ADMIN_API={{ .Data.CROSSREF_ADMIN_API }}
+                    export CROSSREF_NOTIFY_ENDPOINT={{ .Data.CROSSREF_NOTIFY_ENDPOINT }}
+                    export AUTOMATED_METADATA_API="{{ .Data.AUTOMATED_METADATA_API }}"
+                    export AUTOMATED_METADATA_API_KEY="{{ .Data.AUTOMATED_METADATA_API_KEY }}"
+                    export ELASTIC_SEARCH_NODE_URL="{{ .Data.ELASTIC_SEARCH_NODE_URL }}"
+                    export ELASTIC_SEARCH_USER="{{ .Data.ELASTIC_SEARCH_USER }}"
+                    export ELASTIC_SEARCH_PW="{{ .Data.ELASTIC_SEARCH_PW }}"
+                    export ELASTIC_SEARCH_WRITE_API_KEY="{{ .Data.ELASTIC_SEARCH_WRITE_API_KEY }}"
+                    export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
+                    export SCORE_GEN_SERVER="{{ .Data.SCORE_GEN_SERVER }}"
+                    export SCORE_RESULT_API="{{ .Data.SCORE_RESULT_API }}"
+                    export AI_CID_SEND_SERVER="{{ .Data.AI_CID_SEND_SERVER }}"
+                    export CLOUDFLARE_WORKER_API=https://nodes-dev-sync.desci.com
+                    export CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
+                    export ENABLE_WORKERS_API=true
+                    export LOG_ENCRYPTION_KEY="{{ .Data.LOG_ENCRYPTION_KEY }}"
+                    export ORCID_PUBLIC_API="{{ .Data.ORCID_PUBLIC_API }}"
+                    export GUEST_IPFS_NODE_URL="{{ .Data.GUEST_IPFS_NODE_URL }}"
+                    export AWS_SQS_ACCESS_KEY_ID="{{ .Data.AWS_SQS_ACCESS_KEY_ID }}"
+                    export AWS_SQS_SECRET_ACCESS_KEY="{{ .Data.AWS_SQS_SECRET_ACCESS_KEY }}"
+                    export AWS_SQS_REGION="{{ .Data.AWS_SQS_REGION }}"
+                    export AWS_SQS_QUEUE_URL="{{ .Data.AWS_SQS_QUEUE_URL }}"
+                    export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
+                    export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
+                    export DEBUG_TEST=0;
+                    echo "appfinish";
+                    {{- end -}}
+                labels:
+                  App: DesciServerPR${PR_NUMBER}
+                  app.kubernetes.io/component: pr-preview
+              spec:
+                containers:
+                - image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/desci-server-pr:pr-${PR_NUMBER}
+                  name: desci-server-pr
+                  command: ['/bin/bash', '-c']
+                  args:
+                    - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+                  ports:
+                  - containerPort: 5420
+                    name: server-api
+                  resources:
+                    limits:
+                      cpu: '0.5'
+                      memory: 2Gi
+                    requests:
+                      cpu: '0.3'
+                      memory: 1Gi
+                  readinessProbe:
+                    httpGet:
+                      path: /readyz
+                      port: server-api
+                    failureThreshold: 3
+                    periodSeconds: 1
+                  startupProbe:
+                    httpGet:
+                      path: /readyz
+                      port: server-api
+                    failureThreshold: 60
+                    periodSeconds: 2
+                serviceAccountName: 'vault-auth'
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: desci-server-pr-${PR_NUMBER}-service
+            labels:
+              App: DesciServerPR${PR_NUMBER}
+              app.kubernetes.io/component: pr-preview
+              pr-number: "${PR_NUMBER}"
+          spec:
+            type: ClusterIP
+            selector:
+              App: DesciServerPR${PR_NUMBER}
+            ports:
+            - protocol: TCP
+              port: 80
+              targetPort: 5420
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: desci-server-pr-${PR_NUMBER}-ingress
+            labels:
+              app.kubernetes.io/component: pr-preview
+              pr-number: "${PR_NUMBER}"
+            annotations:
+              kubernetes.io/ingress.class: 'alb'
+              alb.ingress.kubernetes.io/scheme: 'internet-facing'
+              alb.ingress.kubernetes.io/target-type: 'ip'
+              alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+              alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-2:523044037273:certificate/b6ddf370-5957-4996-bc09-4f48894c0c1f'
+              alb.ingress.kubernetes.io/ssl-redirect: '443'
+          spec:
+            rules:
+            - host: '${PR_URL}'
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: desci-server-pr-${PR_NUMBER}-service
+                      port:
+                        number: 80
+          EOF
+
+          # Wait for deployment to be ready
+          kubectl rollout status deployment/desci-server-pr-${PR_NUMBER} --timeout=300s
+
+          # Get current deployment count for summary
+          CURRENT_COUNT=$(kubectl get deployments -l app.kubernetes.io/component=pr-preview -o name | wc -l)
+
+          echo "::notice title=PR Preview Deployed::PR #${PR_NUMBER} is available at https://${PR_URL} (${CURRENT_COUNT}/10 deployments active)"
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = `https://pr-${prNumber}.nodes-api-dev.desci.com`;
+            const expiryDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString();
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existingComment = comments.data.find(
+              comment => comment.body.includes('🚀 PR Preview Deployment')
+            );
+
+            const commentBody = `🚀 **PR Preview Deployment**
+
+            Your PR has been deployed and is available at:
+            **${previewUrl}**
+
+            📋 **Deployment Details:**
+            - 🔗 Preview URL: ${previewUrl}
+            - 📦 Image: \`desci-server-pr:pr-${prNumber}\`
+            - ⏱️ Deployed at: ${new Date().toISOString()}
+            - 🗓️ **Expires on: ${expiryDate}** (15 days TTL)
+            - 🔄 Uses dev environment configuration
+
+            ⚠️ **Note:** This deployment shares the dev database. Be cautious with destructive operations.
+
+            🧹 This deployment will be automatically cleaned up when:
+            - The PR is closed, or
+            - 15 days have passed since deployment`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody,
+              });
+            }
