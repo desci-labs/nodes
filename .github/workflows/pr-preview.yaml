@@ -35,7 +35,7 @@ jobs:
           curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
           chmod +x kubectl
           mv kubectl /usr/local/bin
-          mkdir $HOME/.kube
+          mkdir -p $HOME/.kube
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
 
           # Calculate cutoff timestamp (15 days ago)
@@ -67,15 +67,15 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: Cleanup PR deployment
-        run: |
+                run: |
           # Setup kubectl
           version=v1.23.6
           curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
           chmod +x kubectl
           mv kubectl /usr/local/bin
-          mkdir $HOME/.kube
+          mkdir -p $HOME/.kube
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
-
+          
           # Clean up resources
           PR_NUMBER=${{ github.event.number }}
           kubectl delete deployment desci-server-pr-${PR_NUMBER} --ignore-not-found=true
@@ -185,7 +185,7 @@ jobs:
           curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
           chmod +x kubectl
           mv kubectl /usr/local/bin
-          mkdir $HOME/.kube
+          mkdir -p $HOME/.kube
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
 
           PR_NUMBER=${{ github.event.number }}
