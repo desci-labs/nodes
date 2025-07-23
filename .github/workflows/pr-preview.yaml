@@ -96,7 +96,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check concurrent deployment limit (max 10)
+      - name: Check concurrent deployment limit and cleanup orphaned resources (max 10)
         run: |
           # Setup kubectl
           version=v1.23.6
@@ -108,15 +108,95 @@ jobs:
 
           PR_NUMBER=${{ github.event.number }}
 
-          # Count current PR deployments (excluding the current one if it exists)
+          echo "🧹 Cleaning up orphaned resources and failed deployments..."
+
+          # Get all PR preview deployments with detailed status
+          kubectl get deployments -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.pr-number}{" "}{.spec.replicas}{" "}{.status.availableReplicas}{" "}{.status.readyReplicas}{"\n"}{end}' | \
+          while read deployment_name pr_num desired_replicas available_replicas ready_replicas; do
+            if [ -z "$deployment_name" ]; then continue; fi
+            
+            echo "Checking deployment: $deployment_name (PR #$pr_num)"
+            echo "  Desired: $desired_replicas, Available: $available_replicas, Ready: $ready_replicas"
+            
+            # Check if deployment is unhealthy (no available replicas after reasonable time)
+            if [ "$available_replicas" = "null" ] || [ "$available_replicas" = "" ] || [ "$available_replicas" -eq 0 ]; then
+              # Check deployment age - if older than 10 minutes and still no replicas, consider it failed
+              creation_time=$(kubectl get deployment $deployment_name -o jsonpath='{.metadata.creationTimestamp}')
+              current_time=$(date -u +%s)
+              creation_timestamp=$(date -d "$creation_time" +%s 2>/dev/null || echo "0")
+              age_minutes=$(( (current_time - creation_timestamp) / 60 ))
+              
+              if [ $age_minutes -gt 10 ]; then
+                echo "⚠️  Deployment $deployment_name is unhealthy (age: ${age_minutes}m, available: $available_replicas)"
+                echo "   Cleaning up failed deployment and associated resources..."
+                
+                # Clean up the failed deployment and its resources
+                kubectl delete deployment $deployment_name --ignore-not-found=true
+                kubectl delete service desci-server-pr-${pr_num}-service --ignore-not-found=true
+                kubectl delete ingress desci-server-pr-${pr_num}-ingress --ignore-not-found=true
+                
+                echo "   ✅ Cleaned up failed deployment PR #$pr_num"
+              fi
+            fi
+          done
+
+          # Clean up orphaned services (services without corresponding deployments)
+          echo "🧹 Checking for orphaned services..."
+          kubectl get services -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.pr-number}{"\n"}{end}' | \
+          while read service_name pr_num; do
+            if [ -z "$service_name" ]; then continue; fi
+            
+            # Check if corresponding deployment exists
+            if ! kubectl get deployment desci-server-pr-${pr_num} >/dev/null 2>&1; then
+              echo "⚠️  Found orphaned service: $service_name (PR #$pr_num)"
+              kubectl delete service $service_name --ignore-not-found=true
+              echo "   ✅ Cleaned up orphaned service"
+            fi
+          done
+
+          # Clean up orphaned ingresses (ingresses without corresponding deployments)
+          echo "🧹 Checking for orphaned ingresses..."
+          kubectl get ingress -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.pr-number}{"\n"}{end}' | \
+          while read ingress_name pr_num; do
+            if [ -z "$ingress_name" ]; then continue; fi
+            
+            # Check if corresponding deployment exists
+            if ! kubectl get deployment desci-server-pr-${pr_num} >/dev/null 2>&1; then
+              echo "⚠️  Found orphaned ingress: $ingress_name (PR #$pr_num)"
+              kubectl delete ingress $ingress_name --ignore-not-found=true
+              echo "   ✅ Cleaned up orphaned ingress"
+            fi
+          done
+
+          # Count only healthy PR deployments (excluding the current one if it exists)
+          HEALTHY_COUNT=0
+          kubectl get deployments -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.labels.pr-number}{" "}{.status.availableReplicas}{"\n"}{end}' | \
+          while read pr_num available_replicas; do
+            if [ -z "$pr_num" ]; then continue; fi
+            
+            # Skip current PR and only count healthy deployments
+            if [ "$pr_num" != "$PR_NUMBER" ] && [ "$available_replicas" != "null" ] && [ "$available_replicas" != "" ] && [ "$available_replicas" -gt 0 ]; then
+              HEALTHY_COUNT=$((HEALTHY_COUNT + 1))
+            fi
+          done
+
+          # Get final count after cleanup
           CURRENT_COUNT=$(kubectl get deployments -l app.kubernetes.io/component=pr-preview \
             -o jsonpath='{.items[*].metadata.labels.pr-number}' | \
             tr ' ' '\n' | grep -v "^$PR_NUMBER$" | wc -l)
 
-          echo "Current PR deployments: $CURRENT_COUNT/10"
+          echo "📊 Deployment status after cleanup:"
+          echo "   Total PR deployments: $CURRENT_COUNT"
+          echo "   Healthy deployments: $HEALTHY_COUNT"
+          echo "   Limit: 10"
 
           if [ "$CURRENT_COUNT" -ge 10 ]; then
-            echo "::error::Maximum concurrent PR deployments (10) reached. Please close some PRs or wait for cleanup."
+            echo "::error::Maximum concurrent PR deployments (10) reached after cleanup. Please close some PRs or wait for automatic cleanup."
+            echo "::notice::Consider checking for stuck deployments that may need manual intervention."
             exit 1
           fi
 
