@@ -669,6 +669,7 @@ async function getJournalProfile(userId: number): Promise<
     },
     select: {
       journalId: true,
+      userId: true,
       journal: {
         select: {
           id: true,
