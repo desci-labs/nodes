@@ -172,9 +172,12 @@ jobs:
           done
 
           # Count only healthy PR deployments (excluding the current one if it exists)
-          HEALTHY_COUNT=0
+          # Use a temporary file to avoid subshell variable scoping issues
+          TEMP_FILE=$(mktemp)
           kubectl get deployments -l app.kubernetes.io/component=pr-preview \
-            -o jsonpath='{range .items[*]}{.metadata.labels.pr-number}{" "}{.status.availableReplicas}{"\n"}{end}' | \
+            -o jsonpath='{range .items[*]}{.metadata.labels.pr-number}{" "}{.status.availableReplicas}{"\n"}{end}' > "$TEMP_FILE"
+
+          HEALTHY_COUNT=0
           while read pr_num available_replicas; do
             if [ -z "$pr_num" ]; then continue; fi
             
@@ -182,9 +185,10 @@ jobs:
             if [ "$pr_num" != "$PR_NUMBER" ] && [ "$available_replicas" != "null" ] && [ "$available_replicas" != "" ] && [ "$available_replicas" -gt 0 ]; then
               HEALTHY_COUNT=$((HEALTHY_COUNT + 1))
             fi
-          done
+          done < "$TEMP_FILE"
+          rm -f "$TEMP_FILE"
 
-          # Get final count after cleanup
+          # Get total count after cleanup for informational purposes
           CURRENT_COUNT=$(kubectl get deployments -l app.kubernetes.io/component=pr-preview \
             -o jsonpath='{.items[*].metadata.labels.pr-number}' | \
             tr ' ' '\n' | grep -v "^$PR_NUMBER$" | wc -l)
@@ -194,8 +198,8 @@ jobs:
           echo "   Healthy deployments: $HEALTHY_COUNT"
           echo "   Limit: 10"
 
-          if [ "$CURRENT_COUNT" -ge 10 ]; then
-            echo "::error::Maximum concurrent PR deployments (10) reached after cleanup. Please close some PRs or wait for automatic cleanup."
+          if [ "$HEALTHY_COUNT" -ge 10 ]; then
+            echo "::error::Maximum concurrent healthy PR deployments (10) reached after cleanup. Please close some PRs or wait for automatic cleanup."
             echo "::notice::Consider checking for stuck deployments that may need manual intervention."
             exit 1
           fi
