@@ -477,7 +477,7 @@ jobs:
               alb.ingress.kubernetes.io/scheme: 'internet-facing'
               alb.ingress.kubernetes.io/target-type: 'ip'
               alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-              alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-2:523044037273:certificate/b6ddf370-5957-4996-bc09-4f48894c0c1f'
+              alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-2:523044037273:certificate/b56b0e10-e8c6-447a-a58f-7277995e9dc8'
               alb.ingress.kubernetes.io/ssl-redirect: '443'
           spec:
             rules:
