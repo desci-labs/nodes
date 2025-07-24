@@ -5,6 +5,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { transformGuestDataRefsToDataRefs } from '../../utils/dataRefTools.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 import { IPFS_NODE, isCidPinned, removeCid } from '../ipfs.js';
+import { SqsMessageType } from '../sqs/SqsMessageTypes.js';
 import { sqsService } from '../sqs/SqsService.js';
 
 const logger = parentLogger.child({
@@ -144,6 +145,7 @@ async function queueDataMigrationJob(migrationId: number, migrationType: Migrati
   }
 
   await sqsService.sendMessage({
+    messageType: SqsMessageType.DATA_MIGRATION,
     migrationId,
     migrationType,
   });

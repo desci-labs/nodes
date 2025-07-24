@@ -4,6 +4,7 @@ import { DataMigration, MigrationStatus, MigrationType } from '@prisma/client';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { IPFS_NODE, migrateCidByPinning } from '../ipfs.js';
+import { BaseSqsMessage, DataMigrationSqsMessage, SqsMessageType } from '../sqs/SqsMessageTypes.js';
 import { sqsService } from '../sqs/SqsService.js';
 
 import { DataMigrationService } from './DataMigrationService.js';
@@ -84,7 +85,16 @@ export class DataMigrationWorker {
     const visibilityTimeoutExtender = this.visibilityTimeoutExtender(message);
 
     try {
-      const { migrationId, migrationType } = JSON.parse(message.Body);
+      const baseMessage: BaseSqsMessage = JSON.parse(message.Body);
+
+      // Only process data migration messages
+      if (baseMessage.messageType !== SqsMessageType.DATA_MIGRATION) {
+        logger.debug({ messageType: baseMessage.messageType }, 'Ignoring non-data-migration message');
+        clearInterval(visibilityTimeoutExtender);
+        return false; // Don't delete, let other handlers process it
+      }
+
+      const { migrationId, migrationType } = baseMessage as DataMigrationSqsMessage;
 
       // Get migration record
       const migration = await prisma.dataMigration.findUnique({
@@ -96,6 +106,7 @@ export class DataMigrationWorker {
           { fn: 'processMigrationMessage', migrationId, migrationStatus: migration?.migrationStatus },
           'Migration already completed or not found',
         );
+        clearInterval(visibilityTimeoutExtender);
         await sqsService.deleteMessage(message.ReceiptHandle);
         return true;
       }
