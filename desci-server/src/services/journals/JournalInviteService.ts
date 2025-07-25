@@ -157,6 +157,10 @@ async function acceptJournalInvite({ token, userId }: { token: string; userId: n
     'Accepting journal invite',
   );
 
+  if (invite?.accepted === true && invite.decisionAt !== null) {
+    return invite;
+  }
+
   const isValid = invite && invite.expiresAt > new Date() && invite.accepted === null;
 
   if (!invite) {
