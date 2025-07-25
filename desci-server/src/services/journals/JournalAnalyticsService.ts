@@ -158,8 +158,8 @@ const toDays = (ms: number) => {
   return Math.round(ms / (1000 * 60 * 60 * 24));
 };
 
-export function relativeTimeFormat(date: number) {
-  const diff = Math.round(date / 1000);
+export function relativeTimeFormat(ms: number) {
+  const diff = Math.round(ms / 1000);
 
   const minute = 60;
   const hour = minute * 60;
@@ -172,18 +172,20 @@ export function relativeTimeFormat(date: number) {
     return 'just now';
   } else if (diff < minute) {
     return `${diff} Seconds`;
+  } else if (diff === 2 * minute) {
+    return '2 Minutes';
   } else if (diff < 2 * minute) {
     return 'A minute';
   } else if (diff < hour) {
     const sub = Math.floor(diff / minute);
     return sub + ` Minute${sub > 1 ? 's' : ''}`;
-  } else if (Math.floor(diff / hour) == 1) {
+  } else if (Math.floor(diff / hour) === 1) {
     return '1 Hour';
   } else if (diff < day) {
     const sub = Math.floor(diff / hour);
     return sub + ` Hour${sub > 1 ? 's' : ''}`;
   } else if (diff < day * 2) {
-    return 'yesterday';
+    return '1 Day';
   } else if (diff < week) {
     const sub = Math.floor(diff / day);
     return sub + ' Days';
