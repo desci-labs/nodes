@@ -113,6 +113,8 @@ spec:
           export AWS_SQS_QUEUE_URL="{{ .Data.AWS_SQS_QUEUE_URL }}"
           export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
           export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
+          export SUPABASE_URL="{{ .Data.SUPABASE_URL }}"
+          export SUPABASE_SERVICE_KEY="{{ .Data.SUPABASE_SERVICE_KEY }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";
