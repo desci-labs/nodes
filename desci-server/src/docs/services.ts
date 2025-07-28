@@ -91,3 +91,4 @@ export const servicesPaths: ZodOpenApiPathsObject = {
     get: generateShareImageOperation,
   },
 };
+// Documentation updated for generateShareImage API Mon Jul 28 18:30:40 WITA 2025
