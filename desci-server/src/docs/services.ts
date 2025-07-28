@@ -28,17 +28,27 @@ export const generateShareImageOperation: ZodOpenApiOperationObject = {
       description: 'Successfully generated share image',
       content: {
         'image/png': {
-          schema: z.string().describe('Binary PNG image data'),
+          schema: {
+            type: 'string',
+            format: 'binary',
+            description: 'Binary PNG image data',
+          },
         },
       },
       headers: {
         'Cache-Control': {
           description: 'Cache control header',
-          schema: z.string().describe('Cache control directives, e.g., "public, max-age=21600"'),
+          schema: {
+            type: 'string',
+            example: 'public, max-age=21600',
+          },
         },
         'Content-Type': {
           description: 'Content type header',
-          schema: z.string().describe('MIME type, e.g., "image/png"'),
+          schema: {
+            type: 'string',
+            example: 'image/png',
+          },
         },
       },
     },
