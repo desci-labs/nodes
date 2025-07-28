@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import axios from 'axios';
+import xss from 'xss';
 import { logger as parentLogger } from '../../logger.js';
 import { supabase } from '../../lib/supabase.js';
 
@@ -126,226 +127,308 @@ export const generateShareImage = async (req: Request<any, any, any, ShareImageQ
   }
 };
 
+// Layout configuration constants
+const LAYOUT = {
+  CANVAS: {
+    WIDTH: 1536,
+    HEIGHT: 1024,
+  },
+  MARGINS: {
+    LEFT: 150,
+    RIGHT: 200,
+    TOP: 350,
+    BOTTOM: 100,
+  },
+  QUESTION: {
+    FONT_SIZE: 48,
+    LINE_HEIGHT: 58,
+    MAX_LINES: 6,
+    MAX_CHARS_PER_LINE: 60,
+    COLOR: '#ffffff',
+  },
+  ANSWER: {
+    FONT_SIZE: 24,
+    LINE_HEIGHT: 36,
+    MAX_CHARS_PER_LINE: 100,
+    COLOR: '#e8e8e8',
+    MIN_LINES_REQUIRED: 2,
+    PREVIEW_SENTENCES: 4,
+    MAX_PREVIEW_LENGTH: 500,
+  },
+  CITATIONS: {
+    FONT_SIZE: 14,
+    LINE_HEIGHT: 20,
+    BLOCK_HEIGHT: 60, // citationLineHeight * 3
+    MAX_COUNT: 3,
+    RESERVED_SPACE: 200,
+    HEADER_COLOR: '#9ca3af',
+    NUMBER_COLOR: '#64748b',
+    TITLE_COLOR: '#ffffff',
+    METADATA_COLOR: '#d1d5db',
+    MAX_TITLE_LENGTH: 80,
+  },
+  BRANDING: {
+    FONT_SIZE: 18,
+    COLOR: '#ffffff',
+    TEXT: 'DeSci Publish',
+  },
+  SPACING: {
+    QUESTION_TO_ANSWER: 60,
+    ANSWER_TO_CITATIONS: 50,
+    CITATIONS_HEADER_OFFSET: 25,
+    BRANDING_OFFSET: 60,
+  },
+};
+
+/**
+ * Sanitizes text for safe use in SVG text elements using XSS protection
+ * Configured to allow only text content, no HTML tags or dangerous content
+ */
+function sanitizeSvgText(text: string): string {
+  // Configure XSS options for SVG text - strip all HTML tags and dangerous content
+  const options = {
+    whiteList: {}, // No HTML tags allowed
+    stripIgnoreTag: true, // Strip tags that aren't in whitelist
+    stripIgnoreTagBody: ['script'], // Remove script tag content entirely
+    allowCommentTag: false, // No HTML comments
+    css: false, // No CSS
+    onIgnoreTag: () => '', // Remove any unrecognized tags
+    onIgnoreTagAttr: () => '', // Remove any unrecognized attributes
+  };
+
+  // Sanitize the text and then ensure proper XML escaping for SVG
+  const sanitized = xss(text, options);
+
+  // Additional escaping for XML/SVG context
+  return sanitized
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Wraps text to fit within specified character limit per line
+ */
+function wrapText(text: string, maxCharsPerLine: number = 60): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine + (currentLine ? ' ' : '') + word;
+
+    if (testLine.length > maxCharsPerLine && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+/**
+ * Prepares and cleans answer text for display
+ */
+function prepareAnswerPreview(answer: string | undefined): string {
+  if (!answer || typeof answer !== 'string') {
+    return '';
+  }
+
+  // Strip HTML tags and citation markers
+  const cleanAnswer = answer.replace(/<[^>]*>/g, '').replace(/\[\d+\]/g, '');
+  const sentences = cleanAnswer.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const previewText = sentences.slice(0, LAYOUT.ANSWER.PREVIEW_SENTENCES).join('. ');
+
+  if (previewText.length > LAYOUT.ANSWER.MAX_PREVIEW_LENGTH) {
+    return previewText.substring(0, LAYOUT.ANSWER.MAX_PREVIEW_LENGTH - 3) + '...';
+  } else {
+    return previewText + (sentences.length > LAYOUT.ANSWER.PREVIEW_SENTENCES ? '...' : '.');
+  }
+}
+
+/**
+ * Generates SVG elements for the question section
+ */
+function generateQuestionSvg(text: string): string {
+  const questionLines = wrapText(text, LAYOUT.QUESTION.MAX_CHARS_PER_LINE);
+  const maxQuestionLines = Math.min(questionLines.length, LAYOUT.QUESTION.MAX_LINES);
+  const displayQuestionLines = questionLines.slice(0, maxQuestionLines);
+
+  const questionStartY = LAYOUT.MARGINS.TOP;
+
+  return displayQuestionLines
+    .map((line, index) => {
+      const y = questionStartY + index * LAYOUT.QUESTION.LINE_HEIGHT;
+      const escapedLine = sanitizeSvgText(line);
+
+      return `<text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="Arial, sans-serif" font-size="${LAYOUT.QUESTION.FONT_SIZE}" font-weight="bold" fill="${LAYOUT.QUESTION.COLOR}">${escapedLine}</text>`;
+    })
+    .join('\n');
+}
+
+/**
+ * Generates SVG elements for the answer section
+ */
+function generateAnswerSvg(answerPreview: string, questionLineCount: number): { elements: string; endY: number } {
+  if (!answerPreview) {
+    return { elements: '', endY: 0 };
+  }
+
+  const answerStartY =
+    LAYOUT.MARGINS.TOP + questionLineCount * LAYOUT.QUESTION.LINE_HEIGHT + LAYOUT.SPACING.QUESTION_TO_ANSWER;
+  const citationsStartY = LAYOUT.CANVAS.HEIGHT - LAYOUT.MARGINS.BOTTOM - LAYOUT.CITATIONS.RESERVED_SPACE;
+  const availableAnswerSpace = citationsStartY - answerStartY - LAYOUT.SPACING.ANSWER_TO_CITATIONS;
+  const maxPossibleAnswerLines = Math.floor(availableAnswerSpace / LAYOUT.ANSWER.LINE_HEIGHT);
+
+  // Only show answer if we have enough space for at least minimum required lines
+  if (maxPossibleAnswerLines < LAYOUT.ANSWER.MIN_LINES_REQUIRED) {
+    return { elements: '', endY: answerStartY };
+  }
+
+  const answerLines = wrapText(answerPreview, LAYOUT.ANSWER.MAX_CHARS_PER_LINE);
+  const maxAnswerLines = Math.min(maxPossibleAnswerLines, answerLines.length);
+  const displayAnswerLines = answerLines.slice(0, maxAnswerLines);
+
+  // Add ellipsis to answer if we're cutting it off
+  if (answerLines.length > maxAnswerLines) {
+    const lastAnswerLine = displayAnswerLines[displayAnswerLines.length - 1];
+    displayAnswerLines[displayAnswerLines.length - 1] = lastAnswerLine + '...';
+  }
+
+  const elements = displayAnswerLines
+    .map((line, index) => {
+      const y = answerStartY + index * LAYOUT.ANSWER.LINE_HEIGHT;
+      const escapedLine = sanitizeSvgText(line);
+
+      return `<text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="Arial, sans-serif" font-size="${LAYOUT.ANSWER.FONT_SIZE}" font-weight="normal" fill="${LAYOUT.ANSWER.COLOR}">${escapedLine}</text>`;
+    })
+    .join('\n');
+
+  return {
+    elements,
+    endY: answerStartY + displayAnswerLines.length * LAYOUT.ANSWER.LINE_HEIGHT,
+  };
+}
+
+/**
+ * Generates SVG elements for the citations section
+ */
+function generateCitationsSvg(citations: Citation[]): string {
+  const citationsStartY = LAYOUT.CANVAS.HEIGHT - LAYOUT.MARGINS.BOTTOM - LAYOUT.CITATIONS.RESERVED_SPACE;
+  const maxCitations = Math.min(
+    Math.floor(150 / LAYOUT.CITATIONS.BLOCK_HEIGHT),
+    citations.length,
+    LAYOUT.CITATIONS.MAX_COUNT,
+  );
+
+  if (maxCitations === 0) {
+    return '';
+  }
+
+  // Generate citations header
+  const citationsHeader = `<text x="${LAYOUT.MARGINS.LEFT}" y="${
+    citationsStartY - LAYOUT.SPACING.CITATIONS_HEADER_OFFSET
+  }" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="${LAYOUT.CITATIONS.HEADER_COLOR}">References:</text>`;
+
+  // Generate citation elements
+  let citationElements = '';
+  for (let i = 0; i < maxCitations; i++) {
+    const citation = citations[i];
+    if (!citation) continue;
+
+    const y = citationsStartY + i * LAYOUT.CITATIONS.BLOCK_HEIGHT;
+    const formattedCitation = formatCitationForImage(citation, i + 1);
+
+    const escapedTitle = sanitizeSvgText(formattedCitation.title);
+    const escapedMeta = sanitizeSvgText(formattedCitation.metadata);
+
+    citationElements += `
+      <!-- Citation ${i + 1} -->
+      <text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="${LAYOUT.CITATIONS.NUMBER_COLOR}">[${formattedCitation.number}]</text>
+      <text x="${LAYOUT.MARGINS.LEFT + 25}" y="${y}" font-family="Arial, sans-serif" font-size="${LAYOUT.CITATIONS.FONT_SIZE}" font-weight="600" fill="${LAYOUT.CITATIONS.TITLE_COLOR}">${escapedTitle}</text>
+      <text x="${LAYOUT.MARGINS.LEFT + 25}" y="${y + LAYOUT.CITATIONS.LINE_HEIGHT}" font-family="Arial, sans-serif" font-size="12" font-weight="normal" fill="${LAYOUT.CITATIONS.METADATA_COLOR}">${escapedMeta}</text>
+    `;
+  }
+
+  return citationsHeader + '\n' + citationElements;
+}
+
+/**
+ * Generates the branding SVG element
+ */
+function generateBrandingSvg(): string {
+  return `<text x="${LAYOUT.CANVAS.WIDTH - LAYOUT.MARGINS.RIGHT}" y="${
+    LAYOUT.CANVAS.HEIGHT - LAYOUT.MARGINS.BOTTOM + LAYOUT.SPACING.BRANDING_OFFSET
+  }" font-family="Arial, sans-serif" font-size="${LAYOUT.BRANDING.FONT_SIZE}" font-weight="bold" fill="${LAYOUT.BRANDING.COLOR}" text-anchor="end">${LAYOUT.BRANDING.TEXT}</text>`;
+}
+
+/**
+ * Loads the base image template or creates a fallback
+ */
+async function loadBaseImage(): Promise<sharp.Sharp> {
+  const templatePath = path.join(process.cwd(), 'public', 'ai-share-blank.png');
+
+  if (fs.existsSync(templatePath)) {
+    return sharp(templatePath);
+  } else {
+    // Create a fallback image with natural dimensions
+    return sharp({
+      create: {
+        width: LAYOUT.CANVAS.WIDTH,
+        height: LAYOUT.CANVAS.HEIGHT,
+        channels: 4,
+        background: { r: 30, g: 64, b: 175, alpha: 1 },
+      },
+    });
+  }
+}
+
 async function generateShareImageFromData(res: Response, data: ShareImageData) {
   try {
     // Set response headers for PNG image
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    res.setHeader('Cache-Control', 'public, max-age=21600'); // Cache for 6 hours
 
-    // Prepare the search query text (show full question)
+    // Prepare data
     const displayText = data.text;
+    const answerPreview = prepareAnswerPreview(data.answer);
 
-    // Prepare answer preview text (more comprehensive)
-    let answerPreview = '';
-    if (data.answer && typeof data.answer === 'string') {
-      // Strip HTML tags and citation markers
-      const cleanAnswer = data.answer.replace(/<[^>]*>/g, '').replace(/\[\d+\]/g, '');
-      const sentences = cleanAnswer.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-      const previewText = sentences.slice(0, 4).join('. '); // Show up to 4 sentences
+    // Generate SVG sections
+    const questionLines = wrapText(displayText, LAYOUT.QUESTION.MAX_CHARS_PER_LINE);
+    const questionLineCount = Math.min(questionLines.length, LAYOUT.QUESTION.MAX_LINES);
 
-      if (previewText.length > 500) {
-        answerPreview = previewText.substring(0, 497) + '...';
-      } else {
-        answerPreview = previewText + (sentences.length > 4 ? '...' : '.');
-      }
-    }
+    const questionSvg = generateQuestionSvg(displayText);
+    const answerResult = generateAnswerSvg(answerPreview, questionLineCount);
+    const citationsSvg = generateCitationsSvg(data.citations);
+    const brandingSvg = generateBrandingSvg();
 
-    // Word wrapping function
-    const wrapText = (text: string, maxCharsPerLine = 60) => {
-      const words = text.split(' ');
-      const lines: string[] = [];
-      let currentLine = '';
-
-      for (const word of words) {
-        const testLine = currentLine + (currentLine ? ' ' : '') + word;
-
-        if (testLine.length > maxCharsPerLine && currentLine) {
-          lines.push(currentLine);
-          currentLine = word;
-        } else {
-          currentLine = testLine;
-        }
-      }
-
-      if (currentLine) {
-        lines.push(currentLine);
-      }
-
-      return lines;
-    };
-
-    // Use natural template dimensions (1536x1024) instead of forcing 1200x630
-    const canvasWidth = 1536;
-    const canvasHeight = 1024;
-
-    // Layout configuration - more right padding for question
-    const leftMargin = 150;
-    const rightMargin = 200; // Increased from 120 to 200 for more right padding
-    const topMargin = 350;
-    const bottomMargin = 100;
-    const availableWidth = canvasWidth - leftMargin - rightMargin;
-    const availableHeight = canvasHeight - topMargin - bottomMargin;
-
-    // Question text - prioritize showing full question, allow more lines
-    const questionLines = wrapText(displayText, 60); // Reduced from 65 due to more right padding
-    const maxQuestionLines = Math.min(questionLines.length, 6); // Allow up to 6 lines for full question
-    const displayQuestionLines = questionLines.slice(0, maxQuestionLines);
-
-    // Question section - larger and more prominent
-    const questionStartY = topMargin;
-    const questionFontSize = 48;
-    const questionLineHeight = 58;
-
-    const questionElements = displayQuestionLines
-      .map((line, index) => {
-        const y = questionStartY + index * questionLineHeight;
-        const escapedLine = line
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-
-        return `<text x="${leftMargin}" y="${y}" font-family="Arial, sans-serif" font-size="${questionFontSize}" font-weight="bold" fill="#ffffff">${escapedLine}</text>`;
-      })
-      .join('\n');
-
-    // Calculate remaining space after question and citations
-    const answerStartY = questionStartY + displayQuestionLines.length * questionLineHeight + 60;
-    const citationsStartY = canvasHeight - bottomMargin - 200; // Reserve space for citations at bottom
-    const availableAnswerSpace = citationsStartY - answerStartY - 50; // 50px buffer
-    const answerLineHeight = 36; // Increased from 28 to 36 for better line spacing
-    const maxPossibleAnswerLines = Math.floor(availableAnswerSpace / answerLineHeight);
-
-    // Only show answer if we have enough space for at least 2 lines
-    let answerElements = '';
-    if (maxPossibleAnswerLines >= 2 && answerPreview) {
-      const answerLines = wrapText(answerPreview, 100); // Reduced from 110 due to more right padding
-      const maxAnswerLines = Math.min(maxPossibleAnswerLines, answerLines.length); // Use all available space, removed arbitrary 4-line limit
-      const displayAnswerLines = answerLines.slice(0, maxAnswerLines);
-
-      // Add ellipsis to answer if we're cutting it off
-      if (answerLines.length > maxAnswerLines) {
-        const lastAnswerLine = displayAnswerLines[displayAnswerLines.length - 1];
-        displayAnswerLines[displayAnswerLines.length - 1] = lastAnswerLine + '...';
-      }
-
-      const answerFontSize = 24;
-
-      answerElements = displayAnswerLines
-        .map((line, index) => {
-          const y = answerStartY + index * answerLineHeight;
-          const escapedLine = line
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-
-          return `<text x="${leftMargin}" y="${y}" font-family="Arial, sans-serif" font-size="${answerFontSize}" font-weight="normal" fill="#e8e8e8">${escapedLine}</text>`;
-        })
-        .join('\n');
-    }
-
-    // Citations section - fixed at bottom
-    const citationFontSize = 14;
-    const citationLineHeight = 20;
-    const citationBlockHeight = citationLineHeight * 3;
-    const maxCitations = Math.min(Math.floor(150 / citationBlockHeight), data.citations.length, 3); // Fixed space for citations
-
-    let citationElements = '';
-    if (maxCitations > 0) {
-      for (let i = 0; i < maxCitations; i++) {
-        const citation = data.citations[i];
-        if (!citation) continue;
-
-        const y = citationsStartY + i * citationBlockHeight;
-
-        // Use utility function to format citation
-        const formattedCitation = formatCitationForImage(citation, i + 1);
-
-        // Escape text
-        const escapedTitle = formattedCitation.title
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-
-        const escapedMeta = formattedCitation.metadata
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-
-        citationElements += `
-                    <!-- Citation ${i + 1} -->
-                    <text x="${leftMargin}" y="${y}" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#64748b">[${
-                      formattedCitation.number
-                    }]</text>
-                    <text x="${
-                      leftMargin + 25
-                    }" y="${y}" font-family="Arial, sans-serif" font-size="${citationFontSize}" font-weight="600" fill="#ffffff">${escapedTitle}</text>
-                    <text x="${leftMargin + 25}" y="${
-                      y + citationLineHeight
-                    }" font-family="Arial, sans-serif" font-size="12" font-weight="normal" fill="#d1d5db">${escapedMeta}</text>
-                `;
-      }
-    }
-
-    // Add a subtle header for citations if we have any
-    let citationsHeader = '';
-    if (maxCitations > 0) {
-      citationsHeader = `<text x="${leftMargin}" y="${
-        citationsStartY - 25
-      }" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#9ca3af">References:</text>`;
-    }
-
-    // Branding at bottom right only
+    // Compose the complete SVG overlay
     const svgOverlay = `
-            <svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg">
-                <!-- Main question text - prioritized and shown in full -->
-                ${questionElements}
-                
-                <!-- Answer preview (only if enough space) -->
-                ${answerElements}
-                
-                <!-- Citations header -->
-                ${citationsHeader}
-                
-                <!-- Detailed citations -->
-                ${citationElements}
-                
-                <!-- Branding at bottom right -->
-                <text x="${canvasWidth - rightMargin}" y="${
-                  canvasHeight - bottomMargin + 60
-                }" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="end">DeSci Publish</text>
-            </svg>
-        `;
+      <svg width="${LAYOUT.CANVAS.WIDTH}" height="${LAYOUT.CANVAS.HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+        <!-- Main question text -->
+        ${questionSvg}
+        
+        <!-- Answer preview -->
+        ${answerResult.elements}
+        
+        <!-- Citations -->
+        ${citationsSvg}
+        
+        <!-- Branding -->
+        ${brandingSvg}
+      </svg>
+    `;
 
-    // Load the base template image or create fallback
-    let baseImage: sharp.Sharp;
-
-    // Try to find the template image in the desci-server public directory
-    const templatePath = path.join(process.cwd(), 'public', 'ai-share-blank.png');
-
-    if (fs.existsSync(templatePath)) {
-      // Use the existing template at its natural size (1536x1024)
-      baseImage = sharp(templatePath);
-    } else {
-      // Create a fallback image with natural dimensions
-      baseImage = sharp({
-        create: {
-          width: canvasWidth,
-          height: canvasHeight,
-          channels: 4,
-          background: { r: 30, g: 64, b: 175, alpha: 1 },
-        },
-      });
-    }
-
-    // Overlay the text SVG on the base image
+    // Load base image and composite with SVG overlay
+    const baseImage = await loadBaseImage();
     const result = await baseImage
       .composite([
         {

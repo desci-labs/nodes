@@ -88,6 +88,10 @@ spec:
           image: nginx:stable
           ports:
             - containerPort: 80
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: config-volume
               mountPath: /etc/nginx/conf.d

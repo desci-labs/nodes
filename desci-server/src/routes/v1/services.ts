@@ -14,7 +14,7 @@ const upload = multer();
 router.get('/orcid/profile/:orcidId', [], orcidProfile);
 router.get('/orcid/did/:did', [], orcidDid);
 
-// Share image generation endpoint
+// Share image generation endpoint - documented in swagger.ts
 router.get('/generate-share-image', [], generateShareImage);
 
 const logger = parentLogger.child({ module: 'Services UploadHandler' });
