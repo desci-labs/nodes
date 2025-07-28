@@ -2,9 +2,9 @@ import { NextFunction, Response, Router } from 'express';
 import { Request } from 'express';
 
 import { prisma } from '../../../../client.js';
-import { searchUserProfiles } from '../../../../controllers/admin/users.js';
-import { SuccessMessageResponse, SuccessResponse } from '../../../../core/ApiResponse.js';
-import { ensureAdmin } from '../../../../middleware/ensureAdmin.js';
+import { getMarketingConsentUsersCsv, searchUserProfiles } from '../../../../controllers/admin/users.js';
+import { SuccessMessageResponse } from '../../../../core/ApiResponse.js';
+import { ensureAdmin, ensureUserIsAdmin } from '../../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../../middleware/permissions.js';
 import { asyncHandler } from '../../../../utils/asyncHandler.js';
 
@@ -23,5 +23,7 @@ router.patch(
     new SuccessMessageResponse().send(res);
   }),
 );
+
+router.get('/export-marketing-consent', [ensureUser, ensureUserIsAdmin], getMarketingConsentUsersCsv);
 
 export default router;

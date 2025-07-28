@@ -44,3 +44,16 @@ export const updateMarketingConsentSchema = z.object({
     receiveMarketingEmails: z.boolean().describe('Whether the user consents to receive marketing emails'),
   }),
 });
+
+/**
+ * Schema for exporting marketing consent users.
+ */
+export const exportMarketingConsentSchema = z.object({
+  query: z.object({
+    format: z
+      .enum(['csv', 'xls', 'xlsx'])
+      .optional()
+      .default('csv')
+      .describe('Export format - csv (default) or xls/xlsx for Excel'),
+  }),
+});

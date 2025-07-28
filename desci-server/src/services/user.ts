@@ -570,3 +570,26 @@ export const countAllGuestUsersWhoSignedUp = async (range?: { from: Date; to: Da
   });
   return safePct(signedUpGuestUsers, allGuestUsers);
 };
+
+/**
+ * Get users who opted-in to receive marketing emails
+ */
+export const getUsersWithMarketingConsent = async (range?: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getUsersWithMarketingConsent' }, 'user::getUsersWithMarketingConsent');
+
+  const users = await client.user.findMany({
+    where: {
+      receiveMarketingEmails: true,
+      isGuest: false,
+      ...(range && { createdAt: { gte: range.from, lt: range.to } }),
+    },
+    select: {
+      email: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  return users;
+};
