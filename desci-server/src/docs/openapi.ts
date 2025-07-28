@@ -21,6 +21,7 @@ import { dpidPaths } from './dpid.js';
 import { journalPaths } from './journals.js';
 import { openAlexPaths } from './openalex.js';
 import { searchPaths } from './search.js';
+import { servicesPaths } from './services.js';
 import {
   cancelUserSubmissionOperation,
   createSubmissionOperation,
@@ -71,7 +72,7 @@ export const submissionPaths = {
   },
 };
 
-export const openaiDocumentation = createDocument({
+export const openApiDocumentation = createDocument({
   openapi: '3.1.0',
   info: {
     title: 'Nodes-Api documentation',
@@ -94,6 +95,7 @@ export const openaiDocumentation = createDocument({
     { name: 'OpenAlex', description: 'OpenAlex related operations' },
     { name: 'Authors', description: 'Authors-related operations' },
     { name: 'Search', description: 'Elastic search api operations' },
+    { name: 'Services', description: 'Service endpoints for various utilities' },
   ],
   components: {
     securitySchemes: {
@@ -131,6 +133,7 @@ export const openaiDocumentation = createDocument({
     ...authorPaths,
     ...userPaths,
     ...searchPaths,
+    ...servicesPaths,
     ...doiPaths,
     ...dpidPaths,
     ...openAlexPaths,
@@ -140,7 +143,7 @@ export const openaiDocumentation = createDocument({
   },
 });
 
-// const yaml = stringify(openaiDocumentation, { aliasDuplicateObjects: false });
+// const yaml = stringify(openApiDocumentation, { aliasDuplicateObjects: false });
 
 // eslint-disable-next-line no-sync
 // writeFileSync(path.join(__dirname, 'openapi.yml'), yaml);
