@@ -6,6 +6,8 @@ import { getMarketingConsentUsersCsv, searchUserProfiles } from '../../../../con
 import { SuccessMessageResponse } from '../../../../core/ApiResponse.js';
 import { ensureAdmin, ensureUserIsAdmin } from '../../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../../middleware/permissions.js';
+import { validateInputs } from '../../../../middleware/validator.js';
+import { exportMarketingConsentSchema } from '../../../../schemas/users.schema.js';
 import { asyncHandler } from '../../../../utils/asyncHandler.js';
 
 // const logger = parentLogger.child({ module: 'Admin/communities' });
@@ -24,6 +26,10 @@ router.patch(
   }),
 );
 
-router.get('/export-marketing-consent', [ensureUser, ensureUserIsAdmin], getMarketingConsentUsersCsv);
+router.get(
+  '/export-marketing-consent',
+  [ensureUser, ensureUserIsAdmin, validateInputs(exportMarketingConsentSchema)],
+  getMarketingConsentUsersCsv,
+);
 
 export default router;

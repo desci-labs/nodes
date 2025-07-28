@@ -138,7 +138,7 @@ export const getMarketingConsentUsersCsv = async (req: ExportMarketingConsentReq
     const format = req.validatedData.query.format;
     const users = await getUsersWithMarketingConsent();
 
-    if (format === 'xls' || format === 'xlsx') {
+    if (format === 'xlsx') {
       // Create Excel workbook
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(users.map((user) => ({ email: user.email })));

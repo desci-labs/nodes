@@ -152,10 +152,10 @@ export const getMarketingConsentUsersCsvOperation: ZodOpenApiOperationObject = {
       description: 'File containing marketing consent user emails',
       content: {
         'text/csv': {
-          schema: z.string().describe('CSV file with email addresses'),
+          schema: z.string().openapi({ format: 'binary' }).describe('CSV file with email addresses'),
         },
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
-          schema: z.string().describe('Excel file with email addresses'),
+          schema: z.string().openapi({ format: 'binary' }).describe('Excel file with email addresses'),
         },
       },
       headers: {
