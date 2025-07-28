@@ -2,7 +2,11 @@ import 'zod-openapi/extend';
 import { z } from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
-import { submitQuestionnaireSchema, updateMarketingConsentSchema } from '../schemas/users.schema.js';
+import {
+  exportMarketingConsentSchema,
+  submitQuestionnaireSchema,
+  updateMarketingConsentSchema,
+} from '../schemas/users.schema.js';
 
 // ---------------------------------------------
 //  POST /v1/users/questionnaire
@@ -133,11 +137,102 @@ export const updateMarketingConsentOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// ---------------------------------------------
+//  GET /v1/admin/users/export-marketing-consent
+// ---------------------------------------------
+export const getMarketingConsentUsersCsvOperation: ZodOpenApiOperationObject = {
+  operationId: 'getMarketingConsentUsersCsv',
+  tags: ['Admin'],
+  summary: 'Export marketing consent users as CSV or Excel',
+  description:
+    'Exports a file containing email addresses of all users who have opted-in to receive marketing emails. Supports CSV (default) and Excel formats. This endpoint is restricted to admin users only and includes input validation for the format parameter.',
+  requestParams: { query: exportMarketingConsentSchema.shape.query },
+  responses: {
+    '200': {
+      description: 'File containing marketing consent user emails',
+      content: {
+        'text/csv': {
+          schema: z.string().openapi({ format: 'binary' }).describe('CSV file with email addresses'),
+        },
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+          schema: z.string().openapi({ format: 'binary' }).describe('Excel file with email addresses'),
+        },
+      },
+      headers: {
+        'Content-Disposition': {
+          description: 'File attachment header',
+          schema: { type: 'string', example: 'attachment; filename=marketing-consent-emails.csv or .xlsx' },
+        },
+        'Content-Type': {
+          description: 'File content type',
+          schema: {
+            type: 'string',
+            example: 'text/csv or application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          },
+        },
+      },
+    },
+    '400': {
+      description: 'Bad Request - Invalid format parameter',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+            details: z.array(
+              z.object({
+                field: z.string(),
+                message: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    '401': {
+      description: 'Unauthorized - user not authenticated',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - user is not an admin',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+          }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const userPaths: ZodOpenApiPathsObject = {
   '/v1/users/questionnaire': {
     post: submitQuestionnaireOperation,
   },
   '/v1/auth/marketing-consent': {
     patch: updateMarketingConsentOperation,
+  },
+  '/v1/admin/users/export-marketing-consent': {
+    get: getMarketingConsentUsersCsvOperation,
   },
 };
