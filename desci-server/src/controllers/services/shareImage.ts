@@ -145,6 +145,7 @@ const LAYOUT = {
     MAX_LINES: 6,
     MAX_CHARS_PER_LINE: 60,
     COLOR: '#ffffff',
+    FONT_FAMILY: 'DejaVu Sans, Liberation Sans, sans-serif',
   },
   ANSWER: {
     FONT_SIZE: 24,
@@ -154,6 +155,7 @@ const LAYOUT = {
     MIN_LINES_REQUIRED: 2,
     PREVIEW_SENTENCES: 4,
     MAX_PREVIEW_LENGTH: 500,
+    FONT_FAMILY: 'DejaVu Sans, Liberation Sans, sans-serif',
   },
   CITATIONS: {
     FONT_SIZE: 14,
@@ -166,11 +168,13 @@ const LAYOUT = {
     TITLE_COLOR: '#ffffff',
     METADATA_COLOR: '#d1d5db',
     MAX_TITLE_LENGTH: 80,
+    FONT_FAMILY: 'DejaVu Sans, Liberation Sans, sans-serif',
   },
   BRANDING: {
     FONT_SIZE: 18,
     COLOR: '#ffffff',
     TEXT: 'DeSci Publish',
+    FONT_FAMILY: 'DejaVu Sans, Liberation Sans, sans-serif',
   },
   SPACING: {
     QUESTION_TO_ANSWER: 60,
@@ -269,7 +273,7 @@ function generateQuestionSvg(text: string): string {
       const y = questionStartY + index * LAYOUT.QUESTION.LINE_HEIGHT;
       const escapedLine = sanitizeSvgText(line);
 
-      return `<text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="Arial, sans-serif" font-size="${LAYOUT.QUESTION.FONT_SIZE}" font-weight="bold" fill="${LAYOUT.QUESTION.COLOR}">${escapedLine}</text>`;
+      return `<text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="${LAYOUT.QUESTION.FONT_FAMILY}" font-size="${LAYOUT.QUESTION.FONT_SIZE}" font-weight="bold" fill="${LAYOUT.QUESTION.COLOR}">${escapedLine}</text>`;
     })
     .join('\n');
 }
@@ -308,7 +312,7 @@ function generateAnswerSvg(answerPreview: string, questionLineCount: number): { 
       const y = answerStartY + index * LAYOUT.ANSWER.LINE_HEIGHT;
       const escapedLine = sanitizeSvgText(line);
 
-      return `<text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="Arial, sans-serif" font-size="${LAYOUT.ANSWER.FONT_SIZE}" font-weight="normal" fill="${LAYOUT.ANSWER.COLOR}">${escapedLine}</text>`;
+      return `<text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="${LAYOUT.ANSWER.FONT_FAMILY}" font-size="${LAYOUT.ANSWER.FONT_SIZE}" font-weight="normal" fill="${LAYOUT.ANSWER.COLOR}">${escapedLine}</text>`;
     })
     .join('\n');
 
@@ -336,7 +340,7 @@ function generateCitationsSvg(citations: Citation[]): string {
   // Generate citations header
   const citationsHeader = `<text x="${LAYOUT.MARGINS.LEFT}" y="${
     citationsStartY - LAYOUT.SPACING.CITATIONS_HEADER_OFFSET
-  }" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="${LAYOUT.CITATIONS.HEADER_COLOR}">References:</text>`;
+  }" font-family="${LAYOUT.CITATIONS.FONT_FAMILY}" font-size="16" font-weight="600" fill="${LAYOUT.CITATIONS.HEADER_COLOR}">References:</text>`;
 
   // Generate citation elements
   let citationElements = '';
@@ -352,9 +356,9 @@ function generateCitationsSvg(citations: Citation[]): string {
 
     citationElements += `
       <!-- Citation ${i + 1} -->
-      <text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="${LAYOUT.CITATIONS.NUMBER_COLOR}">[${formattedCitation.number}]</text>
-      <text x="${LAYOUT.MARGINS.LEFT + 25}" y="${y}" font-family="Arial, sans-serif" font-size="${LAYOUT.CITATIONS.FONT_SIZE}" font-weight="600" fill="${LAYOUT.CITATIONS.TITLE_COLOR}">${escapedTitle}</text>
-      <text x="${LAYOUT.MARGINS.LEFT + 25}" y="${y + LAYOUT.CITATIONS.LINE_HEIGHT}" font-family="Arial, sans-serif" font-size="12" font-weight="normal" fill="${LAYOUT.CITATIONS.METADATA_COLOR}">${escapedMeta}</text>
+      <text x="${LAYOUT.MARGINS.LEFT}" y="${y}" font-family="${LAYOUT.CITATIONS.FONT_FAMILY}" font-size="12" font-weight="bold" fill="${LAYOUT.CITATIONS.NUMBER_COLOR}">[${formattedCitation.number}]</text>
+      <text x="${LAYOUT.MARGINS.LEFT + 25}" y="${y}" font-family="${LAYOUT.CITATIONS.FONT_FAMILY}" font-size="${LAYOUT.CITATIONS.FONT_SIZE}" font-weight="600" fill="${LAYOUT.CITATIONS.TITLE_COLOR}">${escapedTitle}</text>
+      <text x="${LAYOUT.MARGINS.LEFT + 25}" y="${y + LAYOUT.CITATIONS.LINE_HEIGHT}" font-family="${LAYOUT.CITATIONS.FONT_FAMILY}" font-size="12" font-weight="normal" fill="${LAYOUT.CITATIONS.METADATA_COLOR}">${escapedMeta}</text>
     `;
   }
 
@@ -367,28 +371,48 @@ function generateCitationsSvg(citations: Citation[]): string {
 function generateBrandingSvg(): string {
   return `<text x="${LAYOUT.CANVAS.WIDTH - LAYOUT.MARGINS.RIGHT}" y="${
     LAYOUT.CANVAS.HEIGHT - LAYOUT.MARGINS.BOTTOM + LAYOUT.SPACING.BRANDING_OFFSET
-  }" font-family="Arial, sans-serif" font-size="${LAYOUT.BRANDING.FONT_SIZE}" font-weight="bold" fill="${LAYOUT.BRANDING.COLOR}" text-anchor="end">${LAYOUT.BRANDING.TEXT}</text>`;
+  }" font-family="${LAYOUT.BRANDING.FONT_FAMILY}" font-size="${LAYOUT.BRANDING.FONT_SIZE}" font-weight="bold" fill="${LAYOUT.BRANDING.COLOR}" text-anchor="end">${LAYOUT.BRANDING.TEXT}</text>`;
 }
 
 /**
  * Loads the base image template or creates a fallback
  */
 async function loadBaseImage(): Promise<sharp.Sharp> {
-  const templatePath = path.join(process.cwd(), 'public', 'ai-share-blank.png');
+  // Try multiple possible paths for the template
+  const possiblePaths = [
+    path.join(process.cwd(), 'public', 'ai-share-blank.png'),
+    path.join(__dirname, '..', '..', 'public', 'ai-share-blank.png'),
+    path.join(__dirname, '..', '..', '..', 'public', 'ai-share-blank.png'),
+    './public/ai-share-blank.png',
+    'public/ai-share-blank.png',
+  ];
 
-  if (fs.existsSync(templatePath)) {
-    return sharp(templatePath);
-  } else {
-    // Create a fallback image with natural dimensions
-    return sharp({
-      create: {
-        width: LAYOUT.CANVAS.WIDTH,
-        height: LAYOUT.CANVAS.HEIGHT,
-        channels: 4,
-        background: { r: 30, g: 64, b: 175, alpha: 1 },
-      },
-    });
+  for (const templatePath of possiblePaths) {
+    if (fs.existsSync(templatePath)) {
+      logger.info(`Using template image: ${templatePath}`);
+      return sharp(templatePath);
+    }
   }
+
+  // Log all attempted paths for debugging
+  logger.warn(
+    {
+      cwd: process.cwd(),
+      dirname: __dirname,
+      attemptedPaths: possiblePaths,
+    },
+    'Template image not found, using fallback',
+  );
+
+  // Create a fallback image with natural dimensions
+  return sharp({
+    create: {
+      width: LAYOUT.CANVAS.WIDTH,
+      height: LAYOUT.CANVAS.HEIGHT,
+      channels: 4,
+      background: { r: 30, g: 64, b: 175, alpha: 1 },
+    },
+  });
 }
 
 async function generateShareImageFromData(res: Response, data: ShareImageData) {
