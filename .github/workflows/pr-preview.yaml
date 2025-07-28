@@ -65,14 +65,7 @@ jobs:
               kubectl delete service desci-server-pr-${pr_number}-service --ignore-not-found=true
               kubectl delete ingress desci-server-pr-${pr_number}-ingress --ignore-not-found=true
               
-              # Clean up ECR images (all tags for this PR) - simpler approach
-              aws ecr batch-delete-image \
-                --repository-name desci-server-pr \
-                --image-ids "$(aws ecr list-images \
-                  --repository-name desci-server-pr \
-                  --filter tagStatus=TAGGED \
-                  --query "imageIds[?starts_with(imageTag, 'pr-${pr_number}-')]" \
-                  --output json)" 2>/dev/null || echo "No ECR images found for PR #$pr_number"
+              # Note: Keeping ECR images for rollback capability
               
               echo "✅ Cleaned up PR #$pr_number deployment"
             fi
@@ -112,14 +105,7 @@ jobs:
           kubectl delete service desci-server-pr-${PR_NUMBER}-service --ignore-not-found=true
           kubectl delete ingress desci-server-pr-${PR_NUMBER}-ingress --ignore-not-found=true
 
-          # Clean up ECR images (all tags for this PR) - simpler approach
-          aws ecr batch-delete-image \
-            --repository-name desci-server-pr \
-            --image-ids "$(aws ecr list-images \
-              --repository-name desci-server-pr \
-              --filter tagStatus=TAGGED \
-              --query "imageIds[?starts_with(imageTag, 'pr-${PR_NUMBER}-')]" \
-              --output json)" 2>/dev/null || echo "No ECR images found for PR #$PR_NUMBER"
+          # Note: Keeping ECR images for rollback capability
 
   build-and-deploy-pr:
     if: github.event.action != 'closed' && github.event_name != 'schedule'
@@ -450,6 +436,8 @@ jobs:
                     export AWS_SQS_SECRET_ACCESS_KEY="{{ .Data.AWS_SQS_SECRET_ACCESS_KEY }}"
                     export AWS_SQS_REGION="{{ .Data.AWS_SQS_REGION }}"
                     export AWS_SQS_QUEUE_URL="{{ .Data.AWS_SQS_QUEUE_URL }}"
+                    export SUPABASE_URL="{{ .Data.SUPABASE_URL }}"
+                    export SUPABASE_SERVICE_KEY="{{ .Data.SUPABASE_SERVICE_KEY }}"
                     export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
                     export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
                     export DEBUG_TEST=0;

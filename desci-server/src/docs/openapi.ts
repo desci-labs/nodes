@@ -72,6 +72,45 @@ export const submissionPaths = {
   },
 };
 
+// Function to get servers list including current host
+function getServers() {
+  const servers = [
+    {
+      url: 'http://localhost:5420',
+      description: 'Local Endpoint',
+    },
+    {
+      url: 'https://nodes-api-dev.desci.com',
+      description: 'Staging(Nodes-dev) Endpoint',
+    },
+    {
+      url: 'https://nodes-api.desci.com',
+      description: 'Prod Endpoint',
+    },
+  ];
+
+  // Add current host if it's a PR preview or different environment
+  if (process.env.SERVER_URL) {
+    const currentUrl = process.env.SERVER_URL;
+    const isCurrentUrlInList = servers.some((server) => server.url === currentUrl);
+
+    if (!isCurrentUrlInList) {
+      let description = 'Current Environment';
+      if (currentUrl.includes('pr-')) {
+        const prMatch = currentUrl.match(/pr-(\d+)/);
+        description = prMatch ? `PR #${prMatch[1]} Preview` : 'PR Preview Environment';
+      }
+
+      servers.unshift({
+        url: currentUrl,
+        description,
+      });
+    }
+  }
+
+  return servers;
+}
+
 export const openApiDocumentation = createDocument({
   openapi: '3.1.0',
   info: {
@@ -107,20 +146,7 @@ export const openApiDocumentation = createDocument({
       },
     },
   },
-  servers: [
-    {
-      url: 'http://localhost:5420',
-      description: 'Local Endpoint',
-    },
-    {
-      url: 'https://nodes-api-dev.desci.com',
-      description: 'Staging(Nodes-dev) Endpoint',
-    },
-    {
-      url: 'https://nodes-api.desci.com',
-      description: 'Prod Endpoint',
-    },
-  ],
+  servers: getServers(),
   security: [
     {
       s2sauth: [],
