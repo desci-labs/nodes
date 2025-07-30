@@ -203,7 +203,7 @@ describe('Journal Form Template Service & Endpoints', () => {
         .set('authorization', `Bearer ${associateEditorAuthToken}`);
 
       expect(res.status).to.equal(200);
-      expect(res.body.data.templates).to.be.an('array').with.lengthOf(1);
+      expect(res.body.data.templates).to.be.an('array').with.lengthOf(2);
 
       // Get the first form group (which is an object with formUuid as key)
       const firstFormGroup = res.body.data.templates[0];
@@ -221,7 +221,7 @@ describe('Journal Form Template Service & Endpoints', () => {
         .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
       expect(res.status).to.equal(200);
-      expect(res.body.data.templates).to.be.an('array').with.lengthOf(2);
+      expect(res.body.data.templates).to.be.an('array').with.lengthOf(3);
 
       // Verify we have 2 form groups (one for active, one for inactive)
       const firstFormGroup = res.body.data.templates[0];

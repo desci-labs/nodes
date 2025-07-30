@@ -726,6 +726,7 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
 type DeclineRefereeInviteInput = {
   inviteToken: string;
   userId?: number; // Don't need to be authed to decline an invite
+  reason?: string;
 };
 
 async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Result<RefereeInvite, Error>> {
@@ -795,16 +796,18 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
         });
       }
 
-      const refereeName = refereeUser?.name ?? 'A Referee';
+      const refereeName = refereeUser?.name ?? refereeInvite.name ?? 'A Referee';
+      const declineReason = data.reason ?? 'No reason provided';
       await sendEmail({
         type: EmailTypes.REFEREE_DECLINED,
         payload: {
           email: submission.assignedEditor.email,
           journal: submission.journal,
+          editorName: submissionExtended.assignedEditor.name,
           refereeName: refereeName,
           refereeEmail: refereeEmail,
           submission: submissionExtended,
-          declineReason: 'N/A', // Add this in the future.
+          declineReason,
           suggestedReferees: [], // Add this in the future.
         },
       });

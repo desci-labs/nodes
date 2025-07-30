@@ -27,7 +27,11 @@ export default function invitesRoute(router: Router) {
   );
   router.get(
     '/:journalId/editorial-board',
-    [ensureUser, validateInputs(listJournalEditorsSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+    [
+      ensureUser,
+      validateInputs(listJournalEditorsSchema),
+      ensureJournalRole([EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR]),
+    ],
     asyncHandler(listJournalEditorialBoard),
   );
   router.post(

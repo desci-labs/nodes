@@ -60,6 +60,7 @@ describe('Journal Invite Service', () => {
   describe('inviteJournalEditor', () => {
     it('should create an editor invite', async () => {
       const invite = await JournalInviteService.inviteJournalEditor({
+        name: 'New Editor',
         journalId: journal.id,
         inviterId: user.id,
         email: 'neweditor@example.com',
@@ -75,6 +76,7 @@ describe('Journal Invite Service', () => {
 
     it('should create an event log entry when inviting an editor', async () => {
       await JournalInviteService.inviteJournalEditor({
+        name: 'Mr. Journal Editor',
         journalId: journal.id,
         inviterId: user.id,
         email: 'neweditor@example.com',
@@ -96,6 +98,7 @@ describe('Journal Invite Service', () => {
     it('should throw error when journal not found', async () => {
       try {
         await JournalInviteService.inviteJournalEditor({
+          name: 'Test Editor',
           journalId: 999,
           inviterId: user.id,
           email: 'neweditor@example.com',
@@ -126,6 +129,7 @@ describe('Journal Invite Service', () => {
 
     beforeEach(async () => {
       invite = await JournalInviteService.inviteJournalEditor({
+        name: 'Accept Test Editor',
         journalId: journal.id,
         inviterId: user.id,
         email: editor.email,
@@ -204,6 +208,7 @@ describe('Journal Invite Service', () => {
 
     beforeEach(async () => {
       invite = await JournalInviteService.inviteJournalEditor({
+        name: 'Mr. Journal Editor',
         journalId: journal.id,
         inviterId: user.id,
         email: editor.email,
@@ -288,6 +293,7 @@ describe('Journal Invite Service', () => {
           .send({
             email: 'neweditor@example.com',
             role: EditorRole.ASSOCIATE_EDITOR,
+            name: 'Test Editor',
           });
 
         expect(res.status).to.equal(200);
@@ -318,6 +324,7 @@ describe('Journal Invite Service', () => {
           .send({
             email: 'neweditor@example.com',
             role: EditorRole.ASSOCIATE_EDITOR,
+            name: 'Test Editor',
           });
 
         expect(res.status).to.equal(403);
@@ -329,6 +336,7 @@ describe('Journal Invite Service', () => {
 
       beforeEach(async () => {
         invite = await JournalInviteService.inviteJournalEditor({
+          name: 'Test Editor',
           journalId: journal.id,
           inviterId: user.id,
           email: editor.email,

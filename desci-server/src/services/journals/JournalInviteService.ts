@@ -16,16 +16,18 @@ async function inviteJournalEditor({
   inviterId,
   email,
   role,
+  name,
   inviteTtlDays = 7,
 }: {
   journalId: number;
   inviterId: number;
   email?: string;
   role: EditorRole;
+  name: string;
   inviteTtlDays?: number;
 }) {
   logger.trace(
-    { fn: 'inviteJournalEditor', journalId, inviterId, email, role, inviteTtlDays },
+    { fn: 'inviteJournalEditor', journalId, inviterId, email, role, inviteTtlDays, name },
     'Inviting journal editor',
   );
 
@@ -93,11 +95,13 @@ async function inviteJournalEditor({
   });
 
   try {
+    const recipientName = inviteeExistingUser?.name || name;
     await sendEmail({
       type: EmailTypes.EDITOR_INVITE,
       payload: {
         email,
         journal,
+        recipientName,
         inviterName: inviter.name,
         role,
         inviteToken: token,
@@ -152,6 +156,10 @@ async function acceptJournalInvite({ token, userId }: { token: string; userId: n
     },
     'Accepting journal invite',
   );
+
+  if (invite?.accepted === true && invite.decisionAt !== null) {
+    return invite;
+  }
 
   const isValid = invite && invite.expiresAt > new Date() && invite.accepted === null;
 

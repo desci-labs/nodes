@@ -72,6 +72,7 @@ import {
   getNewOrcidUsersInXDays,
   getNewUsersInRange,
   getNewUsersInXDays,
+  getUsersWithMarketingConsent,
 } from '../../services/user.js';
 import { getUtcDateXDaysAgo } from '../../utils/clock.js';
 import { asyncMap } from '../../utils.js';

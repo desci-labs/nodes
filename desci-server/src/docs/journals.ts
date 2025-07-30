@@ -1699,7 +1699,7 @@ export const refereeInviteDecisionOperation: ZodOpenApiOperationObject = {
   tags: ['Journals'],
   summary: 'Accept or decline a referee invitation',
   description:
-    'Process a referee invitation decision. Accepting requires authentication and creates a referee assignment. Declining can be done without authentication.',
+    'Process a referee invitation decision. Accepting requires authentication and creates a referee assignment. Declining can be done without authentication and optionally includes a reason.',
   requestParams: { path: refereeInviteDecisionSchema.shape.params },
   requestBody: {
     content: {

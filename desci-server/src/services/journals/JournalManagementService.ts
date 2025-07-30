@@ -12,6 +12,8 @@ import _ from 'lodash';
 import { ok, err, Result } from 'neverthrow';
 
 import { logger } from '../../logger.js';
+import { FormStructure } from '../../schemas/journalsForm.schema.js';
+import { JournalFormService } from './JournalFormService.js';
 
 const prisma = new PrismaClient();
 
@@ -66,6 +68,116 @@ export function getJournalSettingsWithDefaults(settings: Prisma.JsonValue): Jour
     refereeCount: {
       value: parsedSettings.refereeCount?.value ?? DEFAULT_JOURNAL_SETTINGS.refereeCount.value,
     },
+  };
+}
+
+/**
+ * Creates the default peer review form template structure for new journals.
+ * Based on standard academic review criteria covering Introduction, Methods, Results, and Discussion.
+ */
+function createDefaultFormTemplate(): FormStructure {
+  const radioOptions = [
+    { value: 'yes', label: 'Yes' },
+    { value: 'partially', label: 'Partially' },
+    { value: 'no', label: 'No' },
+  ];
+
+  return {
+    formStructureVersion: 'journal-forms-v1.0.0',
+    sections: [
+      {
+        id: 'introduction',
+        title: 'Introduction',
+        description: 'Evaluation of the paper\'s introduction and literature review',
+        fields: [
+          {
+            id: 'background_literature',
+            name: 'background_literature',
+            label: 'Is the background and literature section up to date and appropriate for the topic?',
+            fieldType: 'RADIO',
+            required: true,
+            options: radioOptions,
+          },
+          {
+            id: 'objectives_stated',
+            name: 'objectives_stated',
+            label: 'Are the primary (and secondary) objectives clearly stated at the end of the introduction?',
+            fieldType: 'RADIO',
+            required: true,
+            options: radioOptions,
+          },
+        ],
+      },
+      {
+        id: 'methods',
+        title: 'Methods',
+        description: 'Assessment of methodology and statistical approaches',
+        fields: [
+          {
+            id: 'methods_detail',
+            name: 'methods_detail',
+            label: 'Are the study methods (including theory/applicability/modelling) reported in sufficient detail to allow for their replicability or reproducibility?',
+            fieldType: 'RADIO',
+            required: true,
+            options: radioOptions,
+          },
+          {
+            id: 'statistical_analysis',
+            name: 'statistical_analysis',
+            label: 'Are statistical analyses, controls, sampling mechanism, and statistical reporting (e.g., P-values, CIs, effect sizes) appropriate and well described?',
+            fieldType: 'RADIO',
+            required: true,
+            options: radioOptions,
+          },
+        ],
+      },
+      {
+        id: 'results',
+        title: 'Results',
+        description: 'Evaluation of results presentation and analysis',
+        fields: [
+          {
+            id: 'results_presentation',
+            name: 'results_presentation',
+            label: 'Is the results presentation, including the number of tables and figures, appropriate to best present the study findings?',
+            fieldType: 'RADIO',
+            required: true,
+            options: radioOptions,
+          },
+          {
+            id: 'additional_analyses',
+            name: 'additional_analyses',
+            label: 'Are additional sub-analyses or statistical measures needed (e.g., reporting of CIs, effect sizes, sensitivity analyses)?',
+            fieldType: 'RADIO',
+            required: true,
+            options: radioOptions,
+          },
+        ],
+      },
+      {
+        id: 'discussion',
+        title: 'Discussion',
+        description: 'Assessment of interpretation and study limitations',
+        fields: [
+          {
+            id: 'interpretation_supported',
+            name: 'interpretation_supported',
+            label: 'Is the interpretation of results and study conclusions supported by the data and the study design?',
+            fieldType: 'RADIO',
+            required: true,
+            options: radioOptions,
+          },
+          {
+            id: 'limitations_emphasized',
+            name: 'limitations_emphasized',
+            label: 'Have the authors clearly emphasized the limitations of their study/theory/methods/argument?',
+            fieldType: 'RADIO',
+            required: true,
+            options: radioOptions,
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -126,6 +238,27 @@ async function createJournal(data: CreateJournalInput): Promise<Result<Journal, 
         },
       },
     });
+
+    // Create default peer review form template
+    const defaultFormResult = await JournalFormService.createFormTemplate(data.ownerId, {
+      journalId: journal.id,
+      name: 'Standard Peer Review Form',
+      description: 'Default academic peer review form covering Introduction, Methods, Results, and Discussion sections',
+      structure: createDefaultFormTemplate(),
+    });
+
+    if (defaultFormResult.isErr()) {
+      logger.warn(
+        { error: defaultFormResult.error, journalId: journal.id },
+        'Failed to create default form template, but journal was created successfully'
+      );
+    } else {
+      logger.info(
+        { journalId: journal.id, templateId: defaultFormResult.value.id },
+        'Default form template created successfully'
+      );
+    }
+
     return ok(journal);
   } catch (error) {
     logger.error({ error, data }, 'Failed to create journal');
@@ -669,6 +802,7 @@ async function getJournalProfile(userId: number): Promise<
     },
     select: {
       journalId: true,
+      userId: true,
       journal: {
         select: {
           id: true,
