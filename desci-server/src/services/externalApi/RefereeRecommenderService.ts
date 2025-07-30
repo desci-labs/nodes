@@ -2,6 +2,7 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ok, err, Result } from 'neverthrow';
 import axios from 'axios';
+import { randomUUID } from 'crypto';
 
 import { logger as parentLogger } from '../../logger.js';
 import { setToCache, getFromCache } from '../../redisClient.js';
@@ -116,12 +117,21 @@ async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise
 }
 
 function generateFileName(originalFileName: string): string {
-  return `referee_rec_v${API_VERSION}_${originalFileName}`;
+  const uuid = randomUUID();
+  const fileExtension = originalFileName.split('.').pop() || 'pdf';
+  const baseName = originalFileName.replace(/\.[^/.]+$/, ''); // Remove extension
+
+  // Format: referee_rec_v{version}_{uuid}_{sanitized_basename}.{ext}
+  const sanitizedBaseName = baseName
+    .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace unsafe characters with underscore
+    .substring(0, 50); // Limit length
+
+  return `referee_rec_v${API_VERSION}_${uuid}_${sanitizedBaseName}.${fileExtension}`;
 }
 
 async function storeSession(fileName: string, session: RefereeRecommenderSession): Promise<Result<void, Error>> {
   try {
-    // Note: Later we'll change this to a file hash for security.
+    // Use the generated filename (which includes UUID) as the cache key
     const cacheKey = `referee-recommender-session:${fileName}`;
     await setToCache(cacheKey, session, SESSION_TTL_SECONDS);
 
