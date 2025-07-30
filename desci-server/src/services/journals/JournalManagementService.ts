@@ -88,7 +88,7 @@ function createDefaultFormTemplate(): FormStructure {
       {
         id: 'introduction',
         title: 'Introduction',
-        description: 'Evaluation of the paper\'s introduction and literature review',
+        description: "Evaluation of the paper's introduction and literature review",
         fields: [
           {
             id: 'background_literature',
@@ -116,7 +116,8 @@ function createDefaultFormTemplate(): FormStructure {
           {
             id: 'methods_detail',
             name: 'methods_detail',
-            label: 'Are the study methods (including theory/applicability/modelling) reported in sufficient detail to allow for their replicability or reproducibility?',
+            label:
+              'Are the study methods (including theory/applicability/modelling) reported in sufficient detail to allow for their replicability or reproducibility?',
             fieldType: 'RADIO',
             required: true,
             options: radioOptions,
@@ -124,7 +125,8 @@ function createDefaultFormTemplate(): FormStructure {
           {
             id: 'statistical_analysis',
             name: 'statistical_analysis',
-            label: 'Are statistical analyses, controls, sampling mechanism, and statistical reporting (e.g., P-values, CIs, effect sizes) appropriate and well described?',
+            label:
+              'Are statistical analyses, controls, sampling mechanism, and statistical reporting (e.g., P-values, CIs, effect sizes) appropriate and well described?',
             fieldType: 'RADIO',
             required: true,
             options: radioOptions,
@@ -139,7 +141,8 @@ function createDefaultFormTemplate(): FormStructure {
           {
             id: 'results_presentation',
             name: 'results_presentation',
-            label: 'Is the results presentation, including the number of tables and figures, appropriate to best present the study findings?',
+            label:
+              'Is the results presentation, including the number of tables and figures, appropriate to best present the study findings?',
             fieldType: 'RADIO',
             required: true,
             options: radioOptions,
@@ -147,7 +150,8 @@ function createDefaultFormTemplate(): FormStructure {
           {
             id: 'additional_analyses',
             name: 'additional_analyses',
-            label: 'Are additional sub-analyses or statistical measures needed (e.g., reporting of CIs, effect sizes, sensitivity analyses)?',
+            label:
+              'Are additional sub-analyses or statistical measures needed (e.g., reporting of CIs, effect sizes, sensitivity analyses)?',
             fieldType: 'RADIO',
             required: true,
             options: radioOptions,
@@ -250,12 +254,12 @@ async function createJournal(data: CreateJournalInput): Promise<Result<Journal, 
     if (defaultFormResult.isErr()) {
       logger.warn(
         { error: defaultFormResult.error, journalId: journal.id },
-        'Failed to create default form template, but journal was created successfully'
+        'Failed to create default form template, but journal was created successfully',
       );
     } else {
       logger.info(
         { journalId: journal.id, templateId: defaultFormResult.value.id },
-        'Default form template created successfully'
+        'Default form template created successfully',
       );
     }
 
@@ -453,7 +457,7 @@ export type JournalEditorialBoard = Array<
         };
       };
     };
-  }> & { currentWorkload: number; expired?: boolean }
+  }> & { currentWorkload: number; expired?: boolean; inviteId?: number }
 >;
 
 async function getJournalEditorialBoardById(journalId: number): Promise<Result<JournalEditorialBoard, Error>> {
@@ -541,6 +545,7 @@ async function getJournalEditorialBoardById(journalId: number): Promise<Result<J
       expertise: [],
       userId: 0,
       expired: e.expiresAt < new Date(),
+      inviteId: e.id,
     }));
     logger.info({ pendingEditors }, 'Pending editors');
 
