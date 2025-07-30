@@ -490,15 +490,12 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
       return err(new Error('Referee invite not valid'));
     }
 
-    const refereeUser = refereeInvite?.userId
-      ? await prisma.user.findUnique({
-          where: { id: refereeInvite.userId },
-        })
-      : refereeInvite.email
-        ? await prisma.user.findUnique({
-            where: { email: refereeInvite.email },
-          })
-        : null;
+    const refereeUser = await prisma.user.findUnique({
+      where: {
+        id: data.userId,
+      },
+    });
+
     if (!refereeUser) {
       return err(new Error('Referee not found'));
     }
