@@ -35,5 +35,9 @@
   "include": [
     "test/**/*.ts"
   ],
+  "exclude": [
+    "node_modules/@types/hapi__catbox",
+    "node_modules/@types/hapi__shot"
+  ],
   "compileOnSave": true
 }
