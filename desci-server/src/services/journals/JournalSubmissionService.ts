@@ -304,8 +304,17 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
   }
   const submissionExtended = submissionExtendedResult.value;
 
-  if (!submission || submission.assignedEditorId !== editorId) {
-    throw new NotFoundError('Submission not found');
+  const editorJournalRole = await JournalManagementService.getUserJournalRole(submission.journalId, editorId);
+  if (editorJournalRole.isErr()) {
+    throw new Error('Failed to get editor journal role');
+  }
+  const isEditor = editorJournalRole.isOk();
+  const editorRole = isEditor ? editorJournalRole.value : undefined;
+  const isEditorAssigned = submission.assignedEditorId === editorId;
+  const isChiefEditor = editorRole === EditorRole.CHIEF_EDITOR;
+  logger.trace({ isEditor, isEditorAssigned, editorRole }, 'acceptSubmission::isEditor');
+  if (!isEditorAssigned && !isChiefEditor) {
+    throw new ForbiddenError('You are not authorized to accept this submission');
   }
 
   if (submission.status === SubmissionStatus.ACCEPTED) {
