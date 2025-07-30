@@ -516,10 +516,17 @@ export class MystTransformer implements BaseTransformer {
             }
           }
         }
-      } else {
-        // Handle simple arrays
-        yaml += `${indentStr}${key}: [${value.map((v) => this.escapeYamlValue(v)).join(', ')}]\n`;
-      }
+              } else {
+          // Handle simple arrays - use multi-line format for affiliations for better MyST compatibility
+          if (key === 'affiliations') {
+            yaml += `${indentStr}${key}:\n`;
+            for (const item of value) {
+              yaml += `${indentStr}  - ${this.escapeYamlValue(item)}\n`;
+            }
+          } else {
+            yaml += `${indentStr}${key}: [${value.map((v) => this.escapeYamlValue(v)).join(', ')}]\n`;
+          }
+        }
     } else if (typeof value === 'object' && value !== null) {
       // Handle nested objects (like venue, numbering, social)
       yaml += `${indentStr}${key}:\n`;

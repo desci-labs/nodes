@@ -9,10 +9,7 @@
     "target": "esnext",
     // Recommended by docs, but a lot of errors
     // "verbatimModuleSyntax": true,
-    "lib": [
-      "esnext",
-      "dom"
-    ],
+    "lib": ["esnext", "dom"],
     "noEmit": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -26,18 +23,11 @@
     "inlineSourceMap": true,
     "paths": {
       // Overrides a built-in Response type
-      "express": [
-        "./src/types/express"
-      ]
+      "express": ["./src/types/express"]
     },
     "jsx": "react"
   },
-  "include": [
-    "test/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules/@types/hapi__catbox",
-    "node_modules/@types/hapi__shot"
-  ],
+  "include": ["test/**/*.ts"],
+  "exclude": ["node_modules/@types/hapi__catbox", "node_modules/@types/hapi__shot"],
   "compileOnSave": true
 }
