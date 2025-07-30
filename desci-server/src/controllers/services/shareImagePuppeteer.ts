@@ -8,6 +8,19 @@ import { supabase } from '../../lib/supabase.js';
 
 const logger = parentLogger.child({ module: 'shareImagePuppeteer' });
 
+/**
+ * Custom error to indicate that SVG fallback is needed
+ */
+class PuppeteerFallbackError extends Error {
+  constructor(
+    message: string,
+    public originalError: Error,
+  ) {
+    super(message);
+    this.name = 'PuppeteerFallbackError';
+  }
+}
+
 interface Citation {
   id: string;
   title: string;
@@ -190,9 +203,6 @@ function processMarkdownToHTML(text: string): string {
  * Loads the background image as base64 for embedding in HTML
  */
 function loadBackgroundImageAsBase64(): string {
-  const fs = require('fs');
-  const path = require('path');
-
   const possiblePaths = [
     path.join(process.cwd(), 'public', 'ai-share-blank.png'),
     path.join(__dirname, '..', '..', 'public', 'ai-share-blank.png'),
@@ -511,12 +521,20 @@ export const generateShareImagePuppeteer = async (req: Request<any, any, any, Sh
           response_data: data.response_data,
         };
 
-        return await generateImageFromData(res, {
-          text: searchData.query,
-          answer: searchData.response_data.answer,
-          citations: searchData.response_data.citations || [],
-          refs: searchData.response_data.citations?.length || 0,
-        });
+        try {
+          return await generateImageFromData(res, {
+            text: searchData.query,
+            answer: searchData.response_data.answer,
+            citations: searchData.response_data.citations || [],
+            refs: searchData.response_data.citations?.length || 0,
+          });
+        } catch (imageError) {
+          if (imageError instanceof PuppeteerFallbackError) {
+            logger.info('Puppeteer failed for database query, falling back to SVG approach');
+            return await useSvgFallback(req, res);
+          }
+          throw imageError;
+        }
       } catch (error) {
         logger.error({ error }, 'Error fetching search data');
         return res.status(500).json({ error: 'Failed to fetch search data' });
@@ -539,12 +557,20 @@ export const generateShareImagePuppeteer = async (req: Request<any, any, any, Sh
       }
     }
 
-    return await generateImageFromData(res, {
-      text: text as string,
-      answer: answer as string,
-      citations: citationsData,
-      refs: referenceCount,
-    });
+    try {
+      return await generateImageFromData(res, {
+        text: text as string,
+        answer: answer as string,
+        citations: citationsData,
+        refs: referenceCount,
+      });
+    } catch (imageError) {
+      if (imageError instanceof PuppeteerFallbackError) {
+        logger.info('Puppeteer failed for URL parameters, falling back to SVG approach');
+        return await useSvgFallback(req, res);
+      }
+      throw imageError;
+    }
   } catch (error) {
     logger.error({ error }, 'Error in generateShareImagePuppeteer controller');
     return res.status(500).json({
@@ -694,24 +720,12 @@ async function generateImageFromData(res: Response, data: ShareImageData) {
       'Error generating share image with Puppeteer',
     );
 
-    // If Puppeteer fails, fall back to the old SVG approach as a temporary measure
-    logger.info('Falling back to SVG approach due to Puppeteer failure');
-
-    try {
-      // Import the old approach dynamically
-      const { generateShareImage } = await import('./shareImage.js');
-
-      // We need to create a proper request object for the fallback
-      // This is a bit of a hack since we only have the data, not the original request
-      throw new Error('Cannot fallback from generateImageFromData - need to handle this at the controller level');
-    } catch (fallbackError) {
-      logger.error({ fallbackError }, 'Fallback to SVG also failed');
-      res.status(500).json({
-        error: 'Failed to generate image with both Puppeteer and SVG fallback',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        fallbackDetails: fallbackError instanceof Error ? fallbackError.message : 'Unknown fallback error',
-      });
-    }
+    // If Puppeteer fails, throw a specific error to indicate fallback is needed
+    // The controller level will handle the SVG fallback since it has access to the request object
+    throw new PuppeteerFallbackError(
+      'Puppeteer failed, SVG fallback needed at controller level',
+      error instanceof Error ? error : new Error('Unknown Puppeteer error'),
+    );
   } finally {
     if (browser) {
       try {

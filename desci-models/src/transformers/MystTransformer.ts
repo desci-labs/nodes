@@ -6,14 +6,87 @@ import {
   ResearchObjectComponentType,
 } from '../ResearchObject';
 import { BaseTransformer } from './BaseTransformer';
+import * as yaml from 'js-yaml';
 
 /**
  * Transformer for MyST Markdown format
  *
  * MyST Markdown is an extension of CommonMark with additional features for scientific and technical documentation.
  * It includes frontmatter, directives, roles, and more.
+ *
+ * GitHub URL Configuration:
+ * The transformer automatically extracts GitHub URLs from research objects in the following priority order:
+ * 1. Component external URLs that contain 'github.com'
+ * 2. Component GitHub URLs (payload.githubUrl)
+ * 3. Component discussion URLs that contain 'github.com'
+ * 4. Author GitHub profiles
+ * 5. Environment variable DESCI_GITHUB_URL (full URL)
+ * 6. Environment variable DESCI_GITHUB_REPO (org/repo format, e.g., 'desci-labs/nodes')
+ * 7. Default fallback: 'https://github.com/desci-labs/nodes'
  */
 export class MystTransformer implements BaseTransformer {
+  private static readonly DEFAULT_GITHUB_ORG = 'desci-labs/nodes';
+
+  /**
+   * Extract GitHub URL from research object components or use environment variable/default
+   */
+  private getGitHubUrl(researchObject: ResearchObjectV1): string | undefined {
+    // First, check if any components have GitHub URLs
+    if (researchObject.components) {
+      for (const component of researchObject.components) {
+        if (component.payload) {
+          // Check for external URL in component payload
+          if (component.payload.externalUrl && typeof component.payload.externalUrl === 'string') {
+            if (component.payload.externalUrl.includes('github.com')) {
+              return component.payload.externalUrl;
+            }
+          }
+
+          // Check for GitHub URL in component payload
+          if (component.payload.githubUrl && typeof component.payload.githubUrl === 'string') {
+            return component.payload.githubUrl;
+          }
+
+          // Check for discussion URL (often GitHub)
+          if (component.payload.discussionUrl && typeof component.payload.discussionUrl === 'string') {
+            if (component.payload.discussionUrl.includes('github.com')) {
+              return component.payload.discussionUrl;
+            }
+          }
+        }
+      }
+    }
+
+    // Check for authors with GitHub profiles
+    if (researchObject.authors) {
+      for (const author of researchObject.authors) {
+        if (author.github && typeof author.github === 'string') {
+          // If it's a full URL, use it; if it's just a username, construct the URL
+          if (author.github.startsWith('http')) {
+            return author.github;
+          } else {
+            return `https://github.com/${author.github}`;
+          }
+        }
+      }
+    }
+
+    // Use environment variable if available
+    const envGithubUrl = process.env.DESCI_GITHUB_URL;
+    if (envGithubUrl) {
+      return envGithubUrl;
+    }
+
+    // Use environment variable for organization/repo if available
+    const envGithubRepo = process.env.DESCI_GITHUB_REPO;
+    if (envGithubRepo) {
+      return `https://github.com/${envGithubRepo}`;
+    }
+
+    // Default fallback
+    return `https://github.com/${MystTransformer.DEFAULT_GITHUB_ORG}`;
+  }
+
   /**
    * Import a MyST Markdown string into a ResearchObject
    *
@@ -40,15 +113,33 @@ export class MystTransformer implements BaseTransformer {
       defaultLicense: this.parseLicense(frontmatter.license),
     };
 
-    // Extract dpid from DOI if available
-    if (frontmatter.doi && typeof frontmatter.doi === 'string') {
-      const dpidMatch = frontmatter.doi.match(/10\.62329\/(\w+)\.(\d+)/);
-      if (dpidMatch) {
-        researchObject.dpid = {
-          prefix: dpidMatch[1],
-          id: dpidMatch[2],
-        };
+    // Preserve date from frontmatter if available (convert Date objects to strings)
+    if (frontmatter.date) {
+      if (frontmatter.date instanceof Date) {
+        researchObject.date = frontmatter.date.toISOString().split('T')[0];
+      } else {
+        researchObject.date = String(frontmatter.date);
       }
+    }
+
+    // Parse references from bibliography
+    if (frontmatter.bibliography && Array.isArray(frontmatter.bibliography)) {
+      researchObject.references = frontmatter.bibliography.map((ref: string) => {
+        // Convert bibliography entries back to reference format
+        if (ref.includes('doi.org/') || ref.startsWith('10.')) {
+          const doi = ref.replace('https://doi.org/', '').replace('http://doi.org/', '');
+          return {
+            type: 'doi' as const,
+            id: doi,
+            title: '', // Title would need to be resolved separately
+          };
+        }
+        return {
+          type: 'doi' as const,
+          id: ref,
+          title: '',
+        };
+      });
     }
 
     // Add content as a component
@@ -106,165 +197,65 @@ export class MystTransformer implements BaseTransformer {
    * @returns Object containing frontmatter and content
    */
   private extractFrontmatter(input: string): { frontmatter: any; content: string } {
+    // First try to parse with --- delimiters (for backward compatibility)
     const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
     const match = input.match(frontmatterRegex);
 
-    if (!match) {
-      return { frontmatter: {}, content: input };
-    }
+    if (match) {
+      const frontmatterYaml = match[1];
+      const content = match[2];
 
-    const frontmatterYaml = match[1];
-    const content = match[2];
-
-    // Parse YAML frontmatter
-    const frontmatter: any = {};
-    let currentKey = '';
-    let currentList: any[] = [];
-    let currentListItem: any = {};
-    let inList = false;
-    let listIndent = 0;
-    let inNestedList = false;
-    let nestedListIndent = 0;
-
-    const lines = frontmatterYaml.split('\n');
-    for (const line of lines) {
-      // Skip empty lines
-      if (!line.trim()) continue;
-
-      const indent = line.search(/\S/);
-      const trimmedLine = line.trim();
-
-      // Check if we're starting a new list item
-      if (trimmedLine.startsWith('-')) {
-        if (indent > listIndent && inList) {
-          // This is a nested list item
-          if (!inNestedList) {
-            inNestedList = true;
-            nestedListIndent = indent;
-            if (!currentListItem.organizations) {
-              currentListItem.organizations = [];
-            }
-          }
-          const nestedItemContent = trimmedLine.slice(1).trim();
-          if (nestedItemContent.includes(':')) {
-            const [key, value] = this.splitKeyValue(nestedItemContent);
-            currentListItem.organizations.push({
-              id: this.generateId(),
-              name: value,
-            });
-          } else {
-            currentListItem.organizations.push({
-              id: this.generateId(),
-              name: nestedItemContent,
-            });
-          }
-          continue;
-        }
-
-        // If we're not in a list yet, start a new one
-        if (!inList) {
-          inList = true;
-          currentList = [];
-          listIndent = indent;
-        } else if (indent === listIndent) {
-          // Save previous list item if it exists
-          if (Object.keys(currentListItem).length > 0) {
-            currentList.push({ ...currentListItem });
-            currentListItem = {};
-          }
-          inNestedList = false;
-        }
-
-        // Parse the list item
-        const itemContent = trimmedLine.slice(1).trim();
-        if (itemContent.includes(':')) {
-          const [key, value] = this.splitKeyValue(itemContent);
-          currentListItem[key] = value;
-        } else {
-          currentListItem = { name: itemContent };
-        }
-        continue;
-      }
-
-      // Handle nested properties in list items
-      if (inList && indent > listIndent && !inNestedList) {
-        const [key, value] = this.splitKeyValue(trimmedLine);
-        if (key && value) {
-          // Handle arrays in square brackets even within list items
-          if (value.startsWith('[') && value.endsWith(']')) {
-            currentListItem[key] = value
-              .slice(1, -1)
-              .split(',')
-              .map((item) => item.trim());
-          } else {
-            currentListItem[key] = value;
-          }
-        }
-        continue;
-      }
-
-      // If we're in a list but this line isn't indented enough, end the list
-      if (inList && indent <= listIndent) {
-        // Save the last list item if it exists
-        if (Object.keys(currentListItem).length > 0) {
-          currentList.push({ ...currentListItem });
-        }
-        frontmatter[currentKey] = [...currentList];
-        inList = false;
-        inNestedList = false;
-        currentList = [];
-        currentListItem = {};
-      }
-
-      // Parse key-value pairs
-      const keyValueMatch = trimmedLine.match(/^([^:]+):\s*(.*)$/);
-      if (keyValueMatch) {
-        const key = keyValueMatch[1].trim();
-        const value = keyValueMatch[2].trim();
-
-        // Handle arrays in square brackets
-        if (value.startsWith('[') && value.endsWith(']')) {
-          frontmatter[key] = value
-            .slice(1, -1)
-            .split(',')
-            .map((item) => item.trim());
-        } else {
-          frontmatter[key] = value;
-          currentKey = key;
-        }
+      // Parse YAML frontmatter using js-yaml library
+      try {
+        const frontmatter = yaml.load(frontmatterYaml) as any;
+        return { frontmatter: frontmatter || {}, content };
+      } catch (error) {
+        // If YAML parsing fails, return empty frontmatter and log the error
+        console.warn('Failed to parse YAML frontmatter:', error);
+        return { frontmatter: {}, content };
       }
     }
 
-    // Save any remaining list items
-    if (inList && Object.keys(currentListItem).length > 0) {
-      currentList.push({ ...currentListItem });
-      frontmatter[currentKey] = [...currentList];
-    }
+    // If no delimiters found, try to split YAML frontmatter from content
+    // Look for the first line that starts with '#' (markdown heading) or doesn't contain ':'
+    const lines = input.split('\n');
+    let yamlEndIndex = -1;
 
-    return { frontmatter, content };
-  }
-
-  /**
-   * Split a YAML line into key and value, handling special cases like URLs
-   */
-  private splitKeyValue(line: string): [string, string] {
-    const colonIndex = line.indexOf(':');
-    if (colonIndex === -1) {
-      return ['', line];
-    }
-
-    const key = line.slice(0, colonIndex).trim();
-    let value = line.slice(colonIndex + 1).trim();
-
-    // Handle URLs that contain colons
-    if (value.startsWith('http')) {
-      const match = line.match(/^([^:]+):\s*(https?:\/\/.*)$/);
-      if (match) {
-        return [match[1].trim(), match[2].trim()];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('#') || (line !== '' && !line.includes(':') && !line.startsWith('-'))) {
+        yamlEndIndex = i;
+        break;
       }
     }
 
-    return [key, value];
+    if (yamlEndIndex > 0) {
+      // We found a split point - separate YAML from content
+      const yamlPart = lines.slice(0, yamlEndIndex).join('\n');
+      const contentPart = lines.slice(yamlEndIndex).join('\n');
+
+      try {
+        const frontmatter = yaml.load(yamlPart) as any;
+        if (typeof frontmatter === 'object' && frontmatter !== null && !Array.isArray(frontmatter)) {
+          return { frontmatter: frontmatter, content: contentPart };
+        }
+      } catch (error) {
+        // If YAML parsing fails, treat entire input as content
+      }
+    } else if (input.includes(':') && !input.startsWith('#')) {
+      // Try to parse entire input as YAML (pure frontmatter case)
+      try {
+        const frontmatter = yaml.load(input) as any;
+        if (typeof frontmatter === 'object' && frontmatter !== null && !Array.isArray(frontmatter)) {
+          return { frontmatter: frontmatter, content: '' };
+        }
+      } catch (error) {
+        // If YAML parsing fails, fall through to treat as content
+      }
+    }
+
+    // Treat as plain content
+    return { frontmatter: {}, content: input };
   }
 
   /**
@@ -295,6 +286,10 @@ export class MystTransformer implements BaseTransformer {
         name: author.name || '',
         role: author.role || 'Author',
       };
+
+      if (author.email) {
+        parsedAuthor.email = author.email;
+      }
 
       if (author.orcid) {
         parsedAuthor.orcid = author.orcid.startsWith('http') ? author.orcid : `https://orcid.org/${author.orcid}`;
@@ -414,6 +409,7 @@ export class MystTransformer implements BaseTransformer {
       frontmatterData.authors = researchObject.authors.map((author) => {
         const authorData: any = { name: author.name };
 
+        if (author.email) authorData.email = author.email;
         if (author.orcid) authorData.orcid = author.orcid;
         if (author.role) {
           // Use 'role' (singular) for backward compatibility with tests
@@ -434,15 +430,35 @@ export class MystTransformer implements BaseTransformer {
     // Extended MyST frontmatter fields that could be derived from ResearchObject
     if (researchObject.dpid) {
       frontmatterData.doi = `10.62329/${researchObject.dpid.prefix}.${researchObject.dpid.id}`;
-      frontmatterData.github = `https://github.com/desci-labs/nodes`;
     }
 
-    // Date field (use current date if not available)
-    frontmatterData.date = new Date().toISOString().split('T')[0];
+    // Add GitHub URL (dynamic based on research object)
+    const githubUrl = this.getGitHubUrl(researchObject);
+    if (githubUrl) {
+      frontmatterData.github = githubUrl;
+    }
+
+    // Date field (preserve existing date or use current date if not available)
+    frontmatterData.date = researchObject.date || new Date().toISOString().split('T')[0];
+
+    // References - convert to MyST bibliography format
+    if (researchObject.references && researchObject.references.length > 0) {
+      frontmatterData.bibliography = researchObject.references.map((ref) => {
+        // Convert reference to standard citation format
+        if (ref.type === 'doi') {
+          return ref.id.startsWith('10.') ? `https://doi.org/${ref.id}` : ref.id;
+        }
+        return ref.id;
+      });
+    }
 
     // Additional MyST frontmatter fields
     frontmatterData.subject = 'Research Article';
     frontmatterData.open_access = true; // DeSci nodes are open access by default
+
+    // Add insight journal specific fields (using flat structure for better parsing compatibility)
+    frontmatterData.venue_title = 'Insight Journal';
+    frontmatterData.venue_url = 'https://insight-journal.org';
 
     // Component-based fields - generate simple downloads list for better roundtrip compatibility
     const codeComponents = researchObject.components?.filter((c) => c.type === ResearchObjectComponentType.CODE);
@@ -471,109 +487,27 @@ export class MystTransformer implements BaseTransformer {
   }
 
   /**
-   * Generate YAML frontmatter string with proper escaping to avoid MyST lint issues
+   * Generate YAML frontmatter string using js-yaml library
    *
    * @param data Frontmatter data object
    * @returns YAML frontmatter string
    */
   private generateYamlFrontmatter(data: any): string {
-    let yaml = '---\n';
+    // Filter out undefined/null values
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined && value !== null),
+    );
 
-    for (const [key, value] of Object.entries(data)) {
-      if (value === undefined || value === null) continue;
+    // Use js-yaml to generate clean YAML output
+    const yamlOutput = yaml.dump(cleanData, {
+      indent: 2,
+      lineWidth: -1, // No line wrapping
+      noRefs: true, // No references/anchors
+      quotingType: '"', // Use double quotes when needed
+      forceQuotes: false, // Only quote when necessary
+    });
 
-      yaml += this.generateYamlValue(key, value, 0);
-    }
-
-    yaml += '---\n\n';
-    return yaml;
-  }
-
-  /**
-   * Generate YAML value recursively with proper indentation
-   */
-  private generateYamlValue(key: string, value: any, indent: number): string {
-    const indentStr = '  '.repeat(indent);
-    let yaml = '';
-
-    if (Array.isArray(value)) {
-      if (value.length === 0) return '';
-
-      // Handle arrays of objects (like authors, exports, downloads)
-      if (typeof value[0] === 'object') {
-        yaml += `${indentStr}${key}:\n`;
-        for (const item of value) {
-          const entries = Object.entries(item);
-          if (entries.length === 1) {
-            yaml += `${indentStr}  - ${this.escapeYamlValue(entries[0][1])}\n`;
-          } else {
-            // Put the first property on the same line as the dash
-            yaml += `${indentStr}  - ${entries[0][0]}: ${this.escapeYamlValue(entries[0][1])}\n`;
-            // Put the rest on subsequent lines
-            for (let i = 1; i < entries.length; i++) {
-              const [subKey, subValue] = entries[i];
-              yaml += this.generateYamlValue(subKey, subValue, indent + 2);
-            }
-          }
-        }
-              } else {
-          // Handle simple arrays - use multi-line format for affiliations for better MyST compatibility
-          if (key === 'affiliations') {
-            yaml += `${indentStr}${key}:\n`;
-            for (const item of value) {
-              yaml += `${indentStr}  - ${this.escapeYamlValue(item)}\n`;
-            }
-          } else {
-            yaml += `${indentStr}${key}: [${value.map((v) => this.escapeYamlValue(v)).join(', ')}]\n`;
-          }
-        }
-    } else if (typeof value === 'object' && value !== null) {
-      // Handle nested objects (like venue, numbering, social)
-      yaml += `${indentStr}${key}:\n`;
-      for (const [subKey, subValue] of Object.entries(value)) {
-        yaml += this.generateYamlValue(subKey, subValue, indent + 1);
-      }
-    } else {
-      // Handle simple values
-      yaml += `${indentStr}${key}: ${this.escapeYamlValue(value)}\n`;
-    }
-
-    return yaml;
-  }
-
-  /**
-   * Escape YAML values to prevent MyST lint issues with hyphens and special characters
-   *
-   * @param value Value to escape
-   * @returns Escaped value
-   */
-  private escapeYamlValue(value: any): string {
-    if (typeof value !== 'string') {
-      return String(value);
-    }
-
-    // Don't quote URLs or common license strings - they're safe and expected to be unquoted
-    if (value.startsWith('http') || value.startsWith('CC-') || value.startsWith('MIT') || value.startsWith('GPL')) {
-      return value;
-    }
-
-    // Check if the value needs quoting (contains special YAML characters)
-    // Remove hyphen from the regex since it's commonly used in normal text and causes issues
-    const needsQuoting =
-      /[:\[\]{}|>*&!%@`#]/.test(value) ||
-      value.startsWith(' ') ||
-      value.endsWith(' ') ||
-      value.includes('\n') ||
-      /^(true|false|null|~)$/i.test(value) ||
-      /^\d+$/.test(value) ||
-      /^\d+\.\d+$/.test(value);
-
-    if (needsQuoting) {
-      // Escape double quotes and wrap in quotes
-      return `"${value.replace(/"/g, '\\"')}"`;
-    }
-
-    return value;
+    return yamlOutput;
   }
 
   /**
@@ -660,13 +594,23 @@ export class MystTransformer implements BaseTransformer {
       description: payload.description || component.name,
       size: payload.size || 0,
       downloadUrl: payload.url || payload.cid || '',
+      starred: component.starred || false,
     };
+
+    // Add subtype information if available
+    if ((component as any).subtype) {
+      result.subtype = (component as any).subtype;
+    }
 
     // Determine file type based on component type and payload
     switch (component.type) {
       case ResearchObjectComponentType.PDF:
         result.fileType = 'pdf';
         result.path = payload.path || `${component.id}.pdf`;
+        // For PDFs, include subtype in the description if available
+        if (result.subtype) {
+          result.description += ` (${result.subtype})`;
+        }
         break;
       case ResearchObjectComponentType.CODE:
         result.fileType = 'code';
@@ -752,6 +696,7 @@ export class MystTransformer implements BaseTransformer {
       frontmatterData.authors = researchObject.authors.map((author) => {
         const authorData: any = { name: author.name };
 
+        if (author.email) authorData.email = author.email;
         if (author.orcid) authorData.orcid = author.orcid;
         if (author.role) {
           // Use 'role' (singular) for backward compatibility
@@ -769,15 +714,37 @@ export class MystTransformer implements BaseTransformer {
       });
     }
 
+    // References - convert to MyST bibliography format
+    if (researchObject.references && researchObject.references.length > 0) {
+      frontmatterData.bibliography = researchObject.references.map((ref) => {
+        // Convert reference to standard citation format
+        if (ref.type === 'doi') {
+          return ref.id.startsWith('10.') ? `https://doi.org/${ref.id}` : ref.id;
+        }
+        return ref.id;
+      });
+    }
+
     // DPID-based fields
     if (researchObject.dpid) {
       frontmatterData.doi = `10.62329/${researchObject.dpid.prefix}.${researchObject.dpid.id}`;
-      frontmatterData.github = `https://github.com/desci-labs/nodes`;
     }
 
-    frontmatterData.date = new Date().toISOString().split('T')[0];
+    // Add GitHub URL (dynamic based on research object)
+    const githubUrl = this.getGitHubUrl(researchObject);
+    if (githubUrl) {
+      frontmatterData.github = githubUrl;
+    }
+
+    frontmatterData.date = researchObject.date || new Date().toISOString().split('T')[0];
     frontmatterData.subject = 'Research Article';
     frontmatterData.open_access = true;
+
+    // Add insight journal specific fields
+    frontmatterData.venue = {
+      title: 'Insight Journal',
+      url: 'https://insight-journal.org',
+    };
 
     return frontmatterData;
   }

@@ -22,11 +22,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "js-yaml": "^4.1.0",
     "jsonld": "^8.1.1",
     "schema-dts": "^1.1.2"
   },
   "devDependencies": {
     "@types/chai": "^4.3.4",
+    "@types/js-yaml": "^4.0.9",
     "@types/jsonld": "^1.5.8",
     "@types/mocha": "^10.0.1",
     "@types/node": "^16.11.12",
