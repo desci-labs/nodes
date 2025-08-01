@@ -331,6 +331,55 @@ export const externalApiDocs = {
       },
     },
   },
+  '/services/ai/referee-recommender/usage': {
+    get: {
+      tags: ['External API'],
+      summary: 'Get referee recommender usage status',
+      description:
+        'Retrieve the current usage status for the authenticated user including total limit, used count, and remaining quota',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      responses: {
+        200: {
+          description: 'Usage status retrieved successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  totalLimit: {
+                    type: 'integer',
+                    description: 'Maximum number of requests allowed in the timeframe',
+                    example: 10,
+                  },
+                  totalUsed: {
+                    type: 'integer',
+                    description: 'Number of requests used in the current timeframe',
+                    example: 3,
+                  },
+                  totalRemaining: {
+                    type: 'integer',
+                    description: 'Number of requests remaining in the current timeframe',
+                    example: 7,
+                  },
+                },
+                required: ['totalLimit', 'totalUsed', 'totalRemaining'],
+              },
+            },
+          },
+        },
+        401: {
+          description: 'Unauthorized - authentication required',
+        },
+        500: {
+          description: 'Internal server error',
+        },
+      },
+    },
+  },
 };
 
 export const externalApiComponents = {
