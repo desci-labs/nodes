@@ -31,8 +31,8 @@ const BUCKET_NAME = process.env.REFEREE_RECOMMENDER_S3_BUCKET || '';
 const API_VERSION = process.env.REFEREE_RECOMMENDER_VERSION || '0.1.3';
 
 // ML Referee API endpoints
-const ML_REFEREE_TRIGGER_URL = process.env.ML_REFEREE_TRIGGER_URL;
-const ML_REFEREE_RESULTS_URL = process.env.ML_REFEREE_RESULTS_URL;
+const ML_REFEREE_TRIGGER_URL = process.env.ML_REFEREE_TRIGGER_CID;
+const ML_REFEREE_RESULTS_URL = process.env.ML_REFEREE_FINDER_RESULT;
 
 interface PresignedUrlRequest {
   userId: number;
@@ -245,7 +245,7 @@ async function triggerRefereeRecommendation(
   try {
     logger.info({ cid: request.cid, external: request.external }, 'Triggering referee recommendation');
 
-    const response = await axios.post(ML_REFEREE_TRIGGER_URL, request, {
+    const response = await axios.post(ML_REFEREE_TRIGGER_URL + '/dev/ml-referee-trigger-step-function', request, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -299,7 +299,7 @@ async function getRefereeResults(uploadedFileName: string): Promise<Result<GetRe
   try {
     logger.info({ uploadedFileName }, 'Fetching referee recommendation results');
 
-    const response = await axios.get(ML_REFEREE_RESULTS_URL, {
+    const response = await axios.get(ML_REFEREE_RESULTS_URL + '/dev/ml-referee-rec-get-result', {
       params: {
         UploadedFileName: uploadedFileName,
       },
