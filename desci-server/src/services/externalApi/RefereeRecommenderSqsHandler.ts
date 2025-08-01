@@ -4,6 +4,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ExternalApiSqsMessage, SqsMessageType, BaseSqsMessage } from '../sqs/SqsMessageTypes.js';
 import { sqsService } from '../sqs/SqsService.js';
+import { emitWebsocketEvent, WebSocketEventType } from '../websocketService.js';
 
 import { RefereeRecommenderService, SESSION_TTL_SECONDS } from './RefereeRecommenderService.js';
 
@@ -46,7 +47,7 @@ export class RefereeRecommenderSqsHandler {
         const message = await sqsService.receiveMessage();
 
         if (message) {
-          debugger;
+          // debugger;
           const processed = await this.processMessage(message);
           if (processed) {
             await sqsService.deleteMessage(message.ReceiptHandle!);
@@ -89,15 +90,91 @@ export class RefereeRecommenderSqsHandler {
       // Save to database for all users who requested this file
       await Promise.all(sessions.map((session) => this.saveToDatabase(eventData, session)));
 
+      // Emit websocket events to all users who requested this file
+      sessions.forEach((session) => {
+        this.emitWebsocketEvent(eventData, session);
+      });
+
       logger.info(
         { fileName: eventData.file_name, userCount: sessions.length },
-        'Updated database for all users who requested this file',
+        'Updated database and emited websocket events for this file',
       );
 
       return true; // Successfully processed, can delete
     } catch (error) {
       logger.error({ error, messageBody: message.Body }, 'Failed to process SQS message');
       throw error;
+    }
+  }
+
+  private emitWebsocketEvent(eventData: ExternalApiSqsMessage, session: any): void {
+    try {
+      let eventType: WebSocketEventType;
+      let eventPayload: any;
+
+      switch (eventData.eventType) {
+        case 'PROCESSING_COMPLETED':
+          eventType = WebSocketEventType.REFEREE_REC_PROCESSING_COMPLETED;
+          eventPayload = {
+            fileName: eventData.file_name,
+            originalFileName: session.originalFileName,
+            status: 'completed',
+            timestamp: new Date().toISOString(),
+          };
+          break;
+
+        case 'PROCESSING_FAILED':
+          eventType = WebSocketEventType.REFEREE_REC_PROCESSING_FAILED;
+          eventPayload = {
+            fileName: eventData.file_name,
+            originalFileName: session.originalFileName,
+            status: 'failed',
+            error: eventData.data?.error || 'Processing failed',
+            timestamp: new Date().toISOString(),
+          };
+          break;
+
+        case 'PROCESSING_STARTED':
+          eventType = WebSocketEventType.REFEREE_REC_PROCESSING_STARTED;
+          eventPayload = {
+            fileName: eventData.file_name,
+            originalFileName: session.originalFileName,
+            status: 'started',
+            timestamp: new Date().toISOString(),
+          };
+          break;
+
+        default:
+          logger.warn(
+            { eventType: eventData.eventType, userId: session.userId },
+            'Unknown event type for websocket notification',
+          );
+          return;
+      }
+
+      emitWebsocketEvent(session.userId, {
+        type: eventType,
+        data: eventPayload,
+      });
+
+      logger.info(
+        {
+          userId: session.userId,
+          eventType: eventData.eventType,
+          fileName: eventData.file_name,
+        },
+        'Emitted websocket event for referee recommender',
+      );
+    } catch (error) {
+      logger.error(
+        {
+          error,
+          userId: session.userId,
+          eventType: eventData.eventType,
+          fileName: eventData.file_name,
+        },
+        'Failed to emit websocket event',
+      );
     }
   }
 

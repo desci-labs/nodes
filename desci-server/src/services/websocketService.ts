@@ -12,6 +12,9 @@ const logger = parentLogger.child({ module: 'websocketService' });
 
 export enum WebSocketEventType {
   NOTIFICATION = 'notification',
+  REFEREE_REC_PROCESSING_STARTED = 'referee_rec_processing_started',
+  REFEREE_REC_PROCESSING_COMPLETED = 'referee_rec_processing_completed',
+  REFEREE_REC_PROCESSING_FAILED = 'referee_rec_processing_failed',
 }
 
 export type WebsocketEventPayload = {
