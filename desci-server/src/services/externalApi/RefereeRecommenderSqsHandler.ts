@@ -167,9 +167,16 @@ export class RefereeRecommenderSqsHandler {
         },
       });
 
+      // Mark session as completed (remove from active tracking)
+      await RefereeRecommenderService.markSessionAsCompleted(session.userId, eventData.file_name);
+
       logger.debug({ userId: session.userId }, 'Referee recommender usage saved to database');
     } catch (error) {
       logger.error({ error, eventData, session }, 'Failed to save referee recommender usage to database');
+
+      // Clean up failed processing session
+      await RefereeRecommenderService.handleProcessingFailure(session.userId, eventData.file_name);
+
       throw error;
     }
   }

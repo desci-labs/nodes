@@ -20,6 +20,23 @@ export const triggerRecommendation = async (req: AuthenticatedRequest, res: Resp
 
     const { body } = triggerRefereeRecommendationSchema.parse(req);
 
+    // Check rate limit: 10 requests per 24 hours (3600 * 24 seconds)
+    const rateLimitCheck = await RefereeRecommenderService.checkRateLimit(
+      user.id,
+      RefereeRecommenderService.RATE_LIMIT_USES,
+      RefereeRecommenderService.RATE_LIMIT_TIMEFRAME_SECONDS,
+    );
+    if (rateLimitCheck.isErr()) {
+      logger.warn(
+        {
+          userId: user.id,
+          error: rateLimitCheck.error.message,
+        },
+        'Rate limit exceeded for referee recommendation',
+      );
+      return sendError(res, rateLimitCheck.error.message, 429);
+    }
+
     logger.info(
       {
         userId: user.id,
@@ -43,6 +60,9 @@ export const triggerRecommendation = async (req: AuthenticatedRequest, res: Resp
         },
         'Failed to trigger referee recommendation',
       );
+
+      // If the request failed, we don't have a filename to clean up
+      // The session was never stored, so no cleanup needed
       return sendError(res, result.error.message, 500);
     }
 

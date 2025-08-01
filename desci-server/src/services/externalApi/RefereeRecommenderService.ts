@@ -2,15 +2,21 @@ import { randomUUID } from 'crypto';
 
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { ExternalApi } from '@prisma/client';
 import axios from 'axios';
 import { ok, err, Result } from 'neverthrow';
 
+import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { setToCache, getFromCache } from '../../redisClient.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::Service' });
 
 export const SESSION_TTL_SECONDS = 86400; // 24 hours
+
+// Hardcoded for now
+const RATE_LIMIT_USES = 10;
+const RATE_LIMIT_TIMEFRAME_SECONDS = 3600 * 24; // 24 hours
 
 // Initialize S3 client and config at module level
 const s3Client = new S3Client({
@@ -102,6 +108,8 @@ async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise
     if (storeResult.isErr()) {
       return err(storeResult.error);
     }
+
+    await markSessionAsActive(request.userId, fileName);
 
     logger.info(
       {
@@ -257,9 +265,11 @@ async function triggerRefereeRecommendation(
       };
 
       await storeSession(response.data.uploaded_file_name, session);
+      await markSessionAsActive(userId, response.data.uploaded_file_name);
+
       logger.debug(
         { userId, cid: request.cid, uploadedFileName: response.data.uploaded_file_name },
-        'Stored CID-based session',
+        'Stored CID-based session and marked as active',
       );
     }
 
@@ -321,10 +331,227 @@ async function getRefereeResults(uploadedFileName: string): Promise<Result<GetRe
   }
 }
 
+async function getUserUsageCount(userId: number, timeframeSeconds: number): Promise<number> {
+  const timeframeStart = Date.now() - timeframeSeconds * 1000;
+
+  // Count completed usage from database
+  const completedCount = await prisma.externalApiUsage.count({
+    where: {
+      userId,
+      apiType: ExternalApi.REFEREE_FINDER,
+      createdAt: {
+        gte: new Date(timeframeStart),
+      },
+    },
+  });
+
+  // Count active sessions from Redis (sessions created but not yet processed)
+  const activeSessionsCount = await getActiveSessionsCount(userId, timeframeStart);
+
+  logger.debug(
+    {
+      userId,
+      timeframeSeconds,
+      completedCount,
+      activeSessionsCount,
+      totalCount: completedCount + activeSessionsCount,
+    },
+    'Calculated user usage count',
+  );
+
+  return completedCount + activeSessionsCount;
+}
+
+async function getActiveSessionsCount(userId: number, timeframeStart: number): Promise<number> {
+  try {
+    // Get user's active sessions list
+    const activeSessionsKey = `referee-recommender-active:${userId}`;
+    const activeSessions = (await getFromCache<string[]>(activeSessionsKey)) || [];
+
+    let activeCount = 0;
+    const validSessions: string[] = [];
+
+    // Check each session to see if it's still valid and within timeframe
+    for (const sessionId of activeSessions) {
+      const sessionKey = `referee-recommender-session:${userId}:${sessionId}`;
+      const session = await getFromCache<RefereeRecommenderSession>(sessionKey);
+
+      if (
+        session &&
+        session.createdAt >= timeframeStart &&
+        Date.now() - session.createdAt < SESSION_TTL_SECONDS * 1000
+      ) {
+        activeCount++;
+        validSessions.push(sessionId);
+      }
+    }
+
+    // Clean up stale sessions from the active list if any were filtered out
+    if (validSessions.length !== activeSessions.length) {
+      if (validSessions.length > 0) {
+        await setToCache(activeSessionsKey, validSessions, SESSION_TTL_SECONDS);
+      } else {
+        // Delete the key if no valid sessions remain
+        await setToCache(activeSessionsKey, [], 1);
+      }
+
+      logger.debug(
+        {
+          userId,
+          removedCount: activeSessions.length - validSessions.length,
+          validCount: validSessions.length,
+        },
+        'Cleaned up expired sessions from active list',
+      );
+    }
+
+    return activeCount;
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to get active sessions count');
+    return 0; // Fail open - don't block user on Redis errors
+  }
+}
+
+async function markSessionAsActive(userId: number, fileName: string): Promise<void> {
+  try {
+    const activeSessionsKey = `referee-recommender-active:${userId}`;
+    const activeSessions = (await getFromCache<string[]>(activeSessionsKey)) || [];
+
+    // Add this filename to active sessions if not already present
+    if (!activeSessions.includes(fileName)) {
+      activeSessions.push(fileName);
+      await setToCache(activeSessionsKey, activeSessions, SESSION_TTL_SECONDS);
+    }
+  } catch (error) {
+    logger.error({ error, userId, fileName }, 'Failed to mark session as active');
+  }
+}
+
+async function markSessionAsCompleted(userId: number, fileName: string): Promise<void> {
+  try {
+    const activeSessionsKey = `referee-recommender-active:${userId}`;
+    const activeSessions = (await getFromCache<string[]>(activeSessionsKey)) || [];
+
+    // Remove this filename from active sessions
+    const updatedSessions = activeSessions.filter((session) => session !== fileName);
+
+    if (updatedSessions.length > 0) {
+      await setToCache(activeSessionsKey, updatedSessions, SESSION_TTL_SECONDS);
+    } else {
+      // Delete the key if no active sessions remain
+      await setToCache(activeSessionsKey, [], 1); // Short TTL to effectively delete
+    }
+  } catch (error) {
+    logger.error({ error, userId, fileName }, 'Failed to mark session as completed');
+  }
+}
+
+async function checkRateLimit(userId: number, limit: number, timeframeSeconds: number): Promise<Result<void, Error>> {
+  try {
+    // Proactively clean up expired sessions before checking usage
+    await cleanupExpiredSessions(userId);
+
+    const currentUsage = await getUserUsageCount(userId, timeframeSeconds);
+
+    if (currentUsage >= limit) {
+      logger.warn(
+        {
+          userId,
+          currentUsage,
+          limit,
+          timeframeSeconds,
+        },
+        'User exceeded rate limit',
+      );
+
+      return err(new Error(`Rate limit exceeded. ${currentUsage}/${limit} requests in the last ${timeframeSeconds}s`));
+    }
+
+    logger.debug(
+      {
+        userId,
+        currentUsage,
+        limit,
+        timeframeSeconds,
+      },
+      'Rate limit check passed',
+    );
+
+    return ok(undefined);
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to check rate limit');
+    return err(error instanceof Error ? error : new Error('Failed to check rate limit'));
+  }
+}
+
+async function handleProcessingFailure(userId: number, fileName: string): Promise<void> {
+  try {
+    // Remove from active sessions since processing failed
+    await markSessionAsCompleted(userId, fileName);
+
+    logger.debug({ userId, fileName }, 'Cleaned up failed processing session');
+  } catch (error) {
+    logger.error({ error, userId, fileName }, 'Failed to clean up failed processing session');
+  }
+}
+
+async function cleanupExpiredSessions(userId: number): Promise<void> {
+  try {
+    const activeSessionsKey = `referee-recommender-active:${userId}`;
+    const activeSessions = (await getFromCache<string[]>(activeSessionsKey)) || [];
+
+    if (activeSessions.length === 0) {
+      return;
+    }
+
+    const validSessions: string[] = [];
+    const now = Date.now();
+
+    // Check each session to see if it's still valid
+    for (const sessionId of activeSessions) {
+      const sessionKey = `referee-recommender-session:${userId}:${sessionId}`;
+      const session = await getFromCache<RefereeRecommenderSession>(sessionKey);
+
+      if (session && now - session.createdAt < SESSION_TTL_SECONDS * 1000) {
+        validSessions.push(sessionId);
+      }
+    }
+
+    // Update the active sessions list
+    if (validSessions.length !== activeSessions.length) {
+      if (validSessions.length > 0) {
+        await setToCache(activeSessionsKey, validSessions, SESSION_TTL_SECONDS);
+      } else {
+        await setToCache(activeSessionsKey, [], 1);
+      }
+
+      logger.info(
+        {
+          userId,
+          totalSessions: activeSessions.length,
+          validSessions: validSessions.length,
+          cleanedUp: activeSessions.length - validSessions.length,
+        },
+        'Cleaned up expired active sessions',
+      );
+    }
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to cleanup expired sessions');
+  }
+}
+
 export const RefereeRecommenderService = {
   generatePresignedUploadUrl,
   getSession,
   getSessionsByFileName,
   triggerRefereeRecommendation,
   getRefereeResults,
+  getUserUsageCount,
+  checkRateLimit,
+  markSessionAsActive,
+  markSessionAsCompleted,
+  handleProcessingFailure,
+  cleanupExpiredSessions,
+  RATE_LIMIT_USES,
+  RATE_LIMIT_TIMEFRAME_SECONDS,
 };

@@ -34,6 +34,23 @@ export const generatePresignedUrl = async (req: AuthenticatedRequest, res: Respo
       'Generating presigned URL for referee recommender',
     );
 
+    // Check rate limit before processing
+    const rateLimitCheck = await RefereeRecommenderService.checkRateLimit(
+      user.id,
+      RefereeRecommenderService.RATE_LIMIT_USES,
+      RefereeRecommenderService.RATE_LIMIT_TIMEFRAME_SECONDS,
+    );
+    if (rateLimitCheck.isErr()) {
+      logger.warn(
+        {
+          userId: user.id,
+          error: rateLimitCheck.error.message,
+        },
+        'Rate limit exceeded for presigned URL generation',
+      );
+      return sendError(res, rateLimitCheck.error.message, 429);
+    }
+
     // Validate file extension (assuming PDFs for now)
     if (!fileName.toLowerCase().endsWith('.pdf')) {
       return sendError(res, 'Only PDF files are supported', 400);
