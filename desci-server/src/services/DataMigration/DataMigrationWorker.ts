@@ -78,7 +78,7 @@ export class DataMigrationWorker {
     const message = await sqsService.receiveMessage();
     if (!message) return false;
 
-    logger.info({ fn: 'processMigrationMessage', messageId: message.MessageId }, 'Processing migration message');
+    logger.info({ fn: 'processMigrationMessage', messageId: message.MessageId }, '[SQS]Processing migration message');
 
     // Extend message visibility timeout while the migration is running
     // to prevent duplicate processing
@@ -89,7 +89,7 @@ export class DataMigrationWorker {
 
       // Only process data migration messages
       if (baseMessage.messageType !== SqsMessageType.DATA_MIGRATION) {
-        logger.debug({ messageType: baseMessage.messageType }, 'Ignoring non-data-migration message');
+        logger.debug({ messageType: baseMessage.messageType }, '[SQS]Ignoring non-data-migration message');
         clearInterval(visibilityTimeoutExtender);
         return false; // Don't delete, let other handlers process it
       }
@@ -104,7 +104,7 @@ export class DataMigrationWorker {
       if (!migration || migration.migrationStatus === MigrationStatus.COMPLETED) {
         logger.info(
           { fn: 'processMigrationMessage', migrationId, migrationStatus: migration?.migrationStatus },
-          'Migration already completed or not found',
+          '[SQS] Migration already completed or not found',
         );
         clearInterval(visibilityTimeoutExtender);
         await sqsService.deleteMessage(message.ReceiptHandle);

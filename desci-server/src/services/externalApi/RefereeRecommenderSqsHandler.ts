@@ -5,9 +5,19 @@ import { logger as parentLogger } from '../../logger.js';
 import { ExternalApiSqsMessage, SqsMessageType, BaseSqsMessage } from '../sqs/SqsMessageTypes.js';
 import { sqsService } from '../sqs/SqsService.js';
 
-import { RefereeRecommenderService } from './RefereeRecommenderService.js';
+import { RefereeRecommenderService, SESSION_TTL_SECONDS } from './RefereeRecommenderService.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::SqsHandler' });
+
+interface RefereeRecommenderUsageData {
+  eventType: string;
+  fileName: string;
+  originalFileName: string;
+  timestamp: string;
+  sessionCreatedAt: number;
+  sessionExpiresAt: number;
+  [key: string]: any; // Add index signature for Prisma compatibility
+}
 
 export class RefereeRecommenderSqsHandler {
   private isProcessing = false;
@@ -36,6 +46,7 @@ export class RefereeRecommenderSqsHandler {
         const message = await sqsService.receiveMessage();
 
         if (message) {
+          debugger;
           const processed = await this.processMessage(message);
           if (processed) {
             await sqsService.deleteMessage(message.ReceiptHandle!);
@@ -54,28 +65,34 @@ export class RefereeRecommenderSqsHandler {
 
       // Only process external API messages
       if (baseMessage.messageType !== SqsMessageType.EXTERNAL_REFEREE_RECOMMENDER_API) {
-        logger.debug({ messageType: baseMessage.messageType }, 'Ignoring non-referee-recommender message');
+        logger.debug({ messageType: baseMessage.messageType }, '[SQS] Ignoring non-referee-recommender message');
         return false; // Don't delete, let other handlers process it
       }
 
       const eventData = baseMessage as ExternalApiSqsMessage;
       logger.info(
         { eventType: eventData.eventType, fileName: eventData.file_name },
-        'Processing referee recommender event',
+        '[SQS] Processing referee recommender event',
       );
 
-      // Look up user session from Redis using filename
-      const sessionResult = await RefereeRecommenderService.getSession(eventData.file_name);
-      if (sessionResult.isErr()) {
+      // Look up user sessions from Redis using filename
+      const sessionsResult = await RefereeRecommenderService.getSessionsByFileName(eventData.file_name);
+      if (sessionsResult.isErr()) {
         logger.warn(
-          { fileName: eventData.file_name, error: sessionResult.error.message },
-          'User session not found in Redis, skipping message',
+          { fileName: eventData.file_name, error: sessionsResult.error.message },
+          'User sessions not found in Redis, skipping message',
         );
         return true; // Delete message since we can't process it
       }
 
-      const session = sessionResult.value;
-      await this.saveToDatabase(eventData, session);
+      const sessions = sessionsResult.value;
+      // Save to database for all users who requested this file
+      await Promise.all(sessions.map((session) => this.saveToDatabase(eventData, session)));
+
+      logger.info(
+        { fileName: eventData.file_name, userCount: sessions.length },
+        'Updated database for all users who requested this file',
+      );
 
       return true; // Successfully processed, can delete
     } catch (error) {
@@ -86,19 +103,67 @@ export class RefereeRecommenderSqsHandler {
 
   private async saveToDatabase(eventData: ExternalApiSqsMessage, session: any): Promise<void> {
     try {
+      // Check if we already have a session record for this user and file
+      const existing = await prisma.externalApiUsage.findFirst({
+        where: {
+          userId: session.userId,
+          apiType: ExternalApi.REFEREE_FINDER,
+          data: {
+            path: ['fileName'],
+            equals: eventData.file_name,
+          },
+        },
+        orderBy: {
+          createdAt: 'desc', // Get the most recent record
+        },
+      });
+
+      if (existing) {
+        // Check if the existing session is still valid
+        const existingData = existing.data as unknown as RefereeRecommenderUsageData;
+        const existingSessionCreatedAt = existingData.sessionCreatedAt;
+        const existingSessionExpiresAt = existingData.sessionExpiresAt;
+        const isExistingSessionValid = Date.now() < existingSessionExpiresAt;
+
+        if (isExistingSessionValid) {
+          // Valid session already exists - don't create duplicate
+          logger.debug(
+            {
+              userId: session.userId,
+              recordId: existing.id,
+              existingSessionAge: (Date.now() - existingSessionCreatedAt) / 1000,
+            },
+            'Valid session already exists, skipping',
+          );
+          return;
+        }
+
+        // Existing session is expired, continue to create new record
+        logger.debug(
+          {
+            userId: session.userId,
+            recordId: existing.id,
+            existingSessionAge: (Date.now() - existingSessionCreatedAt) / 1000,
+          },
+          'Existing session expired, creating new record',
+        );
+      }
+
+      // Create new record for this session
+      const usageData: RefereeRecommenderUsageData = {
+        eventType: eventData.eventType,
+        fileName: eventData.file_name,
+        originalFileName: session.originalFileName,
+        timestamp: new Date().toISOString(),
+        sessionCreatedAt: session.createdAt,
+        sessionExpiresAt: session.createdAt + SESSION_TTL_SECONDS * 1000,
+      };
+
       await prisma.externalApiUsage.create({
         data: {
           userId: session.userId,
           apiType: ExternalApi.REFEREE_FINDER,
-          data: {
-            eventType: eventData.eventType,
-            fileName: eventData.file_name,
-            originalFileName: session.originalFileName,
-            timestamp: new Date().toISOString(),
-            sessionCreatedAt: session.createdAt,
-            data: eventData.data,
-            results: eventData.results,
-          },
+          data: usageData,
         },
       });
 

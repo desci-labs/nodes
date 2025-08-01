@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { sendSuccess, sendError } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { RefereeRecommenderService } from '../../../services/externalApi/RefereeRecommenderService.js';
 import { getRefereeResultsSchema } from '../../../schemas/externalApi.schema.js';
+import { RefereeRecommenderService } from '../../../services/externalApi/RefereeRecommenderService.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::GetResultsController' });
 
@@ -30,7 +30,7 @@ export const getResults = async (req: AuthenticatedRequest, res: Response) => {
     );
 
     // Verify user has access to this filename by checking session
-    const sessionResult = await RefereeRecommenderService.getSession(UploadedFileName);
+    const sessionResult = await RefereeRecommenderService.getSession(UploadedFileName, user.id);
     if (sessionResult.isErr()) {
       logger.warn(
         {

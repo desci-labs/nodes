@@ -1,15 +1,16 @@
+import { randomUUID } from 'crypto';
+
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { ok, err, Result } from 'neverthrow';
 import axios from 'axios';
-import { randomUUID } from 'crypto';
+import { ok, err, Result } from 'neverthrow';
 
 import { logger as parentLogger } from '../../logger.js';
 import { setToCache, getFromCache } from '../../redisClient.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::Service' });
 
-const SESSION_TTL_SECONDS = 86400; // 24 hours
+export const SESSION_TTL_SECONDS = 86400; // 24 hours
 
 // Initialize S3 client and config at module level
 const s3Client = new S3Client({
@@ -77,6 +78,7 @@ interface GetRefereeResultsResponse {
 async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise<Result<PresignedUrlResponse, Error>> {
   try {
     // Generate filename with convention: referee_rec_v0.1.3_{original_file.pdf}
+    // original file name is salted with a UUID atm, will change to a hash in the future.
     const fileName = generateFileName(request.originalFileName);
 
     // Create presigned URL for upload
@@ -131,11 +133,34 @@ function generateFileName(originalFileName: string): string {
 
 async function storeSession(fileName: string, session: RefereeRecommenderSession): Promise<Result<void, Error>> {
   try {
-    // Use the generated filename (which includes UUID) as the cache key
-    const cacheKey = `referee-recommender-session:${fileName}`;
-    await setToCache(cacheKey, session, SESSION_TTL_SECONDS);
+    const userCacheKey = `referee-recommender-session:${session.userId}:${fileName}`;
+    await setToCache(userCacheKey, session, SESSION_TTL_SECONDS);
 
-    logger.debug({ fileName, userId: session.userId }, 'Stored referee recommender session in Redis');
+    // Store/append to filename-based lookup for SQS handler
+    const filenameCacheKey = `referee-recommender-filename:${fileName}`;
+    const existingSessions = (await getFromCache<RefereeRecommenderSession[]>(filenameCacheKey)) || [];
+
+    const now = Date.now();
+
+    // Filter out expired sessions and sessions for this user
+    const validSessions = existingSessions.filter((s) => {
+      const sessionAge = (now - s.createdAt) / 1000; // seconds
+      return sessionAge < SESSION_TTL_SECONDS && s.userId !== session.userId;
+    });
+
+    // Add the new session
+    validSessions.push(session);
+
+    await setToCache(filenameCacheKey, validSessions, SESSION_TTL_SECONDS);
+
+    logger.debug(
+      {
+        fileName,
+        userId: session.userId,
+        sessionCount: validSessions.length,
+      },
+      'Stored referee recommender session in Redis',
+    );
     return ok(undefined);
   } catch (error) {
     logger.error({ error, fileName }, 'Failed to store session in Redis');
@@ -143,9 +168,9 @@ async function storeSession(fileName: string, session: RefereeRecommenderSession
   }
 }
 
-async function getSession(fileName: string): Promise<Result<RefereeRecommenderSession, Error>> {
+async function getSession(fileName: string, userId: number): Promise<Result<RefereeRecommenderSession, Error>> {
   try {
-    const cacheKey = `referee-recommender-session:${fileName}`;
+    const cacheKey = `referee-recommender-session:${userId}:${fileName}`;
     const session = await getFromCache<RefereeRecommenderSession>(cacheKey);
 
     if (session) {
@@ -153,16 +178,61 @@ async function getSession(fileName: string): Promise<Result<RefereeRecommenderSe
       return ok(session);
     }
 
-    logger.debug({ fileName }, 'Session not found in Redis');
+    logger.debug({ fileName, userId }, 'Session not found in Redis');
     return err(new Error('Session not found'));
   } catch (error) {
-    logger.error({ error, fileName }, 'Failed to get session from Redis');
+    logger.error({ error, fileName, userId }, 'Failed to get session from Redis');
     return err(error instanceof Error ? error : new Error('Failed to get session from Redis'));
+  }
+}
+
+async function getSessionsByFileName(fileName: string): Promise<Result<RefereeRecommenderSession[], Error>> {
+  try {
+    const filenameCacheKey = `referee-recommender-filename:${fileName}`;
+    const sessions = await getFromCache<RefereeRecommenderSession[]>(filenameCacheKey);
+
+    if (sessions && sessions.length > 0) {
+      const now = Date.now();
+
+      // Filter out any sessions that should have expired
+      const validSessions = sessions.filter((s) => {
+        const sessionAge = (now - s.createdAt) / 1000; // seconds
+        return sessionAge < SESSION_TTL_SECONDS;
+      });
+
+      if (validSessions.length > 0) {
+        // Update cache with only valid sessions if any were filtered out
+        if (validSessions.length !== sessions.length) {
+          const earliestExpiry = Math.min(...validSessions.map((s) => s.createdAt + SESSION_TTL_SECONDS * 1000));
+          const remainingTtl = Math.max(1, Math.floor((earliestExpiry - now) / 1000));
+          await setToCache(filenameCacheKey, validSessions, remainingTtl);
+
+          logger.debug(
+            {
+              fileName,
+              filteredCount: sessions.length - validSessions.length,
+              validCount: validSessions.length,
+            },
+            'Filtered expired sessions from filename cache',
+          );
+        }
+
+        logger.debug({ fileName, userCount: validSessions.length }, 'Found valid sessions by filename');
+        return ok(validSessions);
+      }
+    }
+
+    logger.debug({ fileName }, 'No valid sessions found by filename');
+    return err(new Error('Sessions not found'));
+  } catch (error) {
+    logger.error({ error, fileName }, 'Failed to get sessions by filename');
+    return err(error instanceof Error ? error : new Error('Failed to get sessions by filename'));
   }
 }
 
 async function triggerRefereeRecommendation(
   request: TriggerRefereeRequest,
+  userId: number,
 ): Promise<Result<TriggerRefereeResponse, Error>> {
   try {
     logger.info({ cid: request.cid, external: request.external }, 'Triggering referee recommendation');
@@ -176,6 +246,21 @@ async function triggerRefereeRecommendation(
 
     if (response.status !== 200) {
       return err(new Error(`ML Referee API returned status ${response.status}`));
+    }
+
+    // Store session for CID-based requests
+    if (response.data.uploaded_file_name) {
+      const session: RefereeRecommenderSession = {
+        userId,
+        originalFileName: `${request.cid}`,
+        createdAt: Date.now(),
+      };
+
+      await storeSession(response.data.uploaded_file_name, session);
+      logger.debug(
+        { userId, cid: request.cid, uploadedFileName: response.data.uploaded_file_name },
+        'Stored CID-based session',
+      );
     }
 
     logger.info(
@@ -239,6 +324,7 @@ async function getRefereeResults(uploadedFileName: string): Promise<Result<GetRe
 export const RefereeRecommenderService = {
   generatePresignedUploadUrl,
   getSession,
+  getSessionsByFileName,
   triggerRefereeRecommendation,
   getRefereeResults,
 };

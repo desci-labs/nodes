@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { sendSuccess, sendError } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { RefereeRecommenderService } from '../../../services/externalApi/RefereeRecommenderService.js';
 import { triggerRefereeRecommendationSchema } from '../../../schemas/externalApi.schema.js';
+import { RefereeRecommenderService } from '../../../services/externalApi/RefereeRecommenderService.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::TriggerController' });
 
@@ -29,7 +29,10 @@ export const triggerRecommendation = async (req: AuthenticatedRequest, res: Resp
       'Triggering referee recommendation',
     );
 
-    const result = await RefereeRecommenderService.triggerRefereeRecommendation(body);
+    const result = await RefereeRecommenderService.triggerRefereeRecommendation(
+      body as typeof body & { cid: string },
+      user.id,
+    );
 
     if (result.isErr()) {
       logger.error(
