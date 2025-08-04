@@ -47,7 +47,7 @@ export class RefereeRecommenderSqsHandler {
         const message = await sqsService.receiveMessage();
 
         if (message) {
-          // debugger;
+          debugger;
           const processed = await this.processMessage(message);
           if (processed) {
             await sqsService.deleteMessage(message.ReceiptHandle!);

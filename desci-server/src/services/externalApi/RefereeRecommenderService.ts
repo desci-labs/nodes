@@ -2,21 +2,18 @@ import { randomUUID } from 'crypto';
 
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { ExternalApi } from '@prisma/client';
+import { ExternalApi, Feature } from '@prisma/client';
 import axios from 'axios';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { setToCache, getFromCache } from '../../redisClient.js';
+import { FeatureLimitsService } from '../FeatureLimits/FeatureLimitsService.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::Service' });
 
 export const SESSION_TTL_SECONDS = 86400; // 24 hours
-
-// Hardcoded for now
-const RATE_LIMIT_USES = 10;
-const RATE_LIMIT_TIMEFRAME_SECONDS = 3600 * 24; // 24 hours
 
 // Initialize S3 client and config at module level
 const s3Client = new S3Client({
@@ -83,6 +80,46 @@ interface GetRefereeResultsResponse {
 
 async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise<Result<PresignedUrlResponse, Error>> {
   try {
+    // Check feature limits first
+    const limitCheck = await FeatureLimitsService.checkFeatureLimit(request.userId, Feature.REFEREE_FINDER);
+
+    if (limitCheck.isErr()) {
+      logger.error(
+        { error: limitCheck.error, userId: request.userId },
+        'Failed to check feature limits for presigned URL generation',
+      );
+      return err(new Error('Failed to check feature limits'));
+    }
+
+    const limitStatus = limitCheck.value;
+    if (!limitStatus.isWithinLimit) {
+      logger.warn(
+        {
+          userId: request.userId,
+          currentUsage: limitStatus.currentUsage,
+          useLimit: limitStatus.useLimit,
+          planCodename: limitStatus.planCodename,
+        },
+        'User exceeded feature limit for referee finder',
+      );
+      return err(
+        new Error(
+          `Feature limit exceeded. You have used ${limitStatus.currentUsage}/${limitStatus.useLimit} requests this month. Please upgrade your plan to continue.`,
+        ),
+      );
+    }
+
+    logger.info(
+      {
+        userId: request.userId,
+        currentUsage: limitStatus.currentUsage,
+        useLimit: limitStatus.useLimit,
+        remainingUses: limitStatus.remainingUses,
+        planCodename: limitStatus.planCodename,
+      },
+      'Feature limit check passed for presigned URL generation',
+    );
+
     // Generate filename with convention: referee_rec_v0.1.3_{original_file.pdf}
     // original file name is salted with a UUID atm, will change to a hash in the future.
     const fileName = generateFileName(request.originalFileName);
@@ -243,6 +280,46 @@ async function triggerRefereeRecommendation(
   userId: number,
 ): Promise<Result<TriggerRefereeResponse, Error>> {
   try {
+    // Check feature limits first
+    const limitCheck = await FeatureLimitsService.checkFeatureLimit(userId, Feature.REFEREE_FINDER);
+
+    if (limitCheck.isErr()) {
+      logger.error(
+        { error: limitCheck.error, userId },
+        'Failed to check feature limits for referee recommendation trigger',
+      );
+      return err(new Error('Failed to check feature limits'));
+    }
+
+    const limitStatus = limitCheck.value;
+    if (!limitStatus.isWithinLimit) {
+      logger.warn(
+        {
+          userId,
+          currentUsage: limitStatus.currentUsage,
+          useLimit: limitStatus.useLimit,
+          planCodename: limitStatus.planCodename,
+        },
+        'User exceeded feature limit for referee finder',
+      );
+      return err(
+        new Error(
+          `Feature limit exceeded. You have used ${limitStatus.currentUsage}/${limitStatus.useLimit} requests this month. Please upgrade your plan to continue.`,
+        ),
+      );
+    }
+
+    logger.info(
+      {
+        userId,
+        currentUsage: limitStatus.currentUsage,
+        useLimit: limitStatus.useLimit,
+        remainingUses: limitStatus.remainingUses,
+        planCodename: limitStatus.planCodename,
+      },
+      'Feature limit check passed for referee recommendation trigger',
+    );
+
     logger.info({ cid: request.cid, external: request.external }, 'Triggering referee recommendation');
 
     const response = await axios.post(ML_REFEREE_TRIGGER_URL + '/dev/ml-referee-trigger-step-function', request, {
@@ -357,6 +434,37 @@ async function getUserUsageCount(userId: number, timeframeSeconds: number): Prom
       totalCount: completedCount + activeSessionsCount,
     },
     'Calculated user usage count',
+  );
+
+  return completedCount + activeSessionsCount;
+}
+
+async function getUserUsageCountFromDate(userId: number, periodStart: Date): Promise<number> {
+  const timeframeStart = periodStart.getTime();
+
+  // Count completed usage from database
+  const completedCount = await prisma.externalApiUsage.count({
+    where: {
+      userId,
+      apiType: ExternalApi.REFEREE_FINDER,
+      createdAt: {
+        gte: periodStart,
+      },
+    },
+  });
+
+  // Count active sessions from Redis (sessions created but not yet processed)
+  const activeSessionsCount = await getActiveSessionsCount(userId, timeframeStart);
+
+  logger.debug(
+    {
+      userId,
+      periodStart,
+      completedCount,
+      activeSessionsCount,
+      totalCount: completedCount + activeSessionsCount,
+    },
+    'Calculated user usage count from period start',
   );
 
   return completedCount + activeSessionsCount;
@@ -547,11 +655,10 @@ export const RefereeRecommenderService = {
   triggerRefereeRecommendation,
   getRefereeResults,
   getUserUsageCount,
+  getUserUsageCountFromDate,
   checkRateLimit,
   markSessionAsActive,
   markSessionAsCompleted,
   handleProcessingFailure,
   cleanupExpiredSessions,
-  RATE_LIMIT_USES,
-  RATE_LIMIT_TIMEFRAME_SECONDS,
 };
