@@ -264,6 +264,7 @@ model User {
   refereeInvitesReceived RefereeInvite[]       @relation("RefereeUser")
   journalFormTemplates   JournalFormTemplate[]
   ExternalApiUsage       ExternalApiUsage[]
+  UserFeatureLimit       UserFeatureLimit[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1447,6 +1448,40 @@ model ExternalApiUsage {
   @@index([userId])
   @@index([userId, apiType])
   @@index([userId, apiType, createdAt])
+}
+
+model UserFeatureLimit {
+  id           Int          @id @default(autoincrement())
+  userId       Int
+  planCodename PlanCodename
+  feature      Feature
+  period       Period
+  useLimit     Int? // Null = unlimited.
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, feature, isActive])
+}
+
+enum Feature {
+  REFEREE_FINDER
+}
+
+enum PlanCodename {
+  CUSTOM
+  FREE
+  STARTER
+  PRO
+}
+
+enum Period {
+  DAY
+  WEEK
+  MONTH
+  YEAR
 }
 
 enum ExternalApi {
