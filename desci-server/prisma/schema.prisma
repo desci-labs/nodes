@@ -1451,15 +1451,16 @@ model ExternalApiUsage {
 }
 
 model UserFeatureLimit {
-  id           Int          @id @default(autoincrement())
-  userId       Int
-  planCodename PlanCodename
-  feature      Feature
-  period       Period
-  useLimit     Int? // Null = unlimited.
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                 Int          @id @default(autoincrement())
+  userId             Int
+  planCodename       PlanCodename
+  feature            Feature
+  period             Period
+  useLimit           Int? // Null = unlimited.
+  isActive           Boolean      @default(true)
+  currentPeriodStart DateTime     @default(now())
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 
