@@ -8,16 +8,22 @@ import {
   resolveHistory,
   newCeramicClient,
   streams,
+  ResearchObjectHistory,
 } from "@desci-labs/desci-codex-lib";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convert0xHexToCid } from "./util/converting.js";
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { Signer } from "ethers";
-import { authorizedSessionDidFromSigner } from "./util/signing.js";
+import { authorizedSessionDidFromSigner, getCacaoResources } from "./util/signing.js";
 import { type DID } from "dids";
 import { CID } from "multiformats";
 import { PublishError } from "./errors.js";
 import { errWithCause } from "pino-std-serializers";
+import { newFlightSqlClient, newStreamClient } from "@desci-labs/desci-codex-lib/c1/clients";
+import { updateResearchObject as updateResearchObjectC1, createResearchObject as createResearchObjectC1 } from "@desci-labs/desci-codex-lib/c1/mutate";
+import { MODEL_IDS } from "@desci-labs/desci-codex-models";
+import { getStreamHistory } from "@desci-labs/desci-codex-lib/c1/resolve";
+import { sleep } from "../test/util.js";
 
 const LOG_CTX = "[nodes-lib::codex]";
 /**
@@ -36,8 +42,114 @@ export const codexPublish = async (
   dpidHistory: IndexedNodeVersion[],
   didOrSigner: DID | Signer
 ): Promise<NodeIDs> => {
+  const config = getNodesLibInternalConfig();
+  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
+
+  if (useCeramicOne) {
+    return codexPublishC1(prepublishResult, dpidHistory, didOrSigner);
+  } else {
+    return codexPublishComposeDB(prepublishResult, dpidHistory, didOrSigner);
+  }
+}
+
+const codexPublishC1 = async (
+  prepublishResult: PrepublishResponse,
+  dpidHistory: IndexedNodeVersion[],
+  didOrSigner: DID | Signer
+) =>{
+  const { ceramicOneRpcUrl } = getNodesLibInternalConfig();
+  console.log(LOG_CTX, `starting C1 publish with node ${ceramicOneRpcUrl}...`);
+
+  const client = newStreamClient({ ceramic: ceramicOneRpcUrl });
+  const existingStreamID = prepublishResult.ceramicStream;
+
+  let controller: string | undefined;
+  let controllerChainID: string | undefined;
+  if (existingStreamID) {
+    const stream = await client.getStreamState(existingStreamID);
+    controller = stream.controller;
+    controllerChainID = controller.match(/eip155:(\d+):/)!.at(1);
+  }
+
+  let did: DID;
+  if (didOrSigner instanceof Signer) {
+    did = await authorizedSessionDidFromSigner(
+      didOrSigner,
+      getCacaoResources(),
+      controllerChainID
+    );
+  } else {
+    // NOTE: for a signer we can check and pass the controller EIP155 chainID, but we can't edit that if it's a preauthorized DID
+    if (controller !== undefined && didOrSigner.parent !== controller) {
+      console.error(
+        `${LOG_CTX} DID and controller mismatch, is the chainID set correctly?`,
+        { didParent: didOrSigner.parent, streamController: controller }
+      );
+      throw PublishError.wrongOwner(
+        "DID and controller mismatch; is the chainID set correctly?",
+        controller,
+        didOrSigner.parent
+      );
+    }
+    did = didOrSigner;
+  }
+
+  let ids: NodeIDs;
+  try {
+    if (existingStreamID) {
+      // We know about the stream already; let's assume we backfilled initially
+      console.log(`${LOG_CTX} publishing to known stream...`, {
+        streamID: existingStreamID,
+      });
+      ids = await updateResearchObjectC1(client, did, {
+        id: existingStreamID,
+        title: prepublishResult.updatedManifest.title,
+        manifest: prepublishResult.updatedManifestCid,
+      });
+      console.log(`${LOG_CTX} successfully updated research object`, ids);
+    } else if (dpidHistory.length === 0) {
+      console.log(`${LOG_CTX} publishing to new stream...`);
+      ids = await createResearchObjectC1(client, did, {
+        title: prepublishResult.updatedManifest.title || "",
+        manifest: prepublishResult.updatedManifestCid,
+        license: prepublishResult.updatedManifest.defaultLicense || "",
+      });
+      console.log(`${LOG_CTX} published to new stream`, ids);
+    } else {
+      console.log(`${LOG_CTX} backfilling new stream to mirror history...`, {
+        dpidHistory,
+      });
+      const streamID = await backfillNewStreamC1(client, did, dpidHistory);
+      console.log(`${LOG_CTX} backfill done, appending latest event...`);
+      await sleep(1_000);
+      ids = await updateResearchObjectC1(client, did, {
+        id: streamID,
+        title: prepublishResult.updatedManifest.title,
+        manifest: prepublishResult.updatedManifestCid,
+        license: prepublishResult.updatedManifest.defaultLicense || "",
+      });
+      console.log(`${LOG_CTX} successfully appended latest update`, ids);
+    }
+  } catch (e) {
+    console.error(`${LOG_CTX} failed to update reseach object`, {
+      existingStreamID,
+      err: errWithCause(e as Error),
+    });
+    throw PublishError.ceramicWrite(
+      "Failed to write research object",
+      e as Error
+    );
+  }
+  return ids;
+};
+
+const codexPublishComposeDB = async (
+  prepublishResult: PrepublishResponse,
+  dpidHistory: IndexedNodeVersion[],
+  didOrSigner: DID | Signer
+) =>{
   const nodeUrl = getNodesLibInternalConfig().ceramicNodeUrl;
-  console.log(LOG_CTX, `starting publish with node ${nodeUrl}...`);
+  console.log(LOG_CTX, `starting ComposeDB publish with node ${nodeUrl}...`);
 
   const ceramic = newCeramicClient(nodeUrl);
   const compose = newComposeClient({ ceramic });
@@ -133,7 +245,7 @@ export const codexPublish = async (
  */
 const backfillNewStream = async (
   compose: ComposeClient,
-  versions: IndexedNodeVersion[]
+  versions: IndexedNodeVersion[],
 ): Promise<string> => {
   console.log(
     LOG_CTX,
@@ -187,55 +299,204 @@ const backfillNewStream = async (
   return streamID;
 };
 
+const backfillNewStreamC1 = async (
+  client: ReturnType<typeof newStreamClient>,
+  did: DID,
+  versions: IndexedNodeVersion[]
+): Promise<string> => {
+  debugger;
+  console.log(
+    LOG_CTX,
+    `starting backfill migration for versions:\n${JSON.stringify(
+      versions,
+      undefined,
+      2
+    )}`
+  );
+  const backfillSequential = async (
+    prevPromise: Promise<NodeIDs>,
+    nextVersion: IndexedNodeVersion,
+    ix: number
+  ): Promise<NodeIDs> => {
+    const { streamID } = await prevPromise;
+    await sleep(1_000);
+
+    const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
+    const license = "[BACKFILLED]";
+
+    // When pulling history from new contract legacy entries, the CID
+    // is cleartext. Otherwise, it needs to be decoded from hex.
+    let manifest: string;
+    try {
+      // If this works, it was a plaintext CID
+      manifest = CID.parse(nextVersion.cid).toString();
+    } catch (e) {
+      // Otherwise, fall back to hex decoding old style representation
+      console.log(
+        `${LOG_CTX} got non-plaintext CID in next version to backfill`,
+        { nextVersion }
+      );
+      manifest = convert0xHexToCid(nextVersion.cid);
+    }
+
+    const op =
+      streamID === ""
+        ? createResearchObjectC1(client, did, { title, manifest, license })
+        : updateResearchObjectC1(client, did, { id: streamID, title, manifest });
+
+    let result;
+    try {
+      result = await op;
+      console.log(
+        LOG_CTX,
+        `backfilled version to stream`,
+        {
+          version: ix,
+          manifest,
+          streamID: result.streamID,
+          commitID: result.commitID,
+        }
+      );
+    } catch (error) {
+      console.error(
+        LOG_CTX,
+        `failed to backfill version ${ix}:`,
+        error
+      );
+      throw error;
+    }
+    return result;
+  };
+
+  const { streamID } = await versions.reduce(
+    backfillSequential,
+    Promise.resolve({ streamID: "", commitID: "" })
+  );
+  return streamID;
+};
+
 /**
  * Get full historical publish state of a research object.
  */
 export const getFullState = async (streamID: string) => {
-  const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
-  const compose = newComposeClient({ ceramic });
-  const resolved = (await queryResearchObject(
-    compose,
-    streamID,
-    "owner { id } manifest"
-  )) as unknown as { owner: { id: string }; manifest: string };
+  const config = getNodesLibInternalConfig();
+  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
+  if (useCeramicOne) {
+    const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
+    let data;
+    try {
+      data = await getStreamHistory(client, streamID);
+    } catch (e) {
+      console.error(LOG_CTX, `failed to get stream history for ${streamID}`, {
+        err: errWithCause(e as Error),
+      });
+      throw new Error("codex resolution failed");
+    }
+    return {
+      owner: data.owner,
+      manifest: data.manifest,
+      events: data.versions.map((v) => ({
+        cid: v.manifest,
+        timestamp: v.time,
+      })),
+    };
+  } else {
+    const ceramic = newCeramicClient(config.ceramicNodeUrl);
+    const compose = newComposeClient({ ceramic });
+    const resolved = (await queryResearchObject(
+      compose,
+      streamID,
+      "owner { id } manifest"
+    )) as unknown as { owner: { id: string }; manifest: string };
 
-  console.log(JSON.stringify(resolved));
+    console.log(JSON.stringify(resolved));
 
-  if (!resolved) {
-    console.log("Failed to resolve research object:", { streamID });
-    throw new Error("codex resolution failed");
+    if (!resolved) {
+      console.log("Failed to resolve research object:", { streamID });
+      throw new Error("codex resolution failed");
+    }
+
+    const events = await getCodexHistory(streamID);
+    return {
+      owner: resolved.owner.id, // explicitly selected in query
+      manifest: resolved.manifest, // explicitly selected in query
+      events,
+    };
   }
-
-  const events = await getCodexHistory(streamID);
-  return {
-    owner: resolved.owner, // explicitly selected in query
-    manifest: resolved.manifest, // explicitly selected in query
-    events,
-  };
 };
 
 /**
  * Get the state of a research object as published on Codex.
  */
-export const getCurrentState = async (streamID: string) => {
-  const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
-  const compose = newComposeClient({ ceramic });
+export const getCurrentState = async (streamID: string): Promise<ResearchObjectHistory['versions'][number]> => {
+  const config = getNodesLibInternalConfig();
+  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
+  if (useCeramicOne) {
+    const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
+    const resolved = await getStreamHistory(client, streamID);
+    return resolved.versions.at(-1)!;
+  } else {
+    const ceramic = newCeramicClient(config.ceramicNodeUrl);
+    const compose = newComposeClient({ ceramic });
 
-  return await queryResearchObject(compose, streamID);
+    const resolved = await queryResearchObject(compose, streamID);
+    if (!resolved) {
+      throw new Error("codex resolution failed");
+    }
+    return {
+      version: streamID,
+      title: resolved.title!,
+      manifest: resolved.manifest!,
+      license: resolved.license!,
+      time: undefined,
+    };
+  }
 };
-
 /**
  * Get the historical events for a given stream.
  */
-export const getCodexHistory = async (streamID: string) => {
-  const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
-  return await resolveHistory(ceramic, streamID);
+export const getCodexHistory = async (streamID: string): Promise<ResearchObjectHistory> => {
+  const config = getNodesLibInternalConfig();
+  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
+
+  if (useCeramicOne) {
+    const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
+    return await getStreamHistory(client, streamID);
+  } else {
+    const ceramic = newCeramicClient(config.ceramicNodeUrl);
+    const stream = await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
+    const versions = streams.getVersionLog(stream);
+    return {
+      id: streamID,
+      owner: stream.state.metadata.controllers[0],
+      manifest: stream.state.content.manifest,
+      versions: await Promise.all(versions.map(async v => {
+        const state = await streams.loadVersion(ceramic, v.commit);
+        return {
+          version: v.commit.toString(),
+          time: v.timestamp,
+          title: state.content.title,
+          manifest: state.content.manifest,
+          license: state.content.license,
+        }
+      })),
+    }
+  }
 };
 
 /**
  * Get the raw stream state for a streamID.
  */
-export const getRawState = async (streamID: string) => {
-  const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
-  return await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
+export const getStreamController = async (streamID: string) => {
+  const config = getNodesLibInternalConfig();
+  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
+  if (useCeramicOne) {
+    const client = newStreamClient({ ceramic: config.ceramicOneRpcUrl });
+    const state = await client.getStreamState(streamID);
+    return state.controller;
+  } else {
+    const ceramic = newCeramicClient(config.ceramicNodeUrl);
+    const stream = await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
+    return stream.state.metadata.controllers[0];
+  }
 };

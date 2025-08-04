@@ -26,12 +26,13 @@ import {randomUUID} from "crypto";
 import {makeRequest} from "./routes.js";
 import {Signer} from "ethers";
 import {type DID} from "dids";
-import {getFullState} from "./codex.js";
+import {getCodexHistory, getFullState} from "./codex.js";
 import {bnToString, convertUUIDToDecimal} from "./util/converting.js";
 import {lookupLegacyDpid} from "./chain.js";
 import {PublishError} from "./errors.js";
 import {errWithCause} from "pino-std-serializers";
 import {getHeaders} from "./util/headers.js";
+import { sleep } from "../test/util.js";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -339,6 +340,7 @@ export const publishNode = async (
     useNewPublish: true,
     mintDoi,
   };
+  await sleep(1_000);
 
   let dpid: number;
   try {
@@ -682,16 +684,16 @@ export const getPublishHistory = async (uuid: string): Promise<IndexedNode> => {
     throw new Error(`No known stream for node ${uuid}`);
   }
 
-  const resolved = await getFullState(ceramicStream);
-  const versions = resolved.events.map((e) => ({
-    cid: e.cid.toString(),
-    time: e.timestamp?.toString() || "", // May happen if commit is not anchored
+  const resolved = await getCodexHistory(ceramicStream);
+  const versions = resolved.versions.map((e) => ({
+    cid: e.manifest,
+    time: e.time?.toString() || "", // May happen if commit is not anchored
   }));
 
   const indexedNode: IndexedNode = {
     id: uuid,
     id10: convertUUIDToDecimal(uuid),
-    owner: resolved.owner.id,
+    owner: resolved.owner,
     recentCid: resolved.manifest,
     versions,
   };

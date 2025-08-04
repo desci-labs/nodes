@@ -5,12 +5,13 @@ import { EthereumWebAuth, normalizeAccountId } from "@didtools/pkh-ethereum";
 import { randomString } from "@stablelib/random";
 import { AccountId } from "caip";
 import { DIDSession } from "did-session";
+import { MODEL_IDS } from "@desci-labs/desci-codex-models";
 
 export const signerFromPkey = (pkey: string): Signer =>
   walletFromPkey(pkey);
 
 const walletFromPkey = (pkey: string): Wallet => {
-  const provider = getDefaultProvider(getNodesLibInternalConfig().legacyChainConfig.rpcUrl);
+  const provider = getDefaultProvider(getNodesLibInternalConfig().chainConfig.rpcUrl);
   const paddedPkey = ensurePkeyPadding(pkey);
   const key = new utils.SigningKey(paddedPkey);
   return new Wallet(key, provider);
@@ -18,6 +19,9 @@ const walletFromPkey = (pkey: string): Wallet => {
 
 const ensurePkeyPadding = (pkey: string) =>
   pkey.startsWith("0x") ? pkey : `0x${pkey}`;
+
+export const getCacaoResources = () =>
+  Object.values(MODEL_IDS).map(id => `ceramic://*?model=${id}`);
 
 /**
  * Get auth method for cases where we have a simple signer instead of a

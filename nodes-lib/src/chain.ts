@@ -28,7 +28,7 @@ const researchObjectWriter = (signer: Signer) =>
 const dpidRegistryWriter = (signer: Signer) =>
   getNodesLibInternalConfig().legacyChainConfig.dpidRegistryConnector(signer);
 
-const dpidAliasRegistryWriter = (signer: Signer) =>
+export const dpidAliasRegistryWriter = (signer: Signer) =>
   getNodesLibInternalConfig().chainConfig.dpidAliasRegistryConnector(signer);
 
 const dpidAliasRegistryReader = (provider: providers.Provider) =>
