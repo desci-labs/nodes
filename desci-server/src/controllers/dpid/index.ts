@@ -22,8 +22,6 @@ export async function retrieveDpidMetadata(req: RetrieveDpidMetadataRequest, res
   const versionSuffix = version ? `-v${version}` : '';
   const cacheKey = `${DPID_METADATA_CACHE_PREFIX}-${dpid}${versionSuffix}`;
 
-  await delFromCache(cacheKey);
-
   const cachedMetadata = (await getFromCache(cacheKey)) as DpidMetadata | null;
   if (cachedMetadata) {
     new SuccessResponse(cachedMetadata).send(res);
