@@ -12,6 +12,8 @@ export type NodesLibConfig = {
   apiKey?: string,
   ceramicNodeUrl: string,
   legacyChainConfig: LegacyChainConfig,
+  ceramicOneRpcUrl?: string,
+  ceramicOneFlightUrl?: string,
   chainConfig: ChainConfig,
 };
 
@@ -21,6 +23,8 @@ export const NODESLIB_CONFIGS = {
     apiKey: undefined,
     ceramicNodeUrl: "http://localhost:7007",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.local,
+    ceramicOneRpcUrl: "http://localhost:5101",
+    ceramicOneFlightUrl: "http://localhost:5102",
     chainConfig: CHAIN_CONFIGS.local,
   },
   dev: {
@@ -28,6 +32,7 @@ export const NODESLIB_CONFIGS = {
     apiKey: undefined,
     ceramicNodeUrl: "https://ceramic-dev.desci.com",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.dev,
+    ceramicOneRpcUrl: "https://ceramic-one-dev-rpc.desci.com:5101",
     chainConfig: CHAIN_CONFIGS.dev,
   },
   staging: {
@@ -35,6 +40,8 @@ export const NODESLIB_CONFIGS = {
     apiKey: undefined,
     ceramicNodeUrl: "https://ceramic-prod.desci.com",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.prod, // also using the prod contracts
+    // TODO: enable once ready for production
+    // ceramicOneRpcUrl: "https://ceramic-one-prod-rpc.desci.com:5101",
     chainConfig: CHAIN_CONFIGS.prod, // also using prod contracts
   },
   prod: {
@@ -42,6 +49,8 @@ export const NODESLIB_CONFIGS = {
     apiKey: undefined,
     ceramicNodeUrl: "https://ceramic-prod.desci.com",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.prod,
+    // TODO: enable once ready for production
+    // ceramicOneRpcUrl: "https://ceramic-one-prod-rpc.desci.com:5101",
     chainConfig: CHAIN_CONFIGS.prod,
   },
 } as const satisfies { [Env in NodesEnv ]: NodesLibConfig };
