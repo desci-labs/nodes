@@ -87,8 +87,11 @@ export class RefereeRecommenderSqsHandler {
       }
 
       const sessions = sessionsResult.value;
-      // Save to database for all users who requested this file
-      await Promise.all(sessions.map((session) => this.saveToDatabase(eventData, session)));
+
+      // Save to database only for successfully completed processing
+      if (eventData.eventType === 'PROCESSING_COMPLETED') {
+        await Promise.all(sessions.map((session) => this.saveToDatabase(eventData, session)));
+      }
 
       // Emit websocket events to all users who requested this file
       sessions.forEach((session) => {
@@ -111,7 +114,7 @@ export class RefereeRecommenderSqsHandler {
     try {
       let eventType: WebSocketEventType;
       let eventPayload: any;
-
+      debugger;
       switch (eventData.eventType) {
         case 'PROCESSING_COMPLETED':
           eventType = WebSocketEventType.REFEREE_REC_PROCESSING_COMPLETED;
