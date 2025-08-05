@@ -2,7 +2,7 @@ import { ExternalApi } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { ExternalApiSqsMessage, SqsMessageType, BaseSqsMessage } from '../sqs/SqsMessageTypes.js';
+import { ExternalApiSqsMessage, SqsMessageType, BaseSqsMessage, QueueType } from '../sqs/SqsMessageTypes.js';
 import { sqsService } from '../sqs/SqsService.js';
 import { emitWebsocketEvent, WebSocketEventType } from '../websocketService.js';
 
@@ -24,8 +24,8 @@ export class RefereeRecommenderSqsHandler {
   private isProcessing = false;
 
   async start(): Promise<void> {
-    if (!sqsService.configured) {
-      logger.warn('SQS not configured, referee recommender handler will not start');
+    if (!sqsService.isQueueConfigured(QueueType.ML_TOOL)) {
+      logger.warn('ML_TOOL queue not configured, referee recommender handler will not start');
       return;
     }
 
@@ -44,13 +44,12 @@ export class RefereeRecommenderSqsHandler {
   private async pollMessages(): Promise<void> {
     while (this.isProcessing) {
       try {
-        const message = await sqsService.receiveMessage();
+        const message = await sqsService.receiveMessage(QueueType.ML_TOOL);
 
         if (message) {
-          debugger;
           const processed = await this.processMessage(message);
           if (processed) {
-            await sqsService.deleteMessage(message.ReceiptHandle!);
+            await sqsService.deleteMessage(QueueType.ML_TOOL, message.ReceiptHandle!);
           }
         }
       } catch (error) {
@@ -114,7 +113,6 @@ export class RefereeRecommenderSqsHandler {
     try {
       let eventType: WebSocketEventType;
       let eventPayload: any;
-      debugger;
       switch (eventData.eventType) {
         case 'PROCESSING_COMPLETED':
           eventType = WebSocketEventType.REFEREE_REC_PROCESSING_COMPLETED;

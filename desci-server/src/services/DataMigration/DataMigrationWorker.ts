@@ -4,7 +4,7 @@ import { DataMigration, MigrationStatus, MigrationType } from '@prisma/client';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { IPFS_NODE, migrateCidByPinning } from '../ipfs.js';
-import { BaseSqsMessage, DataMigrationSqsMessage, SqsMessageType } from '../sqs/SqsMessageTypes.js';
+import { BaseSqsMessage, DataMigrationSqsMessage, SqsMessageType, QueueType } from '../sqs/SqsMessageTypes.js';
 import { sqsService } from '../sqs/SqsService.js';
 
 import { DataMigrationService } from './DataMigrationService.js';
@@ -22,8 +22,8 @@ export class DataMigrationWorker {
     if (this.isRunning) return;
 
     // Don't start polling if SQS is not configured
-    if (!sqsService.configured) {
-      logger.info('Data migration worker not started - SQS not configured');
+    if (!sqsService.isQueueConfigured(QueueType.DATA_MIGRATION)) {
+      logger.info('Data migration worker not started - DATA_MIGRATION queue not configured');
       return;
     }
 
@@ -65,7 +65,7 @@ export class DataMigrationWorker {
     const visibilityExtender = setInterval(async () => {
       try {
         // Extend by 5 minutes each time
-        await sqsService.extendMessageVisibility(message.ReceiptHandle, 300);
+        await sqsService.extendMessageVisibility(QueueType.DATA_MIGRATION, message.ReceiptHandle, 300);
         logger.debug({ messageId: message.MessageId }, 'Extended message visibility timeout for 5 minutes');
       } catch (err) {
         logger.warn({ err, messageId: message.MessageId }, 'Failed to extend message visibility');
@@ -75,7 +75,7 @@ export class DataMigrationWorker {
   }
 
   private async processMigrationMessage(): Promise<boolean> {
-    const message = await sqsService.receiveMessage();
+    const message = await sqsService.receiveMessage(QueueType.DATA_MIGRATION);
     if (!message) return false;
 
     logger.info({ fn: 'processMigrationMessage', messageId: message.MessageId }, '[SQS]Processing migration message');
@@ -107,7 +107,7 @@ export class DataMigrationWorker {
           '[SQS] Migration already completed or not found',
         );
         clearInterval(visibilityTimeoutExtender);
-        await sqsService.deleteMessage(message.ReceiptHandle);
+        await sqsService.deleteMessage(QueueType.DATA_MIGRATION, message.ReceiptHandle);
         return true;
       }
 
@@ -118,7 +118,7 @@ export class DataMigrationWorker {
 
       // Delete message from queue on completion
       clearInterval(visibilityTimeoutExtender);
-      await sqsService.deleteMessage(message.ReceiptHandle);
+      await sqsService.deleteMessage(QueueType.DATA_MIGRATION, message.ReceiptHandle);
       await DataMigrationService.cleanupGuestToPrivateMigration(migration.id);
       return true;
     } catch (error) {

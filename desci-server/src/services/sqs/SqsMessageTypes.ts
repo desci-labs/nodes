@@ -3,6 +3,17 @@ export enum SqsMessageType {
   EXTERNAL_REFEREE_RECOMMENDER_API = 'EXTERNAL_REFEREE_RECOMMENDER_API',
 }
 
+export enum QueueType {
+  DATA_MIGRATION = 'DATA_MIGRATION',
+  ML_TOOL = 'ML_TOOL',
+}
+
+export interface QueueConfig {
+  url: string;
+  name: string;
+  isConfigured: boolean;
+}
+
 export interface BaseSqsMessage {
   messageType: SqsMessageType;
 }
