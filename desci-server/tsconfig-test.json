@@ -28,7 +28,7 @@
     "typeRoots": ["./node_modules/@types"],
     "jsx": "react"
   },
-  "include": ["test/**/*.ts", "src/types/**/*.d.ts"],
+  "include": ["test/**/*.ts", "src/types/**/*.d.ts", "src/types/express-augmentations.d.ts"],
   "exclude": [],
   "compileOnSave": true
 }
