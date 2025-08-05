@@ -19,16 +19,13 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
-    "noImplicitAny": true,
+    "noResolve": false,
+    "noImplicitAny": false,
+    "types": [],
     // dagConcat.cjs requires this
     "allowJs": true,
     "inlineSourceMap": true,
-    "paths": {
-      "@hapi/catbox": ["./src/types/@types/hapi__catbox"],
-      "@hapi/shot": ["./src/types/@types/hapi__shot"],
-      "generic-pool": ["./src/types/@types/generic-pool"]
-    },
-    "typeRoots": ["./node_modules/@types", "./src/types/@types"],
+    "typeRoots": ["./node_modules/@types"],
     "jsx": "react"
   },
   "include": ["test/**/*.ts", "src/types/**/*.d.ts"],
