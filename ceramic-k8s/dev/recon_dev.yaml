@@ -21,6 +21,7 @@ data:
   CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
   CERAMIC_ONE_LOCAL_NETWORK_ID: "0"
   CERAMIC_ONE_NETWORK: "testnet-clay"
+  CERAMIC_ONE_EXTRA_INTERESTS: "kh4q0ozorrgaq2mezktnrmdwleo1d,kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0"
   RUST_LOG: "info,ceramic_one=debug,multipart=error"
   CERAMIC_ONE_LOG_FORMAT: "json"
 ---
@@ -37,7 +38,7 @@ data:
     MY_POD_INDEX=$(echo $HOSTNAME | grep -o '[0-9]\+$')
     TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
     NAMESPACE=default
-    
+
     LB_DOMAIN=$(curl -s --header "Authorization: Bearer $TOKEN" \
         --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
         https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/services/ceramic-recon-dev-$MY_POD_INDEX-swarm\
@@ -89,7 +90,7 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.55.1
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null
@@ -256,7 +257,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: preserve_client_ip.enabled=true
 spec:
   type: LoadBalancer
-  externalTrafficPolicy: Local
+  # externalTrafficPolicy: Local
   selector:
     App: CeramicReconDev
   ports:
