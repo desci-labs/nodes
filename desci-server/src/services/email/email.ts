@@ -43,6 +43,8 @@ export enum EmailTypes {
 
   // Journals
   EDITOR_INVITE = 'EDITOR_INVITE',
+  ASSOCIATE_EDITOR_INVITE = 'ASSOCIATE_EDITOR_INVITE',
+  CHIEF_EDITOR_INVITE = 'CHIEF_EDITOR_INVITE',
   EXTERNAL_REFEREE_INVITE = 'EXTERNAL_REFEREE_INVITE',
   REFEREE_INVITE = 'REFEREE_INVITE',
   REFEREE_DECLINED = 'REFEREE_DECLINED',
@@ -259,13 +261,20 @@ async function sendInviteEditorEmail({
   email,
   journal,
   inviterName,
+  recipientName,
   role,
   inviteToken,
 }: EditorInvitePayload['payload']) {
+  // We separated out the Associate Editor invite and the Chief Editor emails, as they have different copies.
+  // Both have different templateIds.
+  const emailType =
+    role === EditorRole.CHIEF_EDITOR ? EmailTypes.CHIEF_EDITOR_INVITE : EmailTypes.ASSOCIATE_EDITOR_INVITE;
+  const templateId = templateIdMap[emailType];
+
   const message = {
     to: email,
     from: 'no-reply@desci.com',
-    templateId: templateIdMap[EmailTypes.EDITOR_INVITE],
+    templateId,
     dynamicTemplateData: {
       envSuffix: deploymentEnvironmentString,
       journal: {
@@ -276,6 +285,9 @@ async function sendInviteEditorEmail({
       },
       inviter: {
         name: inviterName,
+      },
+      recipient: {
+        name: recipientName,
       },
       role: role === EditorRole.CHIEF_EDITOR ? 'Chief Editor' : 'Associate Editor',
       roleWithArticle: prependIndefiniteArticle(role === EditorRole.CHIEF_EDITOR ? 'Chief Editor' : 'Associate Editor'),
@@ -327,6 +339,7 @@ async function sendExternalRefereeInviteEmail({
 async function sendRefereeDeclinedEmail({
   email,
   journal,
+  editorName,
   refereeName,
   refereeEmail,
   submission,
@@ -345,6 +358,9 @@ async function sendRefereeDeclinedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+      },
+      editor: {
+        name: editorName,
       },
       referee: {
         name: refereeName,
@@ -380,6 +396,9 @@ async function sendRefereeAcceptedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+      },
+      editor: {
+        name: submission.assignedEditor.name,
       },
       referee: {
         name: refereeName,
@@ -525,6 +544,12 @@ async function sendRevisionSubmittedEmail({ email, journal, submission }: Revisi
     templateId: templateIdMap[EmailTypes.REVISION_SUBMITTED],
     dynamicTemplateData: {
       envSuffix: deploymentEnvironmentString,
+      author: {
+        name: submission.author.name || 'Author',
+      },
+      editor: {
+        name: submission.assignedEditor.name,
+      },
       journal: {
         id: journal.id,
         name: journal.name,
@@ -544,12 +569,17 @@ async function sendOverdueAlertEditorEmail({
   submission,
 }: OverdueAlertEditorPayload['payload']) {
   const deadlineFromNow = getRelativeTime(new Date(reviewDeadline));
+  const overdueInDays = Math.ceil((new Date().getTime() - new Date(reviewDeadline).getTime()) / (1000 * 60 * 60 * 24));
+  const overdueDays = overdueInDays === 1 ? '1 day' : `${overdueInDays} days`;
   const message = {
     to: email,
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.OVERDUE_ALERT_TO_EDITOR],
     dynamicTemplateData: {
       envSuffix: deploymentEnvironmentString,
+      editor: {
+        name: submission.assignedEditor.name,
+      },
       journal: {
         id: journal.id,
         name: journal.name,
@@ -559,6 +589,7 @@ async function sendOverdueAlertEditorEmail({
       submission,
       reviewDeadline,
       deadlineFromNow,
+      overdueDays,
     },
   };
   await sendSgMail(message);
@@ -618,6 +649,9 @@ async function sendSubmissionAcceptedEmail({
         description: journal.description,
         iconCid: journal.iconCid,
       },
+      author: {
+        name: submission.author.name || 'Researcher',
+      },
       submission,
       editor: {
         name: editor.name,
@@ -649,12 +683,15 @@ async function sendSubmissionDeskRejectedEmail({
         description: journal.description,
         iconCid: journal.iconCid,
       },
+      author: {
+        name: submission.author.name || 'Researcher',
+      },
       submission,
       editor: {
         name: editor.name,
         userId: editor.userId,
       },
-      comments,
+      comments: comments || 'No comments provided',
       submittedAtFromNow,
     },
   };
@@ -680,6 +717,9 @@ async function sendSubmissionFinalRejectedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+      },
+      author: {
+        name: submission.author.name || 'Researcher',
       },
       submission,
       editor: {

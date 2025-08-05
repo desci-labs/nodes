@@ -17,9 +17,11 @@ import { debugAllNodesHandler, debugNodeHandler } from '../../../controllers/adm
 import { listDoiRecords, mintDoi } from '../../../controllers/admin/doi/index.js';
 import { resumePublish } from '../../../controllers/admin/publish/resumePublish.js';
 import { analyticsChartSchema } from '../../../controllers/admin/schema.js';
+import { getMarketingConsentUsersCsv, searchUserProfiles } from '../../../controllers/admin/users.js';
 import { ensureAdmin, ensureUserIsAdmin } from '../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../middleware/permissions.js';
-import { validate } from '../../../middleware/validator.js';
+import { validate, validateInputs } from '../../../middleware/validator.js';
+import { exportMarketingConsentSchema } from '../../../schemas/users.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 import communities from './communities/index.js';
@@ -43,21 +45,11 @@ router.get(
   asyncHandler(getAggregatedAnalyticsCsv),
 );
 router.get('/analytics/new-users', [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin], getNewUserAnalytics);
-// router.get(
-//   '/analytics/new-orcid-users',
-//   [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
-//   getNewOrcidUserAnalytics,
-// );
 router.get(
   '/analytics/active-users',
   [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
   getActiveUserAnalytics,
 );
-// router.get(
-//   '/analytics/active-orcid-users',
-//   [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
-//   getActiveOrcidUserAnalytics,
-// );
 
 router.get('/doi/list', [ensureUser, ensureAdmin], listDoiRecords);
 router.post('/mint/:uuid', [ensureUser, ensureAdmin], asyncHandler(mintDoi));

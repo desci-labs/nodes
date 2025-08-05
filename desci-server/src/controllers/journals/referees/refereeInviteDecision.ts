@@ -20,7 +20,7 @@ export const refereeInviteDecisionController = async (
   next: NextFunction,
 ) => {
   try {
-    const { decision, token } = req.validatedData.body;
+    const { decision, token, reason } = req.validatedData.body;
     const user = req.user; // User can be undefined for declining
 
     logger.info(
@@ -40,6 +40,7 @@ export const refereeInviteDecisionController = async (
       inviteResult = await JournalRefereeManagementService.declineRefereeInvite({
         inviteToken: token,
         userId: user?.id,
+        reason,
       });
     }
 

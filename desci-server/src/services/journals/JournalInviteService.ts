@@ -16,16 +16,18 @@ async function inviteJournalEditor({
   inviterId,
   email,
   role,
+  name,
   inviteTtlDays = 7,
 }: {
   journalId: number;
   inviterId: number;
   email?: string;
   role: EditorRole;
+  name: string;
   inviteTtlDays?: number;
 }) {
   logger.trace(
-    { fn: 'inviteJournalEditor', journalId, inviterId, email, role, inviteTtlDays },
+    { fn: 'inviteJournalEditor', journalId, inviterId, email, role, inviteTtlDays, name },
     'Inviting journal editor',
   );
 
@@ -93,11 +95,13 @@ async function inviteJournalEditor({
   });
 
   try {
+    const recipientName = inviteeExistingUser?.name || name;
     await sendEmail({
       type: EmailTypes.EDITOR_INVITE,
       payload: {
         email,
         journal,
+        recipientName,
         inviterName: inviter.name,
         role,
         inviteToken: token,
@@ -152,6 +156,10 @@ async function acceptJournalInvite({ token, userId }: { token: string; userId: n
     },
     'Accepting journal invite',
   );
+
+  if (invite?.accepted === true && invite.decisionAt !== null) {
+    return invite;
+  }
 
   const isValid = invite && invite.expiresAt > new Date() && invite.accepted === null;
 
@@ -284,8 +292,157 @@ async function declineJournalInvite({ token, userId }: { token: string; userId?:
   return result;
 }
 
+async function resendEditorInvite({
+  inviteId,
+  journalId,
+  inviterId,
+  inviteTtlDays = 7,
+}: {
+  inviteId: number;
+  journalId: number;
+  inviterId: number;
+  inviteTtlDays?: number;
+}) {
+  logger.trace({ fn: 'resendEditorInvite', inviteId, journalId, inviterId, inviteTtlDays }, 'Resending editor invite');
+
+  // Check if invite exists and get current status
+  const existingInvite = await prisma.editorInvite.findUnique({
+    where: {
+      id: inviteId,
+    },
+  });
+
+  if (!existingInvite) {
+    throw new Error('Invite not found');
+  }
+
+  // Verify the invite belongs to the specified journal
+  if (existingInvite.journalId !== journalId) {
+    throw new Error('Invite not found for this journal');
+  }
+
+  // Check if invite has already been accepted or declined
+  if (existingInvite.accepted !== null) {
+    throw new Error('Cannot resend invite that has already been responded to');
+  }
+
+  // Check if invite is expired
+  const now = new Date();
+  if (existingInvite.expiresAt <= now) {
+    logger.info(
+      { fn: 'resendEditorInvite', inviteId, expiresAt: existingInvite.expiresAt, now },
+      'Invite is expired, updating with new expiry',
+    );
+  }
+
+  // Get journal and inviter details
+  const journal = await prisma.journal.findUnique({
+    where: { id: journalId },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      iconCid: true,
+    },
+  });
+
+  if (!journal) {
+    throw new Error('Journal not found');
+  }
+
+  const inviter = await prisma.user.findUnique({
+    where: { id: inviterId },
+  });
+
+  if (!inviter) {
+    throw new Error('Inviter not found');
+  }
+
+  // Get invitee user if they exist
+  const inviteeExistingUser = await prisma.user.findUnique({
+    where: {
+      email: existingInvite.email.toLowerCase(),
+    },
+  });
+
+  // Generate new token and update expiry
+  const newToken = crypto.randomUUID();
+  const newExpiresAt = new Date(Date.now() + inviteTtlDays * 24 * 60 * 60 * 1000);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedInvite = await tx.editorInvite.update({
+      where: { id: inviteId },
+      data: {
+        token: newToken,
+        expiresAt: newExpiresAt,
+        // Reset decision status to pending
+        accepted: null,
+        decisionAt: null,
+      },
+    });
+
+    await JournalEventLogService.log({
+      journalId,
+      action: JournalEventLogAction.EDITOR_INVITED,
+      userId: inviterId,
+      details: {
+        email: existingInvite.email,
+        role: existingInvite.role,
+        originalInviteId: inviteId,
+        newExpiresAt,
+        resent: true,
+      },
+    });
+
+    return updatedInvite;
+  });
+
+  try {
+    const recipientName = inviteeExistingUser?.name || existingInvite.email;
+    await sendEmail({
+      type: EmailTypes.EDITOR_INVITE,
+      payload: {
+        email: existingInvite.email,
+        journal,
+        recipientName,
+        inviterName: inviter.name,
+        role: existingInvite.role,
+        inviteToken: newToken,
+      },
+    });
+
+    if (inviteeExistingUser) {
+      await NotificationService.emitOnJournalEditorInvite({
+        journal,
+        editor: inviteeExistingUser,
+        inviter,
+        role: existingInvite.role,
+      });
+    }
+  } catch (error) {
+    logger.error(
+      { fn: 'resendEditorInvite', error, email: existingInvite.email, journalId, inviterId },
+      'Notification push failed',
+    );
+  }
+
+  logger.info(
+    {
+      fn: 'resendEditorInvite',
+      invite: {
+        ...result,
+        token: result.token.slice(0, 4) + '...',
+      },
+    },
+    'Resent editor invite',
+  );
+
+  return result;
+}
+
 export const JournalInviteService = {
   inviteJournalEditor,
   acceptJournalInvite,
   declineJournalInvite,
+  resendEditorInvite,
 };

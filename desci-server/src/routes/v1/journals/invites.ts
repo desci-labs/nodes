@@ -7,6 +7,7 @@ import {
   listJournalEditorialBoard,
   listJournalEditors,
 } from '../../../controllers/journals/invites/inviteEditor.js';
+import { resendEditorInvite } from '../../../controllers/journals/invites/resendEditorInvite.js';
 import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
 import { ensureUser } from '../../../middleware/permissions.js';
@@ -15,6 +16,7 @@ import {
   editorInviteDecisionSchema,
   inviteEditorSchema,
   listJournalEditorsSchema,
+  resendEditorInviteSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -27,7 +29,11 @@ export default function invitesRoute(router: Router) {
   );
   router.get(
     '/:journalId/editorial-board',
-    [ensureUser, validateInputs(listJournalEditorsSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+    [
+      ensureUser,
+      validateInputs(listJournalEditorsSchema),
+      ensureJournalRole([EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR]),
+    ],
     asyncHandler(listJournalEditorialBoard),
   );
   router.post(
@@ -40,4 +46,9 @@ export default function invitesRoute(router: Router) {
     [attachUser, validateInputs(editorInviteDecisionSchema)],
     asyncHandler(editorInviteDecision),
   ); // editor accept/deny route
+  router.post(
+    '/:journalId/invites/:inviteId/resend',
+    [ensureUser, validateInputs(resendEditorInviteSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+    asyncHandler(resendEditorInvite),
+  ); // resend editor invite route
 }

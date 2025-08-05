@@ -42,6 +42,7 @@ import {
   getAssignmentsBySubmissionSchema,
   getJournalSettingsSchema,
   updateJournalSettingsSchema,
+  resendEditorInviteSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -298,6 +299,76 @@ export const editorInviteDecisionOperation: ZodOpenApiOperationObject = {
       },
     },
   },
+};
+
+// Resend Editor Invite
+export const resendEditorInviteOperation: ZodOpenApiOperationObject = {
+  operationId: 'resendEditorInvite',
+  tags: ['Journals'],
+  summary: 'Resend an editor invitation',
+  description:
+    'Resend an editor invitation that has not been responded to. This will generate a new token, update the expiry date, and send a new email notification. The invite status will be reset to pending.',
+  requestParams: { path: resendEditorInviteSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: resendEditorInviteSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Editor invite resent successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            invite: z.object({
+              id: z.number(),
+              journalId: z.number(),
+              email: z.string(),
+              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+              inviterId: z.number(),
+              expiresAt: z.string(),
+              createdAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Cannot resend invite that has already been responded to',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Invite not found or journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to resend invites for this journal',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
 };
 
 // List Journal Editors
@@ -1699,7 +1770,7 @@ export const refereeInviteDecisionOperation: ZodOpenApiOperationObject = {
   tags: ['Journals'],
   summary: 'Accept or decline a referee invitation',
   description:
-    'Process a referee invitation decision. Accepting requires authentication and creates a referee assignment. Declining can be done without authentication.',
+    'Process a referee invitation decision. Accepting requires authentication and creates a referee assignment. Declining can be done without authentication and optionally includes a reason.',
   requestParams: { path: refereeInviteDecisionSchema.shape.params },
   requestBody: {
     content: {
@@ -2916,6 +2987,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/invites/editor': {
     post: inviteEditorOperation,
+  },
+  '/v1/journals/{journalId}/invites/{inviteId}/resend': {
+    post: resendEditorInviteOperation,
   },
   '/v1/journals/{journalId}/invitation/editor': {
     post: editorInviteDecisionOperation,

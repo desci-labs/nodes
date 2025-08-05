@@ -78,6 +78,7 @@ export const inviteEditorSchema = z.object({
       .email()
       .transform((val) => val?.toLowerCase()),
     role: z.nativeEnum(EditorRole),
+    name: z.string(),
     inviteTtlDays: z
       .number()
       .int()
@@ -95,6 +96,42 @@ export const editorInviteDecisionSchema = z.object({
   body: z.object({
     decision: z.enum(['accept', 'decline']),
     token: z.string(),
+  }),
+});
+
+export const resendEditorInviteSchema = z.object({
+  params: z.object({
+    journalId: z.string().transform((val, ctx) => {
+      const id = parseInt(val, 10);
+      if (isNaN(id) || id <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Journal ID must be a positive integer.',
+        });
+        return z.NEVER;
+      }
+      return id;
+    }),
+    inviteId: z.string().transform((val, ctx) => {
+      const id = parseInt(val, 10);
+      if (isNaN(id) || id <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Invite ID must be a positive integer.',
+        });
+        return z.NEVER;
+      }
+      return id;
+    }),
+  }),
+  body: z.object({
+    inviteTtlDays: z
+      .number()
+      .int()
+      .min(1, 'Invite TTL must be at least 1 day')
+      .max(30, 'Invite TTL cannot exceed 30 days')
+      .optional()
+      .describe('Time to live for the editor invite in days (1-30 days, default: 7)'),
   }),
 });
 
@@ -302,6 +339,7 @@ export const refereeInviteDecisionSchema = z.object({
   body: z.object({
     token: z.string(),
     decision: z.enum(['accept', 'decline']),
+    reason: z.string().optional().describe('Reason for declining the invitation (only needed for decline decisions)'),
   }),
 });
 

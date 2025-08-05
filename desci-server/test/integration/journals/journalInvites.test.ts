@@ -13,7 +13,7 @@ server.ready().then((_) => {
 });
 export const app = server.app;
 
-describe('Journal Invite Service', () => {
+describe.only('Journal Invite Service', () => {
   let user: User;
   let journal: Journal;
   let editor: User;
@@ -60,6 +60,7 @@ describe('Journal Invite Service', () => {
   describe('inviteJournalEditor', () => {
     it('should create an editor invite', async () => {
       const invite = await JournalInviteService.inviteJournalEditor({
+        name: 'New Editor',
         journalId: journal.id,
         inviterId: user.id,
         email: 'neweditor@example.com',
@@ -75,6 +76,7 @@ describe('Journal Invite Service', () => {
 
     it('should create an event log entry when inviting an editor', async () => {
       await JournalInviteService.inviteJournalEditor({
+        name: 'Mr. Journal Editor',
         journalId: journal.id,
         inviterId: user.id,
         email: 'neweditor@example.com',
@@ -96,6 +98,7 @@ describe('Journal Invite Service', () => {
     it('should throw error when journal not found', async () => {
       try {
         await JournalInviteService.inviteJournalEditor({
+          name: 'Test Editor',
           journalId: 999,
           inviterId: user.id,
           email: 'neweditor@example.com',
@@ -126,6 +129,7 @@ describe('Journal Invite Service', () => {
 
     beforeEach(async () => {
       invite = await JournalInviteService.inviteJournalEditor({
+        name: 'Accept Test Editor',
         journalId: journal.id,
         inviterId: user.id,
         email: editor.email,
@@ -204,6 +208,7 @@ describe('Journal Invite Service', () => {
 
     beforeEach(async () => {
       invite = await JournalInviteService.inviteJournalEditor({
+        name: 'Mr. Journal Editor',
         journalId: journal.id,
         inviterId: user.id,
         email: editor.email,
@@ -274,10 +279,12 @@ describe('Journal Invite Service', () => {
   describe('Controller Tests', () => {
     let authToken: string;
     let editorAuthToken: string;
+    let userAuthToken: string;
 
     beforeEach(async () => {
       authToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
       editorAuthToken = jwt.sign({ email: editor.email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
+      userAuthToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
     });
 
     describe('POST /journals/:journalId/invites/editor', () => {
@@ -288,6 +295,7 @@ describe('Journal Invite Service', () => {
           .send({
             email: 'neweditor@example.com',
             role: EditorRole.ASSOCIATE_EDITOR,
+            name: 'Test Editor',
           });
 
         expect(res.status).to.equal(200);
@@ -318,6 +326,7 @@ describe('Journal Invite Service', () => {
           .send({
             email: 'neweditor@example.com',
             role: EditorRole.ASSOCIATE_EDITOR,
+            name: 'Test Editor',
           });
 
         expect(res.status).to.equal(403);
@@ -329,6 +338,7 @@ describe('Journal Invite Service', () => {
 
       beforeEach(async () => {
         invite = await JournalInviteService.inviteJournalEditor({
+          name: 'Test Editor',
           journalId: journal.id,
           inviterId: user.id,
           email: editor.email,
@@ -381,6 +391,116 @@ describe('Journal Invite Service', () => {
           });
 
         expect(res.status).to.equal(400);
+      });
+    });
+
+    describe('POST /journals/:journalId/invites/:inviteId/resend', () => {
+      let invite: any;
+
+      beforeEach(async () => {
+        invite = await JournalInviteService.inviteJournalEditor({
+          name: 'Test Editor',
+          journalId: journal.id,
+          inviterId: user.id,
+          email: 'resend@example.com',
+          role: EditorRole.ASSOCIATE_EDITOR,
+        });
+      });
+
+      it('should resend an editor invite', async () => {
+        const originalToken = invite.token;
+        const originalExpiresAt = invite.expiresAt;
+
+        const res = await request(app)
+          .post(`/v1/journals/${journal.id}/invites/${invite.id}/resend`)
+          .set('authorization', `Bearer ${userAuthToken}`)
+          .send({
+            inviteTtlDays: 14,
+          });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.data.invite.id).to.equal(invite.id);
+        expect(res.body.data.invite.token).to.not.equal(originalToken);
+        expect(res.body.data.invite.expiresAt).to.not.equal(originalExpiresAt);
+      });
+
+      it('should return 404 for non-existent invite', async () => {
+        const res = await request(app)
+          .post(`/v1/journals/${journal.id}/invites/99999/resend`)
+          .set('authorization', `Bearer ${userAuthToken}`)
+          .send({
+            inviteTtlDays: 7,
+          });
+
+        expect(res.status).to.equal(404);
+      });
+
+      it('should return 400 for already responded invite', async () => {
+        // First accept the invite
+        let res = await request(app)
+          .post(`/v1/journals/${journal.id}/invitation/editor`)
+          .set('authorization', `Bearer ${editorAuthToken}`)
+          .send({
+            token: invite.token,
+            decision: 'accept',
+          });
+        console.log('res', res.body);
+        expect(res.status).to.equal(200);
+
+        // Then try to resend it
+        res = await request(app)
+          .post(`/v1/journals/${journal.id}/invites/${invite.id}/resend`)
+          .set('authorization', `Bearer ${userAuthToken}`)
+          .send({
+            inviteTtlDays: 7,
+          });
+        console.log('res', res.body);
+        expect(res.status).to.equal(400);
+        expect(res.body.message).to.include('Cannot resend invite that has already been responded to');
+      });
+
+      it('should return 403 for non-chief editor', async () => {
+        const res = await request(app)
+          .post(`/v1/journals/${journal.id}/invites/${invite.id}/resend`)
+          .set('authorization', `Bearer ${editorAuthToken}`)
+          .send({
+            inviteTtlDays: 7,
+          });
+
+        expect(res.status).to.equal(403);
+      });
+
+      it('should return 401 without auth token', async () => {
+        const res = await request(app).post(`/v1/journals/${journal.id}/invites/${invite.id}/resend`).send({
+          inviteTtlDays: 7,
+        });
+
+        expect(res.status).to.equal(401);
+      });
+
+      it('should create event log entry when resending invite', async () => {
+        await request(app)
+          .post(`/v1/journals/${journal.id}/invites/${invite.id}/resend`)
+          .set('authorization', `Bearer ${userAuthToken}`)
+          .send({
+            inviteTtlDays: 10,
+          });
+
+        const eventLog = await prisma.journalEventLog.findFirst({
+          where: {
+            journalId: journal.id,
+            action: 'EDITOR_INVITED',
+            userId: user.id,
+          },
+          orderBy: { timestamp: 'desc' },
+        });
+
+        expect(eventLog).to.not.be.null;
+        expect(eventLog?.details).to.deep.include({
+          email: 'resend@example.com',
+          role: EditorRole.ASSOCIATE_EDITOR,
+          resent: true,
+        });
       });
     });
   });

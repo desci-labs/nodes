@@ -15,6 +15,7 @@ export interface DpidMetadata {
   authors: ResearchObjectV1Author[];
   doi: string;
   publicationYear: number;
+  publicationDate: string;
   pdfUrl: string;
 }
 
@@ -60,13 +61,18 @@ export async function getDpidMetadata(dpid: number, version?: number): Promise<D
         component.payload?.path?.endsWith('.pdf')),
   );
 
+  const date = targetVersion.time ? new Date(parseInt(targetVersion.time) * 1000) : undefined;
+  const pubDate = date ? date.toLocaleDateString().split('/') : undefined;
   const metadata = {
     title: manifest.title,
     abstract: manifest.description,
     authors: manifest.authors,
     doi,
     publicationYear: targetVersion.time ? new Date(parseInt(targetVersion.time) * 1000).getFullYear() : undefined,
+    publicationDate: pubDate ? `${pubDate[2]}/${pubDate[0]}/${pubDate[1]}` : undefined, // YYYY/MM/DD
     pdfUrl: pdfComponent ? `${IPFS_RESOLVER}/${pdfComponent.payload.cid}` : undefined,
+    dpid: node.dpidAlias,
+    version: targetVersionIndex + 1,
   };
 
   return metadata;
