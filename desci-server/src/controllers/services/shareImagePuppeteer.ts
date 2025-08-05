@@ -1,12 +1,32 @@
-import { Request, Response } from 'express';
-import puppeteer from 'puppeteer';
-import { marked } from 'marked';
-import path from 'path';
 import fs from 'fs';
-import { logger as parentLogger } from '../../logger.js';
+import path from 'path';
+
+import { Request, Response } from 'express';
+import { marked } from 'marked';
+import puppeteer from 'puppeteer';
+
 import { supabase } from '../../lib/supabase.js';
+import { logger as parentLogger } from '../../logger.js';
 
 const logger = parentLogger.child({ module: 'shareImagePuppeteer' });
+
+/**
+ * Safely replaces all occurrences of a target string with a replacement string
+ * without using dynamic regular expressions, preventing ReDoS vulnerabilities.
+ */
+function replaceAllSafe(text: string, target: string, replacement: string): string {
+  if (!text || !target) return text;
+
+  let result = text;
+  let index = 0;
+
+  while ((index = result.indexOf(target, index)) !== -1) {
+    result = result.substring(0, index) + replacement + result.substring(index + target.length);
+    index += replacement.length;
+  }
+
+  return result;
+}
 
 /**
  * Custom error to indicate that SVG fallback is needed
@@ -110,7 +130,7 @@ function formatCitation(citation: Citation, index: number) {
   const year = citation.year ? ` (${citation.year})` : '';
   const journal = citation.journal ? ` ${capitalizeExceptArticles(citation.journal)}.` : '';
 
-  let title = citation.title || 'Untitled';
+  const title = citation.title || 'Untitled';
 
   const metadata = `${authors}${year}.${journal}`;
 
@@ -142,10 +162,11 @@ function processAnswerWithCitations(answer: string): { processedAnswer: string; 
     }
   });
 
-  // Replace complex citations with simple numbered ones
+  // Replace complex citations with simple numbered ones using safe string replacement
   citationMap.forEach((index, citation) => {
-    const complexPattern = new RegExp(`\\[${citation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]`, 'g');
-    processedAnswer = processedAnswer.replace(complexPattern, `<sup class="citation">[${index}]</sup>`);
+    const targetPattern = `[${citation}]`;
+    const replacement = `<sup class="citation">[${index}]</sup>`;
+    processedAnswer = replaceAllSafe(processedAnswer, targetPattern, replacement);
   });
 
   return { processedAnswer, citationMap };
@@ -248,7 +269,7 @@ function processSimpleMarkdownToHTML(text: string): string {
   if (!text) return '';
 
   // Simple markdown replacements for basic formatting
-  let html = text
+  const html = text
     // Headers
     .replace(/^### (.*$)/gm, '<h3 class="heading-3">$1</h3>')
     .replace(/^## (.*$)/gm, '<h2 class="heading-2">$1</h2>')

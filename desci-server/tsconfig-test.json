@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     // dagConcat.cjs requires this
     "allowJs": true,
     "inlineSourceMap": true,
