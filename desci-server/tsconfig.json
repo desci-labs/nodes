@@ -26,11 +26,6 @@
     // dagConcat.cjs requires this
     "allowJs": true,
 
-    "paths": {
-      // Overrides a built-in Response type
-      "express": ["./src/types/express"]
-    },
-
     "jsx": "react",
     "sourceMap": true,
     "inlineSources": true,
@@ -40,7 +35,14 @@
     // This improves issue grouping in Sentry.
     "sourceRoot": "/"
   },
-  "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs", "src/utils/dagConcat.ts", "./prisma/seed.ts"],
+  "include": [
+    "./src/**/*.tsx",
+    "./src/**/*.ts",
+    "./src/**/*.cjs",
+    "src/utils/dagConcat.ts",
+    "./prisma/seed.ts",
+    "./src/types/express-augmentations.d.ts"
+  ],
   "exclude": ["./test/**/*.ts"],
   "compileOnSave": true
 }
