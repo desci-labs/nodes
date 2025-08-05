@@ -322,7 +322,7 @@ async function triggerRefereeRecommendation(
 
     logger.info({ cid: request.cid, external: request.external }, 'Triggering referee recommendation');
 
-    const response = await axios.post(ML_REFEREE_TRIGGER_URL + '/dev/ml-referee-trigger-step-function', request, {
+    const response = await axios.post(ML_REFEREE_TRIGGER_URL, request, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -376,7 +376,7 @@ async function getRefereeResults(uploadedFileName: string): Promise<Result<GetRe
   try {
     logger.info({ uploadedFileName }, 'Fetching referee recommendation results');
 
-    const response = await axios.get(ML_REFEREE_RESULTS_URL + '/dev/ml-referee-rec-get-result', {
+    const response = await axios.get(ML_REFEREE_RESULTS_URL, {
       params: {
         UploadedFileName: uploadedFileName,
       },
