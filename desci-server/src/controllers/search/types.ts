@@ -1,5 +1,4 @@
-import { estypes } from '@elastic/elasticsearch';
-type SearchTotalHits = estypes.SearchTotalHits;
+import type { SearchTotalHits } from '@elastic/elasticsearch/lib/api/typesWithBodyKey';
 
 import { VALID_ENTITIES } from '../../services/ElasticSearchService.js';
 export type Entity = string;

@@ -1,14 +1,14 @@
-import { estypes } from '@elastic/elasticsearch';
-
-type QueryDslBoolQuery = estypes.QueryDslBoolQuery;
-type QueryDslFunctionBoostMode = estypes.QueryDslFunctionBoostMode;
-type QueryDslFunctionScoreContainer = estypes.QueryDslFunctionScoreContainer;
-type QueryDslFunctionScoreMode = estypes.QueryDslFunctionScoreMode;
-type QueryDslFunctionScoreQuery = estypes.QueryDslFunctionScoreQuery;
-type QueryDslQueryContainer = estypes.QueryDslQueryContainer;
-type QueryDslTermQuery = estypes.QueryDslTermQuery;
-type QueryDslTermsQuery = estypes.QueryDslTermsQuery;
-type QueryDslTextQueryType = estypes.QueryDslTextQueryType;
+import type {
+  QueryDslBoolQuery,
+  QueryDslFunctionBoostMode,
+  QueryDslFunctionScoreContainer,
+  QueryDslFunctionScoreMode,
+  QueryDslFunctionScoreQuery,
+  QueryDslQueryContainer,
+  QueryDslTermQuery,
+  QueryDslTermsQuery,
+  QueryDslTextQueryType,
+} from '@elastic/elasticsearch/lib/api/typesWithBodyKey';
 
 import { NoveltyScoreDetails } from '../controllers/doi/check.js';
 import { Filter } from '../controllers/search/types.js';

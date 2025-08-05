@@ -218,7 +218,7 @@ class AppServer {
     this.app.get('/orcid', orcidConnect);
     this.app.post('/orcid/next', [attachUser], orcidCheck());
     // this.app.use('/doc', swaggerUI.serve, swaggerUI.setup(swaggerFile));
-    this.app.use('/documentation', swaggerUI.serve, swaggerUI.setup(openApiDocumentation));
+    this.app.use('/documentation', ...(swaggerUI.serve as any), swaggerUI.setup(openApiDocumentation) as any);
     this.app.use('/', routes);
   }
 

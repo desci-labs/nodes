@@ -152,6 +152,85 @@ function processAnswerWithCitations(answer: string): { processedAnswer: string; 
 }
 
 /**
+ * Extracts citation identifiers from answer text and filters citations to only referenced ones
+ */
+function getReferencedCitations(answer: string, citations: Citation[]): any[] {
+  if (!answer || !citations.length) return [];
+
+  // Extract all citation patterns from the answer
+  const citationPattern = /\[([^\]]+)\]/g;
+  const foundCitations = [...answer.matchAll(citationPattern)];
+
+  if (foundCitations.length === 0) return [];
+
+  const referencedCitations: any[] = [];
+  const usedNumbers = new Set<number>();
+
+  // For each citation found in the answer
+  foundCitations.forEach((match) => {
+    const citationText = match[1].trim();
+
+    // Check if it's a simple number (like [1], [2], etc.)
+    const numberMatch = citationText.match(/^\d+$/);
+    if (numberMatch) {
+      const citationIndex = parseInt(numberMatch[0], 10) - 1; // Convert to 0-based index
+      if (citationIndex >= 0 && citationIndex < citations.length && !usedNumbers.has(citationIndex)) {
+        referencedCitations.push(formatCitation(citations[citationIndex], parseInt(numberMatch[0], 10)));
+        usedNumbers.add(citationIndex);
+      }
+      return;
+    }
+
+    // For more complex citations, try to match by content
+    let bestMatch: Citation | null = null;
+    let bestMatchIndex = -1;
+
+    citations.forEach((citation, index) => {
+      if (usedNumbers.has(index)) return; // Skip already used citations
+
+      // Try to match by DOI
+      if (citation.doi && citationText.includes(citation.doi)) {
+        bestMatch = citation;
+        bestMatchIndex = index;
+        return;
+      }
+
+      // Try to match by title (partial match)
+      if (
+        citation.title &&
+        (citationText.includes(citation.title) ||
+          citation.title.includes(citationText) ||
+          // Normalized comparison
+          citation.title
+            .toLowerCase()
+            .replace(/[^\w\s]/g, '')
+            .includes(citationText.toLowerCase().replace(/[^\w\s]/g, '')))
+      ) {
+        bestMatch = citation;
+        bestMatchIndex = index;
+        return;
+      }
+
+      // Try to match by authors
+      if (citation.authors && citationText.includes(citation.authors)) {
+        bestMatch = citation;
+        bestMatchIndex = index;
+        return;
+      }
+    });
+
+    // If we found a match, add it
+    if (bestMatch && bestMatchIndex !== -1) {
+      referencedCitations.push(formatCitation(bestMatch, referencedCitations.length + 1));
+      usedNumbers.add(bestMatchIndex);
+    }
+  });
+
+  // Limit to 3 citations for display
+  return referencedCitations.slice(0, 3);
+}
+
+/**
  * Configures marked for proper markdown rendering
  */
 function configureMarkdown() {
@@ -163,16 +242,13 @@ function configureMarkdown() {
 }
 
 /**
- * Simple markdown processing that handles basic formatting
+ * Simple markdown processing that handles basic formatting (without citation processing)
  */
-function processMarkdownToHTML(text: string): string {
+function processSimpleMarkdownToHTML(text: string): string {
   if (!text) return '';
 
-  // First process citations
-  const { processedAnswer } = processAnswerWithCitations(text);
-
   // Simple markdown replacements for basic formatting
-  let html = processedAnswer
+  let html = text
     // Headers
     .replace(/^### (.*$)/gm, '<h3 class="heading-3">$1</h3>')
     .replace(/^## (.*$)/gm, '<h2 class="heading-2">$1</h2>')
@@ -197,6 +273,19 @@ function processMarkdownToHTML(text: string): string {
     .join('\n');
 
   return html;
+}
+
+/**
+ * Simple markdown processing that handles basic formatting (with citation processing)
+ */
+function processMarkdownToHTML(text: string): string {
+  if (!text) return '';
+
+  // First process citations
+  const { processedAnswer } = processAnswerWithCitations(text);
+
+  // Then process markdown
+  return processSimpleMarkdownToHTML(processedAnswer);
 }
 
 /**
@@ -228,16 +317,14 @@ function loadBackgroundImageAsBase64(): string {
 function generateHTML(data: ShareImageData): string {
   configureMarkdown();
 
-  // Process answer with citations and markdown
+  // Extract only the citations that are actually referenced in the answer
+  const formattedCitations = getReferencedCitations(data.answer || '', data.citations);
+
+  // Process answer with citations and convert to HTML
   const answerHTML = processMarkdownToHTML(data.answer || '');
 
-  // Format citations for display
-  const formattedCitations = data.citations
-    .slice(0, 3) // Limit to 3 citations
-    .map((citation, index) => formatCitation(citation, index + 1));
-
-  // Determine how many citations to guarantee space for
-  const guaranteedCitations = Math.max(2, Math.min(data.citations.length, 3));
+  // Determine how many citations to guarantee space for (limit to 3 for display)
+  const guaranteedCitations = Math.max(2, Math.min(formattedCitations.length, 3));
 
   // Load background image
   const backgroundImage = loadBackgroundImageAsBase64();

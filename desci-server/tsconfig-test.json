@@ -18,16 +18,20 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "noImplicitAny": false,
     // dagConcat.cjs requires this
     "allowJs": true,
     "inlineSourceMap": true,
     "paths": {
-      // Overrides a built-in Response type
-      "express": ["./src/types/express"]
+      "@hapi/catbox": ["./src/types/@types/hapi__catbox"],
+      "@hapi/shot": ["./src/types/@types/hapi__shot"],
+      "generic-pool": ["./src/types/@types/generic-pool"]
     },
+    "typeRoots": ["./node_modules/@types", "./src/types/@types"],
     "jsx": "react"
   },
-  "include": ["test/**/*.ts"],
-  "exclude": ["node_modules/@types/hapi__catbox", "node_modules/@types/hapi__shot"],
+  "include": ["test/**/*.ts", "src/types/**/*.d.ts"],
+  "exclude": [],
   "compileOnSave": true
 }
