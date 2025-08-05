@@ -336,7 +336,7 @@ export const externalApiDocs = {
       tags: ['External API'],
       summary: 'Get referee recommender usage status',
       description:
-        'Retrieve the current usage status for the authenticated user including total limit, used count, and remaining quota',
+        'Retrieve the current usage status for the authenticated user including feature limits, used count, remaining quota, and plan information based on their subscription',
       security: [
         {
           bearerAuth: [],
@@ -351,22 +351,33 @@ export const externalApiDocs = {
                 type: 'object',
                 properties: {
                   totalLimit: {
-                    type: 'integer',
-                    description: 'Maximum number of requests allowed in the timeframe',
+                    type: ['integer', 'null'],
+                    description: 'Maximum number of requests allowed in the billing period (null = unlimited)',
                     example: 10,
                   },
                   totalUsed: {
                     type: 'integer',
-                    description: 'Number of requests used in the current timeframe',
+                    description: 'Number of requests used in the current billing period',
                     example: 3,
                   },
                   totalRemaining: {
-                    type: 'integer',
-                    description: 'Number of requests remaining in the current timeframe',
+                    type: ['integer', 'null'],
+                    description: 'Number of requests remaining in the current billing period (null = unlimited)',
                     example: 7,
                   },
+                  planCodename: {
+                    type: 'string',
+                    description: 'User subscription plan codename',
+                    enum: ['FREE', 'STARTER', 'PRO', 'CUSTOM'],
+                    example: 'STARTER',
+                  },
+                  isWithinLimit: {
+                    type: 'boolean',
+                    description: 'Whether the user is currently within their usage limits',
+                    example: true,
+                  },
                 },
-                required: ['totalLimit', 'totalUsed', 'totalRemaining'],
+                required: ['totalLimit', 'totalUsed', 'totalRemaining', 'planCodename', 'isWithinLimit'],
               },
             },
           },
@@ -375,7 +386,7 @@ export const externalApiDocs = {
           description: 'Unauthorized - authentication required',
         },
         500: {
-          description: 'Internal server error',
+          description: 'Internal server error - failed to retrieve usage status',
         },
       },
     },

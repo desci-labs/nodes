@@ -1,9 +1,10 @@
+import { Feature } from '@prisma/client';
 import { Response } from 'express';
 
 import { sendSuccess, sendError } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { RefereeRecommenderService } from '../../../services/externalApi/RefereeRecommenderService.js';
+import { FeatureLimitsService } from '../../../services/FeatureLimits/FeatureLimitsService.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::UsageStatusController' });
 
@@ -21,19 +22,27 @@ export const getUsageStatus = async (req: AuthenticatedRequest, res: Response) =
       'Fetching referee recommender usage status',
     );
 
-    // Get current usage count
-    const totalUsed = await RefereeRecommenderService.getUserUsageCount(
-      user.id,
-      RefereeRecommenderService.RATE_LIMIT_TIMEFRAME_SECONDS,
-    );
+    // Check feature limit status
+    const limitResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.REFEREE_FINDER);
+    if (limitResult.isErr()) {
+      logger.error(
+        {
+          error: limitResult.error,
+          userId: user.id,
+        },
+        'Failed to check feature limit status',
+      );
+      return sendError(res, 'Failed to retrieve usage status', 500);
+    }
 
-    const totalLimit = RefereeRecommenderService.RATE_LIMIT_USES;
-    const totalRemaining = Math.max(0, totalLimit - totalUsed);
+    const limitStatus = limitResult.value;
 
     const responseData = {
-      totalLimit,
-      totalUsed,
-      totalRemaining,
+      totalLimit: limitStatus.useLimit,
+      totalUsed: limitStatus.currentUsage,
+      totalRemaining: limitStatus.remainingUses,
+      planCodename: limitStatus.planCodename,
+      isWithinLimit: limitStatus.isWithinLimit,
     };
 
     logger.info(
