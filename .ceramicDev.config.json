@@ -10,7 +10,8 @@
   },
   "ipfs": {
     "mode": "remote",
-    "host": "http://host.docker.internal:5001"
+    "host": "http://host.docker.internal:5001",
+    "disable-peer-data-sync": true
   },
   "logger": {
     "log-level": 2
@@ -29,8 +30,6 @@
   },
   "indexing": {
     "db": "postgres://walter:white@db_postgres:5432/postgres",
-    "allow-queries-before-historical-sync": true,
-    "models": []
+    "allow-queries-before-historical-sync": true
   }
 }
-
