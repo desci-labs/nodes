@@ -43,7 +43,15 @@ RUN mkdir /app && \
 
 WORKDIR /app
 
-# Copy desci-models first since it's a dependency that changes less frequently
+# Copy package files first for better dependency caching
+COPY --chown=node:node ./desci-server/package.json ./desci-server/yarn.lock ./
+
+# Copy source code first (needed for desci-models setup)
+COPY --chown=node:node ./desci-server ./
+
+# Handle desci-models properly (remove symlink, create directory, copy content)
+RUN rm -r ./desci-models
+RUN mkdir ./desci-models
 COPY --chown=node:node ./desci-models ./desci-models
 WORKDIR /app/desci-models
 RUN yarn config set registry https://registry.npmjs.org/ && \
@@ -52,10 +60,7 @@ RUN yarn config set registry https://registry.npmjs.org/ && \
 
 WORKDIR /app
 
-# Copy package files first for better dependency caching
-COPY --chown=node:node ./desci-server/package.json ./desci-server/yarn.lock ./
-
-# Install dependencies before copying source code (better cache invalidation)
+# Install dependencies after desci-models is built (better cache invalidation)
 RUN mv package.json package.json.old && \
     sed 's/link:/file:/' package.json.old > package.json
 
@@ -71,9 +76,6 @@ COPY --chown=node:node ./desci-contracts/artifacts ./src/desci-contracts-artifac
 
 # Create required directories
 RUN mkdir -p /app/desci-repo/repo-tmp /app/desci-server/repo-tmp
-
-# Copy source code last (most frequently changing)
-COPY --chown=node:node ./desci-server ./
 
 # Set permissions and generate Prisma client
 RUN chown -R node /app/node_modules/.prisma && \

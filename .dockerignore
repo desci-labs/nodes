@@ -12,6 +12,7 @@ local-data
 database
 # Additional optimizations for faster builds
 **/.git
+*.md
 **/*.md
 **/test
 **/tests
