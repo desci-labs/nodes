@@ -179,6 +179,8 @@ model User {
   email                       String                        @unique
   phoneNumber                 String?                       @unique
   name                        String?
+  firstName                   String?
+  lastName                    String?
   website                     String?
   googleScholarUrl            String?
   researchInterests           String?
