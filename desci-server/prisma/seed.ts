@@ -1,102 +1,123 @@
 import { prisma } from '../src/client.js';
-import researchFieldsData from '../src/data/fields.json' assert { type: 'json' };
+// import researchFieldsData from '../src/data/fields.json' assert { type: 'json' };
 import { seedSocialData } from '../src/scripts/seed-social-data.js';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+const researchFieldsData = JSON.parse(readFileSync(join(process.cwd(), 'src/data/fields.json'), 'utf-8'));
 
 async function main() {
-  const { id: userId }= await prisma.user.upsert({
-    where: {
-      email: 'noreply@desci.com',
-    },
-    update: {},
-    create: {
-      email: 'noreply@desci.com',
-      phoneNumber: '123',
+  try {
+    console.log('Starting seed script...');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('Testing prisma connection...');
+    await prisma.$connect();
+    console.log('Prisma connected successfully');
 
-      isPatron: false,
-      isWarden: false,
-      isKeeper: false,
-    },
-  });
+    const { id: userId } = await prisma.user.upsert({
+      where: {
+        email: 'noreply@desci.com',
+      },
+      update: {},
+      create: {
+        email: 'noreply@desci.com',
+        phoneNumber: '123',
 
-  await prisma.apiKey.upsert({
-    where: {
-      keyHashed: "yMcm5OwIUcmh98cmpDhCZArwRV+8Q14XIOs2LhKQ6fY=",
-    },
-    update: {},
-    create: {
-      keyHashed: "yMcm5OwIUcmh98cmpDhCZArwRV+8Q14XIOs2LhKQ6fY=",
-      memo: "nodes-lib tests",
-      createdAt: "2023-01-01T00:00:00.000Z",
-      lastUsed: "2023-01-01T00:00:00.000Z",
-      isActive: true,
-      createdIp: "192.168.0.1",
-      userId,
-    },
-  });
+        isPatron: false,
+        isWarden: false,
+        isKeeper: false,
+      },
+    });
 
-  const estuary = await prisma.ipfsMirror.upsert({
-    // select: { id: true, name: true },
-    where: {
-      name: 'estuary',
-    },
-    update: {},
-    create: {
-      name: 'estuary',
-      description: 'estuary ipfs storage provider',
-      website: 'https://estuary.tech/',
-    },
-  });
-  console.log('estuary mirror', estuary);
-  const foundByName = await prisma.ipfsMirror.findFirst({
-    where: {
-      name: 'estuary',
-    },
-  });
-  console.log('estuary foundByName', foundByName);
+    await prisma.apiKey.upsert({
+      where: {
+        keyHashed: 'yMcm5OwIUcmh98cmpDhCZArwRV+8Q14XIOs2LhKQ6fY=',
+      },
+      update: {},
+      create: {
+        keyHashed: 'yMcm5OwIUcmh98cmpDhCZArwRV+8Q14XIOs2LhKQ6fY=',
+        memo: 'nodes-lib tests',
+        createdAt: '2023-01-01T00:00:00.000Z',
+        lastUsed: '2023-01-01T00:00:00.000Z',
+        isActive: true,
+        createdIp: '192.168.0.1',
+        userId,
+      },
+    });
 
-  const parsedFields: { name: string }[] = researchFieldsData.map((name) => ({ name }));
+    const estuary = await prisma.ipfsMirror.upsert({
+      // select: { id: true, name: true },
+      where: {
+        name: 'estuary',
+      },
+      update: {},
+      create: {
+        name: 'estuary',
+        description: 'estuary ipfs storage provider',
+        website: 'https://estuary.tech/',
+      },
+    });
+    console.log('estuary mirror', estuary);
+    const foundByName = await prisma.ipfsMirror.findFirst({
+      where: {
+        name: 'estuary',
+      },
+    });
+    console.log('estuary foundByName', foundByName);
 
-  const fields = await prisma.researchFields.createMany({ data: parsedFields, skipDuplicates: true });
-  console.log('Research fields inserted', fields.count);
+    const parsedFields: { name: string }[] = researchFieldsData.map((name) => ({ name }));
 
-  // const metascienceVault = await prisma.vault.upsert({
-  //   where: {
-  //     name: 'Metascience',
-  //   },
-  //   update: {},
-  //   create: {
-  //     name: 'Metascience',
-  //     image: 'https://www.dropbox.com/s/fw6bqy684pwekxi/desci-tree-opt.jpg?dl=1',
-  //     description: 'Metascience ARC',
-  //   },
-  // });
-  // const genomicsVault = await prisma.vault.upsert({
-  //   where: {
-  //     name: 'Genomics',
-  //   },
-  //   update: {},
-  //   create: {
-  //     name: 'Genomics',
-  //     image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRvnnIpKzvYW1VnE0LXdfU7qunIc2TwojpLDw&usqp=CAU',
-  //     description: 'Computational Genomics ARC',
-  //   },
-  // });
+    const fields = await prisma.researchFields.createMany({ data: parsedFields, skipDuplicates: true });
+    console.log('Research fields inserted', fields.count);
 
-  // console.log({ metascienceVault, genomicsVault, owner });
-  console.log('NODE ENV', process.env.NODE_ENV);
-  if (process.env.NODE_ENV === 'test') return;
+    // const metascienceVault = await prisma.vault.upsert({
+    //   where: {
+    //     name: 'Metascience',
+    //   },
+    //   update: {},
+    //   create: {
+    //     name: 'Metascience',
+    //     image: 'https://www.dropbox.com/s/fw6bqy684pwekxi/desci-tree-opt.jpg?dl=1',
+    //     description: 'Metascience ARC',
+    //   },
+    // });
+    // const genomicsVault = await prisma.vault.upsert({
+    //   where: {
+    //     name: 'Genomics',
+    //   },
+    //   update: {},
+    //   create: {
+    //     name: 'Genomics',
+    //     image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRvnnIpKzvYW1VnE0LXdfU7qunIc2TwojpLDw&usqp=CAU',
+    //     description: 'Computational Genomics ARC',
+    //   },
+    // });
 
-  await seedSocialData();
+    // console.log({ metascienceVault, genomicsVault, owner });
+    console.log('NODE ENV', process.env.NODE_ENV);
+    if (process.env.NODE_ENV === 'test') return;
+
+    await seedSocialData();
+  } catch (error) {
+    console.error('Error in main try block:', error);
+    throw error;
+  }
 }
 
 main()
   .catch((e) => {
+    console.error('Error in main function:');
     console.error(e);
+    console.error('Stack trace:', e.stack);
     process.exit(1);
   })
   .finally(async () => {
-    console.log('PRISMA DISCONNECT START');
-    await prisma.$disconnect();
-    console.log('PRISMA DISCONNECT END');
+    try {
+      console.log('PRISMA DISCONNECT START');
+      await prisma.$disconnect();
+      console.log('PRISMA DISCONNECT END');
+    } catch (disconnectError) {
+      console.error('Error disconnecting from Prisma:', disconnectError);
+    }
     process.exit(0);
   });

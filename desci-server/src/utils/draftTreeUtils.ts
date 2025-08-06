@@ -121,11 +121,13 @@ export function flatTreeToHierarchicalTree(flatTree: RecursiveLsResult[]): Recur
  * Function to add a DAGNode to IPFS and return its CID
  */
 async function addDagNodeToIpfs(dagNode: unknown): Promise<CID> {
-  return await client.block.put(encode(prepare(dagNode)), {
+  const result = await client.block.put(encode(prepare(dagNode)), {
     version: 1,
     format: 'dag-pb',
     // pin: true,
   });
+  // Convert kubo-rpc-client CID to multiformats CID
+  return CID.parse(result.toString());
 }
 
 /*

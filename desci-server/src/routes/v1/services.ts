@@ -3,6 +3,7 @@ import multer from 'multer';
 
 import { ephemeralThumbnail } from '../../controllers/proxy/ephemeralThumbnail.js';
 import { orcidDid, orcidProfile } from '../../controllers/proxy/orcidProfile.js';
+import { generateShareImagePuppeteer } from '../../controllers/services/shareImagePuppeteer.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 
@@ -12,6 +13,9 @@ const upload = multer();
 
 router.get('/orcid/profile/:orcidId', [], orcidProfile);
 router.get('/orcid/did/:did', [], orcidDid);
+
+// Share image generation endpoint - now using Puppeteer for better layout and markdown support
+router.get('/generate-share-image', [], generateShareImagePuppeteer);
 
 const logger = parentLogger.child({ module: 'Services UploadHandler' });
 

@@ -1,14 +1,4 @@
-import {
-  QueryDslBoolQuery,
-  QueryDslFunctionBoostMode,
-  QueryDslFunctionScoreContainer,
-  QueryDslFunctionScoreMode,
-  QueryDslFunctionScoreQuery,
-  QueryDslQueryContainer,
-  QueryDslTermQuery,
-  QueryDslTermsQuery,
-  QueryDslTextQueryType,
-} from '@elastic/elasticsearch/lib/api/types.js';
+import type { estypes } from '@elastic/elasticsearch';
 
 import { NoveltyScoreDetails } from '../controllers/doi/check.js';
 import { Filter } from '../controllers/search/types.js';
@@ -111,17 +101,20 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   },
 };
 
-export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: string): QueryDslFunctionScoreQuery {
+export function createFunctionScoreQuery(
+  query: estypes.QueryDslQueryContainer,
+  entity: string,
+): estypes.QueryDslFunctionScoreQuery {
   const currentYear = new Date().getFullYear();
 
-  const functions: QueryDslFunctionScoreContainer[] = [
+  const functions: estypes.QueryDslFunctionScoreContainer[] = [
     // Citation count as tiebreaker
     {
       filter: { range: { cited_by_count: { gte: 1 } } },
       field_value_factor: {
         field: 'cited_by_count',
         factor: 0.0001,
-        modifier: 'log1p',
+        modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
       },
       weight: 1,
     },
@@ -158,7 +151,7 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
         field_value_factor: {
           field: 'locations.works_count',
           factor: 0.00001,
-          modifier: 'log1p',
+          modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
         },
         weight: 0.3,
       },
@@ -175,15 +168,15 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
   return {
     query,
     functions,
-    boost_mode: 'sum' as QueryDslFunctionBoostMode,
-    score_mode: 'sum' as QueryDslFunctionScoreMode,
+    boost_mode: 'sum' as estypes.QueryDslFunctionBoostMode,
+    score_mode: 'sum' as estypes.QueryDslFunctionScoreMode,
     min_score: 0.1,
   };
 }
 
-export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQueryContainer {
+export function createAutocompleteFunctionScoreQuery(query: string): estypes.QueryDslQueryContainer {
   // Use these as tie breakers, small multipliers to slightly boost more relevant work
-  const boostFunctions: QueryDslFunctionScoreContainer[] = [
+  const boostFunctions: estypes.QueryDslFunctionScoreContainer[] = [
     {
       filter: {
         term: { entity_type: 'work' },
@@ -195,7 +188,7 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
       field_value_factor: {
         field: 'cited_by_count',
         factor: 0.001,
-        modifier: 'log1p',
+        modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
       },
       weight: 1.1,
     },
@@ -204,13 +197,13 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
       field_value_factor: {
         field: 'works_count',
         factor: 1,
-        modifier: 'log1p',
+        modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
       },
       weight: 1.05,
     },
   ];
 
-  const shouldClauses: QueryDslQueryContainer[] = [
+  const shouldClauses: estypes.QueryDslQueryContainer[] = [
     // Exact keyword matches (highest priority)
     {
       bool: {
@@ -321,28 +314,28 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
     },
   ];
 
-  const boolQuery: QueryDslBoolQuery = {
+  const boolQuery: estypes.QueryDslBoolQuery = {
     should: shouldClauses,
     minimum_should_match: 1,
   };
 
-  const functionScoreQuery: QueryDslFunctionScoreQuery = {
+  const functionScoreQuery: estypes.QueryDslFunctionScoreQuery = {
     query: { bool: boolQuery },
     functions: boostFunctions,
-    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
-    score_mode: 'sum' as QueryDslFunctionScoreMode,
+    boost_mode: 'multiply' as estypes.QueryDslFunctionBoostMode,
+    score_mode: 'sum' as estypes.QueryDslFunctionScoreMode,
     min_score: 0.1,
   };
 
   return { function_score: functionScoreQuery };
 }
 
-function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
+function createEnhancedWorksQueryV2(query: string): estypes.QueryDslQueryContainer {
   const currentYear = new Date().getFullYear();
 
   const cleanQuery = query.toLowerCase();
 
-  const shouldClauses: QueryDslQueryContainer[] = [
+  const shouldClauses: estypes.QueryDslQueryContainer[] = [
     // Exact matches (highest priority)
     {
       bool: {
@@ -399,7 +392,7 @@ function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
     },
   ];
 
-  const functionScoreQuery: QueryDslFunctionScoreQuery = {
+  const functionScoreQuery: estypes.QueryDslFunctionScoreQuery = {
     query: { bool: { should: shouldClauses, minimum_should_match: 1 } },
     functions: [
       // Citation impact as tiebreaker
@@ -408,7 +401,7 @@ function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
         field_value_factor: {
           field: 'cited_by_count',
           factor: 1,
-          modifier: 'log1p',
+          modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
         },
         weight: 25,
       },
@@ -441,7 +434,7 @@ function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
         field_value_factor: {
           field: 'locations.works_count',
           factor: 1,
-          modifier: 'log1p',
+          modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
         },
         weight: 25,
       },
@@ -462,20 +455,20 @@ function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
         weight: 100,
       },
     ],
-    score_mode: 'sum' as QueryDslFunctionScoreMode,
-    boost_mode: 'sum' as QueryDslFunctionBoostMode,
+    score_mode: 'sum',
+    boost_mode: 'sum',
     min_score: 0.1,
   };
 
   return { function_score: functionScoreQuery };
 }
 
-function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
+function createEnhancedWorksQuery(query: string): estypes.QueryDslQueryContainer {
   const currentYear = new Date().getFullYear();
 
   const cleanQuery = query.toLowerCase();
 
-  const shouldClauses: QueryDslQueryContainer[] = [
+  const shouldClauses: estypes.QueryDslQueryContainer[] = [
     // Exact matches (highest priority)
     {
       bool: {
@@ -543,7 +536,7 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
           'locations.display_name^1.5',
           'institutions.display_name^1.5',
         ],
-        type: 'best_fields',
+        type: 'best_fields' as estypes.QueryDslTextQueryType,
         operator: 'or',
         boost: 10,
         analyzer: 'standard_analyzer',
@@ -570,7 +563,7 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
     },
   ];
 
-  const functionScoreQuery: QueryDslFunctionScoreQuery = {
+  const functionScoreQuery: estypes.QueryDslFunctionScoreQuery = {
     query: { bool: { should: shouldClauses, minimum_should_match: 1 } },
     functions: [
       // Citation impact as tiebreaker
@@ -579,7 +572,7 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
         field_value_factor: {
           field: 'cited_by_count',
           factor: 0.0001,
-          modifier: 'log1p',
+          modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
         },
         weight: 1,
       },
@@ -612,7 +605,7 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
         field_value_factor: {
           field: 'locations.works_count',
           factor: 0.00001,
-          modifier: 'log1p',
+          modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
         },
         weight: 0.3,
       },
@@ -624,8 +617,8 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
         weight: 0.2,
       },
     ],
-    score_mode: 'sum' as QueryDslFunctionScoreMode,
-    boost_mode: 'sum' as QueryDslFunctionBoostMode,
+    score_mode: 'sum',
+    boost_mode: 'sum',
     min_score: 0.1,
   };
 
@@ -800,7 +793,7 @@ export function buildMultiMatchQuery(
   query: string,
   entity: string,
   fuzzy: string | number = 0,
-): QueryDslQueryContainer {
+): estypes.QueryDslQueryContainer {
   if (entity === 'autocomplete_full') {
     return createAutocompleteFunctionScoreQuery(query);
   }
@@ -818,14 +811,14 @@ export function buildMultiMatchQuery(
   const phraseMatchBoost = 100;
   const termMatchBoost = 5;
 
-  const shouldClauses: QueryDslQueryContainer[] = [];
+  const shouldClauses: estypes.QueryDslQueryContainer[] = [];
 
   // Exact match on keyword fields
   shouldClauses.push({
     multi_match: {
       query: query,
       fields: fields.map((field) => `${field}.keyword^${exactMatchBoost}`),
-      type: 'best_fields' as QueryDslTextQueryType,
+      type: 'best_fields' as estypes.QueryDslTextQueryType,
       boost: exactMatchBoost,
     },
   });
@@ -835,7 +828,7 @@ export function buildMultiMatchQuery(
     multi_match: {
       query: query,
       fields: fields.map((field) => `${field}^${phraseMatchBoost}`),
-      type: 'phrase' as QueryDslTextQueryType,
+      type: 'phrase' as estypes.QueryDslTextQueryType,
       slop: 1,
       boost: phraseMatchBoost,
     },
@@ -871,7 +864,7 @@ export function buildMultiMatchQuery(
     });
   }
 
-  const multiMatchQuery: QueryDslQueryContainer = {
+  const multiMatchQuery: estypes.QueryDslQueryContainer = {
     bool: {
       should: shouldClauses,
       minimum_should_match: 1,
@@ -921,7 +914,7 @@ export type IndexedAuthor = {
 export interface MultiMatchQuery {
   query: string;
   fields: any[];
-  type: QueryDslTextQueryType;
+  type: estypes.QueryDslTextQueryType;
   fuzziness: string | number;
 }
 
@@ -936,7 +929,7 @@ export async function searchEsAuthors(authors: { display_name?: string; orcid?: 
     }
 
     const msearchBody = authors.flatMap((author) => {
-      const authorQuery: QueryDslQueryContainer = {
+      const authorQuery: estypes.QueryDslQueryContainer = {
         function_score: {
           query: {
             bool: {
@@ -988,7 +981,7 @@ export async function searchEsAuthors(authors: { display_name?: string; orcid?: 
               field_value_factor: {
                 field: 'cited_by_count',
                 factor: 0.001,
-                modifier: 'log1p',
+                modifier: 'log1p' as estypes.QueryDslFieldValueFactorModifier,
               },
             },
           ],

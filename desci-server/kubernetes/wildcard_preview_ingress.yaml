@@ -1,0 +1,116 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wildcard-preview-ingress
+  namespace: default
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-2:523044037273:certificate/e539d795-e5e7-43a6-a572-4f67bc98a625
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/group.name: preview-router
+spec:
+  ingressClassName: alb
+  rules:
+    - host: '*.nodes-api-dev.desci.com'
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: preview-router-service
+                port:
+                  number: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: preview-router-nginx-config
+  namespace: default
+data:
+  default.conf: |
+    resolver 172.20.0.10 ipv6=off valid=5s;
+    resolver_timeout 5s;
+    map $host $upstream {
+      default "";
+      ~^pr-(\d+)\.nodes-api-dev\.desci\.com$ desci-server-pr-$1-service.default.svc.cluster.local:80;
+    }
+
+    server {
+      listen 80 default_server;
+
+      location = /nginx-health {
+        access_log off;
+        return 200 "healthy\n";
+      }
+
+      location = /__debug__ {
+        return 200 "Upstream: $upstream\nHost: $host\n";
+      }
+
+      location /debug {
+        return 200 "Host: $host\nUpstream: $upstream\n";
+        add_header Content-Type text/plain;
+      }
+
+
+      location / {
+        if ($upstream = "") {
+          return 503 "No matching preview environment\n";
+        }
+        proxy_pass http://$upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: preview-router
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: preview-router
+  template:
+    metadata:
+      labels:
+        app: preview-router
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:stable
+          ports:
+            - containerPort: 80
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/nginx/conf.d
+              readOnly: false
+      volumes:
+        - name: config-volume
+          configMap:
+            name: preview-router-nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: preview-router-service
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: preview-router
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

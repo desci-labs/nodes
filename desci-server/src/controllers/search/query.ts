@@ -148,6 +148,18 @@ export const byMonthQuery = async (
 
   logger.trace({ fn: 'Executing elastic search query' });
 
+  // Try to get cached response first
+  const cacheKey = 'BY_MONTH_QUERY_CACHE';
+  try {
+    const cachedResponse = await getFromCache<ByMonthQuerySuccessResponse>(cacheKey);
+    if (cachedResponse) {
+      logger.info('Returning cached by-month query response');
+      return res.json(cachedResponse);
+    }
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to read from cache in byMonthQuery');
+  }
+
   const finalQuery = {
     index: NATIVE_WORKS_INDEX,
     // display all months in yyyyMM format
@@ -175,14 +187,24 @@ export const byMonthQuery = async (
     const hits = results.hits;
     logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
 
-    return res.json({
+    const response: ByMonthQuerySuccessResponse = {
       finalQuery,
       ok: true,
       index: NATIVE_WORKS_INDEX,
       total: hits.total,
       data: results.aggregations.months.buckets,
       duration,
-    });
+    };
+
+    // Cache the response for 1 hour (3600 seconds)
+    try {
+      await setToCache(cacheKey, response, 3600);
+      logger.info('Cached by-month query response');
+    } catch (error) {
+      logger.error({ error, cacheKey }, 'Failed to write to cache in byMonthQuery');
+    }
+
+    return res.json(response);
   } catch (error) {
     logger.error({ error }, 'Elastic search query failed');
     return res.status(500).json({

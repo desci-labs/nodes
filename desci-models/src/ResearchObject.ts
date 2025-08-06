@@ -48,6 +48,9 @@ export interface ResearchObjectV1 extends ResearchObject {
   /** Contributors to this publication */
   authors?: ResearchObjectV1Author[];
 
+  /** Publication or creation date in YYYY-MM-DD format */
+  date?: string;
+
   /** References to other research objects or published researches */
   references?: ResearchObjectReference[];
 }
@@ -103,6 +106,8 @@ export interface ResearchObjectV1Author {
   id?: string;
   /** Name of the contributor */
   name: string;
+  /** Email address of the contributor */
+  email?: string;
   /** Orcid handle of the contributor */
   orcid?: string;
   /** Google Scholar profile of the contributor */

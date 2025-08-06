@@ -1,6 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+// Express augmentation for test environment
+declare global {
+  namespace Express {
+    interface Request {
+      jwtPayload: import('../types/JwtPayload.js').JwtPayload;
+    }
+  }
+}
+
 import { oneYear } from '../controllers/auth/magic.js';
 import { JwtPayload } from '../types/JwtPayload.js';
 import { createJwtToken } from '../utils/createJwtToken.js';
