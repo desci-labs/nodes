@@ -145,6 +145,18 @@ export class RefereeRecommenderSqsHandler {
           };
           break;
 
+        case 'PROCESSING_PROGRESS':
+          eventType = WebSocketEventType.REFEREE_REC_PROCESSING_PROGRESS;
+          eventPayload = {
+            fileName: eventData.file_name,
+            originalFileName: session.originalFileName,
+            status: 'processing',
+            progress: eventData.data?.progress_percent || 0,
+            message: eventData.data?.message || '',
+            timestamp: new Date().toISOString(),
+          };
+          break;
+
         default:
           logger.warn(
             { eventType: eventData.eventType, userId: session.userId },
