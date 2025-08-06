@@ -248,7 +248,102 @@ jobs:
           echo "{\"proxies\":[{\"address\":\"\"}]}" > src/desci-contracts-config/unknown-dpid.json
           yarn test
 
+      - name: Check for schema changes requiring migration
+        id: check_migrations
+        run: |
+          cd desci-server
+
+          # Check if the Prisma schema file has been modified in this PR
+          # by comparing against the target branch (typically main/dev)
+
+          # Get the target branch (base branch of the PR)
+          TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
+          echo "Checking for schema changes against target branch: $TARGET_BRANCH"
+
+          # Check if schema.prisma has been modified
+          if git diff --name-only origin/$TARGET_BRANCH...HEAD | grep -q "desci-server/prisma/schema.prisma"; then
+            echo "PENDING_MIGRATIONS=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Prisma schema file has been modified in this PR!"
+            
+            # Get the actual changes to the schema file
+            echo "SCHEMA_DIFF<<EOF" >> $GITHUB_OUTPUT
+            echo "Changes to prisma/schema.prisma in this PR:"
+            echo ""
+            git diff origin/$TARGET_BRANCH...HEAD -- prisma/schema.prisma || echo "Error getting schema diff"
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "PENDING_MIGRATIONS=false" >> $GITHUB_OUTPUT
+            echo "✅ No changes to Prisma schema detected in this PR."
+          fi
+
+      - name: Comment on PR about pending migrations
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const schemaDiff = `${{ steps.check_migrations.outputs.SCHEMA_DIFF }}`;
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existingComment = comments.data.find(
+              comment => comment.body.includes('⚠️ **PR Preview Deployment Blocked**')
+            );
+
+            const commentBody = `⚠️ **PR Preview Deployment Blocked**
+
+            This PR contains **changes to the Prisma schema** that may require database migrations affecting the shared dev database. To prevent accidental data loss or corruption, the preview deployment has been skipped.
+
+            📋 **Schema Changes Detected:**
+            \`\`\`diff
+            ${schemaDiff}
+            \`\`\`
+
+            🔧 **Next Steps:**
+            1. **Review the schema changes** carefully to ensure they are safe for the dev environment
+            2. **Generate and apply migrations** if the changes are safe:
+               \`\`\`bash
+               # Generate migration for these schema changes:
+               npx prisma migrate dev --name describe_your_changes
+               
+               # Or apply existing migrations to dev database:
+               npx prisma migrate deploy
+               \`\`\`
+            3. **Re-run this workflow** after migrations are properly handled
+
+            ⚠️ **Important:** This safety check prevents accidentally nuking the dev database with destructive schema changes. Always review schema modifications before applying them to shared environments.
+
+            🔄 This comment will be updated if you push new commits to this PR.`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody,
+              });
+            }
+
+      - name: Exit workflow if schema changes detected
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'true'
+        run: |
+          echo "::notice title=Deployment Skipped::PR preview deployment was skipped due to schema changes requiring migrations"
+          exit 0
+
       - name: Build and push PR image
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'false'
         run: |
           PR_NUMBER=${{ github.event.number }}
 
@@ -301,6 +396,7 @@ jobs:
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
       - name: Deploy to EKS
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'false'
         run: |
           # Setup kubectl and aws-iam-authenticator
           version=v1.23.6
@@ -452,7 +548,7 @@ jobs:
                   name: desci-server-pr
                   command: ['/bin/bash', '-c']
                   args:
-                    - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+                    - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/src/index.js;
                   ports:
                   - containerPort: 5420
                     name: server-api
@@ -531,6 +627,7 @@ jobs:
           echo "::notice title=PR Preview Deployed::PR #${PR_NUMBER} is available at https://${PR_URL} (${CURRENT_COUNT}/10 deployments active)"
 
       - name: Comment on PR
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'false'
         uses: actions/github-script@v7
         with:
           script: |
