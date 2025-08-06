@@ -10,3 +10,41 @@ desci-art-viewer
 desci-dapp
 local-data
 database
+# Additional optimizations for faster builds
+**/.git
+**/*.md
+**/test
+**/tests
+**/.nyc_output
+**/coverage
+**/.DS_Store
+**/Thumbs.db
+**/*.log
+**/.env.*
+**/.eslintcache
+**/.cache
+**/tmp
+**/temp
+**/.temp
+**/.tmp
+**/playwright-report
+**/test-results
+**/.pytest_cache
+**/__pycache__
+**/*.pyc
+**/.swp
+**/.swo
+**/._*
+# IDE and editor files
+**/.vscode
+**/.idea
+**/*.sublime-*
+# Docker related
+**/Dockerfile*
+**/docker-compose*
+**/.dockerignore
+# CI/CD
+**/.github
+**/.gitlab-ci.yml
+**/.travis.yml
+**/Jenkinsfile

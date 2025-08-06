@@ -358,17 +358,34 @@ jobs:
           sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
           echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> desci-server/.env
 
-          # Build and tag image with retry logic (include git hash for unique tags)
+          # Build and tag image with retry logic and registry caching
           GIT_HASH=${GITHUB_SHA::8}
           IMAGE_TAG="pr-$PR_NUMBER-$GIT_HASH"
 
+          # ECR login first
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+          # Create repositories if they don't exist
+          aws ecr describe-repositories --repository-names desci-server-pr 2>/dev/null || \
+          aws ecr create-repository --repository-name desci-server-pr
+          aws ecr describe-repositories --repository-names desci-server-pr-cache 2>/dev/null || \
+          aws ecr create-repository --repository-name desci-server-pr-cache
+
+          # Define cache image
+          CACHE_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/desci-server-pr-cache:latest
+
+          # Pull cache image (ignore failures)
+          docker pull $CACHE_IMAGE || echo "No PR cache found, building from scratch"
+
           for i in {1..3}; do
-            echo "Build attempt $i/3 - Tag: $IMAGE_TAG"
+            echo "Build attempt $i/3 - Tag: $IMAGE_TAG (with registry caching)"
             if docker build \
               --network=host \
               --build-arg BUILDKIT_INLINE_CACHE=1 \
+              --cache-from $CACHE_IMAGE \
               -t $CONTAINER_IMAGE-pr:$IMAGE_TAG \
               -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-pr:$IMAGE_TAG \
+              -t $CACHE_IMAGE \
               .; then
               echo "Build successful on attempt $i"
               break
@@ -383,14 +400,9 @@ jobs:
             fi
           done
 
-          # Push to ECR
-          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-
-          # Create repository if it doesn't exist
-          aws ecr describe-repositories --repository-names desci-server-pr || \
-          aws ecr create-repository --repository-name desci-server-pr
-
+          # Push both main image and cache
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-pr:$IMAGE_TAG
+          docker push $CACHE_IMAGE
 
           # Store the image tag for use in deployment
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
