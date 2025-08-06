@@ -260,8 +260,17 @@ jobs:
           TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
           echo "Checking for schema changes against target branch: $TARGET_BRANCH"
 
+          # Fetch the target branch to ensure we have the reference
+          git fetch origin $TARGET_BRANCH:$TARGET_BRANCH || git fetch origin $TARGET_BRANCH
+
+          # Use GitHub's provided base SHA which is more reliable
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          echo "Comparing $BASE_SHA..$HEAD_SHA"
+
           # Check if schema.prisma has been modified
-          if git diff --name-only origin/$TARGET_BRANCH...HEAD | grep -q "desci-server/prisma/schema.prisma"; then
+          if git diff --name-only $BASE_SHA..$HEAD_SHA | grep -q "desci-server/prisma/schema.prisma"; then
             echo "PENDING_MIGRATIONS=true" >> $GITHUB_OUTPUT
             echo "⚠️ Prisma schema file has been modified in this PR!"
             
@@ -269,7 +278,7 @@ jobs:
             echo "SCHEMA_DIFF<<EOF" >> $GITHUB_OUTPUT
             echo "Changes to prisma/schema.prisma in this PR:"
             echo ""
-            git diff origin/$TARGET_BRANCH...HEAD -- prisma/schema.prisma || echo "Error getting schema diff"
+            git diff $BASE_SHA..$HEAD_SHA -- desci-server/prisma/schema.prisma || echo "Error getting schema diff"
             echo "EOF" >> $GITHUB_OUTPUT
           else
             echo "PENDING_MIGRATIONS=false" >> $GITHUB_OUTPUT
