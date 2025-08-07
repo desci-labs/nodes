@@ -23,6 +23,7 @@ import {
   SubmissionAcceptedPayload,
   DeskRejectionPayload,
   FinalRejectionDecisionPayload,
+  SubmissionExtended,
 } from './journalEmailTypes.js';
 
 /**
@@ -35,6 +36,34 @@ const deploymentEnvironmentString =
     : process.env.SERVER_URL === 'https://nodes-api-dev.desci.com'
       ? '-dev'
       : '-local';
+
+/**
+ * Formats an authors array for email display.
+ * Takes up to 3 authors, separates them with commas, and adds "et al." if there are more than 3.
+ * @param authors - Array of author names
+ * @returns Formatted author string
+ */
+export const formatAuthorsForEmail = (authors: string[]): string => {
+  if (!authors || authors.length === 0) {
+    return '';
+  }
+
+  if (authors.length <= 3) {
+    return authors.join(', ');
+  }
+
+  return `${authors.slice(0, 3).join(', ')}, et al.`;
+};
+
+/**
+ * Creates a submission object with formatted authors for email templates.
+ * @param submission - Original submission object
+ * @returns Submission object with formatted authors string
+ */
+const formatSubmissionForEmail = (submission: SubmissionExtended) => ({
+  ...submission,
+  authors: formatAuthorsForEmail(submission.authors),
+});
 
 export enum EmailTypes {
   DoiMinted = 'DoiMinted',
@@ -327,7 +356,7 @@ async function sendExternalRefereeInviteEmail({
         title: submission.title,
         id: submission.id,
         dpid: submission.dpid,
-        authors: submission.authors,
+        authors: formatAuthorsForEmail(submission.authors),
         abstract: submission.abstract,
       },
       inviteToken,
@@ -366,7 +395,7 @@ async function sendRefereeDeclinedEmail({
         name: refereeName,
         email: refereeEmail,
       },
-      submission,
+      submission: formatSubmissionForEmail(submission),
       declineReason,
       suggestedReferees,
       submittedAtFromNow,
@@ -404,7 +433,7 @@ async function sendRefereeAcceptedEmail({
         name: refereeName,
         email: refereeEmail,
       },
-      submission,
+      submission: formatSubmissionForEmail(submission),
       reviewDeadline,
       deadlineFromNow,
       submittedAtFromNow,
@@ -442,7 +471,7 @@ async function sendRefereeReassignedEmail({
       editor: {
         name: submission.assignedEditor.name,
       },
-      submission,
+      submission: formatSubmissionForEmail(submission),
       reviewDeadline,
       deadlineFromNow,
       submittedAtFromNow,
@@ -479,7 +508,7 @@ async function sendRefereeReviewReminderEmail({
         name: refereeName,
         email: email,
       },
-      submission,
+      submission: formatSubmissionForEmail(submission),
       reviewDeadline,
       deadlineFromNow,
       submittedAtFromNow,
@@ -511,7 +540,7 @@ async function sendMinorRevisionRequestEmail({
         name: editor.name,
         userId: editor.userId,
       },
-      submission,
+      submission: formatSubmissionForEmail(submission),
       comments,
     },
   };
@@ -541,7 +570,7 @@ async function sendMajorRevisionRequestEmail({
         name: editor.name,
         userId: editor.userId,
       },
-      submission,
+      submission: formatSubmissionForEmail(submission),
       comments,
     },
   };
@@ -567,7 +596,7 @@ async function sendRevisionSubmittedEmail({ email, journal, submission }: Revisi
         description: journal.description,
         iconCid: journal.iconCid,
       },
-      submission,
+      submission: formatSubmissionForEmail(submission),
     },
   };
   await sendSgMail(message);

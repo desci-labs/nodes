@@ -24,7 +24,7 @@ export const RevisionSubmittedEditorEmail = ({ journal, submission }: RevisionSu
           </Heading>
           <Text className="text-lg text-center font-bold">Submission Info:</Text>
           <Text className="text-md text-center">Title: {submission.title}</Text>
-          <Text className="text-md text-center">Authors: {submission.authors.join(', ')}</Text>
+          <Text className="text-md text-center">Authors: {submission.authors}</Text>
           <Text className="text-md text-center">Abstract: {submission.abstract}</Text>
           <Section className="mx-auto w-fit my-5 bg-[#dadce0] rounded-md px-14 py-3" align="center">
             <Button
