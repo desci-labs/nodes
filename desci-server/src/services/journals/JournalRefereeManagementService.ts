@@ -3,6 +3,7 @@ import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, setToCache } from '../../redisClient.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
@@ -857,6 +858,18 @@ async function sendRefereeReviewReminder(data: SendRefereeReviewReminderInput): 
       return err(new Error('Editor not authorized for this submission'));
     }
 
+    // Anti-spam: prevent reminders more frequently than this window (24 hours)
+    const REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hrs
+    const cacheKey = `journal:refereeReminder:${data.submissionId}:${data.refereeUserId}:${data.editorUserId}`;
+    const lastSentAt = await getFromCache<number>(cacheKey);
+    if (lastSentAt) {
+      const elapsedMs = Date.now() - lastSentAt;
+      if (elapsedMs < REMINDER_WINDOW_MS) {
+        logger.info({ cacheKey, elapsedMs }, 'Skipping referee review reminder due to anti-spam window');
+        return err(new Error('A reminder was recently sent. Please try again later.'));
+      }
+    }
+
     // Get the referee
     const referee = await prisma.user.findUnique({
       where: { id: data.refereeUserId },
@@ -887,6 +900,8 @@ async function sendRefereeReviewReminder(data: SendRefereeReviewReminderInput): 
     const submissionExtended = submissionExtendedResult.value;
 
     // Send the reminder email
+    // Update cache first to avoid duplicate sends from concurrent requests
+    await setToCache<number>(cacheKey, Date.now());
     await sendEmail({
       type: EmailTypes.REFEREE_REVIEW_REMINDER,
       payload: {

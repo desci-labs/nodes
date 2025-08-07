@@ -46,6 +46,9 @@ export const sendRefereeReviewReminderController = async (req: SendRefereeReview
       if (error.message === 'Referee assignment not found') {
         return sendError(res, error.message, 404);
       }
+      if (error.message === 'A reminder was recently sent. Please try again later.') {
+        return sendError(res, error.message, 429);
+      }
 
       return sendError(res, error.message, 500);
     }
