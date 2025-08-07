@@ -65,7 +65,7 @@ async function checkFeatureLimit(userId: number, feature: Feature): Promise<Resu
 /**
  * Get or create a user's feature limit record
  */
-async function getOrCreateUserFeatureLimit(userId: number, feature: Feature): Promise<Result<any, Error>> {
+async function getOrCreateUserFeatureLimit(userId: number, feature: Feature): Promise<Result<UserFeatureLimit, Error>> {
   try {
     // Try to find an active feature limit for this user and feature
     let userFeatureLimit = await prisma.userFeatureLimit.findFirst({

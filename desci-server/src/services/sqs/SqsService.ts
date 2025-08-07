@@ -155,7 +155,7 @@ export class SqsService {
 
   async extendMessageVisibility(queueType: QueueType, receiptHandle: string, timeoutSeconds: number) {
     const queue = this.queues.get(queueType);
-    if (!queue?.isConfigured) return true;
+    if (!queue?.isConfigured) throw new Error(`Queue ${queueType} is not configured`); // Shouldn't encounter if queue is unconfigured.
 
     try {
       const command = new ChangeMessageVisibilityCommand({
