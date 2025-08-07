@@ -5,6 +5,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { transformGuestDataRefsToDataRefs } from '../../utils/dataRefTools.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 import { IPFS_NODE, isCidPinned, removeCid } from '../ipfs.js';
+import { SqsMessageType, QueueType } from '../sqs/SqsMessageTypes.js';
 import { sqsService } from '../sqs/SqsService.js';
 
 const logger = parentLogger.child({
@@ -130,11 +131,11 @@ async function createGuestToPrivateMigrationJob(userId: number): Promise<void> {
 }
 
 async function queueDataMigrationJob(migrationId: number, migrationType: MigrationType): Promise<void> {
-  // If SQS is not configured, process directly
-  if (!sqsService.configured) {
+  // If DATA_MIGRATION queue is not configured, process directly
+  if (!sqsService.isQueueConfigured(QueueType.DATA_MIGRATION)) {
     logger.info(
       { fn: 'queueDataMigrationJob', migrationId, migrationType },
-      'SQS not configured, processing migration directly',
+      'DATA_MIGRATION queue not configured, processing migration directly',
     );
 
     // avoid circular dependency
@@ -143,7 +144,8 @@ async function queueDataMigrationJob(migrationId: number, migrationType: Migrati
     return;
   }
 
-  await sqsService.sendMessage({
+  await sqsService.sendMessage(QueueType.DATA_MIGRATION, {
+    messageType: SqsMessageType.DATA_MIGRATION,
     migrationId,
     migrationType,
   });

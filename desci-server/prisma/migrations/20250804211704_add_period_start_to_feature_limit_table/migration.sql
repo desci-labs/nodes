@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "UserFeatureLimit" ADD COLUMN     "currentPeriodStart" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
