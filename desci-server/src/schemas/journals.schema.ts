@@ -349,6 +349,15 @@ export const invalidateRefereeAssignmentSchema = z.object({
   }),
 });
 
+export const sendRefereeReviewReminderSchema = z.object({
+  params: z.object({
+    submissionId: z.string(),
+  }),
+  body: z.object({
+    refereeUserId: z.number().int().positive(),
+  }),
+});
+
 export const submitReviewSchema = z.object({
   params: z.object({
     journalId: z.coerce.number(),

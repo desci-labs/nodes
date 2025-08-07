@@ -8,6 +8,7 @@ import {
   inviteRefereeController,
 } from '../../../controllers/journals/referees/inviteReferee.js';
 import { refereeInviteDecisionController } from '../../../controllers/journals/referees/refereeInviteDecision.js';
+import { sendRefereeReviewReminderController } from '../../../controllers/journals/referees/sendRefereeReviewReminder.js';
 import { getReviewsByAssignmentController } from '../../../controllers/journals/reviews/index.js';
 import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
@@ -18,6 +19,7 @@ import {
   invalidateRefereeAssignmentSchema,
   inviteRefereeSchema,
   refereeInviteDecisionSchema,
+  sendRefereeReviewReminderSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -37,6 +39,16 @@ export default function refereeRoutes(router: Router) {
     '/:journalId/submissions/:submissionId/referee/invite/decision',
     [attachUser, validateInputs(refereeInviteDecisionSchema)],
     asyncHandler(refereeInviteDecisionController),
+  );
+
+  router.post(
+    '/:journalId/submissions/:submissionId/referee/reminder',
+    [
+      ensureUser,
+      validateInputs(sendRefereeReviewReminderSchema),
+      ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+    ],
+    asyncHandler(sendRefereeReviewReminderController),
   );
 
   // referee getter apis
