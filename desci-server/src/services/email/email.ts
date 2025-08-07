@@ -439,6 +439,9 @@ async function sendRefereeReassignedEmail({
         name: refereeName,
         email: refereeEmail,
       },
+      editor: {
+        name: submission.assignedEditor.name,
+      },
       submission,
       reviewDeadline,
       deadlineFromNow,
@@ -450,6 +453,7 @@ async function sendRefereeReassignedEmail({
 
 async function sendRefereeReviewReminderEmail({
   email,
+  refereeName,
   journal,
   submission,
   reviewDeadline,
@@ -467,6 +471,13 @@ async function sendRefereeReviewReminderEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+      },
+      editor: {
+        name: submission.assignedEditor.name,
+      },
+      referee: {
+        name: refereeName,
+        email: email,
       },
       submission,
       reviewDeadline,

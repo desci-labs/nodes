@@ -9,12 +9,14 @@ export interface RefereeReviewReminderEmailProps {
   journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   submission: SubmissionExtended;
   reviewDeadline: string;
+  refereeName: string;
 }
 
 export const RefereeReviewReminderEmail = ({
   journal,
   submission,
   reviewDeadline,
+  refereeName,
 }: RefereeReviewReminderEmailProps) => (
   <MainLayout>
     <Html>
