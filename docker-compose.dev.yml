@@ -21,7 +21,8 @@ services:
 
   desci_blockchain_ganache:
     container_name: "desci_blockchain_ganache"
-    build: ./desci-contracts
+    build:
+      context: desci-contracts
     restart: on-failure
     healthcheck:
       test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' localhost:8545
@@ -65,8 +66,6 @@ services:
       redis:
         condition: service_healthy
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
-    links:
-      - db_postgres
     volumes:
       - ./local-data/yarn_cache:/root/.yarn
     # mem_limit: 2g #uncomment to test large data with limited memory
@@ -243,7 +242,7 @@ services:
         condition: service_healthy
 
   ceramic-one:
-    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.54.2
+    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.55.1
     container_name: ceramic-one
     restart: on-failure
     ports:
@@ -263,6 +262,17 @@ services:
       - host.docker.internal:host-gateway
     volumes:
       - ./local-data/ceramic-one:/data/ceramic-one
+    healthcheck:
+      test: [
+          "CMD",
+          "ceramic-one",
+          "query",
+          "statement-query",
+          "select null from event_states limit 1"
+        ]
+      interval: 1s
+      timeout: 1s
+      retries: 5
 
   desci-media-isolated:
     build:
@@ -288,7 +298,7 @@ services:
       - JAVA_OPTS=-Xmx2G -Xms2G
 
   dpid_resolver:
-    image: descilabs/dpid-resolver:develop
+    # image: descilabs/dpid-resolver:develop
     container_name: dpid_resolver
     # Uncomment and set to local repo path for tinkering
     # build:
@@ -297,6 +307,7 @@ services:
       DPID_ENV: local
       OPTIMISM_RPC_URL: http://host.docker.internal:8545
       CERAMIC_URL: http://host.docker.internal:7007
+      CERAMIC_FLIGHT_URL: http://host.docker.internal:5102
       IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
       REDIS_HOST: host.docker.internal
       REDIS_PORT: 6379
