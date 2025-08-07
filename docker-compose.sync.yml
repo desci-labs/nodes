@@ -4,6 +4,7 @@ services:
       context: ./sync-server
       dockerfile: Dockerfile
     container_name: desci_sync
+    restart: on-failure
     image: desci_sync_worker
     env_file:
       - ./sync-server/.env
