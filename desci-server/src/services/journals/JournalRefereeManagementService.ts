@@ -825,6 +825,92 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
   }
 }
 
+type SendRefereeReviewReminderInput = {
+  submissionId: number;
+  refereeUserId: number;
+  editorUserId: number; // Editor who is sending the reminder
+};
+
+/**
+ * Send a reminder email to a referee about their pending review
+ */
+async function sendRefereeReviewReminder(data: SendRefereeReviewReminderInput): Promise<Result<boolean, Error>> {
+  try {
+    logger.trace({ fn: 'sendRefereeReviewReminder', data }, 'Sending referee review reminder');
+
+    // Get the submission with necessary data
+    const submission = await prisma.journalSubmission.findUnique({
+      where: { id: data.submissionId },
+      include: {
+        journal: true,
+        node: true,
+        assignedEditor: true,
+      },
+    });
+
+    if (!submission) {
+      return err(new Error('Submission not found'));
+    }
+
+    // Verify the editor is authorized for this submission
+    if (submission.assignedEditorId !== data.editorUserId) {
+      return err(new Error('Editor not authorized for this submission'));
+    }
+
+    // Get the referee
+    const referee = await prisma.user.findUnique({
+      where: { id: data.refereeUserId },
+    });
+
+    if (!referee) {
+      return err(new Error('Referee not found'));
+    }
+
+    // Get the referee assignment to find the due date
+    const refereeAssignment = await prisma.refereeAssignment.findFirst({
+      where: {
+        submissionId: data.submissionId,
+        userId: data.refereeUserId,
+        OR: [{ completedAssignment: true }, { completedAssignment: null }],
+      },
+    });
+
+    if (!refereeAssignment) {
+      return err(new Error('Referee assignment not found'));
+    }
+
+    // Get extended submission data for the email
+    const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(data.submissionId);
+    if (submissionExtendedResult.isErr()) {
+      return err(submissionExtendedResult.error);
+    }
+    const submissionExtended = submissionExtendedResult.value;
+
+    // Send the reminder email
+    await sendEmail({
+      type: EmailTypes.REFEREE_REVIEW_REMINDER,
+      payload: {
+        email: referee.email,
+        refereeName: referee.name,
+        journal: submission.journal,
+        submission: submissionExtended,
+        reviewDeadline: refereeAssignment.dueDate.toISOString(),
+      },
+    });
+
+    logger.info(
+      { fn: 'sendRefereeReviewReminder', data, refereeAssignmentId: refereeAssignment.id },
+      'Sent referee review reminder',
+    );
+    return ok(true);
+  } catch (error) {
+    logger.error({ error, data }, 'Failed to send referee review reminder');
+    return err(
+      error instanceof Error ? error : new Error('An unexpected error occurred while sending referee review reminder'),
+    );
+  }
+}
+
 /**
  * Invalidates a referee assignment.
  * This can happen when:
@@ -939,4 +1025,5 @@ export const JournalRefereeManagementService = {
   isRefereeAssignedToSubmission,
   invalidateRefereeAssignment,
   getRefereeInviteByToken,
+  sendRefereeReviewReminder,
 };
