@@ -117,7 +117,11 @@ spec:
           export AWS_SQS_ACCESS_KEY_ID="{{ .Data.AWS_SQS_ACCESS_KEY_ID }}"
           export AWS_SQS_SECRET_ACCESS_KEY="{{ .Data.AWS_SQS_SECRET_ACCESS_KEY }}"
           export AWS_SQS_REGION="{{ .Data.AWS_SQS_REGION }}"
-          export AWS_SQS_QUEUE_URL="{{ .Data.AWS_SQS_QUEUE_URL }}"
+          export AWS_SQS_DATA_MIGRATION_QUEUE_URL="{{ .Data.AWS_SQS_DATA_MIGRATION_QUEUE_URL }}"
+          export AWS_SQS_ML_TOOL_QUEUE_URL="{{ .Data.AWS_SQS_ML_TOOL_QUEUE_URL }}"
+          export ML_REFEREE_GET_PRESIGNED_URL="{{ .Data.ML_REFEREE_GET_PRESIGNED_URL }}"
+          export ML_REFEREE_TRIGGER_CID="{{ .Data.ML_REFEREE_TRIGGER_CID }}"
+          export ML_REFEREE_FINDER_RESULT="{{ .Data.ML_REFEREE_FINDER_RESULT }}"
           export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
           export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
           export DEBUG_TEST=0;
