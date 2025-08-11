@@ -3,6 +3,7 @@ import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, setToCache } from '../../redisClient.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
@@ -490,15 +491,12 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
       return err(new Error('Referee invite not valid'));
     }
 
-    const refereeUser = refereeInvite?.userId
-      ? await prisma.user.findUnique({
-          where: { id: refereeInvite.userId },
-        })
-      : refereeInvite.email
-        ? await prisma.user.findUnique({
-            where: { email: refereeInvite.email },
-          })
-        : null;
+    const refereeUser = await prisma.user.findUnique({
+      where: {
+        id: data.userId,
+      },
+    });
+
     if (!refereeUser) {
       return err(new Error('Referee not found'));
     }
@@ -828,6 +826,106 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
   }
 }
 
+type SendRefereeReviewReminderInput = {
+  submissionId: number;
+  refereeUserId: number;
+  editorUserId: number; // Editor who is sending the reminder
+};
+
+/**
+ * Send a reminder email to a referee about their pending review
+ */
+async function sendRefereeReviewReminder(data: SendRefereeReviewReminderInput): Promise<Result<boolean, Error>> {
+  try {
+    logger.trace({ fn: 'sendRefereeReviewReminder', data }, 'Sending referee review reminder');
+
+    // Get the submission with necessary data
+    const submission = await prisma.journalSubmission.findUnique({
+      where: { id: data.submissionId },
+      include: {
+        journal: true,
+        node: true,
+        assignedEditor: true,
+      },
+    });
+
+    if (!submission) {
+      return err(new Error('Submission not found'));
+    }
+
+    // Verify the editor is authorized for this submission
+    if (submission.assignedEditorId !== data.editorUserId) {
+      return err(new Error('Editor not authorized for this submission'));
+    }
+
+    // Anti-spam: prevent reminders more frequently than this window (24 hours)
+    const REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hrs
+    const cacheKey = `journal:refereeReminder:${data.submissionId}:${data.refereeUserId}:${data.editorUserId}`;
+    const lastSentAt = await getFromCache<number>(cacheKey);
+    if (lastSentAt) {
+      const elapsedMs = Date.now() - lastSentAt;
+      if (elapsedMs < REMINDER_WINDOW_MS) {
+        logger.info({ cacheKey, elapsedMs }, 'Skipping referee review reminder due to anti-spam window');
+        return err(new Error('A reminder was recently sent. Please try again later.'));
+      }
+    }
+
+    // Get the referee
+    const referee = await prisma.user.findUnique({
+      where: { id: data.refereeUserId },
+    });
+
+    if (!referee) {
+      return err(new Error('Referee not found'));
+    }
+
+    // Get the referee assignment to find the due date
+    const refereeAssignment = await prisma.refereeAssignment.findFirst({
+      where: {
+        submissionId: data.submissionId,
+        userId: data.refereeUserId,
+        OR: [{ completedAssignment: true }, { completedAssignment: null }],
+      },
+    });
+
+    if (!refereeAssignment) {
+      return err(new Error('Referee assignment not found'));
+    }
+
+    // Get extended submission data for the email
+    const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(data.submissionId);
+    if (submissionExtendedResult.isErr()) {
+      return err(submissionExtendedResult.error);
+    }
+    const submissionExtended = submissionExtendedResult.value;
+
+    // Send the reminder email
+    // Update cache first to avoid duplicate sends from concurrent requests
+    await setToCache<number>(cacheKey, Date.now());
+    await sendEmail({
+      type: EmailTypes.REFEREE_REVIEW_REMINDER,
+      payload: {
+        email: referee.email,
+        refereeName: referee.name,
+        journal: submission.journal,
+        submission: submissionExtended,
+        reviewDeadline: refereeAssignment.dueDate.toISOString(),
+      },
+    });
+
+    logger.info(
+      { fn: 'sendRefereeReviewReminder', data, refereeAssignmentId: refereeAssignment.id },
+      'Sent referee review reminder',
+    );
+    return ok(true);
+  } catch (error) {
+    logger.error({ error, data }, 'Failed to send referee review reminder');
+    return err(
+      error instanceof Error ? error : new Error('An unexpected error occurred while sending referee review reminder'),
+    );
+  }
+}
+
 /**
  * Invalidates a referee assignment.
  * This can happen when:
@@ -942,4 +1040,5 @@ export const JournalRefereeManagementService = {
   isRefereeAssignedToSubmission,
   invalidateRefereeAssignment,
   getRefereeInviteByToken,
+  sendRefereeReviewReminder,
 };

@@ -28,6 +28,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import routes from './routes/index.js';
 import { dataMigrationWorker } from './services/DataMigration/DataMigrationWorker.js';
+import { refereeRecommenderSqsHandler } from './services/externalApi/RefereeRecommenderSqsHandler.js';
 import { initializeWebSockets, getIO } from './services/websocketService.js';
 // import swaggerFile from './swagger_output.json' with { type: 'json' };
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
@@ -298,6 +299,9 @@ class AppServer {
 
     // Start data migration worker
     dataMigrationWorker.start();
+
+    // Start referee recommender SQS handler
+    await refereeRecommenderSqsHandler.start();
   }
 }
 function getRemoteAddress(req) {

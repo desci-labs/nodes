@@ -1,3 +1,4 @@
+// Moved from /v1/services.ts
 import { Router } from 'express';
 import multer from 'multer';
 
@@ -6,6 +7,8 @@ import { orcidDid, orcidProfile } from '../../controllers/proxy/orcidProfile.js'
 import { generateShareImagePuppeteer } from '../../controllers/services/shareImagePuppeteer.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
+
+import ai from './ai.js';
 
 const router = Router();
 
@@ -37,5 +40,8 @@ const wrappedHandler = (req, res, next) => {
 };
 
 router.post('/thumbnails/ephemeral', [ensureGuestOrUser, wrappedHandler], ephemeralThumbnail);
+
+// AI Services
+router.use('/ai', ai);
 
 export default router;

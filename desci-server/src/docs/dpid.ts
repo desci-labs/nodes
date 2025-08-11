@@ -39,7 +39,10 @@ const dpidMetadataSchema = z.object({
   authors: z.array(authorSchema).describe('List of authors/contributors'),
   doi: z.string().optional().describe('DOI associated with the research object'),
   publicationYear: z.number().optional().describe('Year of publication'),
-  pdfUrl: z.string().describe('URL to access the PDF version of the research object'),
+  publicationDate: z.string().optional().describe('Publication date in YYYY/MM/DD format'),
+  pdfUrl: z.string().optional().describe('URL to access the PDF version of the research object'),
+  dpid: z.number().describe('The DPID (Decentralized Persistent Identifier) of the research object'),
+  version: z.number().describe('Version number of the research object'),
 });
 
 export const retrieveDpidMetadataOperation: ZodOpenApiOperationObject = {

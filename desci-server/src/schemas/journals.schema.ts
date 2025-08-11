@@ -99,6 +99,42 @@ export const editorInviteDecisionSchema = z.object({
   }),
 });
 
+export const resendEditorInviteSchema = z.object({
+  params: z.object({
+    journalId: z.string().transform((val, ctx) => {
+      const id = parseInt(val, 10);
+      if (isNaN(id) || id <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Journal ID must be a positive integer.',
+        });
+        return z.NEVER;
+      }
+      return id;
+    }),
+    inviteId: z.string().transform((val, ctx) => {
+      const id = parseInt(val, 10);
+      if (isNaN(id) || id <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Invite ID must be a positive integer.',
+        });
+        return z.NEVER;
+      }
+      return id;
+    }),
+  }),
+  body: z.object({
+    inviteTtlDays: z
+      .number()
+      .int()
+      .min(1, 'Invite TTL must be at least 1 day')
+      .max(30, 'Invite TTL cannot exceed 30 days')
+      .optional()
+      .describe('Time to live for the editor invite in days (1-30 days, default: 7)'),
+  }),
+});
+
 export const createJournalSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Journal name cannot be empty.'),
@@ -310,6 +346,15 @@ export const refereeInviteDecisionSchema = z.object({
 export const invalidateRefereeAssignmentSchema = z.object({
   params: z.object({
     assignmentId: z.string(),
+  }),
+});
+
+export const sendRefereeReviewReminderSchema = z.object({
+  params: z.object({
+    submissionId: z.string(),
+  }),
+  body: z.object({
+    refereeUserId: z.number().int().positive(),
   }),
 });
 

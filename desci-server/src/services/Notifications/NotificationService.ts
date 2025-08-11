@@ -763,16 +763,16 @@ const emitOnRefereeDecline = async ({
   }
 
   // Referee isn't guaranteed to have a user account.
-  const refereeName = referee?.name || refereeInvite.email;
+  const refereeName = referee?.name || refereeInvite.name || refereeInvite.email;
 
   const payload: RefereeDeclinedPayload = {
     type: JournalNotificationType.REFEREE_DECLINED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
-    refereeName: referee.name,
-    refereeUserId: referee.id,
-    refereeEmail: referee.email,
+    refereeName,
+    refereeUserId: referee?.id,
+    refereeEmail: referee.email || refereeInvite.email,
     inviteId: refereeInvite.id,
   };
 

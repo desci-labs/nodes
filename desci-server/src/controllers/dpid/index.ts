@@ -4,7 +4,7 @@ import { Response } from 'express';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getFromCache, setToCache, DEFAULT_TTL } from '../../redisClient.js';
+import { getFromCache, setToCache, DEFAULT_TTL, delFromCache } from '../../redisClient.js';
 import { DpidMetadata, getDpidMetadata } from '../../services/dpid.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 

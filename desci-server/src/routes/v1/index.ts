@@ -28,7 +28,7 @@ import openalex from './openalex.js';
 import pub from './pub.js';
 import referral from './referral.js';
 import search from './search.js';
-import services from './services.js';
+import services from './services/index.js';
 import users from './users.js';
 import waitlist from './waitlist.js';
 
