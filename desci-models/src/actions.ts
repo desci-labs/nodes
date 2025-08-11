@@ -125,4 +125,19 @@ export enum AvailableUserActionLogTypes {
 
   // Onboarding
   viewedOnboarding = 'viewedOnboarding',
+
+  // AI Chat Actions
+  aiCitationClicked = 'aiCitationClicked',
+  aiChatQuery = 'aiChatQuery',
+  aiChatFollowUp = 'aiChatFollowUp',
+  aiChatShareClicked = 'aiChatShareClicked',
+  aiChatThreadClicked = 'aiChatThreadClicked',
+
+  // Referee finder
+  actionRefereeFinderFileOpened = 'actionRefereeFinderFileOpened',
+  actionRefereeFinderFileUploaded = 'actionRefereeFinderFileUploaded',
+  actionViewRefereeFinder = 'actionViewRefereeFinder',
+
+  // Semantic Search
+  actionSemanticSearchQuery = 'actionSemanticSearchQuery',
 }
