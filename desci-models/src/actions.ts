@@ -130,7 +130,7 @@ export enum AvailableUserActionLogTypes {
   aiCitationClicked = 'aiCitationClicked',
   aiChatQuery = 'aiChatQuery',
   aiChatFollowUp = 'aiChatFollowUp',
-  aiChatShareClicked = 'aiChatShareClicked',
+  aiChatShared = 'aiChatShared',
   aiChatThreadClicked = 'aiChatThreadClicked',
 
   // Referee finder
