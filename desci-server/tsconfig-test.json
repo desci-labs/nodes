@@ -29,6 +29,6 @@
     "jsx": "react"
   },
   "include": ["test/**/*.ts", "src/types/**/*.d.ts", "src/types/express-augmentations.d.ts"],
-  "exclude": [],
+  "exclude": ["src/scripts/**", "src/utils/generateArweaveKeys.ts"],
   "compileOnSave": true
 }
