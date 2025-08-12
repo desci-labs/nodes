@@ -584,6 +584,51 @@ async function getAssignmentsBySubmission({
   return ok(assignments);
 }
 
+async function getRefereeInvitationsBySubmission({
+  submissionId,
+  limit = 20,
+  offset = 0,
+}: {
+  submissionId: number;
+  limit?: number;
+  offset?: number;
+}) {
+  // Get all assignments for this submission
+  const assignments = await prisma.refereeInvite.findMany({
+    where: {
+      submissionId,
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      accepted: true,
+      acceptedAt: true,
+      declined: true,
+      declinedAt: true,
+      createdAt: true,
+      expiresAt: true,
+      invitedById: true,
+      relativeDueDateHrs: true,
+      expectedFormTemplateIds: true,
+      invitedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+    skip: offset,
+    take: limit,
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  return ok(assignments);
+}
+
 export {
   getSubmissionReviews,
   isSubmissionReviewed,
@@ -597,4 +642,5 @@ export {
   getJournalReviewById,
   getReviewsByAssignment,
   getAssignmentsBySubmission,
+  getRefereeInvitationsBySubmission,
 };

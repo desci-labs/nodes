@@ -2973,6 +2973,61 @@ export const listJournalEditorialBoardOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Get Referee Invitations by Submission
+export const getRefereeInvitationsBySubmissionOperation: ZodOpenApiOperationObject = {
+  operationId: 'getRefereeInvitationsBySubmission',
+  tags: ['Journals'],
+  summary: 'Get referee invitations for a specific submission',
+  description:
+    'Retrieve all referee invitations for a specific journal submission. This endpoint is restricted to editors (Chief Editor or Associate Editor) of the journal. Associate Editors can only view invitations for submissions they are assigned to.',
+  requestParams: {
+    path: reviewsApiSchema.shape.params,
+    query: reviewsApiSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Referee invitations retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+            data: z.array(
+              z.object({
+                id: z.number(),
+                email: z.string().nullable(),
+                name: z.string().nullable(),
+                accepted: z.boolean(),
+                acceptedAt: z.string().nullable(),
+                declined: z.boolean(),
+                declinedAt: z.string().nullable(),
+                createdAt: z.string(),
+                expiresAt: z.string().nullable(),
+                invitedById: z.number(),
+                relativeDueDateHrs: z.number().nullable(),
+                expectedFormTemplateIds: z.array(z.number()),
+                invitedBy: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  email: z.string().nullable(),
+                }),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Bad request - Invalid submission ID or parameters',
+    },
+    '403': {
+      description: 'Forbidden - User is not authorized to view referee invitations for this submission',
+    },
+    '404': {
+      description: 'Not found - Journal or submission not found',
+    },
+  },
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -3032,6 +3087,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/assignments': {
     get: getAssignmentsBySubmissionOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/referee-invitations': {
+    get: getRefereeInvitationsBySubmissionOperation,
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/request-revision': {
     post: requestRevisionOperation,

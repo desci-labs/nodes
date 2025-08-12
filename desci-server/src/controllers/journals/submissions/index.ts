@@ -15,6 +15,7 @@ import {
   requestRevisionSchema,
   submissionApiSchema,
   rejectSubmissionSchema,
+  reviewsApiSchema,
 } from '../../../schemas/journals.schema.js';
 import { EmailTypes, sendEmail } from '../../../services/email/email.js';
 import { FileTreeService } from '../../../services/FileTreeService.js';
@@ -28,6 +29,7 @@ import { getPublishedNodeVersionCount } from '../../../services/nodeManager.js';
 import { NotificationService } from '../../../services/Notifications/NotificationService.js';
 import { DiscordChannel, DiscordNotifyType } from '../../../utils/discordUtils.js';
 import { discordNotify } from '../../../utils/discordUtils.js';
+import { getRefereeInvitationsBySubmission } from '../../../services/journals/JournalReviewService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::SubmissionsController',
@@ -424,4 +426,45 @@ export const getJournalSubmissionController = async (req: GetJournalSubmissionRe
   }
 
   return sendSuccess(res, { ...submission, ...(includeTree ? { tree } : {}) });
+};
+
+type GetRefereeInvitationsBySubmissionRequest = ValidatedRequest<typeof reviewsApiSchema, AuthenticatedRequest>;
+
+export const getRefereeInvitationsBySubmissionController = async (
+  req: GetRefereeInvitationsBySubmissionRequest,
+  res: Response,
+) => {
+  const { journalId, submissionId } = req.validatedData.params;
+  const { limit, offset } = req.validatedData.query;
+
+  const journal = await JournalManagementService.getJournalById(journalId);
+  if (journal.isErr()) {
+    return sendError(res, 'Journal not found', 404);
+  }
+
+  const submission = await journalSubmissionService.getSubmissionById(submissionId);
+  if (submission.isErr()) {
+    return sendError(res, submission.error, 400);
+  }
+
+  if (submission.value.journalId !== journalId) {
+    return sendError(res, 'Submission does not belong to this journal', 403);
+  }
+
+  const isEditor = await JournalManagementService.getUserJournalRole(journalId, req.user.id);
+  if (
+    isEditor.isOk() &&
+    isEditor.value === EditorRole.ASSOCIATE_EDITOR &&
+    submission.value.assignedEditor.id !== req.user.id
+  ) {
+    return sendError(res, 'User is not the assigned editor for this submission', 403);
+  }
+
+  const result = await getRefereeInvitationsBySubmission({ submissionId, limit, offset });
+
+  if (result.isErr()) {
+    return sendError(res, result.error, 403);
+  }
+
+  return sendSuccess(res, result.value);
 };

@@ -234,6 +234,7 @@ export interface IRefereeInvite {
   id: number;
   submissionId: number;
   accepted: boolean;
+  acceptedAt: Date;
   declined: boolean;
   expiresAt: Date; // Refers to the invite expiration date.
   relativeDueDateHrs: number; // Refers to the review due date, from the time of acceptance.
@@ -253,6 +254,7 @@ async function getRefereeInvites(
         id: true,
         submissionId: true,
         accepted: true,
+        acceptedAt: true,
         declined: true,
         expiresAt: true,
         relativeDueDateHrs: true,
