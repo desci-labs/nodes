@@ -21,15 +21,9 @@ const client = new pg.Pool({
   },
 });
 
-// function ensureFormattedWorkId(workId: string) {
-//   workId = workId.split('/').pop();
-//   workId = workId.toUpperCase();
-//   return 'https://openalex.org/' + workId;
-// }
 function ensureFormattedWorkId(workId: string) {
-  if (workId.startsWith('https://openalex.org/')) {
-    workId = workId.replace('https://openalex.org/', '');
-  }
+  // Make sure no OA URL prefix is present
+  workId = workId.replace('https://openalex.org/', '');
   workId = workId.toUpperCase();
   return workId;
 }
@@ -398,11 +392,8 @@ export type OpenAlexTopic = {
 export async function getTopicsByIds(topicIds: string[]): Promise<OpenAlexTopic[]> {
   logger.info(`Fetching OpenAlex topics for IDs: ${topicIds}`);
 
-  // Format each topic ID to ensure it's in the correct OpenAlex URL format
-  const formattedIds = topicIds.map((id) => {
-    const idPart = id.split('/').pop()?.toUpperCase();
-    return `https://openalex.org/${idPart}`;
-  });
+  // Format each topic ID to ensure it's in the correct format, without OA URL prefix.
+  const formattedIds = topicIds.map((id) => id.replace('https://openalex.org/', '').toUpperCase());
 
   const { rows } = await client.query(
     `SELECT
