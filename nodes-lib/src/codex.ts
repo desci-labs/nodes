@@ -5,7 +5,6 @@ import {
   ComposeClient,
   type NodeIDs,
   queryResearchObject,
-  resolveHistory,
   newCeramicClient,
   streams,
   ResearchObjectHistory,
@@ -21,7 +20,6 @@ import { PublishError } from "./errors.js";
 import { errWithCause } from "pino-std-serializers";
 import { newFlightSqlClient, newStreamClient } from "@desci-labs/desci-codex-lib/c1/clients";
 import { updateResearchObject as updateResearchObjectC1, createResearchObject as createResearchObjectC1 } from "@desci-labs/desci-codex-lib/c1/mutate";
-import { MODEL_IDS } from "@desci-labs/desci-codex-models";
 import { getStreamHistory } from "@desci-labs/desci-codex-lib/c1/resolve";
 import { sleep } from "../test/util.js";
 
