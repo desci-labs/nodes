@@ -1056,9 +1056,8 @@ export async function searchEsAuthors(authors: { display_name?: string; orcid?: 
  */
 export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyScoreDetails | undefined> {
   try {
-    if (!workId.startsWith('https://openalex.org/')) {
-      workId = `https://openalex.org/${workId}`;
-    }
+    // Make sure no OA URL prefix is present
+    workId = workId.replace('https://openalex.org/', '');
 
     const searchResult = await elasticClient.search({
       index: MAIN_WORKS_ALIAS,
