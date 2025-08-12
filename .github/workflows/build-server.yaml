@@ -130,56 +130,92 @@ jobs:
           # append to .env
           echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
 
-      - name: Build and tag the image (DEV)
+      - name: Build and push image (DEV) - With Registry Caching
         if: github.ref == 'refs/heads/develop'
         run: |
-          # Build and tag the image
+          # ECR login
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+          # Create cache repository if it doesn't exist
+          aws ecr describe-repositories --repository-names $CONTAINER_IMAGE-dev-cache 2>/dev/null || \
+          aws ecr create-repository --repository-name $CONTAINER_IMAGE-dev-cache
+
+          # Define cache image
+          CACHE_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev-cache:latest
+
+          # Pull cache image (ignore failures for first builds)
+          docker pull $CACHE_IMAGE || echo "No cache found, building from scratch"
+
+          # Build with cache-from and inline cache
           docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from $CACHE_IMAGE \
             -t $CONTAINER_IMAGE-dev:${{ github.sha }} \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
-             .
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} \
+            -t $CACHE_IMAGE \
+            .
 
-      - name: Build and tag the image (DEMO)
-        if: github.ref == 'refs/heads/demo'
-        run: |
-          # Build and tag the image
-          docker build \
-            -t $CONTAINER_IMAGE-demo:${{ github.sha }} \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo \
-             .
-
-      - name: Build and tag the image (PROD)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          # Build and tag the image
-          docker build \
-            -t $CONTAINER_IMAGE:${{ github.sha }} \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
-             .
-
-      - name: Push (DEV)
-        if: github.ref == 'refs/heads/develop'
-        run: |
-          # Push image to AWS ECR
-          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE-dev:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
+          # Push both main image and cache
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
+          docker push $CACHE_IMAGE
 
-      - name: Push (DEMO)
+      - name: Build and push image (DEMO) - With Registry Caching
         if: github.ref == 'refs/heads/demo'
         run: |
-          # Push image to AWS ECR
+          # ECR login
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE-demo:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
 
-      - name: Push (PROD)
+          # Create cache repository if it doesn't exist
+          aws ecr describe-repositories --repository-names $CONTAINER_IMAGE-demo-cache 2>/dev/null || \
+          aws ecr create-repository --repository-name $CONTAINER_IMAGE-demo-cache
+
+          # Define cache image
+          CACHE_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo-cache:latest
+
+          # Pull cache image (ignore failures for first builds)
+          docker pull $CACHE_IMAGE || echo "No cache found, building from scratch"
+
+          # Build with cache-from and inline cache
+          docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from $CACHE_IMAGE \
+            -t $CONTAINER_IMAGE-demo:${{ github.sha }} \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} \
+            -t $CACHE_IMAGE \
+            .
+
+          # Push both main image and cache
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
+          docker push $CACHE_IMAGE
+
+      - name: Build and push image (PROD) - With Registry Caching
         if: github.ref == 'refs/heads/main'
         run: |
-          # Push image to AWS ECR
+          # ECR login
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+
+          # Create cache repository if it doesn't exist
+          aws ecr describe-repositories --repository-names $CONTAINER_IMAGE-cache 2>/dev/null || \
+          aws ecr create-repository --repository-name $CONTAINER_IMAGE-cache
+
+          # Define cache image
+          CACHE_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-cache:latest
+
+          # Pull cache image (ignore failures for first builds)
+          docker pull $CACHE_IMAGE || echo "No cache found, building from scratch"
+
+          # Build with cache-from and inline cache
+          docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from $CACHE_IMAGE \
+            -t $CONTAINER_IMAGE:${{ github.sha }} \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} \
+            -t $CACHE_IMAGE \
+            .
+
+          # Push both main image and cache
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker push $CACHE_IMAGE
 
   deploy:
     name: Deploy desci-server

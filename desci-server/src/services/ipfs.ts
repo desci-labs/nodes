@@ -37,7 +37,7 @@ export const client: IPFSHTTPClient = create({ url: process.env.IPFS_NODE_URL })
 export const readerClient: IPFSHTTPClient = create({ url: PUBLIC_IPFS_PATH });
 export const guestIpfsClient: IPFSHTTPClient = create({ url: process.env.GUEST_IPFS_NODE_URL });
 
-export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
+export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', agent: httpsAgent });
 
 export enum IPFS_NODE {
   PRIVATE = 'private',
@@ -620,7 +620,7 @@ export async function addDirToIpfs(directoryPath: string, ipfsNode = IPFS_NODE.P
   const files = [];
 
   const source = globSource(directoryPath, '**/*', { hidden: true });
-  for await (const file of getIpfsClient(ipfsNode).addAll(source, { cidVersion: 1, pin: true })) {
+  for await (const file of getIpfsClient(ipfsNode).addAll(source as any, { cidVersion: 1, pin: true })) {
     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
   const totalFiles = files.length;
@@ -677,9 +677,11 @@ export async function getCidMetadata(
   try {
     let metadata: BlockMetadata;
     if (external) {
-      metadata = await publicIpfs.object.stat(CID.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
+      const stat = await publicIpfs.object.stat(CID.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
+      metadata = { ...stat, LinkSize: 0, Hash: stat.Hash.toString() } as any;
     } else {
-      metadata = await getIpfsClient(ipfsNode).object.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+      const stat = await getIpfsClient(ipfsNode).object.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+      metadata = { ...stat, LinkSize: 0, Hash: stat.Hash.toString() } as any;
     }
 
     return metadata;
@@ -711,11 +713,10 @@ export async function migrateCid(
     const result = await toIpfsClient.add(sourceStream, {
       cidVersion: 1,
       pin: true,
-      recursive: true,
     });
 
     logger.info({ fn: 'migrateCid', cid }, 'Successfully migrated CID');
-    return result;
+    return result as any;
   } catch (error) {
     logger.error({ fn: 'migrateCid', cid, error }, 'Failed to migrate CID');
     throw error;
@@ -729,7 +730,7 @@ export async function migrateCidByPinning(cid: string, { destinationIpfsNode }: 
   try {
     logger.trace({ fn: 'migrateCidByPinning', cid, destinationIpfsNode }, 'Migrating CID by pinning');
     const toIpfsClient = getIpfsClient(destinationIpfsNode);
-    await toIpfsClient.pin.add(cid, { cidVersion: 1, recursive: true });
+    await toIpfsClient.pin.add(CID.parse(cid), { recursive: true });
 
     logger.info({ fn: 'migrateCidByPinning', cid }, 'Successfully pinned CID');
   } catch (error) {
@@ -758,7 +759,7 @@ export async function isCidPinned(
     let existsInLocalDatastore = false;
 
     try {
-      await ipfsClient.block.stat(cid, { offline: false });
+      await ipfsClient.block.stat(CID.parse(cid));
       logger.debug({ fn: 'isCidPinned', cid }, 'Block found in local datastore');
       existsInLocalDatastore = true;
     } catch (blockError) {
@@ -807,7 +808,7 @@ export async function removeCid(cid: string, ipfsNode: IPFS_NODE) {
       logger.debug({ fn: 'removeCid', cid, error: unpinError }, 'CID not pinned or unpin failed');
     }
 
-    await ipfsClient.block.rm(cid, { offline: true });
+    await ipfsClient.block.rm(CID.parse(cid));
     logger.info({ fn: 'removeCid', cid }, 'Successfully removed CID');
   } catch (e) {
     logger.error({ fn: 'removeCid', cid, ipfsNode, error: e }, 'Error removing CID');

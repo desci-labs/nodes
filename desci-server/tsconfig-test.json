@@ -9,10 +9,7 @@
     "target": "esnext",
     // Recommended by docs, but a lot of errors
     // "verbatimModuleSyntax": true,
-    "lib": [
-      "esnext",
-      "dom"
-    ],
+    "lib": ["esnext", "dom"],
     "noEmit": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -21,19 +18,17 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "noResolve": false,
+    "noImplicitAny": false,
+    "types": [],
     // dagConcat.cjs requires this
     "allowJs": true,
     "inlineSourceMap": true,
-    "paths": {
-      // Overrides a built-in Response type
-      "express": [
-        "./src/types/express"
-      ]
-    },
+    "typeRoots": ["./node_modules/@types"],
     "jsx": "react"
   },
-  "include": [
-    "test/**/*.ts"
-  ],
+  "include": ["test/**/*.ts", "src/types/**/*.d.ts", "src/types/express-augmentations.d.ts"],
+  "exclude": ["src/scripts/**", "src/utils/generateArweaveKeys.ts"],
   "compileOnSave": true
 }

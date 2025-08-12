@@ -21,6 +21,7 @@ import { dpidPaths } from './dpid.js';
 import { journalPaths } from './journals.js';
 import { openAlexPaths } from './openalex.js';
 import { searchPaths } from './search.js';
+import { servicesPaths } from './services.js';
 import {
   cancelUserSubmissionOperation,
   createSubmissionOperation,
@@ -71,7 +72,46 @@ export const submissionPaths = {
   },
 };
 
-export const openaiDocumentation = createDocument({
+// Function to get servers list including current host
+function getServers() {
+  const servers = [
+    {
+      url: 'http://localhost:5420',
+      description: 'Local Endpoint',
+    },
+    {
+      url: 'https://nodes-api-dev.desci.com',
+      description: 'Staging(Nodes-dev) Endpoint',
+    },
+    {
+      url: 'https://nodes-api.desci.com',
+      description: 'Prod Endpoint',
+    },
+  ];
+
+  // Add current host if it's a PR preview or different environment
+  if (process.env.SERVER_URL) {
+    const currentUrl = process.env.SERVER_URL;
+    const isCurrentUrlInList = servers.some((server) => server.url === currentUrl);
+
+    if (!isCurrentUrlInList) {
+      let description = 'Current Environment';
+      if (currentUrl.includes('pr-')) {
+        const prMatch = currentUrl.match(/pr-(\d+)/);
+        description = prMatch ? `PR #${prMatch[1]} Preview` : 'PR Preview Environment';
+      }
+
+      servers.unshift({
+        url: currentUrl,
+        description,
+      });
+    }
+  }
+
+  return servers;
+}
+
+export const openApiDocumentation = createDocument({
   openapi: '3.1.0',
   info: {
     title: 'Nodes-Api documentation',
@@ -94,6 +134,7 @@ export const openaiDocumentation = createDocument({
     { name: 'OpenAlex', description: 'OpenAlex related operations' },
     { name: 'Authors', description: 'Authors-related operations' },
     { name: 'Search', description: 'Elastic search api operations' },
+    { name: 'Services', description: 'Service endpoints for various utilities' },
   ],
   components: {
     securitySchemes: {
@@ -105,20 +146,7 @@ export const openaiDocumentation = createDocument({
       },
     },
   },
-  servers: [
-    {
-      url: 'http://localhost:5420',
-      description: 'Local Endpoint',
-    },
-    {
-      url: 'https://nodes-api-dev.desci.com',
-      description: 'Staging(Nodes-dev) Endpoint',
-    },
-    {
-      url: 'https://nodes-api.desci.com',
-      description: 'Prod Endpoint',
-    },
-  ],
+  servers: getServers(),
   security: [
     {
       s2sauth: [],
@@ -131,6 +159,7 @@ export const openaiDocumentation = createDocument({
     ...authorPaths,
     ...userPaths,
     ...searchPaths,
+    ...servicesPaths,
     ...doiPaths,
     ...dpidPaths,
     ...openAlexPaths,
@@ -140,7 +169,7 @@ export const openaiDocumentation = createDocument({
   },
 });
 
-// const yaml = stringify(openaiDocumentation, { aliasDuplicateObjects: false });
+// const yaml = stringify(openApiDocumentation, { aliasDuplicateObjects: false });
 
 // eslint-disable-next-line no-sync
 // writeFileSync(path.join(__dirname, 'openapi.yml'), yaml);

@@ -20,7 +20,7 @@ import { v4 } from 'uuid';
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
 import { NotFoundError } from './core/ApiError.js';
-import { openaiDocumentation } from './docs/openai.js';
+import { openApiDocumentation } from './docs/openapi.js';
 import { als, logger as parentLogger } from './logger.js';
 import { attachUser } from './middleware/attachUser.js';
 import { RequestWithUser } from './middleware/authorisation.js';
@@ -219,7 +219,7 @@ class AppServer {
     this.app.get('/orcid', orcidConnect);
     this.app.post('/orcid/next', [attachUser], orcidCheck());
     // this.app.use('/doc', swaggerUI.serve, swaggerUI.setup(swaggerFile));
-    this.app.use('/documentation', swaggerUI.serve, swaggerUI.setup(openaiDocumentation));
+    this.app.use('/documentation', ...(swaggerUI.serve as any), swaggerUI.setup(openApiDocumentation) as any);
     this.app.use('/', routes);
   }
 

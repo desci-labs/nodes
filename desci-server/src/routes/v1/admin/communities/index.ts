@@ -65,7 +65,7 @@ const uploadHandler = upload.fields([
 ]);
 
 const wrappedHandler = (req: Request, res: Response, next: NextFunction) => {
-  uploadHandler(req, res, (err) => {
+  uploadHandler(req as any, res as any, (err) => {
     if (err) {
       if (err instanceof multer.MulterError) {
         logger.error({ err, files: req.files }, 'MulterError encountered');

@@ -1,0 +1,725 @@
+name: PR Preview Deployment
+
+on:
+  pull_request:
+    paths:
+      - desci-server/**
+      - desci-contracts/**
+      - Dockerfile
+    types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [closed]
+  schedule:
+    # Run cleanup daily at 2 AM UTC
+    - cron: "0 2 * * *"
+
+env:
+  AWS_DEFAULT_REGION: us-east-2
+  AWS_DEFAULT_OUTPUT: json
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+  CONTAINER_IMAGE: desci-server
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  cleanup-expired-deployments:
+    if: github.event_name == 'schedule'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - name: Cleanup expired PR deployments (15 days TTL)
+        run: |
+          # Setup kubectl and aws-iam-authenticator
+          version=v1.23.6
+          curl -sL "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+
+          # Install aws-iam-authenticator for EKS authentication
+          curl -sL "https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.6.14/aws-iam-authenticator_0.6.14_linux_amd64" -o aws-iam-authenticator
+          chmod +x aws-iam-authenticator
+          mv aws-iam-authenticator /usr/local/bin
+
+          mkdir -p $HOME/.kube
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+
+          # Calculate cutoff timestamp (15 days ago)
+          CUTOFF_DATE=$(date -d "15 days ago" +%s)
+
+          # Get all PR deployments with their creation timestamps
+          kubectl get deployments -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.created-at}{" "}{.metadata.labels.pr-number}{"\n"}{end}' | \
+          while read deployment_name created_at pr_number; do
+            # Validate pr_number is set and is a valid number
+            if [ -z "$pr_number" ] || ! [[ "$pr_number" =~ ^[0-9]+$ ]]; then
+              echo "⚠️  Skipping $deployment_name - invalid or missing PR number: '$pr_number'"
+              continue
+            fi
+            
+            if [ ! -z "$created_at" ] && [ "$created_at" -lt "$CUTOFF_DATE" ]; then
+              echo "Cleaning up expired deployment: $deployment_name (PR #$pr_number, created: $(date -d @$created_at))"
+              
+              # Delete Kubernetes resources
+              kubectl delete deployment $deployment_name --ignore-not-found=true
+              kubectl delete service desci-server-pr-${pr_number}-service --ignore-not-found=true
+              kubectl delete ingress desci-server-pr-${pr_number}-ingress --ignore-not-found=true
+              
+              # Note: Keeping ECR images for rollback capability
+              
+              echo "✅ Cleaned up PR #$pr_number deployment"
+            fi
+          done
+
+  cleanup-closed-pr:
+    if: github.event.action == 'closed'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - name: Cleanup PR deployment
+        run: |
+          # Setup kubectl and aws-iam-authenticator
+          version=v1.23.6
+          curl -sL "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+
+          # Install aws-iam-authenticator for EKS authentication
+          curl -sL "https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.6.14/aws-iam-authenticator_0.6.14_linux_amd64" -o aws-iam-authenticator
+          chmod +x aws-iam-authenticator
+          mv aws-iam-authenticator /usr/local/bin
+
+          mkdir -p $HOME/.kube
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+
+          # Clean up resources
+          PR_NUMBER=${{ github.event.number }}
+
+          # Validate PR_NUMBER is set and valid
+          if [ -z "$PR_NUMBER" ] || ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "❌ Invalid PR_NUMBER: '$PR_NUMBER'"
+            exit 1
+          fi
+
+          echo "🧹 Cleaning up PR #$PR_NUMBER resources..."
+          kubectl delete deployment desci-server-pr-${PR_NUMBER} --ignore-not-found=true
+          kubectl delete service desci-server-pr-${PR_NUMBER}-service --ignore-not-found=true
+          kubectl delete ingress desci-server-pr-${PR_NUMBER}-ingress --ignore-not-found=true
+
+          # Note: Keeping ECR images for rollback capability
+
+  build-and-deploy-pr:
+    if: github.event.action != 'closed' && github.event_name != 'schedule'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check concurrent deployment limit and cleanup orphaned resources (max 10)
+        run: |
+          # Setup kubectl and aws-iam-authenticator
+          version=v1.23.6
+          curl -sL "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+
+          # Install aws-iam-authenticator for EKS authentication
+          curl -sL "https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.6.14/aws-iam-authenticator_0.6.14_linux_amd64" -o aws-iam-authenticator
+          chmod +x aws-iam-authenticator
+          mv aws-iam-authenticator /usr/local/bin
+
+          mkdir -p $HOME/.kube
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+
+          PR_NUMBER=${{ github.event.number }}
+
+          echo "🧹 Cleaning up orphaned resources and failed deployments..."
+
+          # Get all PR preview deployments with detailed status
+          kubectl get deployments -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.pr-number}{" "}{.spec.replicas}{" "}{.status.availableReplicas}{" "}{.status.readyReplicas}{"\n"}{end}' | \
+          while read deployment_name pr_num desired_replicas available_replicas ready_replicas; do
+            if [ -z "$deployment_name" ]; then continue; fi
+            
+            echo "Checking deployment: $deployment_name (PR #$pr_num)"
+            echo "  Desired: $desired_replicas, Available: $available_replicas, Ready: $ready_replicas"
+            
+            # Check if deployment is unhealthy (no available replicas after reasonable time)
+            if [ "$available_replicas" = "null" ] || [ "$available_replicas" = "" ] || [ "$available_replicas" -eq 0 ]; then
+              # Check deployment age - if older than 10 minutes and still no replicas, consider it failed
+              creation_time=$(kubectl get deployment $deployment_name -o jsonpath='{.metadata.creationTimestamp}')
+              current_time=$(date -u +%s)
+              creation_timestamp=$(date -d "$creation_time" +%s 2>/dev/null || echo "0")
+              age_minutes=$(( (current_time - creation_timestamp) / 60 ))
+              
+              if [ $age_minutes -gt 10 ]; then
+                echo "⚠️  Deployment $deployment_name is unhealthy (age: ${age_minutes}m, available: $available_replicas)"
+                echo "   Cleaning up failed deployment and associated resources..."
+                
+                # Clean up the failed deployment and its resources
+                kubectl delete deployment $deployment_name --ignore-not-found=true
+                kubectl delete service desci-server-pr-${pr_num}-service --ignore-not-found=true
+                kubectl delete ingress desci-server-pr-${pr_num}-ingress --ignore-not-found=true
+                
+                echo "   ✅ Cleaned up failed deployment PR #$pr_num"
+              fi
+            fi
+          done
+
+          # Clean up orphaned services (services without corresponding deployments)
+          echo "🧹 Checking for orphaned services..."
+          kubectl get services -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.pr-number}{"\n"}{end}' | \
+          while read service_name pr_num; do
+            if [ -z "$service_name" ]; then continue; fi
+            
+            # Check if corresponding deployment exists
+            if ! kubectl get deployment desci-server-pr-${pr_num} >/dev/null 2>&1; then
+              echo "⚠️  Found orphaned service: $service_name (PR #$pr_num)"
+              kubectl delete service $service_name --ignore-not-found=true
+              echo "   ✅ Cleaned up orphaned service"
+            fi
+          done
+
+          # Clean up orphaned ingresses (ingresses without corresponding deployments)
+          echo "🧹 Checking for orphaned ingresses..."
+          kubectl get ingress -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.pr-number}{"\n"}{end}' | \
+          while read ingress_name pr_num; do
+            if [ -z "$ingress_name" ]; then continue; fi
+            
+            # Check if corresponding deployment exists
+            if ! kubectl get deployment desci-server-pr-${pr_num} >/dev/null 2>&1; then
+              echo "⚠️  Found orphaned ingress: $ingress_name (PR #$pr_num)"
+              kubectl delete ingress $ingress_name --ignore-not-found=true
+              echo "   ✅ Cleaned up orphaned ingress"
+            fi
+          done
+
+          # Count only healthy PR deployments (excluding the current one if it exists)
+          # Use a temporary file to avoid subshell variable scoping issues
+          TEMP_FILE=$(mktemp)
+          kubectl get deployments -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{range .items[*]}{.metadata.labels.pr-number}{" "}{.status.availableReplicas}{"\n"}{end}' > "$TEMP_FILE"
+
+          HEALTHY_COUNT=0
+          while read pr_num available_replicas; do
+            if [ -z "$pr_num" ]; then continue; fi
+            
+            # Skip current PR and only count healthy deployments
+            if [ "$pr_num" != "$PR_NUMBER" ] && [ "$available_replicas" != "null" ] && [ "$available_replicas" != "" ] && [ "$available_replicas" -gt 0 ]; then
+              HEALTHY_COUNT=$((HEALTHY_COUNT + 1))
+            fi
+          done < "$TEMP_FILE"
+          rm -f "$TEMP_FILE"
+
+          # Get total count after cleanup for informational purposes
+          CURRENT_COUNT=$(kubectl get deployments -l app.kubernetes.io/component=pr-preview \
+            -o jsonpath='{.items[*].metadata.labels.pr-number}' | \
+            tr ' ' '\n' | grep -v "^$PR_NUMBER$" | wc -l)
+
+          echo "📊 Deployment status after cleanup:"
+          echo "   Total PR deployments: $CURRENT_COUNT"
+          echo "   Healthy deployments: $HEALTHY_COUNT"
+          echo "   Limit: 10"
+
+          if [ "$HEALTHY_COUNT" -ge 10 ]; then
+            echo "::error::Maximum concurrent healthy PR deployments (10) reached after cleanup. Please close some PRs or wait for automatic cleanup."
+            echo "::notice::Consider checking for stuck deployments that may need manual intervention."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: useblacksmith/setup-node@v5
+        with:
+          node-version-file: ".nvmrc"
+          check-latest: false
+          cache: "yarn"
+          cache-dependency-path: |
+            desci-models/yarn.lock
+            desci-server/yarn.lock
+
+      - name: Install dependencies and test
+        run: |
+          cd desci-models && npm i -g yarn && yarn && yarn build
+          cd ../desci-server && yarn --ignore-engines
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > src/desci-contracts-config/unknown-research-object.json
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > src/desci-contracts-config/unknown-dpid.json
+          yarn test
+
+      - name: Check for schema changes requiring migration
+        id: check_migrations
+        run: |
+          cd desci-server
+
+          # Check if the Prisma schema file has been modified in this PR
+          # by comparing against the target branch (typically main/dev)
+
+          # Get the target branch (base branch of the PR)
+          TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
+          echo "Checking for schema changes against target branch: $TARGET_BRANCH"
+
+          # Fetch the target branch to ensure we have the reference
+          git fetch origin $TARGET_BRANCH:$TARGET_BRANCH || git fetch origin $TARGET_BRANCH
+
+          # Use GitHub's provided base SHA which is more reliable
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          echo "Comparing $BASE_SHA..$HEAD_SHA"
+
+          # Check if schema.prisma has been modified
+          if git diff --name-only $BASE_SHA..$HEAD_SHA | grep -q "desci-server/prisma/schema.prisma"; then
+            echo "PENDING_MIGRATIONS=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Prisma schema file has been modified in this PR!"
+            
+            # Get the actual changes to the schema file
+            echo "SCHEMA_DIFF<<EOF" >> $GITHUB_OUTPUT
+            echo "Changes to prisma/schema.prisma in this PR:"
+            echo ""
+            git diff $BASE_SHA..$HEAD_SHA -- desci-server/prisma/schema.prisma || echo "Error getting schema diff"
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "PENDING_MIGRATIONS=false" >> $GITHUB_OUTPUT
+            echo "✅ No changes to Prisma schema detected in this PR."
+          fi
+
+      - name: Comment on PR about pending migrations
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const schemaDiff = `${{ steps.check_migrations.outputs.SCHEMA_DIFF }}`;
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existingComment = comments.data.find(
+              comment => comment.body.includes('⚠️ **PR Preview Deployment Blocked**')
+            );
+
+            const commentBody = `⚠️ **PR Preview Deployment Blocked**
+
+            This PR contains **changes to the Prisma schema** that may require database migrations affecting the shared dev database. To prevent accidental data loss or corruption, the preview deployment has been skipped.
+
+            📋 **Schema Changes Detected:**
+            \`\`\`diff
+            ${schemaDiff}
+            \`\`\`
+
+            🔧 **Next Steps:**
+            1. **Review the schema changes** carefully to ensure they are safe for the dev environment
+            2. **Generate and apply migrations** if the changes are safe:
+               \`\`\`bash
+               # Generate migration for these schema changes:
+               npx prisma migrate dev --name describe_your_changes
+               
+               # Or apply existing migrations to dev database:
+               npx prisma migrate deploy
+               \`\`\`
+            3. **Re-run this workflow** after migrations are properly handled
+
+            ⚠️ **Important:** This safety check prevents accidentally nuking the dev database with destructive schema changes. Always review schema modifications before applying them to shared environments.
+
+            🔄 This comment will be updated if you push new commits to this PR.`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody,
+              });
+            }
+
+      - name: Exit workflow if schema changes detected
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'true'
+        run: |
+          echo "::notice title=Deployment Skipped::PR preview deployment was skipped due to schema changes requiring migrations"
+          exit 0
+
+      - name: Build and push PR image
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'false'
+        run: |
+          PR_NUMBER=${{ github.event.number }}
+
+          # Validate PR_NUMBER is set and valid
+          if [ -z "$PR_NUMBER" ] || ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "❌ Invalid PR_NUMBER: '$PR_NUMBER'"
+            exit 1
+          fi
+
+          # Setup Sentry with resilient upload for PR builds
+          npm install -g @sentry/cli
+          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
+          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> desci-server/.env
+
+          # Make Sentry resilient with timeout and retry
+          cd desci-server
+          cat > resilient-sentry.sh << 'EOF'
+          #!/bin/bash
+          echo "🔄 Attempting Sentry sourcemap upload with retry logic..."
+          for i in {1..3}; do
+            echo "Sentry upload attempt $i/3"
+            if timeout 60 sentry-cli sourcemaps inject --org desci-labs --project nodes-backend ./dist; then
+              if timeout 60 sentry-cli sourcemaps upload --org desci-labs --project nodes-backend ./dist; then
+                echo "✅ Sentry sourcemaps uploaded successfully"
+                exit 0
+              fi
+            fi
+            echo "⚠️ Sentry upload attempt $i failed, retrying..."
+            sleep 5
+          done
+          echo "⚠️ All Sentry upload attempts failed, continuing build (PR preview)"
+          EOF
+          chmod +x resilient-sentry.sh
+          # Replace the sentry script to use our resilient version
+          sed -i 's/"sentry:sourcemaps": "[^"]*"/"sentry:sourcemaps": ".\/resilient-sentry.sh"/' package.json
+          cd ..
+
+          # Build and tag image with retry logic and registry caching
+          GIT_HASH=${GITHUB_SHA::8}
+          IMAGE_TAG="pr-$PR_NUMBER-$GIT_HASH"
+
+          # ECR login first
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+          # Create repositories if they don't exist
+          aws ecr describe-repositories --repository-names desci-server-pr 2>/dev/null || \
+          aws ecr create-repository --repository-name desci-server-pr
+          aws ecr describe-repositories --repository-names desci-server-pr-cache 2>/dev/null || \
+          aws ecr create-repository --repository-name desci-server-pr-cache
+
+          # Define cache image
+          CACHE_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/desci-server-pr-cache:latest
+
+          # Pull cache image (ignore failures)
+          docker pull $CACHE_IMAGE || echo "No PR cache found, building from scratch"
+
+          for i in {1..3}; do
+            echo "Build attempt $i/3 - Tag: $IMAGE_TAG (with registry caching)"
+            if docker build \
+              --network=host \
+              --build-arg BUILDKIT_INLINE_CACHE=1 \
+              --cache-from $CACHE_IMAGE \
+              -t $CONTAINER_IMAGE-pr:$IMAGE_TAG \
+              -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-pr:$IMAGE_TAG \
+              -t $CACHE_IMAGE \
+              .; then
+              echo "Build successful on attempt $i"
+              break
+            else
+              echo "Build failed on attempt $i"
+              if [ $i -eq 3 ]; then
+                echo "All build attempts failed"
+                exit 1
+              fi
+              echo "Waiting 30 seconds before retry..."
+              sleep 30
+            fi
+          done
+
+          # Push both main image and cache
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-pr:$IMAGE_TAG
+          docker push $CACHE_IMAGE
+
+          # Store the image tag for use in deployment
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Deploy to EKS
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'false'
+        run: |
+          # Setup kubectl and aws-iam-authenticator
+          version=v1.23.6
+          curl -sL "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+
+          # Install aws-iam-authenticator for EKS authentication
+          curl -sL "https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.6.14/aws-iam-authenticator_0.6.14_linux_amd64" -o aws-iam-authenticator
+          chmod +x aws-iam-authenticator
+          mv aws-iam-authenticator /usr/local/bin
+
+          mkdir -p $HOME/.kube
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+
+          PR_NUMBER=${{ github.event.number }}
+
+          # Validate PR_NUMBER is set and valid
+          if [ -z "$PR_NUMBER" ] || ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "❌ Invalid PR_NUMBER: '$PR_NUMBER'"
+            exit 1
+          fi
+
+          PR_URL="pr-${PR_NUMBER}.nodes-api-dev.desci.com"
+          CREATED_AT=$(date +%s)
+
+          # Create temporary deployment manifest
+          cat << EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: desci-server-pr-${PR_NUMBER}
+            labels:
+              App: DesciServerPR${PR_NUMBER}
+              app.kubernetes.io/component: pr-preview
+              app.kubernetes.io/managed-by: github-actions
+              pr-number: "${PR_NUMBER}"
+              created-at: "${CREATED_AT}"
+              ttl: "15d"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                App: DesciServerPR${PR_NUMBER}
+            template:
+              metadata:
+                annotations:
+                  vault.hashicorp.com/agent-inject: 'true'
+                  vault.hashicorp.com/agent-inject-status: 'update'
+                  vault.hashicorp.com/role: app-vault-reader
+                  vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/db
+                  vault.hashicorp.com/agent-inject-template-config: |
+                    {{- with secret "secrets/desci-server/dev/db" -}}
+                    export PG_HOST={{ .Data.host }}
+                    export PG_PORT={{ .Data.port }}
+                    export POSTGRES_USER={{ .Data.user }}
+                    export POSTGRES_PASSWORD={{ .Data.password }}
+                    export POSTGRES_DB={{ .Data.db }}
+                    export DATABASE_URL={{ .Data.url }}
+                    export IPFS_NODE_URL="http://ipfs-gateway-staging-internal.default.svc.cluster.local:5001"
+                    export NODE_ENV=production
+                    echo "dbset"; 
+                    {{- end -}}
+                    {{- with secret "secrets/desci-server/dev/app" -}}
+                    echo "appstart"; 
+                    export PINO_LOG_LEVEL={{ .Data.PINO_LOG_LEVEL }}
+                    export JWT_SECRET={{ .Data.JWT_SECRET }}
+                    export JWT_EXPIRATION=15m
+                    export SESSION_KEY={{ .Data.SESSION_KEY }}
+                    export COOKIE_DOMAIN=.nodes-api-dev.desci.com
+                    export OLD_COOKIE_DOMAINS={{ .Data.OLD_COOKIE_DOMAINS }}
+                    export ORCID_API_DOMAIN={{ .Data.ORCID_API_DOMAIN }}
+                    export DPID_URL_OVERRIDE={{ .Data.DPID_URL_OVERRIDE }}
+                    export ORCID_CLIENT_ID={{ .Data.ORCID_CLIENT_ID }}
+                    export ORCID_CLIENT_SECRET={{ .Data.ORCID_CLIENT_SECRET }}
+                    export SERVER_URL=https://${PR_URL}
+                    export DAPP_URL=https://nodes-dev.desci.com
+                    export REDIS_HOST={{ .Data.REDIS_HOST }}
+                    export REDIS_PORT={{ .Data.REDIS_PORT }}
+                    export REDIS_URL={{ .Data.REDIS_URL }}
+                    export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}
+                    export SENDGRID_TEMPLATE_ID_MAP={{ .Data.SENDGRID_TEMPLATE_ID_MAP }}
+                    export SHOULD_SEND_EMAIL=false
+                    export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
+                    export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
+                    export AWS_S3_BUCKET_NAME={{ .Data.AWS_S3_BUCKET_NAME }}
+                    export AWS_S3_BUCKET_REGION={{ .Data.AWS_S3_BUCKET_REGION }}
+                    export THEGRAPH_API_URL={{ .Data.THEGRAPH_API_URL }}
+                    export HOT_WALLET_KEY={{ .Data.HOT_WALLET_KEY }}
+                    export REGISTRY_OWNER_PKEY={{ .Data.REGISTRY_OWNER_PKEY }}
+                    export CSO_CLASSIFIER_API={{ .Data.CSO_CLASSIFIER_API }}
+                    export VSCODE_ACCESS_TOKEN={{ .Data.VSCODE_ACCESS_TOKEN }}
+                    export NODES_MEDIA_SERVER_URL={{ .Data.NODES_MEDIA_SERVER_URL }}
+                    export OTEL_SERVICE_NAME={{ .Data.OTEL_SERVICE_NAME }}
+                    export HONEYCOMB_API_KEY={{ .Data.HONEYCOMB_API_KEY }}
+                    export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
+                    export DISCORD_NOTIFICATIONS_DOI_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_DOI_WEBHOOK_URL }}
+                    export PUBLIC_IPFS_RESOLVER={{ .Data.PUBLIC_IPFS_RESOLVER }}
+                    export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
+                    export ESTUARY_API_KEY={{ .Data.ESTUARY_API_KEY }}
+                    export ESTUARY_API_URL={{ .Data.ESTUARY_API_URL }}
+                    export REPO_SERVER_URL={{ .Data.REPO_SERVER_URL }}
+                    export REPO_SERVICE_SECRET_KEY={{ .Data.REPO_SERVICE_SECRET_KEY }}
+                    export ISOLATED_MEDIA_SERVER_URL={{ .Data.ISOLATED_MEDIA_SERVER_URL }}
+                    export IPFS_READ_ONLY_GATEWAY_SERVER_URL={{ .Data.IPFS_READ_ONLY_GATEWAY_SERVER_URL }}
+                    export ETHEREUM_RPC_URL={{ .Data.ETHEREUM_RPC_URL }}
+                    export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
+                    export DOI_PREFIX={{ .Data.DOI_PREFIX }}
+                    export CROSSREF_EMAIL={{ .Data.CROSSREF_EMAIL }}
+                    export CROSSREF_DOI_URL={{ .Data.CROSSREF_DOI_URL }}
+                    export CROSSREF_LOGIN={{ .Data.CROSSREF_LOGIN }}
+                    export CROSSREF_PASSWORD={{ .Data.CROSSREF_PASSWORD }}
+                    export CROSSREF_METADATA_API={{ .Data.CROSSREF_METADATA_API }}
+                    export CROSSREF_ADMIN_API={{ .Data.CROSSREF_ADMIN_API }}
+                    export CROSSREF_NOTIFY_ENDPOINT={{ .Data.CROSSREF_NOTIFY_ENDPOINT }}
+                    export AUTOMATED_METADATA_API="{{ .Data.AUTOMATED_METADATA_API }}"
+                    export AUTOMATED_METADATA_API_KEY="{{ .Data.AUTOMATED_METADATA_API_KEY }}"
+                    export ELASTIC_SEARCH_NODE_URL="{{ .Data.ELASTIC_SEARCH_NODE_URL }}"
+                    export ELASTIC_SEARCH_USER="{{ .Data.ELASTIC_SEARCH_USER }}"
+                    export ELASTIC_SEARCH_PW="{{ .Data.ELASTIC_SEARCH_PW }}"
+                    export ELASTIC_SEARCH_WRITE_API_KEY="{{ .Data.ELASTIC_SEARCH_WRITE_API_KEY }}"
+                    export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
+                    export SCORE_GEN_SERVER="{{ .Data.SCORE_GEN_SERVER }}"
+                    export SCORE_RESULT_API="{{ .Data.SCORE_RESULT_API }}"
+                    export AI_CID_SEND_SERVER="{{ .Data.AI_CID_SEND_SERVER }}"
+                    export CLOUDFLARE_WORKER_API=https://nodes-dev-sync.desci.com
+                    export CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
+                    export ENABLE_WORKERS_API=true
+                    export LOG_ENCRYPTION_KEY="{{ .Data.LOG_ENCRYPTION_KEY }}"
+                    export ORCID_PUBLIC_API="{{ .Data.ORCID_PUBLIC_API }}"
+                    export GUEST_IPFS_NODE_URL="{{ .Data.GUEST_IPFS_NODE_URL }}"
+                    export AWS_SQS_ACCESS_KEY_ID="{{ .Data.AWS_SQS_ACCESS_KEY_ID }}"
+                    export AWS_SQS_SECRET_ACCESS_KEY="{{ .Data.AWS_SQS_SECRET_ACCESS_KEY }}"
+                    export AWS_SQS_REGION="{{ .Data.AWS_SQS_REGION }}"
+                    export AWS_SQS_QUEUE_URL="{{ .Data.AWS_SQS_QUEUE_URL }}"
+                    export SUPABASE_URL="{{ .Data.SUPABASE_URL }}"
+                    export SUPABASE_SERVICE_KEY="{{ .Data.SUPABASE_SERVICE_KEY }}"
+                    export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
+                    export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
+                    export DEBUG_TEST=0;
+                    echo "appfinish";
+                    {{- end -}}
+                labels:
+                  App: DesciServerPR${PR_NUMBER}
+                  app.kubernetes.io/component: pr-preview
+              spec:
+                containers:
+                - image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/desci-server-pr:${IMAGE_TAG}
+                  name: desci-server-pr
+                  command: ['/bin/bash', '-c']
+                  args:
+                    - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/src/index.js;
+                  ports:
+                  - containerPort: 5420
+                    name: server-api
+                  resources:
+                    limits:
+                      cpu: '0.5'
+                      memory: 2Gi
+                    requests:
+                      cpu: '0.3'
+                      memory: 1Gi
+                  readinessProbe:
+                    httpGet:
+                      path: /readyz
+                      port: server-api
+                    failureThreshold: 3
+                    periodSeconds: 1
+                  startupProbe:
+                    httpGet:
+                      path: /readyz
+                      port: server-api
+                    failureThreshold: 60
+                    periodSeconds: 2
+                serviceAccountName: 'vault-auth'
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: desci-server-pr-${PR_NUMBER}-service
+            labels:
+              App: DesciServerPR${PR_NUMBER}
+              app.kubernetes.io/component: pr-preview
+              pr-number: "${PR_NUMBER}"
+          spec:
+            type: ClusterIP
+            selector:
+              App: DesciServerPR${PR_NUMBER}
+            ports:
+            - protocol: TCP
+              port: 80
+              targetPort: 5420
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: desci-server-pr-${PR_NUMBER}-ingress
+            labels:
+              app.kubernetes.io/component: pr-preview
+              pr-number: "${PR_NUMBER}"
+            annotations:
+              kubernetes.io/ingress.class: 'alb'
+              alb.ingress.kubernetes.io/scheme: 'internet-facing'
+              alb.ingress.kubernetes.io/target-type: 'ip'
+              alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+              alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-2:523044037273:certificate/b56b0e10-e8c6-447a-a58f-7277995e9dc8'
+              alb.ingress.kubernetes.io/ssl-redirect: '443'
+          spec:
+            rules:
+            - host: '${PR_URL}'
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: desci-server-pr-${PR_NUMBER}-service
+                      port:
+                        number: 80
+          EOF
+
+          # Wait for deployment to be ready
+          kubectl rollout status deployment/desci-server-pr-${PR_NUMBER} --timeout=300s
+
+          # Get current deployment count for summary
+          CURRENT_COUNT=$(kubectl get deployments -l app.kubernetes.io/component=pr-preview -o name | wc -l)
+
+          echo "::notice title=PR Preview Deployed::PR #${PR_NUMBER} is available at https://${PR_URL} (${CURRENT_COUNT}/10 deployments active)"
+
+      - name: Comment on PR
+        if: steps.check_migrations.outputs.PENDING_MIGRATIONS == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = `https://pr-${prNumber}.nodes-api-dev.desci.com`;
+            const expiryDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString();
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existingComment = comments.data.find(
+              comment => comment.body.includes('🚀 PR Preview Deployment')
+            );
+
+            const commentBody = `🚀 **PR Preview Deployment**
+
+            Your PR has been deployed and is available at:
+            **${previewUrl}**
+
+            📋 **Deployment Details:**
+            - 🔗 Preview URL: ${previewUrl}
+            - 📦 Image: \`desci-server-pr:pr-${prNumber}-${context.payload.pull_request.head.sha.substring(0, 8)}\`
+            - ⏱️ Deployed at: ${new Date().toISOString()}
+            - 🗓️ **Expires on: ${expiryDate}** (15 days TTL)
+            - 🔄 Uses dev environment configuration
+
+            ⚠️ **Note:** This deployment shares the dev database. Be cautious with destructive operations.
+
+            🧹 This deployment will be automatically cleaned up when:
+            - The PR is closed, or
+            - 15 days have passed since deployment`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody,
+              });
+            }

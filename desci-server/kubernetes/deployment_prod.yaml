@@ -117,6 +117,8 @@ spec:
           export ML_REFEREE_FINDER_RESULT="{{ .Data.ML_REFEREE_FINDER_RESULT }}"
           export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
           export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
+          export SUPABASE_URL="{{ .Data.SUPABASE_URL }}"
+          export SUPABASE_SERVICE_KEY="{{ .Data.SUPABASE_SERVICE_KEY }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";
@@ -129,7 +131,7 @@ spec:
           name: desci-server
           command: ['/bin/bash', '-c']
           args:
-            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/src/index.js;
           ports:
             - containerPort: 5420
               name: server-api
