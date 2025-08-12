@@ -1469,6 +1469,7 @@ model UserFeatureLimit {
 
 enum Feature {
   REFEREE_FINDER
+  RESEARCH_ASSISTANT
 }
 
 enum PlanCodename {
@@ -1487,6 +1488,7 @@ enum Period {
 
 enum ExternalApi {
   REFEREE_FINDER
+  RESEARCH_ASSISTANT
 }
 
 enum MigrationType {
