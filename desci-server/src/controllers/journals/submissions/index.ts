@@ -462,7 +462,7 @@ export const getRefereeInvitationsBySubmissionController = async (
   const result = await getRefereeInvitationsBySubmission({ submissionId });
 
   if (result.isErr()) {
-    return sendError(res, result.error, 403);
+    return sendError(res, result.error.message, 403);
   }
 
   return sendSuccess(res, result.value);

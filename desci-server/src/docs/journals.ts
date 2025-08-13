@@ -1887,25 +1887,37 @@ export const getRefereeInvitationsOperation: ZodOpenApiOperationObject = {
       description: 'Referee invitations retrieved successfully',
       content: {
         'application/json': {
-          schema: z.array(
-            z.object({
-              id: z.number(),
-              submissionId: z.number(),
-              accepted: z.boolean(),
-              declined: z.boolean(),
-              relativeDueDateHrs: z.number(),
-              expiresAt: z.string(),
-              token: z.string(),
-              submission: z.object({
-                journalId: z.number(),
-                journal: z.string(),
-                title: z.string(),
+          schema: z.object({
+            ok: z.boolean(),
+            data: z.array(
+              z.object({
                 id: z.number(),
-                author: z.string(),
-                dpid: z.number(),
+                submissionId: z.number(),
+                userId: z.number().nullable(),
+                email: z.string().nullable(),
+                name: z.string().nullable(),
+                accepted: z.boolean(),
+                acceptedAt: z.string().nullable(),
+                declined: z.boolean(),
+                declinedAt: z.string().nullable(),
+                createdAt: z.string(),
+                expiresAt: z.string().nullable(),
+                invitedById: z.number(),
+                invitedBy: z.string().nullable(),
+                relativeDueDateHrs: z.number().nullable(),
+                expectedFormTemplateIds: z.array(z.number()),
+                token: z.string(),
+                submission: z.object({
+                  author: z.string(),
+                  id: z.number(),
+                  journalId: z.number(),
+                  journal: z.string(),
+                  title: z.string(),
+                  dpid: z.number(),
+                }),
               }),
-            }),
-          ),
+            ),
+          }),
         },
       },
     },
@@ -2981,8 +2993,7 @@ export const getRefereeInvitationsBySubmissionOperation: ZodOpenApiOperationObje
   description:
     'Retrieve all referee invitations for a specific journal submission. This endpoint is restricted to editors (Chief Editor or Associate Editor) of the journal. Associate Editors can only view invitations for submissions they are assigned to.',
   requestParams: {
-    path: reviewsApiSchema.shape.params,
-    query: reviewsApiSchema.shape.query,
+    path: getAssignmentsBySubmissionSchema.shape.params,
   },
   responses: {
     '200': {
@@ -2994,6 +3005,8 @@ export const getRefereeInvitationsBySubmissionOperation: ZodOpenApiOperationObje
             data: z.array(
               z.object({
                 id: z.number(),
+                submissionId: z.number(),
+                userId: z.number().nullable(),
                 email: z.string().nullable(),
                 name: z.string().nullable(),
                 accepted: z.boolean(),
@@ -3003,12 +3016,16 @@ export const getRefereeInvitationsBySubmissionOperation: ZodOpenApiOperationObje
                 createdAt: z.string(),
                 expiresAt: z.string().nullable(),
                 invitedById: z.number(),
+                invitedBy: z.string().nullable(),
                 relativeDueDateHrs: z.number().nullable(),
                 expectedFormTemplateIds: z.array(z.number()),
-                invitedBy: z.object({
+                submission: z.object({
+                  author: z.string(),
                   id: z.number(),
-                  name: z.string().nullable(),
-                  email: z.string().nullable(),
+                  journalId: z.number(),
+                  journal: z.string(),
+                  title: z.string(),
+                  dpid: z.number(),
                 }),
               }),
             ),
@@ -3027,6 +3044,55 @@ export const getRefereeInvitationsBySubmissionOperation: ZodOpenApiOperationObje
     },
   },
   security: [{ BearerAuth: [] }],
+};
+
+// Get Referee Invite by Token
+export const getRefereeInviteByTokenOperation: ZodOpenApiOperationObject = {
+  operationId: 'getRefereeInviteByToken',
+  tags: ['Journals'],
+  summary: 'Get referee invitation by token',
+  description:
+    'Retrieve a referee invitation using its unique token. This endpoint is typically used for unauthenticated access when processing referee invitation decisions.',
+  requestParams: {
+    path: z.object({
+      token: z.string().describe('The unique token for the referee invitation'),
+    }),
+  },
+  responses: {
+    '200': {
+      description: 'Referee invitation retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+            data: z.object({
+              id: z.number(),
+              submissionId: z.number(),
+              userId: z.number().nullable(),
+              email: z.string().nullable(),
+              name: z.string().nullable(),
+              accepted: z.boolean(),
+              acceptedAt: z.string().nullable(),
+              declined: z.boolean(),
+              declinedAt: z.string().nullable(),
+              createdAt: z.string(),
+              expiresAt: z.string().nullable(),
+              invitedById: z.number(),
+              relativeDueDateHrs: z.number().nullable(),
+              expectedFormTemplateIds: z.array(z.number()),
+              token: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Bad request - Invalid token format',
+    },
+    '404': {
+      description: 'Not found - Referee invitation not found or token expired',
+    },
+  },
 };
 
 export const journalPaths: ZodOpenApiPathsObject = {
@@ -3116,6 +3182,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/referee/invitations': {
     get: getRefereeInvitationsOperation,
+  },
+  '/v1/journals/referee/invitations/{token}': {
+    get: getRefereeInviteByTokenOperation,
   },
   '/v1/journals/referee/assignments/{assignmentId}/reviews': {
     get: getReviewsByAssignmentOperation,
