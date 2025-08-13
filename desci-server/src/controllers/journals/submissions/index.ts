@@ -435,7 +435,6 @@ export const getRefereeInvitationsBySubmissionController = async (
   res: Response,
 ) => {
   const { journalId, submissionId } = req.validatedData.params;
-  const { limit, offset } = req.validatedData.query;
 
   const journal = await JournalManagementService.getJournalById(journalId);
   if (journal.isErr()) {
@@ -460,7 +459,7 @@ export const getRefereeInvitationsBySubmissionController = async (
     return sendError(res, 'User is not the assigned editor for this submission', 403);
   }
 
-  const result = await getRefereeInvitationsBySubmission({ submissionId, limit, offset });
+  const result = await getRefereeInvitationsBySubmission({ submissionId });
 
   if (result.isErr()) {
     return sendError(res, result.error, 403);

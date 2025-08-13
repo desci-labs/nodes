@@ -584,15 +584,7 @@ async function getAssignmentsBySubmission({
   return ok(assignments);
 }
 
-async function getRefereeInvitationsBySubmission({
-  submissionId,
-  limit = 20,
-  offset = 0,
-}: {
-  submissionId: number;
-  limit?: number;
-  offset?: number;
-}) {
+async function getRefereeInvitationsBySubmission({ submissionId }: { submissionId: number }) {
   // Get all assignments for this submission
   const assignments = await prisma.refereeInvite.findMany({
     where: {
@@ -619,8 +611,6 @@ async function getRefereeInvitationsBySubmission({
         },
       },
     },
-    skip: offset,
-    take: limit,
     orderBy: {
       createdAt: 'desc',
     },
