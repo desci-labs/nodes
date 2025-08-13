@@ -140,4 +140,18 @@ export enum AvailableUserActionLogTypes {
 
   // Semantic Search
   actionSemanticSearchQuery = 'actionSemanticSearchQuery',
+
+  // Journals user actions
+  actionJournalNavButtonClicked = 'actionJournalNavButtonClicked',
+  actionJournalInviteEditor = 'actionJournalInviteEditor',
+  actionJournalRemoveEditor = 'actionJournalRemoveEditor',
+  actionJournalUpdateEditorRole = 'actionJournalUpdateEditorRole',
+  actionJournalAssignEditor = 'actionJournalAssignEditor',
+  actionJournalInviteReferee = 'actionJournalInviteReferee',
+  actionJournalRefereeInviteAccepted = 'actionJournalRefereeInviteAccepted',
+  actionJournalRefereeInviteRejected = 'actionJournalRefereeInviteRejected',
+  actionJournalRefereeInviteInvalidated = 'actionJournalRefereeInviteInvalidated',
+  actionJournalAcceptSubmission = 'actionJournalAcceptSubmission',
+  actionJournalRejectSubmission = 'actionJournalRejectSubmission',
+  actionJournalRevisionRequest = 'actionJournalRevisionRequest',
 }
