@@ -1477,6 +1477,7 @@ enum PlanCodename {
   FREE
   STARTER
   PRO
+  PREMIUM
 }
 
 enum Period {

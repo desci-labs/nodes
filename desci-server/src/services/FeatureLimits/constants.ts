@@ -34,19 +34,13 @@ export const FEATURE_LIMIT_DEFAULTS: Record<Feature, Partial<Record<PlanCodename
       planCodename: PlanCodename.FREE,
       feature: Feature.RESEARCH_ASSISTANT,
       period: Period.MONTH,
-      useLimit: 5,
+      useLimit: 10,
     },
     [PlanCodename.STARTER]: {
-      planCodename: PlanCodename.STARTER,
+      planCodename: PlanCodename.PREMIUM,
       feature: Feature.RESEARCH_ASSISTANT,
       period: Period.MONTH,
-      useLimit: 25,
-    },
-    [PlanCodename.PRO]: {
-      planCodename: PlanCodename.PRO,
-      feature: Feature.RESEARCH_ASSISTANT,
-      period: Period.MONTH,
-      useLimit: 50,
+      useLimit: null,
     },
   },
 };
