@@ -1,4 +1,11 @@
-import { EditorRole, JournalEventLogAction, RefereeAssignment, RefereeInvite, SubmissionStatus } from '@prisma/client';
+import {
+  EditorRole,
+  JournalEventLogAction,
+  Prisma,
+  RefereeAssignment,
+  RefereeInvite,
+  SubmissionStatus,
+} from '@prisma/client';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
@@ -220,6 +227,72 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
 }
 
 /**
+ * Shared helper function to fetch referee invites with consistent select fields and ordering.
+ * This function centralizes the common query logic used across different services.
+ */
+async function fetchRefereeInvites(where: Prisma.RefereeInviteWhereInput): Promise<Result<any[], Error>> {
+  try {
+    const refereeInvites = await prisma.refereeInvite.findMany({
+      where,
+      select: {
+        id: true,
+        submissionId: true,
+        userId: true,
+        email: true,
+        name: true,
+        accepted: true,
+        acceptedAt: true,
+        declined: true,
+        declinedAt: true,
+        createdAt: true,
+        expiresAt: true,
+        invitedById: true,
+        relativeDueDateHrs: true,
+        expectedFormTemplateIds: true,
+        token: true,
+        invitedBy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        submission: {
+          select: {
+            id: true,
+            journalId: true,
+            node: {
+              select: {
+                title: true,
+              },
+            },
+            author: {
+              select: {
+                name: true,
+              },
+            },
+            journal: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return ok(refereeInvites);
+  } catch (error) {
+    logger.error({ error, where }, 'Failed to fetch referee invites');
+    return err(
+      error instanceof Error ? error : new Error('An unexpected error occurred during referee invite retrieval'),
+    );
+  }
+}
+
+/**
  * Get all referee invites for a referee.
  */
 export interface IRefereeInvite {
@@ -234,6 +307,8 @@ export interface IRefereeInvite {
   id: number;
   submissionId: number;
   accepted: boolean;
+  acceptedAt: Date | null;
+  declinedAt: Date | null;
   declined: boolean;
   expiresAt: Date; // Refers to the invite expiration date.
   relativeDueDateHrs: number; // Refers to the review due date, from the time of acceptance.
@@ -245,55 +320,37 @@ async function getRefereeInvites(
   refereeEmail?: string,
 ): Promise<Result<IRefereeInvite[], Error>> {
   try {
-    const refereeInvites = await prisma.refereeInvite.findMany({
-      where: {
-        OR: [{ userId: refereeUserId }, { email: refereeEmail }],
-      },
-      select: {
-        id: true,
-        submissionId: true,
-        accepted: true,
-        declined: true,
-        expiresAt: true,
-        relativeDueDateHrs: true,
-        token: true,
-        submission: {
-          select: {
-            id: true,
-            dpid: true,
-            node: {
-              select: {
-                title: true,
-              },
-            },
-            author: {
-              select: {
-                name: true,
-              },
-            },
-            journalId: true,
-            journal: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-      },
+    const refereeInvitesResult = await fetchRefereeInvites({
+      OR: [{ userId: refereeUserId }, { email: refereeEmail }],
     });
 
-    const invites = refereeInvites.map((invite) => ({
-      ...invite,
-      submission: {
-        author: invite.submission.author.name,
-        id: invite.submissionId,
-        journalId: invite.submission.journalId,
-        journal: invite.submission.journal.name,
-        title: invite.submission.node.title,
-        dpid: invite.submission.dpid,
-      },
-    }));
-    return ok(invites);
+    if (refereeInvitesResult.isErr()) {
+      return refereeInvitesResult;
+    }
+
+    const refereeInvites = refereeInvitesResult.value;
+
+    // Get additional submission data for each invite
+    const invitesWithSubmissionData = refereeInvites.map((invite) => {
+      if (!invite.submission) {
+        throw new Error(`Submission not found for invite ${invite.id}`);
+      }
+
+      return {
+        ...invite,
+        invitedBy: invite.invitedBy?.name,
+        submission: {
+          author: invite.submission.author.name,
+          id: invite.submissionId,
+          journalId: invite.submission.journalId,
+          journal: invite.submission.journal.name,
+          title: invite.submission.node.title,
+          dpid: invite.submission.dpid,
+        },
+      };
+    });
+
+    return ok(invitesWithSubmissionData);
   } catch (error) {
     logger.error({ error, refereeUserId }, 'Failed to get referee invites');
     return err(
@@ -1041,4 +1098,5 @@ export const JournalRefereeManagementService = {
   invalidateRefereeAssignment,
   getRefereeInviteByToken,
   sendRefereeReviewReminder,
+  fetchRefereeInvites,
 };
