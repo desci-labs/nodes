@@ -94,8 +94,8 @@ export default function submissionRoutes(router: Router) {
     '/:journalId/submissions/:submissionId/referee-invitations',
     [
       ensureUser,
-      validateInputs(reviewsApiSchema),
       ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+      validateInputs(reviewsApiSchema),
     ],
     asyncHandler(getRefereeInvitationsBySubmissionController),
   );

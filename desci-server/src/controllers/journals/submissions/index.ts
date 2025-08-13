@@ -455,7 +455,7 @@ export const getRefereeInvitationsBySubmissionController = async (
   if (
     isEditor.isOk() &&
     isEditor.value === EditorRole.ASSOCIATE_EDITOR &&
-    submission.value.assignedEditor.id !== req.user.id
+    submission.value.assignedEditorId !== req.user.id
   ) {
     return sendError(res, 'User is not the assigned editor for this submission', 403);
   }
