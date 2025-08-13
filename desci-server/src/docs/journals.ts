@@ -3026,6 +3026,7 @@ export const getRefereeInvitationsBySubmissionOperation: ZodOpenApiOperationObje
       description: 'Not found - Journal or submission not found',
     },
   },
+  security: [{ BearerAuth: [] }],
 };
 
 export const journalPaths: ZodOpenApiPathsObject = {
