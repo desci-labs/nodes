@@ -3081,6 +3081,12 @@ export const getRefereeInviteByTokenOperation: ZodOpenApiOperationObject = {
               relativeDueDateHrs: z.number().nullable(),
               expectedFormTemplateIds: z.array(z.number()),
               token: z.string(),
+              user: z
+                .object({
+                  id: z.number(),
+                  orcid: z.string().nullable(),
+                })
+                .optional(),
             }),
           }),
         },
