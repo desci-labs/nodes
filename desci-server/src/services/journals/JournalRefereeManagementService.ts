@@ -319,10 +319,10 @@ export interface IRefereeInvite {
   expiresAt: Date; // Refers to the invite expiration date.
   relativeDueDateHrs: number; // Refers to the review due date, from the time of acceptance.
   token: string;
-  user: {
+  user?: {
     id: number;
     orcid: string;
-  };
+  } | null;
 }
 
 async function getRefereeInvites(
