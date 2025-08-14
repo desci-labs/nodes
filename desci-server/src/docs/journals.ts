@@ -3081,6 +3081,16 @@ export const getRefereeInviteByTokenOperation: ZodOpenApiOperationObject = {
               relativeDueDateHrs: z.number().nullable(),
               expectedFormTemplateIds: z.array(z.number()),
               token: z.string(),
+              user: z
+                .object({
+                  id: z.number(),
+                  orcid: z.string().nullable(),
+                })
+                .nullable()
+                .optional()
+                .describe(
+                  'The user who was invited to review the submission. This is null if the referee is not a registered user.',
+                ),
             }),
           }),
         },
