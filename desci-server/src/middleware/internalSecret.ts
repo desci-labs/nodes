@@ -13,5 +13,5 @@ export const ensureInternalSecret: RequestHandler = (req, res, next) => {
     return sendError(res, 'Unauthorized', 401);
   }
 
-  next();
+  return next();
 };
