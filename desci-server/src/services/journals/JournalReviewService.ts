@@ -5,6 +5,7 @@ import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
 
 import { JournalFormService } from './JournalFormService.js';
+import { JournalRefereeManagementService } from './JournalRefereeManagementService.js';
 
 export type JournalReview = Record<string, any>[];
 
@@ -584,6 +585,39 @@ async function getAssignmentsBySubmission({
   return ok(assignments);
 }
 
+async function getRefereeInvitationsBySubmission({ submissionId }: { submissionId: number }) {
+  // Get all assignments for this submission using the shared helper
+  const assignmentsResult = await JournalRefereeManagementService.fetchRefereeInvites({
+    submissionId,
+  });
+
+  if (assignmentsResult.isErr()) {
+    return assignmentsResult;
+  }
+
+  const result = assignmentsResult.value.map((invite) => {
+    if (!invite.submission) {
+      throw new Error(`Submission not found for invite ${invite.id}`);
+    }
+
+    return {
+      ...invite,
+      token: undefined,
+      invitedBy: invite.invitedBy?.name,
+      submission: {
+        author: invite.submission.author.name,
+        id: invite.submissionId,
+        journalId: invite.submission.journalId,
+        journal: invite.submission.journal.name,
+        title: invite.submission.node.title,
+        dpid: invite.submission.dpid,
+      },
+    };
+  });
+
+  return ok(result);
+}
+
 export {
   getSubmissionReviews,
   isSubmissionReviewed,
@@ -597,4 +631,5 @@ export {
   getJournalReviewById,
   getReviewsByAssignment,
   getAssignmentsBySubmission,
+  getRefereeInvitationsBySubmission,
 };

@@ -10,6 +10,7 @@ import {
   acceptSubmissionController,
   requestRevisionController,
   getJournalSubmissionController,
+  getRefereeInvitationsBySubmissionController,
 } from '../../../controllers/journals/submissions/index.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
 import { ensureUser } from '../../../middleware/permissions.js';
@@ -21,6 +22,7 @@ import {
   listJournalSubmissionsSchema,
   rejectSubmissionSchema,
   requestRevisionSchema,
+  reviewsApiSchema,
   submissionApiSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
@@ -86,5 +88,15 @@ export default function submissionRoutes(router: Router) {
       validateInputs(rejectSubmissionSchema),
     ],
     asyncHandler(rejectSubmissionController),
+  );
+
+  router.get(
+    '/:journalId/submissions/:submissionId/referee-invitations',
+    [
+      ensureUser,
+      ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+      validateInputs(reviewsApiSchema),
+    ],
+    asyncHandler(getRefereeInvitationsBySubmissionController),
   );
 }

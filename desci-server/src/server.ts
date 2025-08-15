@@ -61,6 +61,9 @@ const allowlist = [
   'gitpod.io',
   'preview-desci-labs.ycode.site',
   'desci-labs-test.webflow.io',
+  'sciweave.com',
+  'https://www.sciweave.com',
+  'https://sciweave.com',
   'loca.lt' /** NOT SECURE */,
   'vercel.app' /** NOT SECURE */,
 ];
