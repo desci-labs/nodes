@@ -36,7 +36,7 @@ export const FEATURE_LIMIT_DEFAULTS: Record<Feature, Partial<Record<PlanCodename
       period: Period.MONTH,
       useLimit: 10,
     },
-    [PlanCodename.STARTER]: {
+    [PlanCodename.PREMIUM]: {
       planCodename: PlanCodename.PREMIUM,
       feature: Feature.RESEARCH_ASSISTANT,
       period: Period.MONTH,
