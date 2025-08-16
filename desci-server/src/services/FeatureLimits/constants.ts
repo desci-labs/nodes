@@ -7,24 +7,40 @@ export interface FeatureLimitConfig {
   useLimit: number | null; // null = unlimited
 }
 
-// Reference defaults for common plan configurations
-export const REFEREE_FINDER_LIMIT_DEFAULTS: Partial<Record<PlanCodename, FeatureLimitConfig>> = {
-  [PlanCodename.FREE]: {
-    planCodename: PlanCodename.FREE,
-    feature: Feature.REFEREE_FINDER,
-    period: Period.MONTH,
-    useLimit: 2,
+// Reference defaults for common plan configurations, per feature
+export const FEATURE_LIMIT_DEFAULTS: Record<Feature, Partial<Record<PlanCodename, FeatureLimitConfig>>> = {
+  [Feature.REFEREE_FINDER]: {
+    [PlanCodename.FREE]: {
+      planCodename: PlanCodename.FREE,
+      feature: Feature.REFEREE_FINDER,
+      period: Period.MONTH,
+      useLimit: 2,
+    },
+    [PlanCodename.STARTER]: {
+      planCodename: PlanCodename.STARTER,
+      feature: Feature.REFEREE_FINDER,
+      period: Period.MONTH,
+      useLimit: 10,
+    },
+    [PlanCodename.PRO]: {
+      planCodename: PlanCodename.PRO,
+      feature: Feature.REFEREE_FINDER,
+      period: Period.MONTH,
+      useLimit: 50,
+    },
   },
-  [PlanCodename.STARTER]: {
-    planCodename: PlanCodename.STARTER,
-    feature: Feature.REFEREE_FINDER,
-    period: Period.MONTH,
-    useLimit: 10,
-  },
-  [PlanCodename.PRO]: {
-    planCodename: PlanCodename.PRO,
-    feature: Feature.REFEREE_FINDER,
-    period: Period.MONTH,
-    useLimit: 50,
+  [Feature.RESEARCH_ASSISTANT]: {
+    [PlanCodename.FREE]: {
+      planCodename: PlanCodename.FREE,
+      feature: Feature.RESEARCH_ASSISTANT,
+      period: Period.MONTH,
+      useLimit: 10,
+    },
+    [PlanCodename.PREMIUM]: {
+      planCodename: PlanCodename.PREMIUM,
+      feature: Feature.RESEARCH_ASSISTANT,
+      period: Period.MONTH,
+      useLimit: null,
+    },
   },
 };

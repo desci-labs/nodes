@@ -13,7 +13,7 @@ server.ready().then((_) => {
 });
 export const app = server.app;
 
-describe.only('Journal Invite Service', () => {
+describe('Journal Invite Service', () => {
   let user: User;
   let journal: Journal;
   let editor: User;

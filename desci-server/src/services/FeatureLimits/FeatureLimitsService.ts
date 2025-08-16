@@ -1,11 +1,11 @@
-import { PlanCodename, Feature, Period, UserFeatureLimit } from '@prisma/client';
+import { PlanCodename, Feature, Period, UserFeatureLimit, ExternalApi } from '@prisma/client';
 import { addDays, addWeeks, addMonths, addYears, isAfter } from 'date-fns';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 
-import { REFEREE_FINDER_LIMIT_DEFAULTS } from './constants.js';
+import { FEATURE_LIMIT_DEFAULTS } from './constants.js';
 
 const logger = parentLogger.child({ module: 'FeatureLimitsService' });
 
@@ -38,6 +38,15 @@ async function checkFeatureLimit(userId: number, feature: Feature): Promise<Resu
     if (feature === Feature.REFEREE_FINDER) {
       const { RefereeRecommenderService } = await import('../externalApi/RefereeRecommenderService.js');
       currentUsage = await RefereeRecommenderService.getUserUsageCountFromDate(userId, updatedLimit.currentPeriodStart);
+    } else if (feature === Feature.RESEARCH_ASSISTANT) {
+      // Count simple usage rows for research assistant since period start
+      currentUsage = await prisma.externalApiUsage.count({
+        where: {
+          userId,
+          apiType: ExternalApi.RESEARCH_ASSISTANT,
+          createdAt: { gte: updatedLimit.currentPeriodStart },
+        },
+      });
     }
 
     // Calculate remaining uses
@@ -78,7 +87,7 @@ async function getOrCreateUserFeatureLimit(userId: number, feature: Feature): Pr
 
     // If none exists, create one with defaults
     if (!userFeatureLimit) {
-      const defaults = REFEREE_FINDER_LIMIT_DEFAULTS[PlanCodename.FREE];
+      const defaults = FEATURE_LIMIT_DEFAULTS[feature]?.[PlanCodename.FREE];
       if (!defaults) {
         return err(new Error('No default limits configured for feature'));
       }

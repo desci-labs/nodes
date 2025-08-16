@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "ExternalApi" ADD VALUE 'RESEARCH_ASSISTANT';
+
+-- AlterEnum
+ALTER TYPE "Feature" ADD VALUE 'RESEARCH_ASSISTANT';
