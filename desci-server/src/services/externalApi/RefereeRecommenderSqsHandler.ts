@@ -7,12 +7,18 @@ import { sqsService } from '../sqs/SqsService.js';
 import { emitWebsocketEvent, WebSocketEventType } from '../websocketService.js';
 
 import { RefereeRecommenderService, SESSION_TTL_SECONDS } from './RefereeRecommenderService.js';
+import { JsonValue } from 'aws-sdk/clients/appmesh.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::SqsHandler' });
 
+interface RefereeRecommenderQueryingData {
+  fileName: string;
+  eventType: string;
+  fileHash?: string;
+}
+
 interface RefereeRecommenderUsageData {
   eventType: string;
-  fileName: string;
   originalFileName: string;
   timestamp: string;
   sessionCreatedAt: number;
@@ -198,7 +204,7 @@ export class RefereeRecommenderSqsHandler {
         where: {
           userId: session.userId,
           apiType: ExternalApi.REFEREE_FINDER,
-          data: {
+          queryingData: {
             path: ['fileName'],
             equals: eventData.file_name,
           },
@@ -240,9 +246,15 @@ export class RefereeRecommenderSqsHandler {
       }
 
       // Create new record for this session
-      const usageData: RefereeRecommenderUsageData = {
-        eventType: eventData.eventType,
+      // Separate queryable data (GIN indexed) from metadata
+      const queryingData: RefereeRecommenderQueryingData = {
         fileName: eventData.file_name,
+        eventType: eventData.eventType,
+        ...(eventData.file_hash && { fileHash: eventData.file_hash }),
+      };
+
+      const metadataData: RefereeRecommenderUsageData = {
+        eventType: eventData.eventType,
         originalFileName: session.originalFileName,
         timestamp: new Date().toISOString(),
         sessionCreatedAt: session.createdAt,
@@ -253,7 +265,8 @@ export class RefereeRecommenderSqsHandler {
         data: {
           userId: session.userId,
           apiType: ExternalApi.REFEREE_FINDER,
-          data: usageData,
+          queryingData: queryingData as unknown as JsonValue, // Fast queries on this field
+          data: metadataData, // Full metadata storage
         },
       });
 
