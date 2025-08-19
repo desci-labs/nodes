@@ -29,5 +29,6 @@ export interface ExternalApiSqsMessage extends BaseSqsMessage {
   eventType: 'PROCESSING_STARTED' | 'PROCESSING_COMPLETED' | 'PROCESSING_FAILED' | 'PROCESSING_PROGRESS';
   file_name: string; // e.g., "referee_rec_v0.1.3_{original_file.pdf}" // Move to hashes later for security.
   file_hash?: string; // SHA-256 hash of the file content
+  file_url: string; // Source URL
   data?: any;
 }

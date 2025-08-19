@@ -38,10 +38,9 @@ interface PresignedUrlResponse {
 }
 
 interface TriggerRefereeRequest {
-  fileUrl: string;
-  originalFileName: string;
-  fileHash?: string;
-  hashIsVerified?: boolean;
+  file_url: string;
+  hash_value?: string;
+  hash_verified?: boolean;
   top_n_closely_matching?: number;
   number_referees?: number;
   force_run?: boolean;
@@ -333,9 +332,9 @@ async function triggerRefereeRecommendation(
 
     logger.info(
       {
-        fileUrl: request.fileUrl,
-        fileHash: request.fileHash,
-        hashIsVerified: request.hashIsVerified,
+        file_url: request.file_url,
+        hash_value: request.hash_value,
+        hash_verified: request.hash_verified,
       },
       'Triggering referee recommendation',
     );
@@ -354,7 +353,7 @@ async function triggerRefereeRecommendation(
     // Store session for URL-based requests
     if (response.data.uploaded_file_name) {
       // Use prepareCacheKey on the fileUrl for consistent hashing
-      const hashedFileUrl = prepareCacheKey(request.fileUrl);
+      const hashedFileUrl = prepareCacheKey(request.file_url);
 
       const session: RefereeRecommenderSession = {
         userId,
@@ -368,8 +367,8 @@ async function triggerRefereeRecommendation(
       logger.debug(
         {
           userId,
-          fileUrl: request.fileUrl,
-          fileHash: request.fileHash,
+          file_url: request.file_url,
+          hash_value: request.hash_value,
           hashedFileUrl,
           uploadedFileName: response.data.uploaded_file_name,
         },
@@ -379,9 +378,9 @@ async function triggerRefereeRecommendation(
 
     logger.info(
       {
-        fileUrl: request.fileUrl,
-        fileHash: request.fileHash,
-        hashIsVerified: request.hashIsVerified,
+        file_url: request.file_url,
+        hash_value: request.hash_value,
+        hash_verified: request.hash_verified,
         uploaded_file_name: response.data.uploaded_file_name,
         info: response.data.info,
       },
