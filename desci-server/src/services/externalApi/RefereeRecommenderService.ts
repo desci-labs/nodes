@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ExternalApi, Feature } from '@prisma/client';
 import axios from 'axios';
 import { ok, err, Result } from 'neverthrow';
@@ -15,21 +14,12 @@ const logger = parentLogger.child({ module: 'RefereeRecommender::Service' });
 
 export const SESSION_TTL_SECONDS = 86400; // 24 hours
 
-// Initialize S3 client and config at module level
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
-
-const BUCKET_NAME = process.env.REFEREE_RECOMMENDER_S3_BUCKET || '';
 const API_VERSION = process.env.REFEREE_RECOMMENDER_VERSION || '0.1.3';
 
 // ML Referee API endpoints
-const ML_REFEREE_TRIGGER_URL = process.env.ML_REFEREE_TRIGGER_CID;
+const ML_REFEREE_TRIGGER_URL = process.env.ML_REFEREE_TRIGGER_START;
 const ML_REFEREE_RESULTS_URL = process.env.ML_REFEREE_FINDER_RESULT;
+const ML_REFEREE_GET_PRESIGNED_URL = process.env.ML_REFEREE_GET_PRESIGNED_URL;
 
 interface PresignedUrlRequest {
   userId: number;
@@ -38,7 +28,7 @@ interface PresignedUrlRequest {
 
 interface RefereeRecommenderSession {
   userId: number;
-  originalFileName: string;
+  hashedFileUrl: string;
   createdAt: number;
 }
 
@@ -48,8 +38,10 @@ interface PresignedUrlResponse {
 }
 
 interface TriggerRefereeRequest {
-  cid: string;
-  external?: boolean;
+  fileUrl: string;
+  originalFileName: string;
+  fileHash?: string;
+  hashIsVerified?: boolean;
   top_n_closely_matching?: number;
   number_referees?: number;
   force_run?: boolean;
@@ -66,7 +58,6 @@ interface TriggerRefereeRequest {
 }
 
 interface TriggerRefereeResponse {
-  execution_arn?: string;
   uploaded_file_name: string;
   api_version: string;
   info: string;
@@ -76,6 +67,17 @@ interface GetRefereeResultsResponse {
   status: string;
   UploadedFileName: string;
   result?: any;
+}
+
+/**
+ * Hashes a file URL with SHA256, and encodes it in Base64
+ * This is for a short cache key in redis for URLs, S3 file URLs can be around ~1500 chars otherwise.
+ * @param fileUrl - The file URL to hash
+ * @returns The Base64-encoded hash of the file URL
+ */
+function prepareCacheKey(fileUrl: string) {
+  // string -> SHA256 -> Base64
+  return createHash('sha256').update(fileUrl).digest('base64'); // ~44 chars with '=' padding
 }
 
 async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise<Result<PresignedUrlResponse, Error>> {
@@ -120,25 +122,32 @@ async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise
       'Feature limit check passed for presigned URL generation',
     );
 
-    // Generate filename with convention: referee_rec_v0.1.3_{original_file.pdf}
-    // original file name is salted with a UUID atm, will change to a hash in the future.
+    // Call external endpoint to get presigned URL
     const fileName = generateFileName(request.originalFileName);
 
-    // Create presigned URL for upload
-    const command = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: fileName,
-      ContentType: 'application/pdf',
+    if (!ML_REFEREE_GET_PRESIGNED_URL) {
+      return err(new Error('ML_REFEREE_GET_PRESIGNED_URL environment variable not configured'));
+    }
+
+    const presignedResponse = await axios.get(ML_REFEREE_GET_PRESIGNED_URL, {
+      params: {
+        file_name: fileName,
+      },
     });
 
-    const presignedUrl = await getSignedUrl(s3Client, command, {
-      expiresIn: 3600, // 1 hour
-    });
+    if (presignedResponse.status !== 200) {
+      return err(new Error(`Presigned URL service returned status ${presignedResponse.status}`));
+    }
 
-    // Store session in Redis
-    const storeResult = await storeSession(fileName, {
+    const { upload_url, download_url, s3_file_name } = presignedResponse.data;
+
+    // Use download_url for cache key and store hashedFileUrl in session
+    const hashedFileUrl = prepareCacheKey(download_url);
+
+    // Store session in Redis using the hashed download URL
+    const storeResult = await storeSession(hashedFileUrl, {
       userId: request.userId,
-      originalFileName: request.originalFileName,
+      hashedFileUrl,
       createdAt: Date.now(),
     });
 
@@ -146,17 +155,19 @@ async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise
       return err(storeResult.error);
     }
 
-    await markSessionAsActive(request.userId, fileName);
+    await markSessionAsActive(request.userId, hashedFileUrl);
 
     logger.info(
       {
         userId: request.userId,
-        fileName,
+        originalFileName: request.originalFileName,
+        s3FileName: s3_file_name,
+        hashedFileUrl,
       },
-      'Generated presigned URL for referee recommender',
+      'Generated presigned URL for referee recommender via external endpoint',
     );
 
-    return ok({ presignedUrl, fileName });
+    return ok({ presignedUrl: upload_url, downloadUrl: download_url, fileName: s3_file_name });
   } catch (error) {
     logger.error({ error, request }, 'Failed to generate presigned URL');
     return err(error instanceof Error ? error : new Error('Failed to generate presigned URL'));
@@ -320,7 +331,14 @@ async function triggerRefereeRecommendation(
       'Feature limit check passed for referee recommendation trigger',
     );
 
-    logger.info({ cid: request.cid, external: request.external }, 'Triggering referee recommendation');
+    logger.info(
+      {
+        fileUrl: request.fileUrl,
+        fileHash: request.fileHash,
+        hashIsVerified: request.hashIsVerified,
+      },
+      'Triggering referee recommendation',
+    );
 
     const response = await axios.post(ML_REFEREE_TRIGGER_URL, request, {
       headers: {
@@ -333,11 +351,14 @@ async function triggerRefereeRecommendation(
       return err(new Error(`ML Referee API returned status ${response.status}`));
     }
 
-    // Store session for CID-based requests
+    // Store session for URL-based requests
     if (response.data.uploaded_file_name) {
+      // Use prepareCacheKey on the fileUrl for consistent hashing
+      const hashedFileUrl = prepareCacheKey(request.fileUrl);
+
       const session: RefereeRecommenderSession = {
         userId,
-        originalFileName: `${request.cid}`,
+        hashedFileUrl,
         createdAt: Date.now(),
       };
 
@@ -345,14 +366,22 @@ async function triggerRefereeRecommendation(
       await markSessionAsActive(userId, response.data.uploaded_file_name);
 
       logger.debug(
-        { userId, cid: request.cid, uploadedFileName: response.data.uploaded_file_name },
-        'Stored CID-based session and marked as active',
+        {
+          userId,
+          fileUrl: request.fileUrl,
+          fileHash: request.fileHash,
+          hashedFileUrl,
+          uploadedFileName: response.data.uploaded_file_name,
+        },
+        'Stored URL-based session and marked as active',
       );
     }
 
     logger.info(
       {
-        cid: request.cid,
+        fileUrl: request.fileUrl,
+        fileHash: request.fileHash,
+        hashIsVerified: request.hashIsVerified,
         uploaded_file_name: response.data.uploaded_file_name,
         info: response.data.info,
       },

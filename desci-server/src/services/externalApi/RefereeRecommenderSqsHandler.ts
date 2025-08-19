@@ -1,4 +1,4 @@
-import { ExternalApi } from '@prisma/client';
+import { ExternalApi, Prisma } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -7,7 +7,6 @@ import { sqsService } from '../sqs/SqsService.js';
 import { emitWebsocketEvent, WebSocketEventType } from '../websocketService.js';
 
 import { RefereeRecommenderService, SESSION_TTL_SECONDS } from './RefereeRecommenderService.js';
-import { JsonValue } from 'aws-sdk/clients/appmesh.js';
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::SqsHandler' });
 
@@ -265,7 +264,7 @@ export class RefereeRecommenderSqsHandler {
         data: {
           userId: session.userId,
           apiType: ExternalApi.REFEREE_FINDER,
-          queryingData: queryingData as unknown as JsonValue, // Fast queries on this field
+          queryingData: queryingData as unknown as Prisma.JsonValue, // Fast queries on this field
           data: metadataData, // Full metadata storage
         },
       });
