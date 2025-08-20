@@ -30,6 +30,7 @@ import {
   updateSubmissionStatusOperation,
 } from './submissions.js';
 import { userPaths } from './users.js';
+import { aiServicesPaths } from './aiServices.js';
 
 export const analyticsPaths = {
   '/v1/admin/analytics': {
@@ -94,6 +95,7 @@ export const openaiDocumentation = createDocument({
     { name: 'OpenAlex', description: 'OpenAlex related operations' },
     { name: 'Authors', description: 'Authors-related operations' },
     { name: 'Search', description: 'Elastic search api operations' },
+    { name: 'AI Services', description: 'AI-powered research tools and services' },
   ],
   components: {
     securitySchemes: {
@@ -137,6 +139,7 @@ export const openaiDocumentation = createDocument({
     ...journalPaths,
     ...adminNodesPaths,
     ...metricsPaths,
+    ...aiServicesPaths,
   },
 });
 

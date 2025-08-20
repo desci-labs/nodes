@@ -82,6 +82,8 @@ export class RefereeRecommenderSqsHandler {
 
       debugger;
       const fileUrl = eventData.data.file_url;
+      const hashedFileUrl = RefereeRecommenderService.prepareSessionCacheKey(fileUrl);
+      eventData.fileUrlHashed = hashedFileUrl; // Attach hashed version of file url
 
       // Look up user sessions from Redis using filename
       const sessionsResult = await RefereeRecommenderService.getSessionsByFileUrl(fileUrl);
@@ -129,6 +131,8 @@ export class RefereeRecommenderSqsHandler {
             originalFileName: session.originalFileName,
             status: 'completed',
             timestamp: new Date().toISOString(),
+            fileUrlHashed: eventData.fileUrlHashed,
+            paperTitle: eventData.data?.paper_title,
           };
           break;
 
@@ -140,6 +144,8 @@ export class RefereeRecommenderSqsHandler {
             status: 'failed',
             error: eventData.data?.error || 'Processing failed',
             timestamp: new Date().toISOString(),
+            fileUrlHashed: eventData.fileUrlHashed,
+            paperTitle: eventData.data?.paper_title,
           };
           break;
 
@@ -150,6 +156,8 @@ export class RefereeRecommenderSqsHandler {
             originalFileName: session.originalFileName,
             status: 'started',
             timestamp: new Date().toISOString(),
+            fileUrlHashed: eventData.fileUrlHashed,
+            paperTitle: eventData.data?.paper_title,
           };
           break;
 
@@ -162,6 +170,8 @@ export class RefereeRecommenderSqsHandler {
             progress: eventData.data?.progress_percent || 0,
             message: eventData.data?.message || '',
             timestamp: new Date().toISOString(),
+            fileUrlHashed: eventData.fileUrlHashed,
+            paperTitle: eventData.data?.paper_title,
           };
           break;
 

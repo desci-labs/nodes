@@ -712,5 +712,5 @@ export const RefereeRecommenderService = {
   handleProcessingFailure,
   cleanupExpiredSessions,
   prepareFormattedFileName,
-  prepareCacheKey: prepareSessionCacheKey,
+  prepareSessionCacheKey,
 };
