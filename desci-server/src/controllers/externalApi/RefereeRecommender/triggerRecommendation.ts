@@ -1,5 +1,6 @@
 import { ExternalApi } from '@prisma/client';
 import { Response } from 'express';
+import _ from 'lodash';
 import { z } from 'zod';
 
 import { prisma } from '../../../client.js';
@@ -64,7 +65,7 @@ export const triggerRecommendation = async (req: AuthenticatedRequest, res: Resp
           cached: true,
           message: 'Results for this file are already available',
           createdAt: cachedResult.createdAt,
-          fileHash: fileHash, // TODO: Add formatted cache key
+          resultKey: RefereeRecommenderService.prepareFormattedFileName(fileHash),
         });
       }
     }
@@ -106,14 +107,16 @@ export const triggerRecommendation = async (req: AuthenticatedRequest, res: Resp
     logger.info(
       {
         userId: user.id,
-        uploadedFileName: responseData.uploaded_file_name,
+        uploadedFileName: responseData.UploadedFileName,
         info: responseData.info,
       },
       'Successfully triggered referee recommendation',
     );
 
+    const formattedResponse = _.omit(responseData, 'execution_arn');
+
     return sendSuccess(res, {
-      ...responseData,
+      ...formattedResponse,
       cached: false,
     });
   } catch (error) {

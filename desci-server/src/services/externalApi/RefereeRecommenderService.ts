@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import { createHash } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 
 import { ExternalApi, Feature } from '@prisma/client';
 import axios from 'axios';
@@ -21,6 +20,8 @@ const ML_REFEREE_TRIGGER_URL = process.env.ML_REFEREE_TRIGGER_START;
 const ML_REFEREE_RESULTS_URL = process.env.ML_REFEREE_FINDER_RESULT;
 const ML_REFEREE_GET_PRESIGNED_URL = process.env.ML_REFEREE_GET_PRESIGNED_URL;
 
+const ML_REFEREE_FILE_PREFIX = process.env.ML_REFEREE_FILE_PREFIX;
+
 interface PresignedUrlRequest {
   userId: number;
   originalFileName: string;
@@ -34,6 +35,7 @@ interface RefereeRecommenderSession {
 
 interface PresignedUrlResponse {
   presignedUrl: string;
+  downloadUrl: string;
   fileName: string;
 }
 
@@ -57,9 +59,10 @@ interface TriggerRefereeRequest {
 }
 
 interface TriggerRefereeResponse {
-  uploaded_file_name: string;
+  UploadedFileName: string;
   api_version: string;
   info: string;
+  cached: boolean;
 }
 
 interface GetRefereeResultsResponse {
@@ -74,9 +77,24 @@ interface GetRefereeResultsResponse {
  * @param fileUrl - The file URL to hash
  * @returns The Base64-encoded hash of the file URL
  */
-function prepareCacheKey(fileUrl: string) {
+function prepareSessionCacheKey(fileUrl: string) {
+  // We use the file URLs here instead of the file hash, because it's the only
+  // deterministic link that we have available early on for every upload method (S3, CID, External pdf url)
+  // for us to be able to retrieve a result back.
   // string -> SHA256 -> Base64
   return createHash('sha256').update(fileUrl).digest('base64'); // ~44 chars with '=' padding
+}
+
+/**
+ * Results are stored in this format: {API}_{API_VERSION}_{SHA256FILE_HASH}
+ * @param fileHash - The SHA256 hash of the file URL
+ */
+function prepareFormattedFileName(fileHash: string) {
+  if (!ML_REFEREE_FILE_PREFIX) {
+    console.error('ML_REFEREE_FILE_PREFIX is not set');
+    throw new Error('ML_REFEREE_FILE_PREFIX env is not set');
+  }
+  return ML_REFEREE_FILE_PREFIX + fileHash;
 }
 
 async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise<Result<PresignedUrlResponse, Error>> {
@@ -141,7 +159,7 @@ async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise
     const { upload_url, download_url, s3_file_name } = presignedResponse.data;
 
     // Use download_url for cache key and store hashedFileUrl in session
-    const hashedFileUrl = prepareCacheKey(download_url);
+    const hashedFileUrl = prepareSessionCacheKey(download_url);
 
     // Store session in Redis using the hashed download URL
     const storeResult = await storeSession(hashedFileUrl, {
@@ -186,13 +204,14 @@ function generateFileName(originalFileName: string): string {
   return `referee_rec_v${API_VERSION}_${uuid}_${sanitizedBaseName}.${fileExtension}`;
 }
 
-async function storeSession(fileName: string, session: RefereeRecommenderSession): Promise<Result<void, Error>> {
+async function storeSession(fileUrl: string, session: RefereeRecommenderSession): Promise<Result<void, Error>> {
   try {
-    const userCacheKey = `referee-recommender-session:${session.userId}:${fileName}`;
+    const hashedFileUrl = prepareSessionCacheKey(fileUrl);
+    const userCacheKey = `referee-recommender-session:${session.userId}:${hashedFileUrl}`;
     await setToCache(userCacheKey, session, SESSION_TTL_SECONDS);
 
     // Store/append to filename-based lookup for SQS handler
-    const filenameCacheKey = `referee-recommender-filename:${fileName}`;
+    const filenameCacheKey = `referee-recommender-file-url:${hashedFileUrl}`;
     const existingSessions = (await getFromCache<RefereeRecommenderSession[]>(filenameCacheKey)) || [];
 
     const now = Date.now();
@@ -210,7 +229,7 @@ async function storeSession(fileName: string, session: RefereeRecommenderSession
 
     logger.debug(
       {
-        fileName,
+        fileUrl,
         userId: session.userId,
         sessionCount: validSessions.length,
       },
@@ -218,7 +237,7 @@ async function storeSession(fileName: string, session: RefereeRecommenderSession
     );
     return ok(undefined);
   } catch (error) {
-    logger.error({ error, fileName }, 'Failed to store session in Redis');
+    logger.error({ error, fileUrl }, 'Failed to store session in Redis');
     return err(error instanceof Error ? error : new Error('Failed to store session in Redis'));
   }
 }
@@ -241,9 +260,10 @@ async function getSession(fileName: string, userId: number): Promise<Result<Refe
   }
 }
 
-async function getSessionsByFileName(fileName: string): Promise<Result<RefereeRecommenderSession[], Error>> {
+async function getSessionsByFileUrl(fileUrl: string): Promise<Result<RefereeRecommenderSession[], Error>> {
   try {
-    const filenameCacheKey = `referee-recommender-filename:${fileName}`;
+    const hashedFileUrl = prepareSessionCacheKey(fileUrl);
+    const filenameCacheKey = `referee-recommender-file-url:${fileUrl}`;
     const sessions = await getFromCache<RefereeRecommenderSession[]>(filenameCacheKey);
 
     if (sessions && sessions.length > 0) {
@@ -264,7 +284,7 @@ async function getSessionsByFileName(fileName: string): Promise<Result<RefereeRe
 
           logger.debug(
             {
-              fileName,
+              fileUrl,
               filteredCount: sessions.length - validSessions.length,
               validCount: validSessions.length,
             },
@@ -272,16 +292,16 @@ async function getSessionsByFileName(fileName: string): Promise<Result<RefereeRe
           );
         }
 
-        logger.debug({ fileName, userCount: validSessions.length }, 'Found valid sessions by filename');
+        logger.debug({ fileUrl, userCount: validSessions.length }, 'Found valid sessions by filename');
         return ok(validSessions);
       }
     }
 
-    logger.debug({ fileName }, 'No valid sessions found by filename');
+    logger.debug({ fileUrl }, 'No valid sessions found by fileurl');
     return err(new Error('Sessions not found'));
   } catch (error) {
-    logger.error({ error, fileName }, 'Failed to get sessions by filename');
-    return err(error instanceof Error ? error : new Error('Failed to get sessions by filename'));
+    logger.error({ error, fileUrl }, 'Failed to get sessions by fileurl');
+    return err(error instanceof Error ? error : new Error('Failed to get sessions by fileurl'));
   }
 }
 
@@ -353,7 +373,7 @@ async function triggerRefereeRecommendation(
     // Store session for URL-based requests
     if (response.data.uploaded_file_name) {
       // Use prepareCacheKey on the fileUrl for consistent hashing
-      const hashedFileUrl = prepareCacheKey(request.file_url);
+      const hashedFileUrl = prepareSessionCacheKey(request.file_url);
 
       const session: RefereeRecommenderSession = {
         userId,
@@ -361,8 +381,8 @@ async function triggerRefereeRecommendation(
         createdAt: Date.now(),
       };
 
-      await storeSession(response.data.uploaded_file_name, session);
-      await markSessionAsActive(userId, response.data.uploaded_file_name);
+      await storeSession(request.file_url, session);
+      await markSessionAsActive(userId, request.file_url);
 
       logger.debug(
         {
@@ -548,28 +568,30 @@ async function getActiveSessionsCount(userId: number, timeframeStart: number): P
   }
 }
 
-async function markSessionAsActive(userId: number, fileName: string): Promise<void> {
+async function markSessionAsActive(userId: number, fileUrl: string): Promise<void> {
   try {
+    const hashedFileUrl = prepareSessionCacheKey(fileUrl);
     const activeSessionsKey = `referee-recommender-active:${userId}`;
     const activeSessions = (await getFromCache<string[]>(activeSessionsKey)) || [];
 
     // Add this filename to active sessions if not already present
-    if (!activeSessions.includes(fileName)) {
-      activeSessions.push(fileName);
+    if (!activeSessions.includes(hashedFileUrl)) {
+      activeSessions.push(hashedFileUrl);
       await setToCache(activeSessionsKey, activeSessions, SESSION_TTL_SECONDS);
     }
   } catch (error) {
-    logger.error({ error, userId, fileName }, 'Failed to mark session as active');
+    logger.error({ error, userId, fileUrl }, 'Failed to mark session as active');
   }
 }
 
-async function markSessionAsCompleted(userId: number, fileName: string): Promise<void> {
+async function markSessionAsCompleted(userId: number, fileUrl: string): Promise<void> {
   try {
+    const hashedFileUrl = prepareSessionCacheKey(fileUrl);
     const activeSessionsKey = `referee-recommender-active:${userId}`;
     const activeSessions = (await getFromCache<string[]>(activeSessionsKey)) || [];
 
     // Remove this filename from active sessions
-    const updatedSessions = activeSessions.filter((session) => session !== fileName);
+    const updatedSessions = activeSessions.filter((session) => session !== hashedFileUrl);
 
     if (updatedSessions.length > 0) {
       await setToCache(activeSessionsKey, updatedSessions, SESSION_TTL_SECONDS);
@@ -578,7 +600,7 @@ async function markSessionAsCompleted(userId: number, fileName: string): Promise
       await setToCache(activeSessionsKey, [], 1); // Short TTL to effectively delete
     }
   } catch (error) {
-    logger.error({ error, userId, fileName }, 'Failed to mark session as completed');
+    logger.error({ error, userId, fileUrl }, 'Failed to mark session as completed');
   }
 }
 
@@ -679,7 +701,7 @@ async function cleanupExpiredSessions(userId: number): Promise<void> {
 export const RefereeRecommenderService = {
   generatePresignedUploadUrl,
   getSession,
-  getSessionsByFileName,
+  getSessionsByFileUrl,
   triggerRefereeRecommendation,
   getRefereeResults,
   getUserUsageCount,
@@ -689,4 +711,6 @@ export const RefereeRecommenderService = {
   markSessionAsCompleted,
   handleProcessingFailure,
   cleanupExpiredSessions,
+  prepareFormattedFileName,
+  prepareCacheKey: prepareSessionCacheKey,
 };

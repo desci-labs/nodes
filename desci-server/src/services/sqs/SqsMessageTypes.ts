@@ -32,3 +32,12 @@ export interface ExternalApiSqsMessage extends BaseSqsMessage {
   file_url: string; // Source URL
   data?: any;
 }
+
+export type ExternalApiSqsMessageData = {
+  file_url: string;
+  hash_value?: string;
+  hash_verified?: boolean;
+  paper_title?: string;
+  api_version?: string;
+  completed_at?: number; // Unix TS
+};

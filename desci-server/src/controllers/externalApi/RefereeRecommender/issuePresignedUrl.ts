@@ -66,8 +66,7 @@ export const generatePresignedUrl = async (req: AuthenticatedRequest, res: Respo
       return sendSuccess(res, {
         cached: true,
         message: 'Results for this file are already available',
-        resultId: cachedResult.id,
-        createdAt: cachedResult.createdAt,
+        resultKey: RefereeRecommenderService.prepareFormattedFileName(fileHash),
       });
     }
 
@@ -87,7 +86,7 @@ export const generatePresignedUrl = async (req: AuthenticatedRequest, res: Respo
       return sendError(res, 'Failed to generate presigned URL', 500);
     }
 
-    const { presignedUrl, fileName: generatedFileName } = result.value;
+    const { presignedUrl, downloadUrl, fileName: generatedFileName } = result.value;
 
     logger.info(
       {
@@ -100,9 +99,9 @@ export const generatePresignedUrl = async (req: AuthenticatedRequest, res: Respo
     return sendSuccess(res, {
       cached: false,
       presignedUrl,
+      downloadUrl,
       fileName: generatedFileName,
       fileHash,
-      expiresIn: 3600, // 1 hour
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

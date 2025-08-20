@@ -80,8 +80,11 @@ export class RefereeRecommenderSqsHandler {
         '[SQS] Processing referee recommender event',
       );
 
+      debugger;
+      const fileUrl = eventData.data.file_url;
+
       // Look up user sessions from Redis using filename
-      const sessionsResult = await RefereeRecommenderService.getSessionsByFileName(eventData.file_name);
+      const sessionsResult = await RefereeRecommenderService.getSessionsByFileUrl(fileUrl);
       if (sessionsResult.isErr()) {
         logger.warn(
           { fileName: eventData.file_name, error: sessionsResult.error.message },
