@@ -207,7 +207,7 @@ function generateFileName(originalFileName: string): string {
 async function storeSession(fileUrl: string, session: RefereeRecommenderSession): Promise<Result<void, Error>> {
   try {
     const hashedFileUrl = prepareSessionCacheKey(fileUrl);
-    debugger;
+
     const userCacheKey = `referee-recommender-session:${session.userId}:${hashedFileUrl}`;
     await setToCache(userCacheKey, session, SESSION_TTL_SECONDS);
 
