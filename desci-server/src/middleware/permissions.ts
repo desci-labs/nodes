@@ -59,7 +59,6 @@ export const ensureGuestOrUser = async (req: ExpressRequest, res: Response, next
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
-    logger.trace({ authTokenRetrieval, token, apiKey }, 'ENSURE GUEST OR USER');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else {
     (req as any).user = retrievedUser;

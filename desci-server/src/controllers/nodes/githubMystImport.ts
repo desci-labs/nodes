@@ -1,5 +1,6 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { ManifestActions } from '@desci-labs/desci-models';
+import axios from 'axios';
 import { NextFunction, Response } from 'express';
 import { load } from 'js-yaml';
 import _ from 'lodash';
@@ -9,7 +10,6 @@ import { z } from 'zod';
 
 import { sendError, sendSuccess } from '../../core/api.js';
 import { UnProcessableRequestError } from '../../core/ApiError.js';
-import { SuccessResponse } from '../../core/ApiResponse.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getNodeByUuid } from '../../services/node.js';
@@ -28,8 +28,6 @@ export const githubMystImportSchema = z.object({
       .string()
       .url()
       .regex(/^https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/[^\/]+\.yml$/),
-  }),
-  query: z.object({
     dryRun: z.boolean().optional().default(false),
   }),
 });
@@ -37,46 +35,44 @@ type GithubMystImportRequest = ValidatedRequest<typeof githubMystImportSchema, A
 
 const mystYamlSchema = z.object({
   version: z.number(),
-  project: z
-    .object({
-      id: z.string(),
-      title: z.string(),
-      description: z.string(),
-      authors: z
-        .array(
-          z.object({
-            name: z.string(),
-            email: z.string().optional(),
-            affiliation: z.string().optional(),
-            orcid: z.string().optional(),
-          }),
-        )
-        .optional(),
-      license: z.string().optional(),
-      open_access: z.boolean().optional(),
-      github: z.string().optional(),
-      keywords: z.array(z.string()).optional(),
-      venue: z
-        .object({
-          title: z.string().optional(),
-          url: z.string().optional(),
-        })
-        .optional(),
-      bibliography: z.array(z.string()).optional(),
-      exports: z
-        .array(
-          z.object({
-            format: z.string().optional(),
-            template: z.string().optional(),
-            article_type: z.string().optional(),
-            output: z.string().optional(),
-          }),
-        )
-        .optional(),
-      resources: z.array(z.string()).optional(),
-      requirements: z.array(z.string()).optional(),
-    })
-    .optional(),
+  project: z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    authors: z
+      .array(
+        z.object({
+          name: z.string(),
+          email: z.string().optional(),
+          affiliation: z.string().optional(),
+          orcid: z.string().optional(),
+        }),
+      )
+      .optional(),
+    license: z.string().optional(),
+    open_access: z.boolean().optional(),
+    github: z.string().optional(),
+    keywords: z.array(z.string()).optional(),
+    venue: z
+      .object({
+        title: z.string().optional(),
+        url: z.string().optional(),
+      })
+      .optional(),
+    bibliography: z.array(z.string()).optional(),
+    exports: z
+      .array(
+        z.object({
+          format: z.string().optional(),
+          template: z.string().optional(),
+          article_type: z.string().optional(),
+          output: z.string().optional(),
+        }),
+      )
+      .optional(),
+    resources: z.array(z.string()).optional(),
+    requirements: z.array(z.string()).optional(),
+  }),
   site: z
     .object({
       title: z.string().optional(),
@@ -109,9 +105,10 @@ const parseMystDocument = async (
       return err(new UnProcessableRequestError('Invalid github URL'));
     }
 
-    const [, author, repo, branchOrPath, path] = matchList as RegExpMatchArray;
-    const branch = path !== undefined ? branchOrPath : undefined;
-    const contentPath = branch ? path : branchOrPath;
+    const [, author, repo, branch, contentPath] = matchList as RegExpMatchArray;
+    logger.trace({ author, repo, branch, contentPath }, 'MYST::Regex');
+    // branch = path !== undefined ? branchOrPath : undefined;
+    // const contentPath = branch ? path : branchOrPath;
 
     const rawDownloadUrl = `https://raw.githubusercontent.com/${author}/${repo}/${branch ? branch + '/' : ''}${contentPath}`;
     // const contentDownloadUrl = `https://api.github.com/repos/${author}/${repo}/contents/${contentPath}?ref=${branch}`;
@@ -119,15 +116,19 @@ const parseMystDocument = async (
 
     logger.trace({ rawDownloadUrl }, 'MYST::apiUrl');
 
-    const apiResponse = await fetch(rawDownloadUrl);
+    const apiResponse = await axios(rawDownloadUrl, {
+      responseType: 'text',
+      validateStatus: () => true,
+    });
+
     if (apiResponse.status !== 200) {
       return err(new UnProcessableRequestError('File not found'));
     }
 
-    const contentType = apiResponse.headers.get('content-type');
-    logger.trace({ contentType }, 'MYST::apiResponse');
+    // const contentType = apiResponse.headers.get('content-type');
+    logger.trace({ data: apiResponse.data, contentType: apiResponse.headers['content-type'] }, 'MYST::apiResponse');
 
-    const yamlText = await apiResponse.text();
+    const yamlText = await apiResponse.data;
     logger.trace({ yamlText: yamlText.slice(0, 20) }, 'MYST::githubResponse');
 
     const parsed = mystYamlSchema.safeParse(load(yamlText, { json: true }));
@@ -143,8 +144,8 @@ const parseMystDocument = async (
 };
 
 export const githubMystImport = async (req: GithubMystImportRequest, res: Response, _next: NextFunction) => {
-  const { uuid } = req.params;
-  const { url, dryRun } = req.body;
+  const { uuid } = req.validatedData.params;
+  const { url, dryRun } = req.validatedData.body;
 
   const isDesciUser = req.user.email.endsWith('@desci.com');
 
@@ -181,7 +182,7 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     });
   }
 
-  if (license.trim()) actions.push({ type: 'Update License', defaultLicense: license });
+  if (license?.trim()) actions.push({ type: 'Update License', defaultLicense: license });
 
   if (keywords?.length > 0) actions.push({ type: 'Update ResearchFields', researchFields: keywords });
 
