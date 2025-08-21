@@ -107,12 +107,9 @@ const parseMystDocument = async (
 
     const [, author, repo, branch, contentPath] = matchList as RegExpMatchArray;
     logger.trace({ author, repo, branch, contentPath }, 'MYST::Regex');
-    // branch = path !== undefined ? branchOrPath : undefined;
-    // const contentPath = branch ? path : branchOrPath;
 
     const rawDownloadUrl = `https://raw.githubusercontent.com/${author}/${repo}/${branch ? branch + '/' : ''}${contentPath}`;
     // const contentDownloadUrl = `https://api.github.com/repos/${author}/${repo}/contents/${contentPath}?ref=${branch}`;
-    // const apiUrl = branch && contentPath ? rawDownloadUrl : contentDownloadUrl;
 
     logger.trace({ rawDownloadUrl }, 'MYST::apiUrl');
 
@@ -125,7 +122,6 @@ const parseMystDocument = async (
       return err(new UnProcessableRequestError('File not found'));
     }
 
-    // const contentType = apiResponse.headers.get('content-type');
     logger.trace({ data: apiResponse.data, contentType: apiResponse.headers['content-type'] }, 'MYST::apiResponse');
 
     const yamlText = await apiResponse.data;
@@ -163,12 +159,10 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
 
   const actions: ManifestActions[] = [];
 
-  // update title
   if (title.trim()) actions.push({ type: 'Update Title', title });
 
   if (description.trim()) actions.push({ type: 'Update Description', description });
 
-  // update contributors if populated
   if (authors?.length > 0) {
     actions.push({
       type: 'Set Contributors',
