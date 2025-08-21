@@ -162,7 +162,7 @@ async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise
     const hashedFileUrl = prepareSessionCacheKey(download_url);
 
     // Store session in Redis using the hashed download URL
-    const storeResult = await storeSession(hashedFileUrl, {
+    const storeResult = await storeSession(download_url, {
       userId: request.userId,
       hashedFileUrl,
       createdAt: Date.now(),
@@ -172,7 +172,7 @@ async function generatePresignedUploadUrl(request: PresignedUrlRequest): Promise
       return err(storeResult.error);
     }
 
-    await markSessionAsActive(request.userId, hashedFileUrl);
+    await markSessionAsActive(request.userId, download_url);
 
     logger.info(
       {
@@ -207,6 +207,7 @@ function generateFileName(originalFileName: string): string {
 async function storeSession(fileUrl: string, session: RefereeRecommenderSession): Promise<Result<void, Error>> {
   try {
     const hashedFileUrl = prepareSessionCacheKey(fileUrl);
+    debugger;
     const userCacheKey = `referee-recommender-session:${session.userId}:${hashedFileUrl}`;
     await setToCache(userCacheKey, session, SESSION_TTL_SECONDS);
 
@@ -242,20 +243,20 @@ async function storeSession(fileUrl: string, session: RefereeRecommenderSession)
   }
 }
 
-async function getSession(fileName: string, userId: number): Promise<Result<RefereeRecommenderSession, Error>> {
+async function getSession(fileUrlHash: string, userId: number): Promise<Result<RefereeRecommenderSession, Error>> {
   try {
-    const cacheKey = `referee-recommender-session:${userId}:${fileName}`;
+    const cacheKey = `referee-recommender-session:${userId}:${fileUrlHash}`;
     const session = await getFromCache<RefereeRecommenderSession>(cacheKey);
 
     if (session) {
-      logger.debug({ fileName, userId: session.userId }, 'Found referee recommender session');
+      logger.debug({ fileUrlHash, userId: session.userId }, 'Found referee recommender session');
       return ok(session);
     }
 
-    logger.debug({ fileName, userId }, 'Session not found in Redis');
+    logger.debug({ fileUrlHash, userId }, 'Session not found in Redis');
     return err(new Error('Session not found'));
   } catch (error) {
-    logger.error({ error, fileName, userId }, 'Failed to get session from Redis');
+    logger.error({ error, fileUrlHash, userId }, 'Failed to get session from Redis');
     return err(error instanceof Error ? error : new Error('Failed to get session from Redis'));
   }
 }
@@ -263,7 +264,7 @@ async function getSession(fileName: string, userId: number): Promise<Result<Refe
 async function getSessionsByFileUrl(fileUrl: string): Promise<Result<RefereeRecommenderSession[], Error>> {
   try {
     const hashedFileUrl = prepareSessionCacheKey(fileUrl);
-    const filenameCacheKey = `referee-recommender-file-url:${fileUrl}`;
+    const filenameCacheKey = `referee-recommender-file-url:${hashedFileUrl}`;
     const sessions = await getFromCache<RefereeRecommenderSession[]>(filenameCacheKey);
 
     if (sessions && sessions.length > 0) {

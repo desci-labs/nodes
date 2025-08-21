@@ -1,6 +1,8 @@
+import { ExternalApi } from '@prisma/client';
 import { Response } from 'express';
 import { z } from 'zod';
 
+import { prisma } from '../../../client.js';
 import { sendSuccess, sendError } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
@@ -29,32 +31,33 @@ export const getResults = async (req: AuthenticatedRequest, res: Response) => {
       'Fetching referee recommendation results',
     );
 
-    // Verify user has access to this filename by checking session
-    const sessionResult = await RefereeRecommenderService.getSession(UploadedFileName, user.id);
-    if (sessionResult.isErr()) {
+    // Check ExternalApiUsage table for completed results
+    const existingResult = await prisma.externalApiUsage.findFirst({
+      where: {
+        userId: user.id,
+        apiType: ExternalApi.REFEREE_FINDER,
+        queryingData: {
+          path: ['fileName'],
+          equals: UploadedFileName,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc', // Get the most recent result
+      },
+    });
+
+    if (!existingResult) {
       logger.warn(
         {
           userId: user.id,
           uploadedFileName: UploadedFileName,
         },
-        'Session not found or expired',
+        'No results found for this filename and user',
       );
-      return sendError(res, 'Results not found or access denied', 404);
+      return sendError(res, 'Results not found', 404);
     }
 
-    const session = sessionResult.value;
-    if (session.userId !== user.id) {
-      logger.warn(
-        {
-          userId: user.id,
-          sessionUserId: session.userId,
-          uploadedFileName: UploadedFileName,
-        },
-        'User does not have access to this session',
-      );
-      return sendError(res, 'Results not found or access denied', 404);
-    }
-
+    // User has access to this filename, now fetch actual results from lambda API
     const result = await RefereeRecommenderService.getRefereeResults(UploadedFileName);
 
     if (result.isErr()) {
@@ -63,8 +66,9 @@ export const getResults = async (req: AuthenticatedRequest, res: Response) => {
           error: result.error,
           userId: user.id,
           uploadedFileName: UploadedFileName,
+          resultId: existingResult.id,
         },
-        'Failed to fetch referee results',
+        'Failed to fetch referee results from lambda API',
       );
       return sendError(res, result.error.message, 500);
     }
@@ -75,9 +79,10 @@ export const getResults = async (req: AuthenticatedRequest, res: Response) => {
       {
         userId: user.id,
         uploadedFileName: UploadedFileName,
-        status: responseData.status,
+        resultId: existingResult.id,
+        createdAt: existingResult.createdAt,
       },
-      'Successfully fetched referee recommendation results',
+      'Successfully fetched referee recommendation results from database',
     );
 
     return sendSuccess(res, responseData);

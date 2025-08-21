@@ -115,9 +115,13 @@ export const triggerRecommendation = async (req: AuthenticatedRequest, res: Resp
 
     const formattedResponse = _.omit(responseData, 'execution_arn');
 
+    // Check if results are already available based on info message
+    const isResultReady = responseData.info?.toLowerCase().includes('already exists') && 
+                         responseData.info?.toLowerCase().includes('ready to be polled');
+
     return sendSuccess(res, {
       ...formattedResponse,
-      cached: false,
+      cached: isResultReady,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
