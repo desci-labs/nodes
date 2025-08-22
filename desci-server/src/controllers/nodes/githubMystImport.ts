@@ -27,7 +27,8 @@ export const githubMystImportSchema = z.object({
     url: z
       .string()
       .url()
-      .regex(/^https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/[^\/]+\.yml$/),
+      // .regex(/^https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/[^\/]+\.yml$/),
+      .regex(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+\.ya?ml)$/),
     dryRun: z.boolean().optional().default(false),
   }),
 });
@@ -135,7 +136,7 @@ const parseMystDocument = async (
     logger.trace({ document: parsed.data }, 'MYST::doc');
     return ok(parsed.data);
   } catch (error) {
-    return err(error as any);
+    return err(new UnProcessableRequestError('Failed to fetch/parse MyST YAML', error));
   }
 };
 
@@ -146,8 +147,8 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
   const isDesciUser = req.user.email.endsWith('@desci.com');
 
   const node = await getNodeByUuid(uuid);
-  if (!node) {
-    return sendError(res, 'Node not found', 404);
+  if (!node || !node.manifestDocumentId) {
+    return sendError(res, 'Node not initialized', 404);
   }
 
   const parsedDocument = await parseMystDocument(url);
