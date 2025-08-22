@@ -53,9 +53,7 @@ class RepoService {
     logger.info({ arg, enableWorkersApi, cloudflareWorkerApi }, 'Disatch Changes');
     try {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-        enableWorkersApi
-          ? `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`
-          : `${this.baseUrl}/v1/nodes/documents/dispatch`,
+        `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`,
         arg,
         {
           headers: {
@@ -65,7 +63,6 @@ class RepoService {
         },
       );
       logger.trace({ arg, ok: response.data.ok }, 'Disatch Actions Response');
-      console.log({ arg, ok: response.data.ok }, 'Disatch Actions Response');
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
       } else {
@@ -84,9 +81,7 @@ class RepoService {
     logger.info({ arg }, 'Disatch Actions');
     try {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-        enableWorkersApi
-          ? `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`
-          : `${this.baseUrl}/v1/nodes/documents/actions`,
+        `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`,
         arg,
         {
           headers: {
@@ -95,16 +90,14 @@ class RepoService {
           },
         },
       );
-      logger.info({ arg, response: response.data }, 'dispatchChanges Response');
-      console.log({ arg, response: response.data }, 'dispatchChanges Response');
+      logger.trace({ arg, response: response.data }, 'dispatchChanges Response');
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
       } else {
         return { ok: false, status: response.status, message: response.data };
       }
     } catch (err) {
-      logger.info({ arg, err }, 'dispatchChanges Error');
-      console.log({ arg, err }, 'dispatchChanges Error');
+      logger.error({ arg, err }, 'dispatchChanges Error');
       return { ok: false, status: err.status, message: err?.response?.data };
     }
   }
@@ -114,7 +107,7 @@ class RepoService {
     try {
       const response = await this.#client.post<
         ApiResponse<{ documentId: DocumentId; document: ResearchObjectDocument }>
-      >(enableWorkersApi ? `${cloudflareWorkerApi}/api/documents` : `${this.baseUrl}/v1/nodes/documents`, arg, {
+      >(`${cloudflareWorkerApi}/api/documents`, {
         headers: {
           'x-api-remote-traceid': (als.getStore() as any)?.traceId,
           ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
@@ -143,9 +136,7 @@ class RepoService {
         '[getDraftDocument]',
       );
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
-        enableWorkersApi
-          ? `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`
-          : `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
+        `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
