@@ -1,4 +1,4 @@
-import { ExternalApi } from '@prisma/client';
+import { ExternalApi, Prisma } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -10,9 +10,14 @@ import { RefereeRecommenderService, SESSION_TTL_SECONDS } from './RefereeRecomme
 
 const logger = parentLogger.child({ module: 'RefereeRecommender::SqsHandler' });
 
+interface RefereeRecommenderQueryingData {
+  fileName: string;
+  eventType: string;
+  fileHash?: string;
+}
+
 interface RefereeRecommenderUsageData {
   eventType: string;
-  fileName: string;
   originalFileName: string;
   timestamp: string;
   sessionCreatedAt: number;
@@ -75,8 +80,11 @@ export class RefereeRecommenderSqsHandler {
         '[SQS] Processing referee recommender event',
       );
 
+      // debugger;
+      const fileUrl = eventData.data.file_url;
+
       // Look up user sessions from Redis using filename
-      const sessionsResult = await RefereeRecommenderService.getSessionsByFileName(eventData.file_name);
+      const sessionsResult = await RefereeRecommenderService.getSessionsByFileUrl(fileUrl);
       if (sessionsResult.isErr()) {
         logger.warn(
           { fileName: eventData.file_name, error: sessionsResult.error.message },
@@ -113,6 +121,11 @@ export class RefereeRecommenderSqsHandler {
     try {
       let eventType: WebSocketEventType;
       let eventPayload: any;
+
+      // Compute fileUrlHashed using our consistent hashing method
+      // This ensures it matches what the frontend computed
+      const fileUrlHashed = RefereeRecommenderService.prepareSessionCacheKey(eventData.data.file_url);
+
       switch (eventData.eventType) {
         case 'PROCESSING_COMPLETED':
           eventType = WebSocketEventType.REFEREE_REC_PROCESSING_COMPLETED;
@@ -121,6 +134,8 @@ export class RefereeRecommenderSqsHandler {
             originalFileName: session.originalFileName,
             status: 'completed',
             timestamp: new Date().toISOString(),
+            fileUrlHashed,
+            paperTitle: eventData.data?.paper_title,
           };
           break;
 
@@ -132,6 +147,8 @@ export class RefereeRecommenderSqsHandler {
             status: 'failed',
             error: eventData.data?.error || 'Processing failed',
             timestamp: new Date().toISOString(),
+            fileUrlHashed,
+            paperTitle: eventData.data?.paper_title,
           };
           break;
 
@@ -142,6 +159,8 @@ export class RefereeRecommenderSqsHandler {
             originalFileName: session.originalFileName,
             status: 'started',
             timestamp: new Date().toISOString(),
+            fileUrlHashed,
+            paperTitle: eventData.data?.paper_title,
           };
           break;
 
@@ -151,9 +170,11 @@ export class RefereeRecommenderSqsHandler {
             fileName: eventData.file_name,
             originalFileName: session.originalFileName,
             status: 'processing',
-            progress: eventData.data?.progress_percent || 0,
+            progress_percent: eventData.data?.progress_percent || 0, // Keep original field name
             message: eventData.data?.message || '',
             timestamp: new Date().toISOString(),
+            fileUrlHashed,
+            paperTitle: eventData.data?.paper_title,
           };
           break;
 
@@ -198,7 +219,7 @@ export class RefereeRecommenderSqsHandler {
         where: {
           userId: session.userId,
           apiType: ExternalApi.REFEREE_FINDER,
-          data: {
+          queryingData: {
             path: ['fileName'],
             equals: eventData.file_name,
           },
@@ -240,9 +261,15 @@ export class RefereeRecommenderSqsHandler {
       }
 
       // Create new record for this session
-      const usageData: RefereeRecommenderUsageData = {
-        eventType: eventData.eventType,
+      // Separate queryable data (GIN indexed) from metadata
+      const queryingData: RefereeRecommenderQueryingData = {
         fileName: eventData.file_name,
+        eventType: eventData.eventType,
+        ...(eventData.file_hash && { fileHash: eventData.file_hash }),
+      };
+
+      const metadataData: RefereeRecommenderUsageData = {
+        eventType: eventData.eventType,
         originalFileName: session.originalFileName,
         timestamp: new Date().toISOString(),
         sessionCreatedAt: session.createdAt,
@@ -253,7 +280,8 @@ export class RefereeRecommenderSqsHandler {
         data: {
           userId: session.userId,
           apiType: ExternalApi.REFEREE_FINDER,
-          data: usageData,
+          queryingData: queryingData as unknown as Prisma.JsonValue, // Fast queries on this field
+          data: metadataData, // Full metadata storage
         },
       });
 
