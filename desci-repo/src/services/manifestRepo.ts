@@ -524,24 +524,6 @@ const isPdfComponent = (
   );
 };
 
-const isDataComponent = (
-  component: ResearchObjectV1Component,
-  currentComponent: ResearchObjectV1Component,
-): component is DataComponent => {
-  return (
-    component.type === ResearchObjectComponentType.DATA || currentComponent.type === ResearchObjectComponentType.DATA
-  );
-};
-
-const isCodeComponent = (
-  component: ResearchObjectV1Component,
-  currentComponent: ResearchObjectV1Component,
-): component is CodeComponent => {
-  return (
-    component.type === ResearchObjectComponentType.CODE || currentComponent.type === ResearchObjectComponentType.CODE
-  );
-};
-
 const isExternalLinkComponent = (
   component: ResearchObjectV1Component,
   currentComponent: ResearchObjectV1Component,

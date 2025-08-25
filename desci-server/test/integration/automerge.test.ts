@@ -42,7 +42,7 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
     await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: response.documentId } });
   }
   const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
-  // console.log('Draft Node created', !!response, { response });
+  console.log('Draft Node created', !!response, { response });
 
   assert(response?.documentId);
   assert(response?.document);
