@@ -319,93 +319,123 @@ export const actionDispatcher = async ({
         latestDocument.manifest?.references?.find((ref) => ref.id === action.reference.id);
 
       if (!exists) {
-        handle.change((document) => {
+        handle.change(
+          (document) => {
+            if (!document.manifest.references) {
+              document.manifest.references = [];
+            }
+
+            document.manifest.references.push(action.reference);
+          },
+          { time: Date.now(), message: action.type },
+        );
+      }
+      break;
+    case 'Add References':
+      handle.change(
+        (document) => {
           if (!document.manifest.references) {
             document.manifest.references = [];
           }
 
-          document.manifest.references.push(action.reference);
-        });
-      }
-      break;
-    case 'Add References':
-      handle.change((document) => {
-        if (!document.manifest.references) {
-          document.manifest.references = [];
-        }
-
-        for (const reference of action.references) {
-          if (!document.manifest.references.find((ref) => ref.id === reference.id))
-            document.manifest.references.push(reference);
-        }
-      });
+          for (const reference of action.references) {
+            if (!document.manifest.references.find((ref) => ref.id === reference.id))
+              document.manifest.references.push(reference);
+          }
+        },
+        { time: Date.now(), message: action.type },
+      );
       break;
     case 'Set References':
-      handle.change((document) => {
-        if (!document.manifest.references) {
-          document.manifest.references = [];
-        }
-        document.manifest.references = action.references;
-      });
+      handle.change(
+        (document) => {
+          if (!document.manifest.references) {
+            document.manifest.references = [];
+          }
+          document.manifest.references = action.references;
+        },
+        { time: Date.now(), message: action.type },
+      );
       break;
     case 'Delete Reference':
       if (!action.referenceId) break;
       const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);
       if (deletedIdx !== undefined && deletedIdx !== -1) {
-        handle.change((document) => {
-          document.manifest.references?.splice(deletedIdx, 1);
-        });
+        handle.change(
+          (document) => {
+            document.manifest.references?.splice(deletedIdx, 1);
+          },
+          { time: Date.now(), message: action.type },
+        );
       }
       break;
     case 'Add Topic':
       if (!action.topic || latestDocument.manifest.researchFields?.includes(action.topic)) break;
-      handle.change((document) => {
-        if (!document.manifest.researchFields) {
-          document.manifest.researchFields = [];
-        }
-        document.manifest.researchFields?.push(action.topic);
-      });
+      handle.change(
+        (document) => {
+          if (!document.manifest.researchFields) {
+            document.manifest.researchFields = [];
+          }
+          document.manifest.researchFields?.push(action.topic);
+        },
+        { time: Date.now(), message: action.type },
+      );
 
       break;
     case 'Set Topics':
-      handle.change((document) => {
-        document.manifest.researchFields = [...new Set(action.topics)];
-      });
+      handle.change(
+        (document) => {
+          document.manifest.researchFields = [...new Set(action.topics)];
+        },
+        { time: Date.now(), message: action.type },
+      );
       break;
     case 'Remove Topic':
       if (!latestDocument.manifest?.researchFields) break;
-      handle.change((document) => {
-        const index = document.manifest.researchFields?.findIndex(
-          (t) => t.toLowerCase() === action.topic.toLowerCase(),
-        );
-        if (index !== -1 && index !== undefined) {
-          document.manifest.researchFields?.splice(index, 1);
-        }
-      });
+      handle.change(
+        (document) => {
+          const index = document.manifest.researchFields?.findIndex(
+            (t) => t.toLowerCase() === action.topic.toLowerCase(),
+          );
+          if (index !== -1 && index !== undefined) {
+            document.manifest.researchFields?.splice(index, 1);
+          }
+        },
+        { time: Date.now(), message: action.type },
+      );
       break;
     case 'Add Keyword':
       if (!action.keyword || latestDocument.manifest.keywords?.includes(action.keyword)) break;
-      handle.change((document) => {
-        if (!document.manifest.keywords) document.manifest.keywords = [];
-        document.manifest.keywords?.push(action.keyword);
-      });
+      handle.change(
+        (document) => {
+          if (!document.manifest.keywords) document.manifest.keywords = [];
+          document.manifest.keywords?.push(action.keyword);
+        },
+        { time: Date.now(), message: action.type },
+      );
 
       break;
     case 'Set Keywords':
-      handle.change((document) => {
-        document.manifest.keywords = [...new Set(action.keywords)];
-      });
+      handle.change(
+        (document) => {
+          document.manifest.keywords = [...new Set(action.keywords)];
+        },
+        { time: Date.now(), message: action.type },
+      );
       break;
     case 'Remove Keyword':
       if (!action.keyword || !latestDocument.manifest?.keywords) break;
-      handle.change((document) => {
-        const index = document.manifest.keywords?.findIndex(
-          (k: string) => k.toLowerCase() === action.keyword.toLowerCase(),
-        );
-        if (index !== -1 && index !== undefined) {
-          document.manifest.keywords?.splice(index, 1);
-        }
-      });
+      handle.change(
+        (document) => {
+          const index = document.manifest.keywords?.findIndex(
+            (k: string) => k.toLowerCase() === action.keyword.toLowerCase(),
+          );
+          if (index !== -1 && index !== undefined) {
+            document.manifest.keywords?.splice(index, 1);
+          }
+        },
+        { time: Date.now(), message: action.type },
+      );
       break;
     default:
       assertNever(action);
