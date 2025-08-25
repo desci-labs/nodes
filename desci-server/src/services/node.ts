@@ -29,6 +29,14 @@ export async function getDpidFromNode(node: Node, manifest?: ResearchObjectV1): 
 
   return dpid;
 }
+
+export const getNodeByUuid = async (uuid: string) => {
+  return prisma.node.findUnique({
+    where: { uuid: ensureUuidEndsWithDot(uuid) },
+    select: { id: true, uuid: true, dpidAlias: true, manifestDocumentId: true },
+  });
+};
+
 export const getNodeByDpid = async (dpid: number) => {
   return prisma.node.findUnique({
     where: { dpidAlias: dpid },
