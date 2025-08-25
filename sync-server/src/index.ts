@@ -245,7 +245,6 @@ async function handleCreateDocument(request: Request, env: Env) {
   };
 
   const repo = new Repo(config);
-
   let body = (await request.clone().json()) as { uuid: string; manifest: ResearchObjectV1 };
   assert(body && body.uuid && body.manifest, 'Invalid request body');
   let uuid = ensureUuidEndsWithDot(body.uuid);
@@ -269,7 +268,7 @@ async function handleCreateDocument(request: Request, env: Env) {
 
 export default {
   fetch(request: Request, env) {
-    console.log('Fetch handler: ', request.url, env);
+    console.log('Fetch handler: ', request.url);
     if (request.url.includes('/api/documents') && request.method.toLowerCase() === 'post')
       return handleCreateDocument(request, env);
 

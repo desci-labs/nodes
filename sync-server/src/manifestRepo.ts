@@ -349,7 +349,7 @@ export const actionDispatcher = async ({
       });
       break;
     case 'Delete Reference':
-      if (!action.referenceId) return;
+      if (!action.referenceId) break;
       const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);
       if (deletedIdx !== undefined && deletedIdx !== -1) {
         handle.change((document) => {
@@ -358,14 +358,14 @@ export const actionDispatcher = async ({
       }
       break;
     case 'Add Topic':
-      if (action.topic !== '' && latestDocument.manifest.researchFields?.includes(action.topic)) {
-        handle.change((document) => {
-          if (!document.manifest.researchFields) {
-            document.manifest.researchFields = [];
-          }
-          document.manifest.researchFields?.push(action.topic);
-        });
-      }
+      if (!action.topic || latestDocument.manifest.researchFields?.includes(action.topic)) break;
+      handle.change((document) => {
+        if (!document.manifest.researchFields) {
+          document.manifest.researchFields = [];
+        }
+        document.manifest.researchFields?.push(action.topic);
+      });
+
       break;
     case 'Set Topics':
       handle.change((document) => {
@@ -373,23 +373,21 @@ export const actionDispatcher = async ({
       });
       break;
     case 'Remove Topic':
+      if (!latestDocument.manifest?.researchFields) break;
       handle.change((document) => {
-        if (!document.manifest?.researchFields) return;
-
         const index = document.manifest.researchFields?.findIndex(
           (t) => t.toLowerCase() === action.topic.toLowerCase(),
         );
-        if (index !== -1) {
+        if (index !== -1 && index !== undefined) {
           document.manifest.researchFields?.splice(index, 1);
         }
       });
       break;
     case 'Add Keyword':
+      if (!action.keyword || latestDocument.manifest.keywords?.includes(action.keyword)) break;
       handle.change((document) => {
         if (!document.manifest.keywords) document.manifest.keywords = [];
-        if (!document.manifest.keywords?.includes(action.keyword)) {
-          document.manifest.keywords?.push(action.keyword);
-        }
+        document.manifest.keywords?.push(action.keyword);
       });
 
       break;
@@ -399,13 +397,12 @@ export const actionDispatcher = async ({
       });
       break;
     case 'Remove Keyword':
+      if (!action.keyword || !latestDocument.manifest?.keywords) break;
       handle.change((document) => {
-        if (!document.manifest?.keywords) return;
-
         const index = document.manifest.keywords?.findIndex(
           (k: string) => k.toLowerCase() === action.keyword.toLowerCase(),
         );
-        if (index !== -1) {
+        if (index !== -1 && index !== undefined) {
           document.manifest.keywords?.splice(index, 1);
         }
       });
@@ -414,9 +411,7 @@ export const actionDispatcher = async ({
       assertNever(action);
   }
 
-  // console.trace({ documentId }, 'get updated doc');
   latestDocument = await handle.doc();
-  // console.trace({ action }, 'retrieved updated doc');
 
   if (latestDocument) {
     const updatedHeads = getHeads(latestDocument);
