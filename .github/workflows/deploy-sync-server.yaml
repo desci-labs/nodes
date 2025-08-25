@@ -7,7 +7,6 @@ on:
     branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
       - main # triggers on pushes that contain changes
       - develop
-      - deploy-worker
 # env:
 #   API_TOKEN: ${{ secrets.API_TOKEN }}
 jobs:
@@ -30,18 +29,6 @@ jobs:
       #     environment: staging
       #     workingDirectory: sync-server
       #     wranglerVersion: 3.95.0
-      - name: TEMP Build & Deploy Worker (Deploy Worker)
-        if: github.ref == 'refs/heads/deploy-worker'
-        uses: cloudflare/wrangler-action@v3
-        env:
-          API_TOKEN: ${{ secrets.API_TOKEN_DEV }}
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          environment: staging
-          workingDirectory: sync-server
-          wranglerVersion: 3.95.0
-          # secrets: API_TOKEN
       - name: Build & Deploy Worker (Staging)
         if: github.ref == 'refs/heads/develop'
         uses: cloudflare/wrangler-action@v3
