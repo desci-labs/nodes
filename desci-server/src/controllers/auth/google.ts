@@ -10,21 +10,21 @@ import { sendCookie } from '../../utils/sendCookie.js';
 
 import { generateAccessToken } from './magic.js';
 
-enum App {
+export enum GoogleAuthApp {
   PUBLISH = 'PUBLISH',
   SCIWEAVE = 'SCIWEAVE',
 }
 
 const GOOGLE_CLIENT_ID_MAP = {
-  [App.PUBLISH]: process.env.GOOGLE_CLIENT_ID_AUTH,
-  [App.SCIWEAVE]: process.env.SCIWEAVE_GOOGLE_CLIENT_ID,
+  [GoogleAuthApp.PUBLISH]: process.env.GOOGLE_CLIENT_ID_AUTH,
+  [GoogleAuthApp.SCIWEAVE]: process.env.SCIWEAVE_GOOGLE_CLIENT_ID,
 };
 
 /**
  * Handles Google OAuth callback and authentication
  */
 export const googleAuth = async (req: Request, res: Response) => {
-  const { idToken, dev, app = App.PUBLISH } = req.body;
+  const { idToken, dev, app = GoogleAuthApp.PUBLISH } = req.body;
   const logger = parentLogger.child({ module: 'AUTH::GoogleOAuthController', googleIdToken: idToken });
   try {
     if (!idToken) {

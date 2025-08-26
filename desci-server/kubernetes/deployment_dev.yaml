@@ -118,6 +118,7 @@ spec:
           export ML_REFEREE_FINDER_RESULT="{{ .Data.ML_REFEREE_FINDER_RESULT }}"
           export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
           export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
+          export SCIWEAVE_GOOGLE_CLIENT_ID="{{ .Data.SCIWEAVE_GOOGLE_CLIENT_ID }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
