@@ -29,7 +29,11 @@ export const listJournalsController = async (req: ListJournalsRequest, res: Resp
       return sendError(res, 'Failed to retrieve journals due to a server error.', 500);
     }
 
-    const journals = result.value;
+    const journals = result.value?.map((journal) => ({
+      ...journal,
+      publicationCount: journal.submissions?.length ?? 0,
+      submissions: undefined,
+    }));
     return sendSuccess(res, { journals });
   } catch (error) {
     logger.error({ error, userId: (req as any).user?.id }, 'Unhandled error in listJournalsController');

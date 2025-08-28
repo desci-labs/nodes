@@ -23,13 +23,13 @@ import { getTargetDpidUrl } from '../../../services/fixDpid.js';
 import { doiService } from '../../../services/index.js';
 import { JournalEventLogService } from '../../../services/journals/JournalEventLogService.js';
 import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
+import { getRefereeInvitationsBySubmission } from '../../../services/journals/JournalReviewService.js';
 import { journalSubmissionService } from '../../../services/journals/JournalSubmissionService.js';
 import { getNodeByDpid } from '../../../services/node.js';
 import { getPublishedNodeVersionCount } from '../../../services/nodeManager.js';
 import { NotificationService } from '../../../services/Notifications/NotificationService.js';
 import { DiscordChannel, DiscordNotifyType } from '../../../utils/discordUtils.js';
 import { discordNotify } from '../../../utils/discordUtils.js';
-import { getRefereeInvitationsBySubmission } from '../../../services/journals/JournalReviewService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::SubmissionsController',
