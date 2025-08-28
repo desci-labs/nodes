@@ -13,6 +13,7 @@ import { ok, err, Result } from 'neverthrow';
 
 import { logger } from '../../logger.js';
 import { FormStructure } from '../../schemas/journalsForm.schema.js';
+
 import { JournalFormService } from './JournalFormService.js';
 
 const prisma = new PrismaClient();
@@ -565,6 +566,12 @@ export type ListedJournal = Prisma.JournalGetPayload<{
     description: true;
     iconCid: true;
     createdAt: true;
+    submissions: {
+      select: { id: true };
+      where: {
+        status: 'ACCEPTED';
+      };
+    };
   };
 }>;
 
@@ -586,6 +593,12 @@ async function listJournals(userId?: number): Promise<Result<ListedJournal[], Er
         description: true,
         iconCid: true,
         createdAt: true,
+        submissions: {
+          select: { id: true },
+          where: {
+            status: SubmissionStatus.ACCEPTED,
+          },
+        },
       },
       where: whereClause,
     });
@@ -823,54 +836,71 @@ async function getJournalProfile(userId: number): Promise<
 }
 
 type IJournalEditor = JournalEditor & {
-  user: Pick<User, 'id' | 'name' | 'orcid'>;
-  currentWorkload: number;
-  available: boolean;
+  user: Pick<User, 'name' | 'orcid'>;
+  currentWorkload?: number;
+  available?: boolean;
 };
 
 export async function getJournalEditors(
   journalId: number,
   filter: Prisma.JournalEditorWhereInput,
   orderBy: Prisma.JournalEditorOrderByWithRelationInput,
-  // limit: number,
-  // offset: number,
+  withAvailable: boolean = true,
 ): Promise<Result<IJournalEditor[], Error>> {
   const editors = await prisma.journalEditor.findMany({
     where: { journalId, ...filter },
     orderBy,
-    // skip: offset,
-    // take: limit,
     include: {
       user: {
         select: {
-          id: true,
           name: true,
           orcid: true,
+          userOrganizations: {
+            select: {
+              organizationId: true,
+              organization: {
+                select: {
+                  name: true,
+                  id: true,
+                },
+              },
+            },
+          },
         },
       },
     },
   });
 
-  const editorsWithCounts = await Promise.all(
-    editors.map(async (editor) => {
-      const currentWorkload = await prisma.journalSubmission.count({
-        where: {
-          journalId,
-          assignedEditorId: editor.userId,
-          status: {
-            notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
-          },
-        },
-      });
-      return {
-        ...editor,
-        currentWorkload,
-        available: currentWorkload < editor.maxWorkload,
-      };
-    }),
-  );
+  const editorsWithCounts = withAvailable
+    ? await Promise.all(
+        editors.map(async (editor) => {
+          const currentWorkload = await prisma.journalSubmission.count({
+            where: {
+              journalId,
+              assignedEditorId: editor.userId,
+              status: {
+                notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+              },
+            },
+          });
+          return {
+            ...editor,
+            currentWorkload,
+            available: currentWorkload < editor.maxWorkload,
+          };
+        }),
+      )
+    : editors;
 
-  return ok(editorsWithCounts);
+  return ok(
+    editorsWithCounts.map((editor) => ({
+      ...editor,
+      user: {
+        ...editor.user,
+        organizations: editor.user.userOrganizations.map((org) => org.organization),
+      },
+    })),
+  );
 }
 
 interface JournalSettingsInput {
