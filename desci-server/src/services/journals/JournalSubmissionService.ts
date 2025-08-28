@@ -123,15 +123,15 @@ async function getJournalSubmissions(
 
 async function getFeaturedJournalPublications(
   filter: Prisma.JournalSubmissionWhereInput,
-  orderBy: Prisma.JournalSubmissionOrderByWithRelationInput,
-  offset: number,
-  limit: number,
+  orderBy?: Prisma.JournalSubmissionOrderByWithRelationInput,
+  offset?: number,
+  limit?: number,
 ) {
   return await prisma.journalSubmission.findMany({
     where: filter,
-    orderBy,
-    skip: offset,
-    take: limit,
+    ...(orderBy ? { orderBy } : {}),
+    ...(offset ? { skip: offset } : {}),
+    ...(limit ? { take: limit } : {}),
     select: {
       id: true,
     },
@@ -754,7 +754,7 @@ export type FeaturedSubmissionDetails = FeaturedSubmissionPartial & {
   researchObject: {
     uuid: string;
     manifest: ResearchObjectV1;
-    publishedAt: Date;
+    publishedAt?: Date;
   };
   // included for convenience in the db query
   journal: {
@@ -794,6 +794,10 @@ const getFeaturedPublicationDetails = async (
       },
     },
   });
+
+  if (!submission) {
+    return err(new NotFoundError('Submission not found'));
+  }
 
   if (process.env.NODE_ENV === 'test') {
     // The tests don't really care about this data, so just partial dummy data is used

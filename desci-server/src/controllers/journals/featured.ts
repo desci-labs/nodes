@@ -58,12 +58,11 @@ export const listFeaturedPublicationsController = async (
       };
     }
 
-    if (startDate) {
-      filter.submittedAt = { gte: startDate };
-
-      if (endDate) {
-        filter.submittedAt = { lte: endDate };
-      }
+    if (startDate || endDate) {
+      filter.submittedAt = {
+        ...(startDate && { gte: startDate }),
+        ...(endDate && { lte: endDate }),
+      };
     }
 
     let orderBy: Prisma.JournalSubmissionOrderByWithRelationInput;
@@ -85,25 +84,21 @@ export const listFeaturedPublicationsController = async (
       }
     }
 
-    logger.trace({ filter, orderBy, offset, limit, cacheKey }, 'listFeaturedPublicationsController::filter');
-
     const publications = await journalSubmissionService.getFeaturedJournalPublications(filter, orderBy, offset, limit);
-    logger.trace({ publications }, 'listFeaturedPublicationsController::publications');
 
-    const data: Partial<JournalSubmission>[] = await asyncMap(publications, async (publication) => {
-      const submissionExtended = await journalSubmissionService.getFeaturedPublicationDetails(publication.id);
-      if (submissionExtended.isErr()) {
-        return null;
-      }
-      return submissionExtended.value;
-    });
+    const data = (
+      await asyncMap(publications, async (publication) => {
+        const submissionExtended = await journalSubmissionService.getFeaturedPublicationDetails(publication.id);
+        if (submissionExtended.isErr()) {
+          return null;
+        }
+        return submissionExtended.value;
+      })
+    )?.filter((publication) => publication !== null);
 
-    if (data && data.length > 0) {
-      await setToCache(cacheKey, data, 60 * 60 * 24); // 24 hours
-    }
+    await setToCache(cacheKey, data, data?.length > 0 ? 60 * 60 * 24 : 60); // 24 hours
 
-    logger.trace({ publications }, 'listFeaturedPublicationsController');
-    return sendSuccess(res, { data, meta: { count: publications.length, limit, offset } });
+    return sendSuccess(res, { data, meta: { count: data?.length ?? 0, limit, offset } });
   } catch (error) {
     logger.error({ error: errWithCause(error) });
     return sendError(res, 'Failed to retrieve featured publications', 500);
@@ -137,12 +132,11 @@ export const listFeaturedJournalPublicationsController = async (
       };
     }
 
-    if (startDate) {
-      filter.submittedAt = { gte: startDate };
-
-      if (endDate) {
-        filter.submittedAt = { lte: endDate };
-      }
+    if (startDate || endDate) {
+      filter.submittedAt = {
+        ...(startDate && { gte: startDate }),
+        ...(endDate && { lte: endDate }),
+      };
     }
 
     let orderBy: Prisma.JournalSubmissionOrderByWithRelationInput;
@@ -165,8 +159,6 @@ export const listFeaturedJournalPublicationsController = async (
       // TODO: order by impact
     }
 
-    logger.trace({ filter, orderBy, offset, limit }, 'listFeaturedJournalPublicationsController::filter');
-
     const publications = await journalSubmissionService.getFeaturedJournalPublications(filter, orderBy, offset, limit);
 
     const data: Partial<JournalSubmission>[] = await asyncMap(publications, async (publication) => {
@@ -177,9 +169,7 @@ export const listFeaturedJournalPublicationsController = async (
       return submissionExtended.value;
     });
 
-    if (data.length > 0) {
-      await setToCache(cacheKey, data, 60 * 60 * 24); // 24 hours
-    }
+    await setToCache(cacheKey, data, data.length > 0 ? 60 * 60 * 24 : 60); // 24 hours
 
     logger.trace({ publications }, 'listFeaturedJournalPublicationsController');
     return sendSuccess(res, { data, meta: { count: publications.length, limit, offset } });

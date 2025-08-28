@@ -32,6 +32,7 @@ export const listJournalsController = async (req: ListJournalsRequest, res: Resp
     const journals = result.value?.map((journal) => ({
       ...journal,
       publicationCount: journal.submissions?.length ?? 0,
+      submissions: undefined,
     }));
     return sendSuccess(res, { journals });
   } catch (error) {

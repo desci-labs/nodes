@@ -7,7 +7,6 @@ import {
   JournalEditor,
   SubmissionStatus,
   User,
-  Submissionstatus,
 } from '@prisma/client';
 import _ from 'lodash';
 import { ok, err, Result } from 'neverthrow';
