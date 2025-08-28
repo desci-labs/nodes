@@ -3,7 +3,12 @@ import { Router } from 'express';
 
 import { showJournalAnalyticsController } from '../../../controllers/journals/dashboard/analytics.js';
 import { showUrgentJournalSubmissionsController } from '../../../controllers/journals/dashboard/urgentSubmissions.js';
+import {
+  listFeaturedJournalPublicationsController,
+  listFeaturedPublicationsController,
+} from '../../../controllers/journals/featured.js';
 import { listJournalsController } from '../../../controllers/journals/list.js';
+import { viewJournalEditors } from '../../../controllers/journals/public.js';
 import { showJournalController, showJournalProfileController } from '../../../controllers/journals/show.js';
 import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
@@ -14,6 +19,8 @@ import {
   listJournalsSchema,
   getJournalAnalyticsSchema,
   showUrgentSubmissionsSchema,
+  listFeaturedPublicationsSchema,
+  listJournalEditorsSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -32,6 +39,11 @@ const router = Router();
 router.get('/', [attachUser, validateInputs(listJournalsSchema)], asyncHandler(listJournalsController));
 router.get('/profile', [ensureUser], asyncHandler(showJournalProfileController));
 router.get(
+  '/featured',
+  [attachUser, validateInputs(listFeaturedPublicationsSchema)],
+  asyncHandler(listFeaturedPublicationsController),
+);
+router.get(
   '/:journalId',
   [
     ensureUser,
@@ -39,6 +51,16 @@ router.get(
     validateInputs(getJournalSchema),
   ],
   showJournalController,
+);
+router.get(
+  '/:journalId/view-editors',
+  [attachUser, validateInputs(listJournalEditorsSchema)],
+  asyncHandler(viewJournalEditors),
+);
+router.get(
+  '/:journalId/featured',
+  [attachUser, validateInputs(listFeaturedPublicationsSchema)],
+  asyncHandler(listFeaturedJournalPublicationsController),
 );
 // admin dashboard apis
 router.get(
