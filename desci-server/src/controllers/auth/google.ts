@@ -25,7 +25,11 @@ const GOOGLE_CLIENT_ID_MAP = {
  */
 export const googleAuth = async (req: Request, res: Response) => {
   const { idToken, dev, app = GoogleAuthApp.PUBLISH } = req.body;
-  const logger = parentLogger.child({ module: 'AUTH::GoogleOAuthController', googleIdToken: idToken });
+  const logger = parentLogger.child({
+    module: 'AUTH::GoogleOAuthController',
+    googleIdTokenPresent: !!idToken,
+    googleIdTokenLength: idToken?.length,
+  });
   try {
     if (!idToken) {
       return res.status(400).send({ ok: false, message: 'Missing Google idToken' });
