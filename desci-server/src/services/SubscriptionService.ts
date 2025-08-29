@@ -1,13 +1,14 @@
 import Stripe from 'stripe';
-import { PrismaClient, PlanType, SubscriptionStatus, StripeInvoiceStatus, PaymentMethodType, BillingInterval } from '@prisma/client';
+import { PrismaClient, PlanType, SubscriptionStatus, StripeInvoiceStatus, PaymentMethodType, BillingInterval, Prisma } from '@prisma/client';
 import { logger as parentLogger } from '../logger.js';
+import { getPlanTypeFromPriceId, getBillingIntervalFromPriceId } from '../config/stripe.js';
+import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
 const logger = parentLogger.child({
   module: 'SUBSCRIPTION_SERVICE',
 });
 
 const prisma = new PrismaClient();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export class SubscriptionService {
   static async getOrCreateStripeCustomer(userId: number) {
@@ -20,6 +21,7 @@ export class SubscriptionService {
     });
 
     if (existingSubscription?.stripeCustomerId) {
+      const stripe = getStripe();
       return await stripe.customers.retrieve(existingSubscription.stripeCustomerId);
     }
 
@@ -34,6 +36,7 @@ export class SubscriptionService {
     }
 
     // Create new Stripe customer
+    const stripe = getStripe();
     const customer = await stripe.customers.create({
       email: user.email || undefined,
       name: user.name || undefined,
@@ -52,7 +55,11 @@ export class SubscriptionService {
 
     const userId = customer.metadata?.userId ? parseInt(customer.metadata.userId) : null;
     if (!userId) {
-      logger.warn('Customer created without userId metadata', { customerId: customer.id });
+      logger.warn('Customer created without userId metadata', { 
+        customerId: customer.id,
+        metadata: customer.metadata,
+        hasMetadata: !!customer.metadata 
+      });
       return;
     }
 
@@ -71,11 +78,13 @@ export class SubscriptionService {
 
     const priceId = subscription.items.data[0]?.price.id;
     const planType = this.mapStripePriceToPlanType(priceId);
-    const billingInterval = this.getBillingIntervalFromPriceId(priceId);
+    const billingInterval = SubscriptionService.getBillingIntervalFromPriceIdHelper(priceId);
     const sub = subscription as any; // Cast to any to access properties
 
-    await prisma.subscription.create({
-      data: {
+    // Use upsert to make subscription creation idempotent
+    await prisma.subscription.upsert({
+      where: { stripeSubscriptionId: subscription.id },
+      create: {
         userId,
         stripeCustomerId: subscription.customer as string,
         stripeSubscriptionId: subscription.id,
@@ -83,8 +92,19 @@ export class SubscriptionService {
         status: this.mapStripeStatusToPrismaStatus(subscription.status),
         planType,
         billingInterval,
-        currentPeriodStart: new Date(sub.current_period_start * 1000),
-        currentPeriodEnd: new Date(sub.current_period_end * 1000),
+        currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : null,
+        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+        cancelAtPeriodEnd: sub.cancel_at_period_end,
+        trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
+        trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
+      },
+      update: {
+        status: this.mapStripeStatusToPrismaStatus(subscription.status),
+        planType,
+        billingInterval,
+        stripePriceId: priceId,
+        currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : null,
+        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
         trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
@@ -102,7 +122,7 @@ export class SubscriptionService {
 
     const priceId = subscription.items.data[0]?.price.id;
     const planType = this.mapStripePriceToPlanType(priceId);
-    const billingInterval = this.getBillingIntervalFromPriceId(priceId);
+    const billingInterval = SubscriptionService.getBillingIntervalFromPriceIdHelper(priceId);
     const sub = subscription as any; // Cast to any to access properties
 
     const updatedSubscription = await prisma.subscription.update({
@@ -112,8 +132,8 @@ export class SubscriptionService {
         planType,
         billingInterval,
         stripePriceId: priceId,
-        currentPeriodStart: new Date(sub.current_period_start * 1000),
-        currentPeriodEnd: new Date(sub.current_period_end * 1000),
+        currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : null,
+        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : null,
         trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
@@ -157,12 +177,23 @@ export class SubscriptionService {
       where: { stripeCustomerId: invoice.customer as string, status: SubscriptionStatus.ACTIVE },
     });
 
-    await prisma.invoice.create({
-      data: {
+    // Use upsert to make invoice creation idempotent
+    await prisma.invoice.upsert({
+      where: { stripeInvoiceId: invoice.id },
+      create: {
         userId,
         subscriptionId: subscription?.id,
         stripeInvoiceId: invoice.id,
-        amount: (invoice.amount_due || 0) / 100, // Convert from cents
+        amount: new Prisma.Decimal((invoice.amount_due || 0) / 100), // Convert from cents to Decimal
+        currency: invoice.currency,
+        status: this.mapStripeInvoiceStatusToPrismaStatus(invoice.status),
+        description: invoice.lines.data[0]?.description || 'Subscription payment',
+        invoiceUrl: invoice.hosted_invoice_url,
+        pdfUrl: invoice.invoice_pdf,
+        dueDate: invoice.due_date ? new Date(invoice.due_date * 1000) : null,
+      },
+      update: {
+        amount: new Prisma.Decimal((invoice.amount_due || 0) / 100), // Update amount if changed
         currency: invoice.currency,
         status: this.mapStripeInvoiceStatusToPrismaStatus(invoice.status),
         description: invoice.lines.data[0]?.description || 'Subscription payment',
@@ -275,6 +306,12 @@ export class SubscriptionService {
 
     return {
       ...subscription,
+      invoices: subscription.invoices.map(invoice => ({
+        ...invoice,
+        amount: typeof invoice.amount === 'object' && 'toNumber' in invoice.amount 
+          ? (invoice.amount as Prisma.Decimal).toNumber() 
+          : Number(invoice.amount), // Convert Decimal to number for frontend
+      })),
       paymentMethods,
     };
   }
@@ -290,6 +327,7 @@ export class SubscriptionService {
       throw new Error('No active subscription found');
     }
 
+    const stripe = getStripe();
     await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
       cancel_at_period_end: true,
     });
@@ -302,17 +340,62 @@ export class SubscriptionService {
 
   // Helper methods
   private static async getUserIdFromCustomer(customerId: string): Promise<number | null> {
+    // First try local DB lookup
     const subscription = await prisma.subscription.findFirst({
       where: { stripeCustomerId: customerId },
       select: { userId: true },
     });
-    return subscription?.userId || null;
+    
+    if (subscription?.userId) {
+      return subscription.userId;
+    }
+
+    // For test customers, extract userId from metadata if present
+    if (customerId.startsWith('cus_test_')) {
+      // This is a test customer, no need to call Stripe API
+      return null;
+    }
+
+    // Fallback to Stripe API if not found in DB (only for real customers)
+    try {
+      logger.info('Falling back to Stripe API for customer lookup', { customerId });
+      const stripe = getStripe();
+      const customer = await stripe.customers.retrieve(customerId);
+      
+      if (customer && !customer.deleted) {
+        const stripeCustomer = customer as Stripe.Customer;
+        if (stripeCustomer.metadata?.userId) {
+          const userId = parseInt(stripeCustomer.metadata.userId);
+          
+          // Validate that it's a valid number
+          if (!isNaN(userId) && userId > 0) {
+            logger.info('Found userId in customer metadata', { customerId, userId });
+            return userId;
+          } else {
+            logger.warn('Invalid userId in customer metadata', { 
+              customerId, 
+              rawUserId: stripeCustomer.metadata.userId 
+            });
+          }
+        } else {
+          logger.warn('Customer has no userId metadata', { customerId });
+        }
+      } else {
+        logger.warn('Customer is deleted or not found', { customerId });
+      }
+    } catch (error) {
+      logger.error('Failed to fetch customer from Stripe', { 
+        customerId, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+
+    return null;
   }
 
   private static mapStripePriceToPlanType(priceId?: string): PlanType {
     if (!priceId) return PlanType.FREE;
     
-    const { getPlanTypeFromPriceId } = require('../config/stripe.js');
     const planName = getPlanTypeFromPriceId(priceId);
     
     switch (planName) {
@@ -327,10 +410,9 @@ export class SubscriptionService {
     }
   }
 
-  private static getBillingIntervalFromPriceId(priceId?: string): BillingInterval {
+  private static getBillingIntervalFromPriceIdHelper(priceId?: string): BillingInterval {
     if (!priceId) return BillingInterval.MONTHLY;
     
-    const { getBillingIntervalFromPriceId } = require('../config/stripe.js');
     const interval = getBillingIntervalFromPriceId(priceId);
     
     switch (interval) {

@@ -5,8 +5,8 @@ export const STRIPE_PRICE_IDS = {
     ANNUAL: 'price_1ABC123example_annual', // Replace with your actual price ID for $450/year (annual)
   },
   OMNI_CHATS: {
-    MONTHLY: 'price_1S0sHWAqadM33xzp6wNaaRe3', // Replace with your actual price ID for $29/month
-    ANNUAL: 'price_1S0rAKAqadM33xzp9x5Rkww1', // Replace with your actual price ID for $290/year (annual)
+    MONTHLY: 'price_1S0rAKAqadM33xzp9x5Rkww1', // $9/month - confirmed working price
+    ANNUAL: 'price_1S0sHWAqadM33xzp6wNaaRe3', // Annual price - verify this exists in Stripe
   },
   PREMIUM: {
     MONTHLY: 'price_3GHI789example', // Replace with your actual price ID for $99/month
@@ -29,8 +29,8 @@ export const PLAN_DETAILS = {
     planType: 'OMNI_CHATS' as const,
     features: ['Unlimited chat conversations', 'Advanced AI models', 'Chat history'],
     pricing: {
-      monthly: { price: '$29', interval: 'month' },
-      annual: { price: '$290', interval: 'year', savings: '17%' }, // ~2 months free
+      monthly: { price: '$9', interval: 'month' },
+      annual: { price: '$90', interval: 'year', savings: '17%' }, // ~2 months free
     },
   },
   PREMIUM: {

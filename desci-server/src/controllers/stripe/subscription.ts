@@ -4,12 +4,11 @@ import Stripe from 'stripe';
 import { logger as parentLogger } from '../../logger.js';
 import { SubscriptionService } from '../../services/SubscriptionService.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
+import { getStripe } from '../../utils/stripe.js';
 
 const logger = parentLogger.child({
   module: 'STRIPE_SUBSCRIPTION',
 });
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const createSubscriptionSchema = z.object({
   priceId: z.string(),
@@ -36,6 +35,7 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
     const customer = await SubscriptionService.getOrCreateStripeCustomer(userId);
 
     // Create checkout session
+    const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       payment_method_types: ['card'],
@@ -74,8 +74,8 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
 
     logger.info('Creating customer portal session', { userId });
 
-    // Get user's Stripe customer ID
-    const subscription = await SubscriptionService.getUserActiveSubscription(userId);
+    // Get user's Stripe customer ID from any subscription (not just active ones)
+    const subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
     if (!subscription?.stripeCustomerId) {
       logger.warn('No customer found for user', { userId });
       return res.status(404).json({ error: 'No customer found' });
@@ -85,6 +85,7 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
 
     // Create portal session
     try {
+      const stripe = getStripe();
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: subscription.stripeCustomerId,
         return_url: returnUrl || `${req.headers.origin}/settings/subscription`,

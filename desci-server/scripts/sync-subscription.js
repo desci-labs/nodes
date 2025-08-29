@@ -1,20 +1,22 @@
 import Stripe from 'stripe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const prisma = new PrismaClient();
 
 async function syncSubscription(subscriptionId) {
   try {
+    if (!stripe) {
+      console.error('❌ STRIPE_SECRET_KEY not configured');
+      return;
+    }
+
     console.log('Fetching subscription from Stripe:', subscriptionId);
     
-    // Get subscription from Stripe using direct API call
-    const response = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
-      headers: {
-        'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`
-      }
+    // Get subscription from Stripe using SDK
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['items.data.price', 'latest_invoice']
     });
-    const subscription = await response.json();
     
     console.log('Subscription status:', subscription.status);
     console.log('Current period start:', subscription.current_period_start);
@@ -77,7 +79,7 @@ async function syncSubscription(subscriptionId) {
       newSub = await prisma.subscription.create({
         data: {
           userId,
-          stripeCustomerId: subscription.customer,
+          stripeCustomerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id,
           stripeSubscriptionId: subscription.id,
           stripePriceId: priceId,
           status: subscription.status === 'active' ? 'ACTIVE' : 'INCOMPLETE',
@@ -111,7 +113,7 @@ async function syncSubscription(subscriptionId) {
             userId,
             subscriptionId: newSub.id,
             stripeInvoiceId: invoice.id,
-            amount: (invoice.amount_paid || 0) / 100,
+            amount: new Prisma.Decimal((invoice.amount_paid || 0) / 100),
             currency: invoice.currency,
             status: invoice.status === 'paid' ? 'PAID' : (invoice.status === 'open' ? 'OPEN' : 'DRAFT'),
             description: invoice.lines.data[0]?.description || 'Subscription payment',
@@ -141,7 +143,7 @@ async function syncSubscription(subscriptionId) {
         await prisma.paymentMethod.create({
           data: {
             userId,
-            stripeCustomerId: subscription.customer,
+            stripeCustomerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id,
             stripePaymentMethodId: pm.id,
             type: 'CARD',
             last4: pm.card?.last4,

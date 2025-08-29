@@ -1475,25 +1475,25 @@ model UserFeatureLimit {
 }
 
 model Subscription {
-  id                    Int                 @id @default(autoincrement())
-  userId                Int
-  stripeCustomerId      String?
-  stripeSubscriptionId  String?             @unique
-  stripePriceId         String?
-  status                SubscriptionStatus
-  planType              PlanType
-  billingInterval       BillingInterval     @default(MONTHLY)
-  currentPeriodStart    DateTime?
-  currentPeriodEnd      DateTime?
-  cancelAtPeriodEnd     Boolean             @default(false)
-  canceledAt            DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  trialStart            DateTime?
-  trialEnd              DateTime?
-  
-  user                  User                @relation(fields: [userId], references: [id])
-  invoices              Invoice[]
+  id                   Int                @id @default(autoincrement())
+  userId               Int
+  stripeCustomerId     String?
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  status               SubscriptionStatus
+  planType             PlanType
+  billingInterval      BillingInterval    @default(MONTHLY)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  trialStart           DateTime?
+  trialEnd             DateTime?
+
+  user     User      @relation(fields: [userId], references: [id])
+  invoices Invoice[]
 
   @@index([userId])
   @@index([stripeCustomerId])
@@ -1504,7 +1504,7 @@ model Subscription {
 model PaymentMethod {
   id                    Int               @id @default(autoincrement())
   userId                Int
-  stripeCustomerId      String            // PaymentMethods are tied to customers, not subscriptions
+  stripeCustomerId      String // PaymentMethods are tied to customers, not subscriptions
   stripePaymentMethodId String            @unique
   type                  PaymentMethodType
   isDefault             Boolean           @default(false)
@@ -1515,7 +1515,7 @@ model PaymentMethod {
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 
-  user                  User              @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([stripeCustomerId])
@@ -1523,27 +1523,26 @@ model PaymentMethod {
 }
 
 model Invoice {
-  id                    Int           @id @default(autoincrement())
-  userId                Int
-  subscriptionId        Int?
-  stripeInvoiceId       String        @unique
-  amount                Float
-  currency              String        @default("usd")
-  status                StripeInvoiceStatus
-  description           String?
-  invoiceUrl            String?
-  pdfUrl                String?
-  paidAt                DateTime?
-  dueDate               DateTime?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  id              Int                 @id @default(autoincrement())
+  userId          Int
+  subscriptionId  Int?
+  stripeInvoiceId String              @unique
+  amount          Decimal
+  currency        String              @default("usd")
+  status          StripeInvoiceStatus
+  description     String?
+  invoiceUrl      String?
+  pdfUrl          String?
+  paidAt          DateTime?
+  dueDate         DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
-  user                  User          @relation(fields: [userId], references: [id])
-  subscription          Subscription? @relation(fields: [subscriptionId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
 
   @@index([userId])
   @@index([subscriptionId])
-  @@index([stripeInvoiceId])
   @@index([status])
 }
 
