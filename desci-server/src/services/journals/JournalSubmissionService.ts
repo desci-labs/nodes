@@ -1,4 +1,5 @@
-import { EditorRole, JournalEventLogAction, Prisma, SubmissionStatus } from '@prisma/client';
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { EditorRole, JournalEventLogAction, JournalSubmission, Prisma, SubmissionStatus } from '@prisma/client';
 import _ from 'lodash';
 import { err, ok, Result } from 'neverthrow';
 
@@ -99,6 +100,7 @@ async function getJournalSubmissions(
     select: {
       id: true,
       dpid: true,
+      doi: true,
       version: true,
       status: true,
       submittedAt: true,
@@ -115,6 +117,23 @@ async function getJournalSubmissions(
           orcid: true,
         },
       },
+    },
+  });
+}
+
+async function getFeaturedJournalPublications(
+  filter: Prisma.JournalSubmissionWhereInput,
+  orderBy?: Prisma.JournalSubmissionOrderByWithRelationInput,
+  offset?: number,
+  limit?: number,
+) {
+  return await prisma.journalSubmission.findMany({
+    where: filter,
+    ...(orderBy ? { orderBy } : {}),
+    ...(offset ? { skip: offset } : {}),
+    ...(limit ? { take: limit } : {}),
+    select: {
+      id: true,
     },
   });
 }
@@ -720,9 +739,101 @@ const getSubmissionDetails = async (submissionId: number): Promise<Result<Submis
   const targetVersionManifestCid = hexToCid(targetVersion.cid);
   const manifest = await getManifestByCid(targetVersionManifestCid);
 
+  delete submission.node.DoiRecord;
+
   const submissionDetails = {
     ...submission,
     researchObject: { ...submission.node, doi, manifest, manifestCid: targetVersionManifestCid },
+  };
+
+  return ok(submissionDetails);
+};
+
+export type FeaturedSubmissionPartial = Pick<JournalSubmission, 'id' | 'dpid' | 'version' | 'doi' | 'submittedAt'>;
+export type FeaturedSubmissionDetails = FeaturedSubmissionPartial & {
+  researchObject: {
+    uuid: string;
+    manifest: ResearchObjectV1;
+    publishedAt?: Date;
+  };
+  // included for convenience in the db query
+  journal: {
+    id: number;
+    name: string;
+  };
+  author: {
+    name: string;
+    id: number;
+    orcid: string;
+  };
+};
+
+const getFeaturedPublicationDetails = async (
+  submissionId: number,
+): Promise<Result<FeaturedSubmissionDetails, Error>> => {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+    include: {
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      node: {
+        select: {
+          uuid: true,
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          id: true,
+          orcid: true,
+        },
+      },
+    },
+  });
+
+  if (!submission) {
+    return err(new NotFoundError('Submission not found'));
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    // The tests don't really care about this data, so just partial dummy data is used
+    // In tests, we can't get resolve the research object, as it's not actually being published.
+    const submissionDetails = {
+      ...submission,
+      researchObject: {
+        ...submission.node,
+        manifest: {
+          version: 'desci-nodes-0.1.0' as const,
+          title: 'Test Title',
+          authors: [{ name: 'Test Author', role: 'author' }],
+          description: 'Test Abstract',
+          components: [],
+        },
+        publishedAt: new Date(),
+      },
+    };
+    return ok(submissionDetails);
+  }
+  const { researchObjects } = await getIndexedResearchObjects([submission.node.uuid]);
+  if (!researchObjects || researchObjects.length === 0) {
+    return err(new Error('No published version found for submission'));
+  }
+  const researchObject = researchObjects[0];
+
+  const targetVersionIndex = researchObject.versions.length - submission.version;
+  const targetVersion = researchObject.versions[targetVersionIndex];
+  const targetVersionManifestCid = hexToCid(targetVersion.cid);
+  const manifest = await getManifestByCid(targetVersionManifestCid);
+  const publishedAt = targetVersion.time ? new Date(parseInt(targetVersion.time) * 1000) : undefined;
+  logger.trace({ publishedAt, targetVersion }, 'Published at');
+
+  const submissionDetails = {
+    ...submission,
+    researchObject: { ...submission.node, manifest, publishedAt },
   };
 
   return ok(submissionDetails);
@@ -765,4 +876,6 @@ export const journalSubmissionService = {
   isSubmissionDeskRejection,
   getSubmissionDetails,
   getUrgentJournalSubmissions,
+  getFeaturedJournalPublications,
+  getFeaturedPublicationDetails,
 };
