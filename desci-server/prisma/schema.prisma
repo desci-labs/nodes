@@ -179,6 +179,10 @@ model User {
   email                       String                        @unique
   phoneNumber                 String?                       @unique
   name                        String?
+  firstName                   String?
+  lastName                    String?
+  role                        String?
+  source                      String?
   website                     String?
   googleScholarUrl            String?
   researchInterests           String?
@@ -265,6 +269,9 @@ model User {
   journalFormTemplates   JournalFormTemplate[]
   ExternalApiUsage       ExternalApiUsage[]
   UserFeatureLimit       UserFeatureLimit[]
+  Subscription           Subscription[]
+  PaymentMethod          PaymentMethod[]
+  Invoice                Invoice[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1467,6 +1474,79 @@ model UserFeatureLimit {
   @@index([userId, feature, isActive])
 }
 
+model Subscription {
+  id                    Int                 @id @default(autoincrement())
+  userId                Int
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?             @unique
+  stripePriceId         String?
+  status                SubscriptionStatus
+  planType              PlanType
+  billingInterval       BillingInterval     @default(MONTHLY)
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean             @default(false)
+  canceledAt            DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  trialStart            DateTime?
+  trialEnd              DateTime?
+  
+  user                  User                @relation(fields: [userId], references: [id])
+  invoices              Invoice[]
+
+  @@index([userId])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@index([status])
+}
+
+model PaymentMethod {
+  id                    Int               @id @default(autoincrement())
+  userId                Int
+  stripeCustomerId      String            // PaymentMethods are tied to customers, not subscriptions
+  stripePaymentMethodId String            @unique
+  type                  PaymentMethodType
+  isDefault             Boolean           @default(false)
+  last4                 String?
+  brand                 String?
+  expiryMonth           Int?
+  expiryYear            Int?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  user                  User              @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([stripeCustomerId])
+  @@index([stripePaymentMethodId])
+}
+
+model Invoice {
+  id                    Int           @id @default(autoincrement())
+  userId                Int
+  subscriptionId        Int?
+  stripeInvoiceId       String        @unique
+  amount                Float
+  currency              String        @default("usd")
+  status                StripeInvoiceStatus
+  description           String?
+  invoiceUrl            String?
+  pdfUrl                String?
+  paidAt                DateTime?
+  dueDate               DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user                  User          @relation(fields: [userId], references: [id])
+  subscription          Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([stripeInvoiceId])
+  @@index([status])
+}
+
 enum Feature {
   REFEREE_FINDER
   RESEARCH_ASSISTANT
@@ -1777,4 +1857,40 @@ enum InvoiceStatus {
 enum FormResponseStatus {
   DRAFT // In progress
   SUBMITTED // Completed and submitted
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  TRIALING
+  UNPAID
+}
+
+enum PlanType {
+  FREE
+  AI_REFEREE_FINDER
+  OMNI_CHATS
+  PREMIUM
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
+enum PaymentMethodType {
+  CARD
+  BANK_ACCOUNT
+  PAYPAL
+}
+
+enum StripeInvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  UNCOLLECTIBLE
+  VOID
 }

@@ -21,6 +21,7 @@ import {
   check,
 } from '../../controllers/auth/index.js';
 import { updateMarketingConsentController } from '../../controllers/auth/marketingConsent.js';
+import { updateSignupDetails } from '../../controllers/auth/updateSignupDetails.js';
 import { walletLogin, walletNonce } from '../../controllers/users/associateWallet.js';
 import { ensureGuest, ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
@@ -39,6 +40,7 @@ router.patch(
   [ensureUser, validate(updateMarketingConsentSchema)],
   asyncHandler(updateMarketingConsentController),
 );
+router.patch('/signup-details', [ensureUser], asyncHandler(updateSignupDetails));
 router.get('/orcid/auth', orcidAuth);
 router.get('/orcid/auth/close', orcidAuthClose);
 router.get('/orcid/connect', orcidConnect);
