@@ -154,6 +154,95 @@ async function getJournalAnalytics({
   };
 }
 
+async function getPublicJournalAnalytics({
+  journalId,
+  startDate,
+  endDate,
+}: {
+  journalId: number;
+  startDate: Date | null;
+  endDate: Date | null;
+}) {
+  const [submissions, reviews] = await Promise.all([
+    // get all submissions with optional date range
+    prisma.journalSubmission.findMany({
+      where: {
+        journalId,
+        ...(startDate && endDate
+          ? {
+              submittedAt: { gte: startDate, lte: endDate },
+            }
+          : {}),
+      },
+      orderBy: {
+        submittedAt: 'desc',
+      },
+    }),
+
+    // get all reviews with optional date range
+    prisma.journalSubmissionReview.findMany({
+      where: {
+        submission: {
+          journalId,
+        },
+        ...(startDate && endDate
+          ? {
+              submittedAt: { gte: startDate, lt: endDate },
+            }
+          : {}),
+      },
+      include: {
+        submission: {
+          select: {
+            status: true,
+          },
+        },
+        refereeAssignment: {
+          select: {
+            dueDate: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const acceptedSubmissions = submissions.filter(
+    (submission) => submission.acceptedAt !== null && submission.status === SubmissionStatus.ACCEPTED,
+  );
+
+  // for all accpeted submissions calculate the average acceptance time
+  const averageTimeToAcceptance =
+    acceptedSubmissions.length > 0
+      ? acceptedSubmissions.reduce((acc, submission) => {
+          return acc + (submission.acceptedAt.getTime() - submission.submittedAt.getTime());
+        }, 0) / acceptedSubmissions.length
+      : 0;
+
+  const completedReviews = reviews.filter(
+    (review) =>
+      review.submittedAt !== null &&
+      ([SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED] as SubmissionStatus[]).includes(review.submission.status),
+  );
+
+  const averageReviewTime =
+    completedReviews.length > 0
+      ? completedReviews.reduce((acc, review) => {
+          return acc + (review.submittedAt.getTime() - review.createdAt.getTime());
+        }, 0) / completedReviews.length
+      : 0;
+
+  return [
+    {
+      value: averageReviewTime ? `${relativeTimeFormat(new Date(averageReviewTime).getTime())}` : 'N/A',
+      label: 'Average Review Turnaround',
+    },
+    {
+      value: averageTimeToAcceptance ? `${relativeTimeFormat(new Date(averageTimeToAcceptance).getTime())}` : 'N/A',
+      label: 'Average Decision Time',
+    },
+  ];
+}
+
 const toDays = (ms: number) => {
   return Math.round(ms / (1000 * 60 * 60 * 24));
 };
@@ -201,4 +290,4 @@ export function relativeTimeFormat(ms: number) {
   }
 }
 
-export { getJournalAnalytics };
+export { getJournalAnalytics, getPublicJournalAnalytics };

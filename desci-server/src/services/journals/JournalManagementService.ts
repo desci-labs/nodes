@@ -385,6 +385,10 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
         description: true,
         iconCid: true,
         createdAt: true,
+        aboutArticle: true,
+        editorialBoardArticle: true,
+        authorInstruction: true,
+        refereeInstruction: true,
         editors: {
           include: {
             user: {
@@ -593,6 +597,10 @@ async function listJournals(userId?: number): Promise<Result<ListedJournal[], Er
         description: true,
         iconCid: true,
         createdAt: true,
+        aboutArticle: true,
+        editorialBoardArticle: true,
+        authorInstruction: true,
+        refereeInstruction: true,
         submissions: {
           select: { id: true },
           where: {
