@@ -99,7 +99,7 @@ const mystYamlSchema = z.object({
 
 const parseMystDocument = async (
   url: string,
-): Promise<Result<z.infer<typeof projectFrontmatterSchema>, UnProcessableRequestError>> => {
+): Promise<Result<z.infer<typeof mystYamlSchema>, UnProcessableRequestError>> => {
   try {
     const matchList = url.match(/github.com[\/:]([^\/]+)\/([^\/^.]+)\/blob\/([^\/^.]+)\/(.+)/);
     logger.trace({ matchList }, 'MYST::matchList');
@@ -132,7 +132,7 @@ const parseMystDocument = async (
     const parsedYaml = load(yamlText, { json: true }) as Record<string, unknown>;
     logger.trace({ parsedYaml }, 'MYST::parsedYaml');
 
-    const parsed = projectFrontmatterSchema.safeParse(parsedYaml);
+    const parsed = mystYamlSchema.safeParse(parsedYaml);
     if (parsed.error) {
       return err(new UnProcessableRequestError('yaml file validation failed!'));
     }
@@ -141,13 +141,13 @@ const parseMystDocument = async (
       return err(new UnProcessableRequestError('Missing project metadata!'));
     }
 
-    const parsedProject = projectFrontmatterSchema.safeParse(parsedYaml['project']);
-    if (parsedProject.error) {
-      return err(new UnProcessableRequestError('Project metadata validation failed!'));
-    }
-    logger.trace({ document: parsedProject.data }, 'MYST::doc');
+    // const parsedProject = projectFrontmatterSchema.safeParse(parsedYaml['project']);
+    // if (parsedProject.error) {
+    //   return err(new UnProcessableRequestError('Project metadata validation failed!'));
+    // }
+    logger.trace({ document: parsed.data }, 'MYST::doc');
 
-    return ok(parsedProject.data);
+    return ok(parsed.data);
   } catch (error) {
     return err(new UnProcessableRequestError('Failed to fetch/parse MyST YAML', error));
   }
@@ -169,7 +169,7 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     return sendError(res, parsedDocument.error.message, 400);
   }
 
-  const { title, authors, description, license, keywords } = parsedDocument.value;
+  const { title, authors, description, license, keywords } = parsedDocument.value.project;
 
   const actions: ManifestActions[] = [];
 
@@ -181,15 +181,15 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     actions.push({
       type: 'Set Contributors',
       contributors: authors.map((author) => {
-        const organizations = author?.affiliations?.map((affiliation) => ({
-          id: affiliation.email ?? '',
-          name: affiliation.name,
-        }));
+        // const organizations = author?.affiliations?.map((affiliation) => ({
+        //   id: affiliation.email ?? '',
+        //   name: affiliation.name,
+        // }));
         return {
           id: uuidv4(),
           name: author.name,
           role: [],
-          organizations,
+          // organizations,
           ...(author?.orcid && { orcid: author.orcid }),
           // ...(author?.affiliation && { organizations: [{ id: author.email ?? '', name: author.affiliation }] }),
         };
