@@ -1,4 +1,5 @@
 import { DocumentId } from '@automerge/automerge-repo';
+import { projectFrontmatterSchema } from '@awesome-myst/myst-zod';
 import { ManifestActions } from '@desci-labs/desci-models';
 import axios from 'axios';
 import { NextFunction, Response } from 'express';
@@ -98,7 +99,7 @@ const mystYamlSchema = z.object({
 
 const parseMystDocument = async (
   url: string,
-): Promise<Result<z.infer<typeof mystYamlSchema>, UnProcessableRequestError>> => {
+): Promise<Result<z.infer<typeof projectFrontmatterSchema>, UnProcessableRequestError>> => {
   try {
     const matchList = url.match(/github.com[\/:]([^\/]+)\/([^\/^.]+)\/blob\/([^\/^.]+)\/(.+)/);
     logger.trace({ matchList }, 'MYST::matchList');
@@ -126,15 +127,27 @@ const parseMystDocument = async (
     logger.trace({ data: apiResponse.data, contentType: apiResponse.headers['content-type'] }, 'MYST::apiResponse');
 
     const yamlText = await apiResponse.data;
-    logger.trace({ yamlText: yamlText.slice(0, 20) }, 'MYST::githubResponse');
+    // logger.trace({ yamlText: yamlText.slice(0, 20) }, 'MYST::githubResponse');
 
-    const parsed = mystYamlSchema.safeParse(load(yamlText, { json: true }));
+    const parsedYaml = load(yamlText, { json: true }) as Record<string, unknown>;
+    logger.trace({ parsedYaml }, 'MYST::parsedYaml');
+
+    const parsed = projectFrontmatterSchema.safeParse(parsedYaml);
     if (parsed.error) {
       return err(new UnProcessableRequestError('yaml file validation failed!'));
     }
 
-    logger.trace({ document: parsed.data }, 'MYST::doc');
-    return ok(parsed.data);
+    if (!parsedYaml['project']) {
+      return err(new UnProcessableRequestError('Missing project metadata!'));
+    }
+
+    const parsedProject = projectFrontmatterSchema.safeParse(parsedYaml['project']);
+    if (parsedProject.error) {
+      return err(new UnProcessableRequestError('Project metadata validation failed!'));
+    }
+    logger.trace({ document: parsedProject.data }, 'MYST::doc');
+
+    return ok(parsedProject.data);
   } catch (error) {
     return err(new UnProcessableRequestError('Failed to fetch/parse MyST YAML', error));
   }
@@ -156,7 +169,7 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     return sendError(res, parsedDocument.error.message, 400);
   }
 
-  const { title, authors, description, license, keywords } = parsedDocument.value.project;
+  const { title, authors, description, license, keywords } = parsedDocument.value;
 
   const actions: ManifestActions[] = [];
 
@@ -167,19 +180,27 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
   if (authors?.length > 0) {
     actions.push({
       type: 'Set Contributors',
-      contributors: authors.map((author) => ({
-        id: uuidv4(),
-        name: author.name,
-        role: [],
-        ...(author.affiliation && { organizations: [{ id: author.email ?? '', name: author.affiliation }] }),
-        ...(author.orcid && { orcid: author.orcid }),
-      })),
+      contributors: authors.map((author) => {
+        const organizations = author?.affiliations?.map((affiliation) => ({
+          id: affiliation.email ?? '',
+          name: affiliation.name,
+        }));
+        return {
+          id: uuidv4(),
+          name: author.name,
+          role: [],
+          organizations,
+          ...(author?.orcid && { orcid: author.orcid }),
+          // ...(author?.affiliation && { organizations: [{ id: author.email ?? '', name: author.affiliation }] }),
+        };
+      }),
     });
   }
 
-  if (license?.trim()) actions.push({ type: 'Update License', defaultLicense: license });
+  // in projectFrontmatterSchema, license is an object with content and code properties
+  if (license) actions.push({ type: 'Update License', defaultLicense: license as string });
 
-  if (keywords?.length > 0) actions.push({ type: 'Update ResearchFields', researchFields: keywords });
+  if (keywords?.length > 0) actions.push({ type: 'Set Keywords', keywords });
 
   if (dryRun) {
     return sendSuccess(res, {

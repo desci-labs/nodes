@@ -66,6 +66,7 @@
   "dependencies": {
     "@automerge/automerge-repo": "^1.0.19",
     "@automerge/automerge-repo-network-websocket": "^1.0.19",
+    "@awesome-myst/myst-zod": "^0.6.1",
     "@aws-sdk/client-s3": "^3.537.0",
     "@aws-sdk/client-sqs": "^3.787.0",
     "@aws-sdk/s3-request-presigner": "^3.850.0",
