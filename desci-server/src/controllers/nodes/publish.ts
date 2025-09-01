@@ -301,20 +301,20 @@ const syncPublish = async (
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
   // Intentionally above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  await PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId);
+  void PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId);
 
   /*
    * Emit notification on publish
    */
-  await NotificationService.emitOnPublish(node, owner, dpid, publishStatusId);
+  void NotificationService.emitOnPublish(node, owner, dpid, publishStatusId);
 
   const targetDpidUrl = getTargetDpidUrl();
-  discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
+  void discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
 
   /**
    * Save the cover art for this Node for later sharing: PDF -> JPG for this version
    */
-  cacheNodeMetadata(node.uuid, cid);
+  void cacheNodeMetadata(node.uuid, cid);
   return dpidAlias;
 };
 
