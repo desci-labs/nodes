@@ -70,29 +70,29 @@ services:
       start_period: 10s
       timeout: 2s
 
-  nodes_test_repo_service:
-    container_name: "nodes_test_repo_service"
-    entrypoint: /bin/sh './desci-repo/scripts/be-node-test.sh'
-    build: ./desci-repo
-    env_file:
-      - ./desci-repo/.env.test
-    ports:
-      - "5485:5484"
-      # - "5446:5445"
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    healthcheck:
-      test: curl -f http://localhost:5484/readyz || exit 1
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    depends_on:
-      - nodes_test_db
-    links:
-      - nodes_test_db
-    volumes:
-      - .:/app/
-      - ./local-data/yarn_cache:/root/.yarn
+  # nodes_test_repo_service:
+  #   container_name: "nodes_test_repo_service"
+  #   entrypoint: /bin/sh './desci-repo/scripts/be-node-test.sh'
+  #   build: ./desci-repo
+  #   env_file:
+  #     - ./desci-repo/.env.test
+  #   ports:
+  #     - "5485:5484"
+  #     # - "5446:5445"
+  #   extra_hosts:
+  #     - host.docker.internal:host-gateway
+  #   healthcheck:
+  #     test: curl -f http://localhost:5484/readyz || exit 1
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #   depends_on:
+  #     - nodes_test_db
+  #   links:
+  #     - nodes_test_db
+  #   volumes:
+  #     - .:/app/
+  #     - ./local-data/yarn_cache:/root/.yarn
 
   nodes_test_sync_service:
     build:

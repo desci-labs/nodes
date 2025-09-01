@@ -14,6 +14,7 @@ import {
   getNewUserAnalyticsOperation,
   getNewOrcidUserAnalyticsOperation,
 } from './analytics.js';
+import { authPaths } from './auth.js';
 import { authorPaths } from './authors.js';
 import { communityPaths } from './communities.js';
 import { doiPaths } from './doi.js';
@@ -83,6 +84,7 @@ export const openaiDocumentation = createDocument({
     },
   },
   tags: [
+    { name: 'Authentication', description: 'Authentication and authorization operations' },
     { name: 'Users', description: 'User-related operations' },
     { name: 'Admin', description: 'Admin-only operations' },
     { name: 'Communities', description: 'Community-related operations' },
@@ -129,6 +131,7 @@ export const openaiDocumentation = createDocument({
   paths: {
     ...analyticsPaths,
     ...submissionPaths,
+    ...authPaths,
     ...communityPaths,
     ...authorPaths,
     ...userPaths,
