@@ -1150,14 +1150,18 @@ model DataMigration {
 }
 
 model Journal {
-  id           Int      @id @default(autoincrement())
-  name         String
-  description  String?
-  iconCid      String? // URL to icon
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  isCommercial Boolean  @default(false)
-  settings     Json?    @default("{}")
+  id                    Int      @id @default(autoincrement())
+  name                  String
+  description           String?
+  iconCid               String? // URL to icon
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  isCommercial          Boolean  @default(false)
+  settings              Json?    @default("{}")
+  aboutArticle          String?
+  editorialBoardArticle String?
+  authorInstruction     String?
+  refereeInstruction    String?
 
   // Relationships
   editors                   JournalEditor[]

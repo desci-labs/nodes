@@ -44,8 +44,12 @@ export const updateJournalSettingsController = async (req: UpdateJournalSettings
       return sendError(res, 'Failed to update journal settings due to a server error.', 500);
     }
 
-    const { description, settings } = result.value;
-    return sendSuccess(res, { description, settings }, 'Journal settings updated successfully.');
+    const { aboutArticle, editorialBoardArticle, authorInstruction, refereeInstruction, settings } = result.value;
+    return sendSuccess(
+      res,
+      { aboutArticle, editorialBoardArticle, authorInstruction, refereeInstruction, settings },
+      'Journal settings updated successfully.',
+    );
   } catch (error) {
     logger.error(
       { error, journalId: req.params?.journalId, userId: req.user?.id, body: req.body },
