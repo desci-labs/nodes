@@ -2,6 +2,7 @@ import { DocumentId } from '@automerge/automerge-repo';
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataType, Node, Prisma, PublicDataReference, User } from '@prisma/client';
 import axios from 'axios';
+import { errWithCause } from 'pino-std-serializers';
 
 import { prisma } from '../client.js';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '../config/index.js';
@@ -451,7 +452,7 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
     });
     return { version, uuid, manifestCid };
   } catch (error) {
-    logger.error({ error }, 'Error cacheNodeMetadata');
+    logger.error({ error: errWithCause(error) }, 'Error cacheNodeMetadata');
     return false;
   }
 };
