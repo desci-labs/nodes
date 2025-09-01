@@ -467,18 +467,10 @@ describe("nodes-lib", () => {
         );
         expect(codexHistory.versions.length).toEqual(6);
 
-        const codexVersionsDpidResolver = await (
-          await fetch(`http://localhost:5460/api/v2/resolve/dpid/${legacyDpid}`)
-        ).json();
-
         const cidsInDpidHistory = dpidHistory.versions.map((v) => v.cid);
-        const cidsInCodex = codexVersionsDpidResolver.versions
-          .map((v: any) => v.manifest)
-          .slice(0, -1);
+        const cidsInCodex = codexHistory.versions.map(v => v.manifest);
 
-        console.log('DPID HISTORY:', JSON.stringify(cidsInDpidHistory, undefined, 2));
-        console.log('CODEX HISTORY:', JSON.stringify(cidsInCodex, undefined, 2));
-        expect(cidsInDpidHistory).toEqual(cidsInCodex);
+        expect(cidsInDpidHistory).toEqual(cidsInCodex.slice(0, -1));
       });
     });
 
