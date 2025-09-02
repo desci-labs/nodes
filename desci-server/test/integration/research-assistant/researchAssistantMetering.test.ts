@@ -1,9 +1,9 @@
 import 'mocha';
 import { Feature, Period, PlanCodename, User, ExternalApi } from '@prisma/client';
 import { expect } from 'chai';
+import { addMonths, subMonths } from 'date-fns';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
-import { addMonths, subMonths } from 'date-fns';
 
 import { prisma } from '../../../src/client.js';
 import { server } from '../../../src/server.js';
