@@ -19,10 +19,13 @@ services:
     #   - ./database/test:/var/lib/postgresql/data/
 
   nodes_backend_test:
+    container_name: "nodes_backend_test"
     build: .
     entrypoint: /bin/sh './desci-server/scripts/be-node-test.sh'
     env_file:
       - .env.test
+    environment:
+      - RUN_DEV=${RUN_DEV:-0}
     ports:
       - "5421:5420"
       - "9227:9227"
@@ -31,16 +34,19 @@ services:
       - host.docker.internal:host-gateway
     depends_on:
       nodes_test_sync_service:
-        condition: service_started
+        condition: service_healthy
       nodes_test_db:
         condition: service_healthy
       nodes_test_ipfs:
-        condition: service_started
-      # nodes_test_repo_service:
-      #   condition: service_healthy
-    container_name: "nodes_backend_test"
+        condition: service_healthy
     volumes:
       - .:/app/
+    healthcheck:
+      test: curl -f http://localhost:5421/readyz || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
     #   - /app/node_modules
     # volumes:
     #   - ./tmp/nebulus:/tmp/nebulus
@@ -70,35 +76,11 @@ services:
       start_period: 10s
       timeout: 2s
 
-  # nodes_test_repo_service:
-  #   container_name: "nodes_test_repo_service"
-  #   entrypoint: /bin/sh './desci-repo/scripts/be-node-test.sh'
-  #   build: ./desci-repo
-  #   env_file:
-  #     - ./desci-repo/.env.test
-  #   ports:
-  #     - "5485:5484"
-  #     # - "5446:5445"
-  #   extra_hosts:
-  #     - host.docker.internal:host-gateway
-  #   healthcheck:
-  #     test: curl -f http://localhost:5484/readyz || exit 1
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #   depends_on:
-  #     - nodes_test_db
-  #   links:
-  #     - nodes_test_db
-  #   volumes:
-  #     - .:/app/
-  #     - ./local-data/yarn_cache:/root/.yarn
-
   nodes_test_sync_service:
+    container_name: nodes_sync_test_worker
     build:
       context: ./sync-server
       dockerfile: Dockerfile
-    container_name: nodes_sync_test_worker
     image: worker_test
     ports:
       - "5446:5445"
@@ -108,13 +90,20 @@ services:
       - ./sync-server:/usr/src/app
       - /usr/src/app/node_modules
     depends_on:
-      - nodes_test_db
+      nodes_test_db:
+        condition: service_healthy
     env_file:
       - ./sync-server/.env.test
+    healthcheck:
+      test: curl -f http://localhost:5445/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
 
   ceramic-one-test:
-    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.54.2
-    container_name: ceramic-one-test
+    container_name: ceramic_one_test
+    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
     restart: on-failure
     ports:
       - 5101:5101 # RPC
@@ -131,3 +120,16 @@ services:
       CERAMIC_ONE_LOG_FORMAT: "multi-line"
     volumes:
       - ../local-data/test/ceramic-one:/data/ceramic-one
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "ceramic-one",
+          "query",
+          "statement-query",
+          "select null from event_states limit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+

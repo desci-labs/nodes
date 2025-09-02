@@ -1,11 +1,10 @@
-import 'mocha';
 import { User } from '@prisma/client';
-import { expect } from 'chai';
 import supertest from 'supertest';
+import { describe, it, beforeAll, expect } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
-import { app } from '../../src/index.js';
+import { app } from '../testApp.js';
 import { testingGenerateMagicCode } from '../util.js';
 
 describe('API Key Tests', () => {
@@ -13,7 +12,7 @@ describe('API Key Tests', () => {
   let mockAuthToken: string;
   let request: supertest.SuperTest<supertest.Test>;
 
-  before(async () => {
+  beforeAll(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
 
     mockUser = await prisma.user.create({
@@ -37,8 +36,8 @@ describe('API Key Tests', () => {
         .send({ memo: testMemo, magicToken: magicToken })
         .expect(201);
 
-      expect(response.body.ok).to.be.true;
-      expect(response.body.apiKey).to.be.a('string');
+      expect(response.body.ok).toBe(true);
+      expect(response.body.apiKey).toBeTypeOf('string');
     });
 
     it('should not issue an API key with an invalid magic token', async () => {
@@ -49,8 +48,8 @@ describe('API Key Tests', () => {
         .send({ memo: testMemo, magicToken: 'invalidToken' })
         .expect(400);
 
-      expect(response.body.ok).to.be.false;
-      expect(response.body.error).to.equal('Magic Token invalid');
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error).toBe('Magic Token invalid');
     });
     it('should not issue an API key if unauthenticated', async () => {
       const testMemo = 'Test2';
@@ -67,8 +66,8 @@ describe('API Key Tests', () => {
         .send({ magicToken: magicToken })
         .expect(400);
 
-      expect(response.body.ok).to.be.false;
-      expect(response.body.error).to.equal('Unique Memo required');
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error).toBe('Unique Memo required');
     });
     it('should not issue an API key if memo is not unique', async () => {
       const sameMemo = 'SameMemo';
@@ -84,10 +83,8 @@ describe('API Key Tests', () => {
         .set('authorization', `Bearer ${mockAuthToken}`)
         .send({ memo: sameMemo, magicToken: magicToken2 })
         .expect(400);
-      expect(response2.body.ok).to.be.false;
-      expect(response2.body.error).to.equal(
-        'Failed issuing API Key, ensure the memo is unique and wasnt previously used',
-      );
+      expect(response2.body.ok).toBe(false);
+      expect(response2.body.error).toBe('Failed issuing API Key, ensure the memo is unique and wasnt previously used');
     });
   });
 
@@ -106,8 +103,8 @@ describe('API Key Tests', () => {
         .send({ memo: revokeMemo })
         .expect(200);
 
-      expect(response.body.ok).to.be.true;
-      expect(response.body.memo).to.equal(revokeMemo);
+      expect(response.body.ok).toBe(true);
+      expect(response.body.memo).toBe(revokeMemo);
     });
     it('should fail to revoke an API key if unauthenticated', async () => {
       const keyMemo = 'AuthTestKey';
@@ -118,7 +115,7 @@ describe('API Key Tests', () => {
         .send({ memo: keyMemo, magicToken: magicToken })
         .expect(201);
       const response = await request.delete('/v1/auth/apiKey/revoke').send({ memo: keyMemo }).expect(401);
-      expect(response.body.ok).to.be.false;
+      expect(response.body.ok).toBe(false);
     });
     it('should fail to revoke an API key if memo is invalid', async () => {
       const invalidMemo = 'InvalidMemo';
@@ -128,8 +125,8 @@ describe('API Key Tests', () => {
         .send({ memo: invalidMemo })
         .expect(400);
 
-      expect(response.body.ok).to.be.false;
-      expect(response.body.error).to.equal('Invalid API Key, ensure the memo is correct.');
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error).toBe('Invalid API Key, ensure the memo is correct.');
     });
   });
 
@@ -155,14 +152,14 @@ describe('API Key Tests', () => {
       const includesMemo1 = keys.some((key: any) => key.memo === apiKeyMemo1);
       const includesMemo2 = keys.some((key: any) => key.memo === apiKeyMemo2);
 
-      expect(response.body.ok).to.be.true;
-      expect(keys).to.be.an('array');
-      expect(includesMemo1).to.be.true;
-      expect(includesMemo2).to.be.true;
+      expect(response.body.ok).toBe(true);
+      expect(keys).toBeInstanceOf(Array);
+      expect(includesMemo1).toBe(true);
+      expect(includesMemo2).toBe(true);
     });
     it('should fail to retrieve api keys unauthenticated', async () => {
       const response = await request.get('/v1/auth/apiKey').expect(401);
-      expect(response.body.ok).to.be.false;
+      expect(response.body.ok).toBe(false);
     });
   });
 });

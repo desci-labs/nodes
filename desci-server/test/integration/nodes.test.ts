@@ -1,21 +1,13 @@
-import 'dotenv/config';
-import 'mocha';
-
 import { Node, NodeLike, NodeVersion, User } from '@prisma/client';
-import chai, { assert } from 'chai';
-import chaiAsPromised from 'chai-as-promised';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { describe, it, beforeAll, expect, assert, afterAll } from 'vitest';
 
 import { prisma } from '../../src/client.js';
-import { app } from '../../src/index.js';
 import { spawnEmptyManifest, client as ipfs, IPFS_NODE } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
+import { app } from '../testApp.js';
 import { createDraftNode, createUsers } from '../util.js';
-
-// use async chai assertions
-chai.use(chaiAsPromised);
-const expect = chai.expect;
 
 const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
@@ -73,14 +65,14 @@ describe('Nodes Service', async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
   };
 
-  before(async () => {
+  beforeAll(async () => {
     await clearDatabase();
     await tearDown();
 
     await setup();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await clearDatabase();
     await tearDown();
   });
@@ -94,7 +86,7 @@ describe('Nodes Service', async () => {
 
     let vote: NodeLike;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       node1 = nodes[0];
       liker = users[2];
@@ -103,7 +95,7 @@ describe('Nodes Service', async () => {
       assert(node.uuid);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeLike" CASCADE;`;
@@ -117,14 +109,14 @@ describe('Nodes Service', async () => {
 
       // send upvote request
       let res = await request(app).post(`/v1/nodes/${node.uuid}/likes`).set('authorization', likerJwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       // check upvote
       res = await request(app).get(`/v1/nodes/${node.uuid}/likes`).set('authorization', likerJwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       let data = (await res.body.data) as { likes: number; isLiked: boolean };
-      expect(data.likes).to.be.equal(1);
-      expect(data.isLiked).to.be.equal(true);
+      expect(data.likes).toBe(1);
+      expect(data.isLiked).toBe(true);
 
       // Liker 2
       const liker1JwtToken = jwt.sign({ email: liker1.email }, process.env.JWT_SECRET!, {
@@ -134,14 +126,14 @@ describe('Nodes Service', async () => {
 
       // send upvote request
       res = await request(app).post(`/v1/nodes/${node.uuid}/likes`).set('authorization', liker1JwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       // check upvote
       res = await request(app).get(`/v1/nodes/${node.uuid}/likes`).set('authorization', liker1JwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       data = (await res.body.data) as { likes: number; isLiked: boolean };
-      expect(data.likes).to.be.equal(2);
-      expect(data.isLiked).to.be.equal(true);
+      expect(data.likes).toBe(2);
+      expect(data.isLiked).toBe(true);
     });
 
     it('should delete user vote via api', async () => {
@@ -152,15 +144,15 @@ describe('Nodes Service', async () => {
 
       // send delete vote request
       let res = await request(app).delete(`/v1/nodes/${node.uuid}/likes`).set('authorization', likerJwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       // check upvote
       // check upvote
       res = await request(app).get(`/v1/nodes/${node.uuid}/likes`).set('authorization', likerJwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       let data = (await res.body.data) as { likes: number; isLiked: boolean };
-      expect(data.likes).to.be.equal(1);
-      expect(data.isLiked).to.be.equal(false);
+      expect(data.likes).toBe(1);
+      expect(data.isLiked).toBe(false);
 
       // Liker 2
       const liker1JwtToken = jwt.sign({ email: liker1.email }, process.env.JWT_SECRET!, {
@@ -170,15 +162,15 @@ describe('Nodes Service', async () => {
 
       // send delete vote request
       res = await request(app).delete(`/v1/nodes/${node.uuid}/likes`).set('authorization', liker1JwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       // check upvote
       // check upvote
       res = await request(app).get(`/v1/nodes/${node.uuid}/likes`).set('authorization', liker1JwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       data = (await res.body.data) as { likes: number; isLiked: boolean };
-      expect(data.likes).to.be.equal(0);
-      expect(data.isLiked).to.be.equal(false);
+      expect(data.likes).toBe(0);
+      expect(data.isLiked).toBe(false);
     });
   });
 });

@@ -1,6 +1,3 @@
-import 'dotenv/config';
-import 'mocha';
-
 import {
   EditorRole,
   Journal,
@@ -11,26 +8,16 @@ import {
   ReviewDecision,
   SubmissionStatus,
 } from '@prisma/client';
-import chai from 'chai';
-import chaiAsPromised from 'chai-as-promised';
 import supertest from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
+import { describe, it, beforeEach, expect, afterEach } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
 import { JournalRefereeManagementService } from '../../../src/services/journals/JournalRefereeManagementService.js';
 import { journalSubmissionService } from '../../../src/services/journals/JournalSubmissionService.js';
-import { createDraftNode, createMockUsers, MockUser, publishMockNode, sanitizeBigInts } from '../../util.js';
-
-// use async chai assertions
-chai.use(chaiAsPromised);
-const expect = chai.expect;
-
-server.ready().then((_) => {
-  console.log('server is ready');
-});
-export const app = server.app;
+import { app } from '../../testApp.js';
+import { createDraftNode, createMockUsers, MockUser, publishMockNode } from '../../util.js';
 
 describe('Journal Submission Service', () => {
   let author: MockUser;
@@ -118,8 +105,8 @@ describe('Journal Submission Service', () => {
 
     it('should create a journal submission', async () => {
       const body = response.body as { ok: boolean; data: { submissionId: number } };
-      expect(response.status).to.equal(200);
-      expect(body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(body.ok).toBe(true);
       expect(body.data.submissionId).to.be.a('number');
     });
 
@@ -132,10 +119,8 @@ describe('Journal Submission Service', () => {
           version: 1,
         });
 
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
-
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Submission already exists');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Submission already exists');
     });
 
     it('should prevent submitting a version that does not exist', async () => {
@@ -146,8 +131,8 @@ describe('Journal Submission Service', () => {
           dpid: draftNode?.dpidAlias,
           version: 2,
         });
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Node version not found');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Node version not found');
     });
 
     it('should prevent submitting a version that is not a positive integer', async () => {
@@ -160,9 +145,9 @@ describe('Journal Submission Service', () => {
         });
 
       const errorResponse = response.body as { ok: boolean; errors: { field: string; message: string }[] };
-      expect(response.status).to.equal(400);
-      expect(errorResponse.ok).to.be.false;
-      expect(errorResponse.errors[0].message).to.equal('Version must be a positive integer greater than zero');
+      expect(response.status).toBe(400);
+      expect(errorResponse.ok).toBe(false);
+      expect(errorResponse.errors[0].message).toBe('Version must be a positive integer greater than zero');
     });
 
     it('should prevent submitting a dpid that is not a positive integer', async () => {
@@ -175,9 +160,9 @@ describe('Journal Submission Service', () => {
         });
       const errorResponse = response.body as { ok: boolean; errors: { field: string; message: string }[] };
 
-      expect(response.status).to.equal(400);
-      expect(errorResponse.ok).to.be.false;
-      expect(errorResponse.errors[0].message).to.equal('DPID must be a positive integer greater than zero');
+      expect(response.status).toBe(400);
+      expect(errorResponse.ok).toBe(false);
+      expect(errorResponse.errors[0].message).toBe('DPID must be a positive integer greater than zero');
     });
 
     it('should prevent submitting a dpid that is not a number', async () => {
@@ -190,9 +175,9 @@ describe('Journal Submission Service', () => {
         });
       const errorResponse = response.body as { ok: boolean; errors: { field: string; message: string }[] };
 
-      expect(response.status).to.equal(400);
-      expect(errorResponse.ok).to.be.false;
-      expect(errorResponse.errors[0].message).to.equal('DPID must be a positive integer greater than zero');
+      expect(response.status).toBe(400);
+      expect(errorResponse.ok).toBe(false);
+      expect(errorResponse.errors[0].message).toBe('DPID must be a positive integer greater than zero');
     });
   });
 
@@ -295,10 +280,10 @@ describe('Journal Submission Service', () => {
         .get(`/v1/journals/${journal.id}/submissions`)
         .set('authorization', `Bearer ${chiefEditor.token}`);
 
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       const submissions = response.body.data.data;
       expect(submissions).to.be.an('array');
-      expect(submissions.length).to.equal(3);
+      expect(submissions.length).toBe(3);
       expect(submissions.map((s: any) => s.status)).to.include.members([
         SubmissionStatus.SUBMITTED,
         SubmissionStatus.UNDER_REVIEW,
@@ -313,8 +298,8 @@ describe('Journal Submission Service', () => {
         .send({
           editorId: associateEditor.user.id,
         });
-      expect(response.status).to.equal(200);
-      expect(response.body.data.assignedEditorId).to.equal(associateEditor.user.id);
+      expect(response.status).toBe(200);
+      expect(response.body.data.assignedEditorId).toBe(associateEditor.user.id);
     });
 
     it('can desk reject unreviewed submissions', async () => {
@@ -358,7 +343,7 @@ describe('Journal Submission Service', () => {
         .send({
           reason: 'Test reason',
         });
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
     });
   });
 
@@ -486,10 +471,10 @@ describe('Journal Submission Service', () => {
         .get(`/v1/journals/${journal.id}/submissions`)
         .set('authorization', `Bearer ${associateEditor.token}`);
 
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       const submissions = response.body.data.data;
       expect(submissions).to.be.an('array');
-      expect(submissions.length).to.equal(1);
+      expect(submissions.length).toBe(1);
       expect(submissions.map((s: any) => s.status)).to.include.members([SubmissionStatus.UNDER_REVIEW]);
     });
   });
@@ -581,11 +566,11 @@ describe('Journal Submission Service', () => {
         .get(`/v1/journals/${journal.id}/my-submissions`)
         .set('authorization', `Bearer ${author.token}`);
 
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       const submissions = response.body.data.data;
       expect(submissions).to.be.an('array');
-      expect(submissions.length).to.equal(2);
-      expect(submissions.every((s: any) => s.authorId === author.user.id)).to.be.true;
+      expect(submissions.length).toBe(2);
+      expect(submissions.every((s: any) => s.authorId === author.user.id)).toBe(true);
     });
 
     it('can view public journal submissions (accepted)', async () => {
@@ -594,10 +579,10 @@ describe('Journal Submission Service', () => {
         .get(`/v1/journals/${journal.id}/submissions`)
         .set('authorization', `Bearer ${author.token}`);
 
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       const submissions = response.body.data.data;
       expect(submissions).to.be.an('array');
-      expect(submissions.length).to.equal(1);
+      expect(submissions.length).toBe(1);
       expect(submissions.map((s: any) => s.status)).to.include.members([SubmissionStatus.ACCEPTED]);
     });
   });
@@ -755,8 +740,8 @@ describe('Journal Submission Service', () => {
           revisionType: 'minor',
         });
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
     });
 
     it('can accept submission', async () => {
@@ -765,8 +750,8 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${associateEditor.token}`)
         .send();
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
     });
 
     it('can reject submission', async () => {
@@ -775,8 +760,8 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${associateEditor.token}`)
         .send();
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
     });
 
     it('should prevent Referee from accepting submission', async () => {
@@ -785,8 +770,8 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${referee.token}`)
         .send();
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Not a journal editor');
     });
 
     it('should prevent Author from accepting submission', async () => {
@@ -795,8 +780,8 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${author.token}`)
         .send();
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Not a journal editor');
     });
 
     it('should prevent unauthorized users from accepting submission', async () => {
@@ -805,8 +790,8 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${unAuthorisedUser.token}`)
         .send();
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Not a journal editor');
     });
 
     it('should prevent unauthorized users from reject submission', async () => {
@@ -815,8 +800,8 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${unAuthorisedUser.token}`)
         .send();
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Not a journal editor');
     });
     it('should prevent unauthorized users from requesting revision', async () => {
       response = await request
@@ -827,8 +812,8 @@ describe('Journal Submission Service', () => {
           revisionType: 'minor',
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Not a journal editor');
     });
   });
 });

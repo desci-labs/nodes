@@ -125,7 +125,9 @@ export const initializeWebSockets = async (httpServer: HttpServer): Promise<void
 
 export const emitWebsocketEvent = (userId: number, payload: WebsocketEventPayload): void => {
   if (!io) {
-    logger.error('WebSocket server not initialized');
+    if (process.env.NODE_ENV !== 'test') {
+      logger.error('WebSocket server not initialized');
+    }
     return;
   }
 

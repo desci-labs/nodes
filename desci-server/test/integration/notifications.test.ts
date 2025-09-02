@@ -1,6 +1,5 @@
-import 'mocha';
 import { NotificationCategory, NotificationType, User, UserNotifications } from '@prisma/client';
-import { expect } from 'chai';
+import { describe, it, beforeEach, expect } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import { NotificationService } from '../../src/services/Notifications/NotificationService.js';
@@ -29,10 +28,10 @@ describe.skip('Notification Service', () => {
         category: NotificationCategory.DESCI_PUBLISH,
       });
 
-      expect(notification?.userId).to.equal(user.id);
-      expect(notification?.type).to.equal(NotificationType.PUBLISH);
-      expect(notification?.title).to.equal('Test Notification');
-      expect(notification?.message).to.equal('This is a test notification');
+      expect(notification?.userId).toBe(user.id);
+      expect(notification?.type).toBe(NotificationType.PUBLISH);
+      expect(notification?.title).toBe('Test Notification');
+      expect(notification?.message).toBe('This is a test notification');
     });
 
     it('should throw an error when creating a notification for a disabled type', async () => {
@@ -69,10 +68,10 @@ describe.skip('Notification Service', () => {
 
       const result = await NotificationService.getUserNotifications(user.id, { page: 1, perPage: 10 });
 
-      expect(result.data.length).to.equal(10);
-      expect(result.pagination.currentPage).to.equal(1);
-      expect(result.pagination.totalPages).to.equal(3);
-      expect(result.pagination.totalItems).to.equal(30);
+      expect(result.data.length).toBe(10);
+      expect(result.pagination.currentPage).toBe(1);
+      expect(result.pagination.totalPages).toBe(3);
+      expect(result.pagination.totalItems).toBe(30);
     });
   });
 
@@ -90,7 +89,7 @@ describe.skip('Notification Service', () => {
         dismissed: true,
       });
 
-      expect(updatedNotification.dismissed).to.be.true;
+      expect(updatedNotification.dismissed).toBe(true);
     });
 
     it('should throw an error when updating a non-existent notification', async () => {
@@ -126,13 +125,13 @@ describe.skip('Notification Service', () => {
         updateData: { dismissed: true },
       });
 
-      expect(updatedCount).to.equal(2);
+      expect(updatedCount).toBe(2);
 
       const updatedNotifications = await prisma.userNotifications.findMany({
         where: { id: { in: notifications.map((n) => n!.id) } },
       });
 
-      expect(updatedNotifications.every((n) => n.dismissed)).to.be.true;
+      expect(updatedNotifications.every((n) => n.dismissed)).toBe(true);
     });
   });
 
@@ -144,7 +143,7 @@ describe.skip('Notification Service', () => {
 
       const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
       const settings = updatedUser?.notificationSettings as Partial<Record<NotificationType, boolean>>;
-      expect(settings[NotificationType.PUBLISH]).to.be.false;
+      expect(settings[NotificationType.PUBLISH]).toBe(false);
     });
   });
 
@@ -156,13 +155,13 @@ describe.skip('Notification Service', () => {
 
       const settings = await NotificationService.getNotificationSettings(user.id);
 
-      expect(settings[NotificationType.PUBLISH]).to.be.false;
+      expect(settings[NotificationType.PUBLISH]).toBe(false);
     });
 
     it('should return an empty object for users without settings', async () => {
       const settings = await NotificationService.getNotificationSettings(user.id);
 
-      expect(settings).to.deep.equal({});
+      expect(settings).toEqual({});
     });
   });
 });

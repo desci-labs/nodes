@@ -1,5 +1,3 @@
-import 'dotenv/config';
-import 'mocha';
 import assert from 'assert';
 
 import { DocumentId } from '@automerge/automerge-repo';
@@ -11,16 +9,16 @@ import {
 } from '@desci-labs/desci-models';
 import { Node, User } from '@prisma/client';
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { describe, it, beforeAll, expect } from 'vitest';
 
 import { prisma } from '../../src/client.js';
-import { app } from '../../src/index.js';
 import { client as ipfs, IPFS_NODE, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import repoService from '../../src/services/repoService.js';
 import { ResearchObjectDocument } from '../../src/types/documents.js';
 import { randomUUID64 } from '../../src/utils.js';
+import { app } from '../testApp.js';
 
 const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseManifestCid: string) => {
   const node = await prisma.node.create({
@@ -42,7 +40,6 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
     await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: response.documentId } });
   }
   const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
-  console.log('Draft Node created', !!response, { response });
 
   assert(response?.documentId);
   assert(response?.document);
@@ -62,7 +59,7 @@ describe('Automerge Integration', () => {
   const bobJwtToken = jwt.sign({ email: 'bob@desci.com' }, process.env.JWT_SECRET!, { expiresIn: '1y' });
   const bobHeaderVal = `Bearer ${bobJwtToken}`;
 
-  before(async () => {
+  beforeAll(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
@@ -104,7 +101,7 @@ describe('Automerge Integration', () => {
     };
     let client: AxiosInstance;
 
-    before(async () => {
+    beforeAll(async () => {
       nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
       node = nodeData.node;
       dotlessUuid = node.uuid!.substring(0, node.uuid!.length - 1);
@@ -120,7 +117,7 @@ describe('Automerge Integration', () => {
         documentId: nodeData.documentId,
         actions: [{ type: 'Update Title', title: 'Test Node' }],
       })) as ResearchObjectDocument;
-      expect(document.manifest.title).to.be.equal('Test Node');
+      expect(document.manifest.title).toBe('Test Node');
     });
 
     it('Update Description', async () => {
@@ -129,7 +126,7 @@ describe('Automerge Integration', () => {
         documentId: nodeData.documentId,
         actions: [{ type: 'Update Description', description: 'A new path' }],
       })) as ResearchObjectDocument;
-      expect(document.manifest.description).to.be.equal('A new path');
+      expect(document.manifest.description).toBe('A new path');
     });
 
     it('Update License', async () => {
@@ -138,7 +135,7 @@ describe('Automerge Integration', () => {
         documentId: nodeData.documentId,
         actions: [{ type: 'Update License', defaultLicense: 'cco' }],
       })) as ResearchObjectDocument;
-      expect(document.manifest.defaultLicense).to.be.equal('cco');
+      expect(document.manifest.defaultLicense).toBe('cco');
     });
 
     it('Update ResearchFields', async () => {
@@ -148,8 +145,8 @@ describe('Automerge Integration', () => {
         actions: [{ type: 'Update ResearchFields', researchFields: ['Science'] }],
       })) as ResearchObjectDocument;
       // console.log('RESEARCH FIELDS', document.manifest);
-      expect(document.manifest.researchFields).to.be.eql(['Science']);
-      expect(document).to.have.deep.nested.property('manifest.researchFields[0]', 'Science');
+      expect(document.manifest.researchFields).toEqual(['Science']);
+      expect(document).toHaveProperty('manifest.researchFields[0]', 'Science');
     });
 
     it('Add Component', async () => {
@@ -163,7 +160,7 @@ describe('Automerge Integration', () => {
           },
         ],
       })) as ResearchObjectDocument;
-      expect(document.manifest.components.length).to.be.equal(2);
+      expect(document.manifest.components.length).toBe(2);
     });
 
     it.skip('Reject Invalid Actions', async () => {
@@ -177,13 +174,13 @@ describe('Automerge Integration', () => {
             actions: [{ type: 'Update ResearchFieldss', researchFields: ['Science'] }],
           },
         );
-        // expect(response.status).to.be.equal(400);
+        // expect(response.status).toBe(400);
       } catch (err) {
         const error = err as AxiosError;
         // console.log('[REJECT ACTIONS DATA]', error.response?.status, error.response?.data);
-        expect(error).to.be.instanceOf(AxiosError);
-        expect(error.response?.data).to.have.property('ok', false);
-        expect(error.response?.status).to.be.equal(400);
+        expect(error).toBeInstanceOf(AxiosError);
+        expect(error.response?.data).toHaveProperty('ok', false);
+        expect(error.response?.status).toBe(400);
       }
     });
 
@@ -200,9 +197,9 @@ describe('Automerge Integration', () => {
       } catch (err) {
         const error = err as AxiosError;
         // console.log('[REJECT ACTIONS DATA]', error.response?.status, error.response?.data);
-        expect(error).to.be.instanceOf(AxiosError);
-        expect(error.response?.data).to.have.property('ok', false);
-        expect(error.response?.status).to.be.equal(400);
+        expect(error).toBeInstanceOf(AxiosError);
+        expect(error.response?.data).toHaveProperty('ok', false);
+        expect(error.response?.status).toBe(400);
       }
     });
 
@@ -217,42 +214,42 @@ describe('Automerge Integration', () => {
 
       // console.log('[ResponseBODY]::', res.body);
       const document = res.body.document;
-      expect(document.manifest.title).to.be.equal('Api title');
+      expect(document.manifest.title).toBe('Api title');
     });
   });
 
   // describe('Backend Repo is Initialized', () => {
   //   it('Backend Repo should be ready', () => {
-  //     expect(true).to.be.equal(true);
+  //     expect(true).toBe(true);
   //   });
   // });
 
   // describe('Creating a Node should create a new Automerge Document', () => {
   //   it('Backend Repo should be ready', () => {
-  //     expect(true).to.be.equal(true);
+  //     expect(true).toBe(true);
   //   });
   // });
 
   // describe('Existing Nodes should get an Automerge Document', () => {
   //   it('Backend Repo should be ready', () => {
-  //     expect(true).to.be.equal(true);
+  //     expect(true).toBe(true);
   //   });
   // });
 
   // describe('Authorisation', () => {
   //   it('Backend Repo should be ready', () => {
-  //     expect(true).to.be.equal(true);
+  //     expect(true).toBe(true);
   //   });
   // });
 
   // describe('Update Automerge Document', () => {
   //   it('Backend Repo should be ready', () => {
-  //     expect(true).to.be.equal(true);
+  //     expect(true).toBe(true);
   //   });
   // });
   // describe('DAG Altering Operations should be synced', () => {
   //   it('Backend Repo should be ready', () => {
-  //     expect(true).to.be.equal(true);
+  //     expect(true).toBe(true);
   //   });
   // });
 });

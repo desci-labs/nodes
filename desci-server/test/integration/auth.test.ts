@@ -1,15 +1,14 @@
-import 'mocha';
 import { User } from '@prisma/client';
-import { expect } from 'chai';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import supertest from 'supertest';
+import { describe, it, beforeEach, beforeAll, expect } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
-import { app as backendExpress } from '../../src/index.js';
 import { ensureUser } from '../../src/middleware/permissions.js';
 import { magicLinkRedeem, sendMagicLink } from '../../src/services/auth.js';
+import { app as backendExpress } from '../testApp.js';
 import { expectThrowsAsync, testingGenerateMagicCode } from '../util.js';
 
 describe('Magic Link Authentication', () => {
@@ -34,7 +33,7 @@ describe('Magic Link Authentication', () => {
   describe('Magic Link Creation', () => {
     it('should create a magic link for an existing user', async () => {
       const result = await sendMagicLink(user.email);
-      expect(result).to.be.true;
+      expect(result).toBe(true);
     });
 
     describe('Magic Link Rate Limiting', () => {
@@ -63,7 +62,7 @@ describe('Magic Link Authentication', () => {
           });
         }
         const result = await sendMagicLink(user.email);
-        expect(result).to.be.true;
+        expect(result).toBe(true);
       });
     });
   });
@@ -80,7 +79,7 @@ describe('Magic Link Authentication', () => {
         },
       });
       const { user: redeemedUser } = await magicLinkRedeem(user.email, magicLink!.token);
-      expect(redeemedUser.email).to.equal(user.email);
+      expect(redeemedUser.email).toBe(user.email);
     });
 
     it('should not redeem an expired magic link', async () => {
@@ -147,7 +146,7 @@ describe('Auth Middleware', () => {
   let mockToken: string;
   let request: supertest.SuperTest<supertest.Test>;
 
-  before(async () => {
+  beforeAll(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
 
     app = express();
@@ -174,26 +173,26 @@ describe('Auth Middleware', () => {
     it('should retrieve user from auth header', async () => {
       const response = await request.get('/test').set('authorization', `Bearer ${mockToken}`);
 
-      expect(response.status).to.equal(200);
-      expect(response.body.email).to.equal(mockUser.email);
+      expect(response.status).toBe(200);
+      expect(response.body.email).toBe(mockUser.email);
     });
 
     it('should retrieve user from cookies', async () => {
       const response = await request.get('/test').set('Cookie', [`auth=${mockToken}`]);
 
-      expect(response.status).to.equal(200);
-      expect(response.body.email).to.equal(mockUser.email);
+      expect(response.status).toBe(200);
+      expect(response.body.email).toBe(mockUser.email);
     });
 
     it('should return 401 if no token is provided', async () => {
       const response = await request.get('/test');
-      expect(response.status).to.equal(401);
+      expect(response.status).toBe(401);
     });
 
     it('should return 401 for invalid token', async () => {
       const response = await request.get('/test').set('authorization', 'Bearer invalidToken');
 
-      expect(response.status).to.equal(401);
+      expect(response.status).toBe(401);
     });
   });
 
@@ -201,13 +200,13 @@ describe('Auth Middleware', () => {
     it('should set req.user if user is retrieved', async () => {
       const response = await request.get('/test').set('authorization', `Bearer ${mockToken}`);
 
-      expect(response.status).to.equal(200);
-      expect(response.body.email).to.equal(mockUser.email);
+      expect(response.status).toBe(200);
+      expect(response.body.email).toBe(mockUser.email);
     });
 
     it('should send 401 if no user is retrieved', async () => {
       const response = await request.get('/test');
-      expect(response.status).to.equal(401);
+      expect(response.status).toBe(401);
     });
 
     it('should be able to authenticate via a valid API key', async () => {
@@ -222,12 +221,12 @@ describe('Auth Middleware', () => {
 
       const response = await request.get('/test').set('api-key', apiKey);
 
-      expect(response.status).to.equal(200);
-      expect(response.body.email).to.equal(mockUser.email);
+      expect(response.status).toBe(200);
+      expect(response.body.email).toBe(mockUser.email);
     });
     it('should fail to authenticate with invalid API key', async () => {
       const response = await request.get('/test').set('api-key', 'InvalidApiKey');
-      expect(response.status).to.equal(401);
+      expect(response.status).toBe(401);
     });
   });
 });
