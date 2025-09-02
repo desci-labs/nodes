@@ -66,7 +66,7 @@ const allowlist = [
 
 const serverUuid = v4();
 
-class AppServer {
+export class AppServer {
   #readyResolvers: ((value: any) => void)[] = [];
 
   #isReady = false;
@@ -321,4 +321,6 @@ function getRemoteAddress(req) {
   }
 }
 
-export const server = new AppServer();
+// Only create the server instance if not in test environment
+// Tests use their own singleton from testApp.ts
+export const server = process.env.NODE_ENV === 'test' ? (null as any as AppServer) : new AppServer();

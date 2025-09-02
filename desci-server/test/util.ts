@@ -1,6 +1,5 @@
 import { AvailableUserActionLogTypes } from '@desci-labs/desci-models';
 import { ActionType, InteractionLog, Node, Prisma, User } from '@prisma/client';
-import { expect } from 'chai';
 import {
   eachDayOfInterval,
   eachMonthOfInterval,
@@ -10,6 +9,7 @@ import {
   subDays,
 } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import { expect } from 'vitest';
 
 import { prisma } from '../src/client.js';
 import { generateAccessToken } from '../src/controllers/auth/magic.js';
@@ -24,9 +24,9 @@ const expectThrowsAsync = async (method, errorMessage) => {
     error = err;
     // console.error("expectThrowsAsync", error);
   }
-  expect(error).to.be.an('Error');
+  expect(error).toBeInstanceOf(Error);
   if (errorMessage) {
-    expect(error?.message).to.equal(errorMessage);
+    expect(error?.message).toBe(errorMessage);
   }
 };
 export { expectThrowsAsync };

@@ -1,6 +1,3 @@
-import 'dotenv/config';
-import 'mocha';
-
 import {
   EditorRole,
   Journal,
@@ -13,26 +10,16 @@ import {
   ReviewDecision,
   SubmissionStatus,
 } from '@prisma/client';
-import chai, { assert } from 'chai';
-import chaiAsPromised from 'chai-as-promised';
 import supertest from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
+import { describe, it, beforeEach, expect, chai, assert, afterEach } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
 import { JournalRefereeManagementService } from '../../../src/services/journals/JournalRefereeManagementService.js';
 import { journalSubmissionService } from '../../../src/services/journals/JournalSubmissionService.js';
-import { createDraftNode, createMockUsers, MockUser, publishMockNode, sanitizeBigInts } from '../../util.js';
-
-// use async chai assertions
-chai.use(chaiAsPromised);
-const expect = chai.expect;
-
-server.ready().then((_) => {
-  console.log('server is ready');
-});
-export const app = server.app;
+import { app } from '../../testApp.js';
+import { createDraftNode, createMockUsers, MockUser, publishMockNode } from '../../util.js';
 
 describe('Journal Revisions', () => {
   let author: MockUser;
@@ -259,8 +246,8 @@ describe('Journal Revisions', () => {
           revisionType: 'minor',
         });
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
     });
   });
 
@@ -290,8 +277,8 @@ describe('Journal Revisions', () => {
           version: 2,
         });
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
     });
 
     it('should prevent referee from submitting revision', async () => {
@@ -307,8 +294,8 @@ describe('Journal Revisions', () => {
           version: 2,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('User is not the author of the submission');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('User is not the author of the submission');
     });
 
     it('should prevent chief editor from submitting revision', async () => {
@@ -324,8 +311,8 @@ describe('Journal Revisions', () => {
           version: 2,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('User is not the author of the submission');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('User is not the author of the submission');
     });
 
     it('should prevent unauthorized users from submitting revision', async () => {
@@ -341,8 +328,8 @@ describe('Journal Revisions', () => {
           version: 2,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('User is not the author of the submission');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('User is not the author of the submission');
     });
 
     it('should prevent submitting revision with invalid dpid', async () => {
@@ -355,8 +342,8 @@ describe('Journal Revisions', () => {
           version: 2,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('DPID does not match with submission');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('DPID does not match with submission');
     });
 
     it('should prevent submitting revision with invalid version', async () => {
@@ -368,8 +355,8 @@ describe('Journal Revisions', () => {
           dpid: draftNode!.dpidAlias,
           version: 1,
         });
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Revision version should be greater than initial submission version');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Revision version should be greater than initial submission version');
 
       // submit revision with greater version number than node version
       response = await request
@@ -380,8 +367,8 @@ describe('Journal Revisions', () => {
           version: 3,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Invalid node version');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Invalid node version');
     });
   });
 
@@ -424,8 +411,8 @@ describe('Journal Revisions', () => {
           decision: 'accept',
         });
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
 
       const updatedRevision = await prisma.journalSubmissionRevision.findUnique({
         where: {
@@ -433,7 +420,7 @@ describe('Journal Revisions', () => {
         },
       });
 
-      expect(updatedRevision?.status).to.equal(JournalRevisionStatus.ACCEPTED);
+      expect(updatedRevision?.status).toBe(JournalRevisionStatus.ACCEPTED);
 
       // check submission status is updated to under review
       const updatedSubmission = await prisma.journalSubmission.findUnique({
@@ -441,7 +428,7 @@ describe('Journal Revisions', () => {
           id: submission.id,
         },
       });
-      expect(updatedSubmission?.status).to.equal(SubmissionStatus.UNDER_REVIEW);
+      expect(updatedSubmission?.status).toBe(SubmissionStatus.UNDER_REVIEW);
     });
 
     it('should allow associate editor to reject revision', async () => {
@@ -452,8 +439,8 @@ describe('Journal Revisions', () => {
           decision: 'reject',
         });
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
 
       const updatedRevision = await prisma.journalSubmissionRevision.findUnique({
         where: {
@@ -461,7 +448,7 @@ describe('Journal Revisions', () => {
         },
       });
 
-      expect(updatedRevision?.status).to.equal(JournalRevisionStatus.REJECTED);
+      expect(updatedRevision?.status).toBe(JournalRevisionStatus.REJECTED);
     });
     it('should prevent chief editor from accepting/rejecting revision', async () => {
       response = await request
@@ -471,8 +458,8 @@ describe('Journal Revisions', () => {
           decision: 'accept',
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Insufficient permissions');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Insufficient permissions');
 
       response = await request
         .post(`/v1/journals/${journal.id}/submissions/${submission.id}/revisions/${revision.id}/action`)
@@ -481,8 +468,8 @@ describe('Journal Revisions', () => {
           decision: 'reject',
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Insufficient permissions');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Insufficient permissions');
     });
 
     it('should prevent referee from accepting/rejecting revision', async () => {
@@ -493,8 +480,8 @@ describe('Journal Revisions', () => {
           decision: 'accept',
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Not a journal editor');
     });
     it('should prevent unauthorized users from accepting/rejecting revision', async () => {
       response = await request
@@ -504,8 +491,8 @@ describe('Journal Revisions', () => {
           decision: 'accept',
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Forbidden - Not a journal editor');
     });
   });
 
@@ -555,9 +542,9 @@ describe('Journal Revisions', () => {
         .set('authorization', `Bearer ${author.token}`)
         .send();
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
-      expect(response.body.data.status).to.equal(JournalRevisionStatus.ACCEPTED);
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
+      expect(response.body.data.status).toBe(JournalRevisionStatus.ACCEPTED);
     });
 
     it('should allow referee to view submitted revision', async () => {
@@ -566,9 +553,9 @@ describe('Journal Revisions', () => {
         .set('authorization', `Bearer ${referee.token}`)
         .send();
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
-      expect(response.body.data.status).to.equal(JournalRevisionStatus.ACCEPTED);
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
+      expect(response.body.data.status).toBe(JournalRevisionStatus.ACCEPTED);
     });
     it('should allow editors to view submitted revision', async () => {
       response = await request
@@ -576,9 +563,9 @@ describe('Journal Revisions', () => {
         .set('authorization', `Bearer ${associateEditor.token}`)
         .send();
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
-      expect(response.body.data.status).to.equal(JournalRevisionStatus.ACCEPTED);
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
+      expect(response.body.data.status).toBe(JournalRevisionStatus.ACCEPTED);
     });
 
     it('should prevent unauthorised users from viewing revision', async () => {
@@ -586,8 +573,8 @@ describe('Journal Revisions', () => {
         .get(`/v1/journals/${journal.id}/submissions/${submission.id}/revisions/${revision.id}`)
         .set('authorization', `Bearer ${unAuthorisedUser.token}`)
         .send();
-      expect(response.status).to.equal(404);
-      expect(response.body.message).to.equal('Revision not found');
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('Revision not found');
     });
   });
 });

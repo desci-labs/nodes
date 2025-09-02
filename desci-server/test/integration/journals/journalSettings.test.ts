@@ -1,23 +1,16 @@
-import 'mocha';
 import { EditorRole, Journal, User } from '@prisma/client';
-import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { describe, it, beforeEach, expect } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import {
   DEFAULT_JOURNAL_SETTINGS,
   JournalManagementService,
   getJournalSettingsWithDefaults,
   getJournalSettingsByIdWithDefaults,
 } from '../../../src/services/journals/JournalManagementService.js';
-
-server.ready().then((_) => {
-  console.log('Journal Settings Test Server is ready');
-});
-
-const app = server.server;
+import { app } from '../../testApp.js';
 
 describe('Journal Settings', () => {
   let chiefEditor: User;
@@ -82,7 +75,7 @@ describe('Journal Settings', () => {
       it('should return default settings when no custom settings provided', () => {
         const settings = getJournalSettingsWithDefaults(null);
 
-        expect(settings).to.deep.equal(DEFAULT_JOURNAL_SETTINGS);
+        expect(settings).toEqual(DEFAULT_JOURNAL_SETTINGS);
       });
 
       it('should merge custom settings with defaults', () => {
@@ -97,9 +90,9 @@ describe('Journal Settings', () => {
 
         const settings = getJournalSettingsWithDefaults(customSettings);
 
-        expect(settings.reviewDueHours).to.deep.equal(customSettings.reviewDueHours);
-        expect(settings.refereeInviteExpiryHours).to.deep.equal(DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours);
-        expect(settings.refereeCount).to.deep.equal(DEFAULT_JOURNAL_SETTINGS.refereeCount);
+        expect(settings.reviewDueHours).toEqual(customSettings.reviewDueHours);
+        expect(settings.refereeInviteExpiryHours).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours);
+        expect(settings.refereeCount).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeCount);
       });
 
       it('should handle partial custom settings', () => {
@@ -115,10 +108,10 @@ describe('Journal Settings', () => {
 
         const settings = getJournalSettingsWithDefaults(customSettings);
 
-        expect(settings.reviewDueHours.min).to.equal(48);
-        expect(settings.reviewDueHours.max).to.equal(DEFAULT_JOURNAL_SETTINGS.reviewDueHours.max);
-        expect(settings.reviewDueHours.default).to.equal(DEFAULT_JOURNAL_SETTINGS.reviewDueHours.default);
-        expect(settings.refereeCount.value).to.equal(3);
+        expect(settings.reviewDueHours.min).toBe(48);
+        expect(settings.reviewDueHours.max).toBe(DEFAULT_JOURNAL_SETTINGS.reviewDueHours.max);
+        expect(settings.reviewDueHours.default).toBe(DEFAULT_JOURNAL_SETTINGS.reviewDueHours.default);
+        expect(settings.refereeCount.value).toBe(3);
       });
     });
 
@@ -126,10 +119,10 @@ describe('Journal Settings', () => {
       it('should return default settings for journal with no custom settings', async () => {
         const result = await getJournalSettingsByIdWithDefaults(journal.id);
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         // Use match to properly handle the Result
         result.match(
-          (settings) => expect(settings).to.deep.equal(DEFAULT_JOURNAL_SETTINGS),
+          (settings) => expect(settings).toEqual(DEFAULT_JOURNAL_SETTINGS),
           (error) => {
             throw error;
           },
@@ -139,13 +132,13 @@ describe('Journal Settings', () => {
       it('should return error for non-existent journal', async () => {
         const result = await getJournalSettingsByIdWithDefaults(999999);
 
-        expect(result.isErr()).to.be.true;
+        expect(result.isErr()).toBe(true);
         // Use match to properly handle the error
         result.match(
           (settings) => {
             throw new Error('Expected error but got success');
           },
-          (error) => expect(error.message).to.equal('Journal not found'),
+          (error) => expect(error.message).toBe('Journal not found'),
         );
       });
 
@@ -169,13 +162,13 @@ describe('Journal Settings', () => {
 
         const result = await getJournalSettingsByIdWithDefaults(journal.id);
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         // Use match to properly handle the Result
         result.match(
           (settings) => {
-            expect(settings.reviewDueHours).to.deep.equal(customSettings.reviewDueHours);
-            expect(settings.refereeInviteExpiryHours).to.deep.equal(DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours);
-            expect(settings.refereeCount).to.deep.equal(customSettings.refereeCount);
+            expect(settings.reviewDueHours).toEqual(customSettings.reviewDueHours);
+            expect(settings.refereeInviteExpiryHours).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours);
+            expect(settings.refereeCount).toEqual(customSettings.refereeCount);
           },
           (error) => {
             throw error;
@@ -192,9 +185,9 @@ describe('Journal Settings', () => {
           .get(`/v1/journals/${journal.id}/settings`)
           .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.description).to.equal('A test journal for settings');
-        expect(res.body.data.settings).to.deep.equal(DEFAULT_JOURNAL_SETTINGS);
+        expect(res.status).toBe(200);
+        expect(res.body.data.description).toBe('A test journal for settings');
+        expect(res.body.data.settings).toEqual(DEFAULT_JOURNAL_SETTINGS);
       });
 
       it('should allow associate editors to view settings', async () => {
@@ -202,7 +195,7 @@ describe('Journal Settings', () => {
           .get(`/v1/journals/${journal.id}/settings`)
           .set('authorization', `Bearer ${associateEditorAuthToken}`);
 
-        expect(res.status).to.equal(200);
+        expect(res.status).toBe(200);
         expect(res.body.data.settings).to.exist;
       });
 
@@ -211,7 +204,7 @@ describe('Journal Settings', () => {
           .get(`/v1/journals/${journal.id}/settings`)
           .set('authorization', `Bearer ${regularUserAuthToken}`);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
 
       it('should return 403 for non-existent journal', async () => {
@@ -219,7 +212,7 @@ describe('Journal Settings', () => {
           .get(`/v1/journals/999999/settings`)
           .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
 
       it('should return custom settings when they exist', async () => {
@@ -252,9 +245,9 @@ describe('Journal Settings', () => {
           .get(`/v1/journals/${journal.id}/settings`)
           .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.description).to.equal('Updated description');
-        expect(res.body.data.settings).to.deep.equal(customSettings);
+        expect(res.status).toBe(200);
+        expect(res.body.data.description).toBe('Updated description');
+        expect(res.body.data.settings).toEqual(customSettings);
       });
     });
 
@@ -284,16 +277,16 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${chiefEditorAuthToken}`)
           .send(updateData);
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.description).to.equal(updateData.description);
-        expect(res.body.data.settings).to.deep.equal(updateData.settings);
+        expect(res.status).toBe(200);
+        expect(res.body.data.description).toBe(updateData.description);
+        expect(res.body.data.settings).toEqual(updateData.settings);
 
         // Verify the update persisted in database
         const updatedJournal = await prisma.journal.findUnique({
           where: { id: journal.id },
         });
-        expect(updatedJournal?.description).to.equal(updateData.description);
-        expect(updatedJournal?.settings).to.deep.equal(updateData.settings);
+        expect(updatedJournal?.description).toBe(updateData.description);
+        expect(updatedJournal?.settings).toEqual(updateData.settings);
       });
 
       it('should deny access to associate editors', async () => {
@@ -310,7 +303,7 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${associateEditorAuthToken}`)
           .send(updateData);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
 
       it('should deny access to non-editors', async () => {
@@ -327,7 +320,7 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${regularUserAuthToken}`)
           .send(updateData);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
 
       it('should validate settings constraints', async () => {
@@ -346,10 +339,10 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${chiefEditorAuthToken}`)
           .send(invalidSettings);
 
-        expect(res.status).to.equal(400);
-        expect(res.body.message).to.equal('Invalid inputs');
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe('Invalid inputs');
         expect(res.body.errors).to.be.an('array');
-        expect(res.body.errors.some((err: any) => err.message === 'Max must be greater than min')).to.be.true;
+        expect(res.body.errors.some((err: any) => err.message === 'Max must be greater than min')).toBe(true);
       });
 
       it('should validate that default falls within min/max range', async () => {
@@ -368,10 +361,10 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${chiefEditorAuthToken}`)
           .send(invalidSettings);
 
-        expect(res.status).to.equal(400);
-        expect(res.body.message).to.equal('Invalid inputs');
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe('Invalid inputs');
         expect(res.body.errors).to.be.an('array');
-        expect(res.body.errors.some((err: any) => err.message === 'Default must be between min and max')).to.be.true;
+        expect(res.body.errors.some((err: any) => err.message === 'Default must be between min and max')).toBe(true);
       });
 
       it('should validate referee count range', async () => {
@@ -388,7 +381,7 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${chiefEditorAuthToken}`)
           .send(invalidSettings);
 
-        expect(res.status).to.equal(400);
+        expect(res.status).toBe(400);
       });
 
       it('should update only description when no settings provided', async () => {
@@ -401,13 +394,13 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${chiefEditorAuthToken}`)
           .send(updateData);
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.description).to.equal(updateData.description);
-        expect(res.body.data.aboutArticle).to.be.null;
-        expect(res.body.data.editorialBoardArticle).to.be.null;
-        expect(res.body.data.authorInstruction).to.be.null;
-        expect(res.body.data.refereeInstruction).to.be.null;
-        expect(res.body.data.settings).to.deep.equal(DEFAULT_JOURNAL_SETTINGS);
+        expect(res.status).toBe(200);
+        expect(res.body.data.description).toBe(updateData.description);
+        expect(res.body.data.settings).toEqual(DEFAULT_JOURNAL_SETTINGS);
+        expect(res.body.data.aboutArticle).toBeNull();
+        expect(res.body.data.editorialBoardArticle).toBeNull();
+        expect(res.body.data.authorInstruction).toBeNull();
+        expect(res.body.data.refereeInstruction).toBeNull();
       });
 
       it('should update only settings when no description provided', async () => {
@@ -424,14 +417,14 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${chiefEditorAuthToken}`)
           .send(updateData);
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.description).to.equal('A test journal for settings');
-        expect(res.body.data.aboutArticle).to.be.null;
-        expect(res.body.data.editorialBoardArticle).to.be.null;
-        expect(res.body.data.authorInstruction).to.be.null;
-        expect(res.body.data.refereeInstruction).to.be.null;
-        expect(res.body.data.settings.refereeCount.value).to.equal(4);
-        expect(res.body.data.settings.reviewDueHours).to.deep.equal(DEFAULT_JOURNAL_SETTINGS.reviewDueHours);
+        expect(res.status).toBe(200);
+        expect(res.body.data.description).toBe('A test journal for settings');
+        expect(res.body.data.settings.refereeCount.value).toBe(4);
+        expect(res.body.data.settings.reviewDueHours).toEqual(DEFAULT_JOURNAL_SETTINGS.reviewDueHours);
+        expect(res.body.data.aboutArticle).toBeNull();
+        expect(res.body.data.editorialBoardArticle).toBeNull();
+        expect(res.body.data.authorInstruction).toBeNull();
+        expect(res.body.data.refereeInstruction).toBeNull();
       });
 
       it('should return 403 for non-existent journal', async () => {
@@ -448,7 +441,7 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${chiefEditorAuthToken}`)
           .send(updateData);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
     });
   });
@@ -461,7 +454,7 @@ describe('Journal Settings', () => {
         ownerId: chiefEditor.id,
       });
 
-      expect(newJournalResult.isOk()).to.be.true;
+      expect(newJournalResult.isOk()).toBe(true);
       const newJournal = newJournalResult.match(
         (j) => j,
         (error) => {
@@ -470,9 +463,9 @@ describe('Journal Settings', () => {
       );
 
       const settings = await getJournalSettingsByIdWithDefaults(newJournal.id);
-      expect(settings.isOk()).to.be.true;
+      expect(settings.isOk()).toBe(true);
       settings.match(
-        (s) => expect(s).to.deep.equal(DEFAULT_JOURNAL_SETTINGS),
+        (s) => expect(s).toEqual(DEFAULT_JOURNAL_SETTINGS),
         (error) => {
           throw error;
         },

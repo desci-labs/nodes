@@ -1,6 +1,3 @@
-import 'dotenv/config';
-import 'mocha';
-
 import { AvailableUserActionLogTypes } from '@desci-labs/desci-models';
 import {
   ActionType,
@@ -11,18 +8,17 @@ import {
   Submissionstatus,
 } from '@prisma/client';
 // import { Sql } from '@prisma/client/runtime/library.js';
-import chai, { assert } from 'chai';
-import chaiAsPromised from 'chai-as-promised';
 import { subDays } from 'date-fns';
 // import { sql } from 'googleapis/build/src/apis/sql/index.js';
 import supertest from 'supertest';
+import { describe, it, beforeAll, expect, beforeEach, afterEach, assert } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
-import { app } from '../../src/index.js';
 import { safePct } from '../../src/services/admin/helper.js';
 import { communityService } from '../../src/services/Communities.js';
 import { countAllUsers } from '../../src/services/user.js';
+import { app } from '../testApp.js';
 import {
   createMockGuestUsers,
   createMockNodes,
@@ -31,10 +27,6 @@ import {
   MockUser,
   publishMockNodes,
 } from '../util.js';
-
-// use async chai assertions
-chai.use(chaiAsPromised);
-const expect = chai.expect;
 
 const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
@@ -196,22 +188,22 @@ describe('KPI Metrics', async () => {
       const data = response.body.data as UserEngagementMetricsData;
 
       // assert response status
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
 
       // assert active users KPIs
-      expect(data.activeUsers.daily).to.equal(5);
-      expect(data.activeUsers.weekly).to.equal(15);
-      expect(data.activeUsers.monthly).to.equal(25);
+      expect(data.activeUsers.daily).toBe(5);
+      expect(data.activeUsers.weekly).toBe(15);
+      expect(data.activeUsers.monthly).toBe(25);
 
       // assert publishing users KPIs
-      expect(data.publishingUsers.daily).to.equal(5);
-      expect(data.publishingUsers.weekly).to.equal(15);
-      expect(data.publishingUsers.monthly).to.equal(15);
+      expect(data.publishingUsers.daily).toBe(5);
+      expect(data.publishingUsers.weekly).toBe(15);
+      expect(data.publishingUsers.monthly).toBe(15);
 
       // assert exploring users KPIs
-      expect(data.exploringUsers.daily).to.equal(5);
-      expect(data.exploringUsers.weekly).to.equal(15);
-      expect(data.exploringUsers.monthly).to.equal(25);
+      expect(data.exploringUsers.daily).toBe(5);
+      expect(data.exploringUsers.weekly).toBe(15);
+      expect(data.exploringUsers.monthly).toBe(25);
     });
   });
 
@@ -322,10 +314,10 @@ describe('KPI Metrics', async () => {
       const data = response.body.data as PublishMetricsData;
 
       // assert response status
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
 
       // assert publishing users KPIs
-      expect(data.totalUsers).to.equal(
+      expect(data.totalUsers).toBe(
         mockUsersToday.length +
           mockUsersInLast7Days.length +
           mockUsersInLast30Days.length +
@@ -334,9 +326,9 @@ describe('KPI Metrics', async () => {
           guestUsersInLast30Days.length +
           1, // admin user
       );
-      expect(data.publishers).to.equal(28);
-      expect(data.publishersInCommunity).to.equal(16);
-      expect(data.guestSignUpSuccessRate).to.equal(50);
+      expect(data.publishers).toBe(28);
+      expect(data.publishersInCommunity).toBe(16);
+      expect(data.guestSignUpSuccessRate).toBe(50);
     });
 
     it('should return the correct publish funnel metrics for the past 3 days with compareToPreviousPeriod enabled', async () => {
@@ -356,19 +348,19 @@ describe('KPI Metrics', async () => {
       const data = response.body.data as PublishMetricsData;
 
       // assert response status
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
 
       // assert publishing users KPIs
-      expect(data.totalUsers).to.equal(mockUsersToday.length + guestUsersToday.length);
-      expect(data.publishers).to.equal(25);
-      expect(data.publishersInCommunity).to.equal(25);
-      expect(data.guestSignUpSuccessRate).to.equal(50);
+      expect(data.totalUsers).toBe(mockUsersToday.length + guestUsersToday.length);
+      expect(data.publishers).toBe(25);
+      expect(data.publishersInCommunity).toBe(25);
+      expect(data.guestSignUpSuccessRate).toBe(50);
 
       // assert previous period KPIs
-      expect(data.previousPeriod?.totalUsers).to.equal(mockUsersInLast7Days.length + guestUsersInLast7Days.length);
-      expect(data.previousPeriod?.publishers).to.equal(25);
-      expect(data.previousPeriod?.publishersInCommunity).to.equal(25);
-      expect(data.previousPeriod?.guestSignUpSuccessRate).to.equal(50);
+      expect(data.previousPeriod?.totalUsers).toBe(mockUsersInLast7Days.length + guestUsersInLast7Days.length);
+      expect(data.previousPeriod?.publishers).toBe(25);
+      expect(data.previousPeriod?.publishersInCommunity).toBe(25);
+      expect(data.previousPeriod?.guestSignUpSuccessRate).toBe(50);
     });
   });
 
@@ -400,10 +392,10 @@ describe('KPI Metrics', async () => {
       const data = response.body.data as ResearchObjectMetrics;
 
       // assert response status
-      expect(response.status).to.equal(200);
-      expect(data.totalRoCreated).to.be.equal(45);
-      expect(data.averageRoCreatedPerUser).to.be.equal(1.5);
-      expect(data.medianRoCreatedPerUser).to.be.equal(1.5);
+      expect(response.status).toBe(200);
+      expect(data.totalRoCreated).toBe(45);
+      expect(data.averageRoCreatedPerUser).toBe(1.5);
+      expect(data.medianRoCreatedPerUser).toBe(1.5);
     });
 
     it('should return the correct research object metrics for the past 3 days with compareToPreviousPeriod enabled', async () => {
@@ -423,17 +415,17 @@ describe('KPI Metrics', async () => {
       const data = response.body.data as ResearchObjectMetrics;
 
       // assert response status
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
 
       // assert publishing users KPIs
-      expect(data.totalRoCreated).to.be.equal(15);
-      expect(data.averageRoCreatedPerUser).to.be.equal(1.5);
-      expect(data.medianRoCreatedPerUser).to.be.equal(1.5);
+      expect(data.totalRoCreated).toBe(15);
+      expect(data.averageRoCreatedPerUser).toBe(1.5);
+      expect(data.medianRoCreatedPerUser).toBe(1.5);
 
       // assert previous period KPIs
-      expect(data.previousPeriod?.totalRoCreated).to.be.equal(18);
-      expect(data.previousPeriod?.averageRoCreatedPerUser).to.be.equal(1.8);
-      expect(data.previousPeriod?.medianRoCreatedPerUser).to.be.equal(2);
+      expect(data.previousPeriod?.totalRoCreated).toBe(18);
+      expect(data.previousPeriod?.averageRoCreatedPerUser).toBe(1.8);
+      expect(data.previousPeriod?.medianRoCreatedPerUser).toBe(2);
     });
   });
 
@@ -487,13 +479,13 @@ describe('KPI Metrics', async () => {
 
       const total = await countAllUsers();
       // assert response status
-      expect(response.status).to.equal(200);
-      expect(data.day1Retention).to.be.equal(safePct(day1InteractionLogs.length, total));
-      expect(data.day7Retention).to.be.equal(safePct(day7InteractionLogs.length + day1InteractionLogs.length, total));
-      expect(data.day30Retention).to.be.equal(
+      expect(response.status).toBe(200);
+      expect(data.day1Retention).toBe(safePct(day1InteractionLogs.length, total));
+      expect(data.day7Retention).toBe(safePct(day7InteractionLogs.length + day1InteractionLogs.length, total));
+      expect(data.day30Retention).toBe(
         safePct(day1InteractionLogs.length + day7InteractionLogs.length + day30InteractionLogs.length, total),
       );
-      expect(data.day365Retention).to.be.equal(
+      expect(data.day365Retention).toBe(
         safePct(
           day1InteractionLogs.length +
             day7InteractionLogs.length +
@@ -648,16 +640,16 @@ describe('KPI Metrics', async () => {
       const data = response.body.data as FeatureAdoptionMetricsData;
 
       // assert response status
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
 
       // assert publishing users KPIs
-      expect(data.totalShares).to.equal(day1ShareLogs.length);
-      expect(data.totalCoAuthorInvites).to.equal(day1CoAuthorInviteLogs.length);
-      expect(data.totalAIAnalyticsClicks).to.equal(day1AIAnalyticsClicksLogs.length);
-      expect(data.totalMatchedArticleClicks).to.equal(day1MatchedArticleClicksLogs.length);
-      expect(data.totalClaimedBadges).to.equal(day1ClaimedBadgesLogs);
-      expect(data.totalProfileViews).to.equal(day1ProfileViewsLogs.length);
-      expect(data.totalGuestModeVisits).to.equal(guestUsersToday.length);
+      expect(data.totalShares).toBe(day1ShareLogs.length);
+      expect(data.totalCoAuthorInvites).toBe(day1CoAuthorInviteLogs.length);
+      expect(data.totalAIAnalyticsClicks).toBe(day1AIAnalyticsClicksLogs.length);
+      expect(data.totalMatchedArticleClicks).toBe(day1MatchedArticleClicksLogs.length);
+      expect(data.totalClaimedBadges).toBe(day1ClaimedBadgesLogs);
+      expect(data.totalProfileViews).toBe(day1ProfileViewsLogs.length);
+      expect(data.totalGuestModeVisits).toBe(guestUsersToday.length);
     });
 
     it('should return the correct all time feature adoption metrics', async () => {
@@ -667,18 +659,18 @@ describe('KPI Metrics', async () => {
       const data = response.body.data as FeatureAdoptionMetricsData;
 
       // assert response status
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
 
       // assert publishing users KPIs
-      expect(data.totalShares).to.equal(day1ShareLogs.length + day7ShareLogs.length);
-      expect(data.totalCoAuthorInvites).to.equal(day1CoAuthorInviteLogs.length + day7CoAuthorInviteLogs.length);
-      expect(data.totalAIAnalyticsClicks).to.equal(day1AIAnalyticsClicksLogs.length + day7AIAnalyticsClicksLogs.length);
-      expect(data.totalMatchedArticleClicks).to.equal(
+      expect(data.totalShares).toBe(day1ShareLogs.length + day7ShareLogs.length);
+      expect(data.totalCoAuthorInvites).toBe(day1CoAuthorInviteLogs.length + day7CoAuthorInviteLogs.length);
+      expect(data.totalAIAnalyticsClicks).toBe(day1AIAnalyticsClicksLogs.length + day7AIAnalyticsClicksLogs.length);
+      expect(data.totalMatchedArticleClicks).toBe(
         day1MatchedArticleClicksLogs.length + day7MatchedArticleClicksLogs.length,
       );
-      expect(data.totalClaimedBadges).to.equal(day1ClaimedBadgesLogs + day7ClaimedBadgesLogs);
-      expect(data.totalProfileViews).to.equal(day1ProfileViewsLogs.length + day7ProfileViewsLogs.length);
-      expect(data.totalGuestModeVisits).to.equal(guestUsersToday.length + guestUsersInLast7Days.length);
+      expect(data.totalClaimedBadges).toBe(day1ClaimedBadgesLogs + day7ClaimedBadgesLogs);
+      expect(data.totalProfileViews).toBe(day1ProfileViewsLogs.length + day7ProfileViewsLogs.length);
+      expect(data.totalGuestModeVisits).toBe(guestUsersToday.length + guestUsersInLast7Days.length);
     });
 
     it('should return the correct feature adoption metrics for the past 3 days with compareToPreviousPeriod enabled', async () => {
@@ -698,23 +690,23 @@ describe('KPI Metrics', async () => {
       const data = response.body.data as FeatureAdoptionMetricsData;
 
       // assert response status
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
 
       // assert publishing users KPIs
-      expect(data.totalShares).to.equal(day1ShareLogs.length);
-      expect(data.totalCoAuthorInvites).to.equal(day1CoAuthorInviteLogs.length);
-      expect(data.totalAIAnalyticsClicks).to.equal(day1AIAnalyticsClicksLogs.length);
-      expect(data.totalMatchedArticleClicks).to.equal(day1MatchedArticleClicksLogs.length);
-      expect(data.totalClaimedBadges).to.equal(day1ClaimedBadgesLogs);
-      expect(data.totalProfileViews).to.equal(day1ProfileViewsLogs.length);
-      expect(data.totalGuestModeVisits).to.equal(guestUsersToday.length);
-      expect(data.previousPeriod?.totalShares).to.equal(day7ShareLogs.length);
-      expect(data.previousPeriod?.totalCoAuthorInvites).to.equal(day7CoAuthorInviteLogs.length);
-      expect(data.previousPeriod?.totalAIAnalyticsClicks).to.equal(day7AIAnalyticsClicksLogs.length);
-      expect(data.previousPeriod?.totalMatchedArticleClicks).to.equal(day7MatchedArticleClicksLogs.length);
-      expect(data.previousPeriod?.totalClaimedBadges).to.equal(day7ClaimedBadgesLogs);
-      expect(data.previousPeriod?.totalProfileViews).to.equal(day7ProfileViewsLogs.length);
-      expect(data.previousPeriod?.totalGuestModeVisits).to.equal(guestUsersInLast7Days.length);
+      expect(data.totalShares).toBe(day1ShareLogs.length);
+      expect(data.totalCoAuthorInvites).toBe(day1CoAuthorInviteLogs.length);
+      expect(data.totalAIAnalyticsClicks).toBe(day1AIAnalyticsClicksLogs.length);
+      expect(data.totalMatchedArticleClicks).toBe(day1MatchedArticleClicksLogs.length);
+      expect(data.totalClaimedBadges).toBe(day1ClaimedBadgesLogs);
+      expect(data.totalProfileViews).toBe(day1ProfileViewsLogs.length);
+      expect(data.totalGuestModeVisits).toBe(guestUsersToday.length);
+      expect(data.previousPeriod?.totalShares).toBe(day7ShareLogs.length);
+      expect(data.previousPeriod?.totalCoAuthorInvites).toBe(day7CoAuthorInviteLogs.length);
+      expect(data.previousPeriod?.totalAIAnalyticsClicks).toBe(day7AIAnalyticsClicksLogs.length);
+      expect(data.previousPeriod?.totalMatchedArticleClicks).toBe(day7MatchedArticleClicksLogs.length);
+      expect(data.previousPeriod?.totalClaimedBadges).toBe(day7ClaimedBadgesLogs);
+      expect(data.previousPeriod?.totalProfileViews).toBe(day7ProfileViewsLogs.length);
+      expect(data.previousPeriod?.totalGuestModeVisits).toBe(guestUsersInLast7Days.length);
     });
   });
 });
