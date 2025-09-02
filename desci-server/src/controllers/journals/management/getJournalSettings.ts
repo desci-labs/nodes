@@ -32,8 +32,13 @@ export const getJournalSettingsController = async (req: GetJournalSettingsReques
       return sendError(res, 'Failed to get journal settings due to a server error.', 500);
     }
 
-    const { description, settings } = result.value;
-    return sendSuccess(res, { description, settings }, 'Journal settings retrieved successfully.');
+    const { description, aboutArticle, editorialBoardArticle, authorInstruction, refereeInstruction, settings } =
+      result.value;
+    return sendSuccess(
+      res,
+      { description, aboutArticle, editorialBoardArticle, authorInstruction, refereeInstruction, settings },
+      'Journal settings retrieved successfully.',
+    );
   } catch (error) {
     logger.error(
       { error, params: req.params, userId: req.user?.id },

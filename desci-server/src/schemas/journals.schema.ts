@@ -705,6 +705,10 @@ export const updateJournalSettingsSchema = z.object({
   body: z
     .object({
       description: z.string().optional(),
+      aboutArticle: z.string().optional(),
+      editorialBoardArticle: z.string().optional(),
+      authorInstruction: z.string().optional(),
+      refereeInstruction: z.string().optional(),
       settings: z
         .object({
           reviewDueHours: z

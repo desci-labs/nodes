@@ -2769,6 +2769,54 @@ export const showJournalAnalyticsOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Get Public Journal Analytics
+export const getPublicJournalAnalyticsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getPublicJournalAnalytics',
+  tags: ['Journals'],
+  summary: 'Get public journal statistics',
+  description:
+    'Retrieve public analytics data for a journal including average review turnaround time and average decision time. This endpoint is publicly accessible and does not require authentication.',
+  requestParams: {
+    path: getJournalAnalyticsSchema.shape.params,
+    query: getJournalAnalyticsSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Public journal statistics retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z
+            .array(
+              z.object({
+                value: z
+                  .string()
+                  .describe('Formatted time value (e.g., "2 days", "1 week") or "N/A" if no data available'),
+                label: z.string().describe('Human-readable label for the metric'),
+              }),
+            )
+            .describe('Array of public metrics including average review turnaround time and average decision time'),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+};
+
 // Show Urgent Journal Submissions
 export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = {
   operationId: 'showUrgentJournalSubmissions',
@@ -3476,6 +3524,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/analytics': {
     get: showJournalAnalyticsOperation,
+  },
+  '/v1/journals/{journalId}/public/statistics': {
+    get: getPublicJournalAnalyticsOperation,
   },
   '/v1/journals/{journalId}/featured': {
     get: listFeaturedJournalPublicationsOperation,
