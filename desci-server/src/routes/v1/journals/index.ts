@@ -1,7 +1,10 @@
 import { EditorRole } from '@prisma/client';
 import { Router } from 'express';
 
-import { showJournalAnalyticsController } from '../../../controllers/journals/dashboard/analytics.js';
+import {
+  getPublicJournalAnalyticsController,
+  showJournalAnalyticsController,
+} from '../../../controllers/journals/dashboard/analytics.js';
 import { showUrgentJournalSubmissionsController } from '../../../controllers/journals/dashboard/urgentSubmissions.js';
 import {
   listFeaturedJournalPublicationsController,
@@ -81,6 +84,12 @@ router.get(
     validateInputs(showUrgentSubmissionsSchema),
   ],
   asyncHandler(showUrgentJournalSubmissionsController),
+);
+
+router.get(
+  '/:journalId/public/statistics',
+  [attachUser, validateInputs(getJournalAnalyticsSchema)],
+  asyncHandler(getPublicJournalAnalyticsController),
 );
 
 invitesRoutes(router);

@@ -115,7 +115,12 @@ export const randomInt = (min: number, max: number) => {
 
 // generate a random orcid
 const generateOrcid = () => {
-  return `0000-000${randomInt(1, 9)}-80${randomInt(1, 9)}0-${randomInt(1, 9)}${randomInt(1, 9)}${randomInt(1, 9)}X`;
+  // Generate a more random ORCID to avoid duplicates
+  const part1 = String(randomInt(0, 9999)).padStart(4, '0');
+  const part2 = String(randomInt(0, 9999)).padStart(4, '0');
+  const part3 = String(randomInt(0, 9999)).padStart(4, '0');
+  const part4 = String(randomInt(0, 999)).padStart(3, '0') + randomInt(0, 9);
+  return `${part1}-${part2}-${part3}-${part4}`;
 };
 
 export const createMockUsers = async (count: number, createdAt: Date, withOrcid?: boolean): Promise<MockUser[]> => {

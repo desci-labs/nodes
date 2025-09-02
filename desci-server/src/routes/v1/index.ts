@@ -30,6 +30,7 @@ import pub from './pub.js';
 import referral from './referral.js';
 import search from './search.js';
 import services from './services/index.js';
+import stripe from './stripe.js';
 import users from './users.js';
 import waitlist from './waitlist.js';
 
@@ -59,6 +60,7 @@ router.use('/auth', auth);
 router.use('/users', users);
 router.use('/nodes', nodes);
 router.use('/waitlist', waitlist);
+router.use('/stripe', stripe);
 router.use('/pub', pub);
 router.use('/data', data);
 router.use('/log', log);
