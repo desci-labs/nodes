@@ -184,7 +184,7 @@ export class SubscriptionService {
         userId,
         subscriptionId: subscription?.id,
         stripeInvoiceId: invoice.id,
-        amount: new Prisma.Decimal((invoice.amount_due || 0) / 100), // Convert from cents to Decimal
+        amount: invoice.amount_due || 0, // Already in cents from Stripe
         currency: invoice.currency,
         status: this.mapStripeInvoiceStatusToPrismaStatus(invoice.status),
         description: invoice.lines.data[0]?.description || 'Subscription payment',
@@ -193,7 +193,7 @@ export class SubscriptionService {
         dueDate: invoice.due_date ? new Date(invoice.due_date * 1000) : null,
       },
       update: {
-        amount: new Prisma.Decimal((invoice.amount_due || 0) / 100), // Update amount if changed
+        amount: invoice.amount_due || 0, // Already in cents from Stripe
         currency: invoice.currency,
         status: this.mapStripeInvoiceStatusToPrismaStatus(invoice.status),
         description: invoice.lines.data[0]?.description || 'Subscription payment',
@@ -308,9 +308,7 @@ export class SubscriptionService {
       ...subscription,
       invoices: subscription.invoices.map(invoice => ({
         ...invoice,
-        amount: typeof invoice.amount === 'object' && 'toNumber' in invoice.amount 
-          ? (invoice.amount as Prisma.Decimal).toNumber() 
-          : Number(invoice.amount), // Convert Decimal to number for frontend
+        amount: invoice.amount, // Already a number in cents
       })),
       paymentMethods,
     };

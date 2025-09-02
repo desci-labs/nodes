@@ -1376,7 +1376,7 @@ model JournalBilling {
   invoicingEmail    String?
   billingAddress    String?
   totalDoisMinted   Int       @default(0)
-  totalAmountBilled Float     @default(0)
+  totalAmountBilled Int       @default(0) // Total amount billed in cents
   lastInvoiceDate   DateTime?
 
   // Relationships
@@ -1388,7 +1388,7 @@ model JournalInvoice {
   id            Int           @id @default(autoincrement())
   billingId     Int
   invoiceNumber String
-  amount        Float
+  amount        Int           // Amount in cents
   doisMinted    Int
   periodStart   DateTime
   periodEnd     DateTime
@@ -1527,7 +1527,7 @@ model Invoice {
   userId          Int
   subscriptionId  Int?
   stripeInvoiceId String              @unique
-  amount          Decimal
+  amount          Int                 // Amount in cents
   currency        String              @default("usd")
   status          StripeInvoiceStatus
   description     String?
