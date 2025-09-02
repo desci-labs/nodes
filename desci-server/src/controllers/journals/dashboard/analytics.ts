@@ -56,7 +56,6 @@ export const showJournalAnalyticsController = async (req: ShowJournalAnalyticsRe
 export const getPublicJournalAnalyticsController = async (req: ShowJournalAnalyticsRequest, res: Response) => {
   try {
     const { journalId } = req.validatedData.params;
-    const { startDate, endDate } = req.validatedData.query;
 
     // await new Promise((resolve) => setTimeout(resolve, 3000));
     const journal = await JournalManagementService.getJournalById(journalId);
@@ -64,15 +63,9 @@ export const getPublicJournalAnalyticsController = async (req: ShowJournalAnalyt
     if (journal.isErr()) {
       return sendError(res, 'Journal not found.', 404);
     }
-    const from = startDate ? startOfDay(startDate) : null;
-    const to = endDate ? endOfDay(endDate) : null;
 
-    logger.info({ journalId, userId: req.user?.id, from, to }, 'Attempting to retrieve journal analytics');
-    const data = await getPublicJournalAnalytics({
-      journalId,
-      startDate: from,
-      endDate: to,
-    });
+    logger.info({ journalId, userId: req.user?.id }, 'Attempting to retrieve journal analytics');
+    const data = await getPublicJournalAnalytics(journalId);
 
     logger.info({ data }, 'getPublicJournalAnalyticsController');
 

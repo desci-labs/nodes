@@ -154,25 +154,12 @@ async function getJournalAnalytics({
   };
 }
 
-async function getPublicJournalAnalytics({
-  journalId,
-  startDate,
-  endDate,
-}: {
-  journalId: number;
-  startDate: Date | null;
-  endDate: Date | null;
-}) {
+async function getPublicJournalAnalytics(journalId: number) {
   const [submissions, reviews] = await Promise.all([
     // get all submissions with optional date range
     prisma.journalSubmission.findMany({
       where: {
         journalId,
-        ...(startDate && endDate
-          ? {
-              submittedAt: { gte: startDate, lte: endDate },
-            }
-          : {}),
       },
       orderBy: {
         submittedAt: 'desc',
@@ -185,11 +172,6 @@ async function getPublicJournalAnalytics({
         submission: {
           journalId,
         },
-        ...(startDate && endDate
-          ? {
-              submittedAt: { gte: startDate, lt: endDate },
-            }
-          : {}),
       },
       include: {
         submission: {
