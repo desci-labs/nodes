@@ -34,6 +34,7 @@ import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.j
 import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
 import { getPublishedNodes } from '../../controllers/nodes/getPublishedNodes.js';
 import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
+import { githubMystImport, githubMystImportSchema } from '../../controllers/nodes/githubMystImport.js';
 import {
   show,
   draftUpdate,
@@ -89,7 +90,7 @@ import {
   attachNode,
 } from '../../middleware/authorisation.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
-import { validate } from '../../middleware/validator.js';
+import { validate, validateInputs } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
 import {
@@ -183,6 +184,13 @@ router.post(
   '/:uuid/automate-manuscript',
   [ensureGuestOrUser, ensureNodeAccess, validate(automateManuscriptSchema)],
   asyncHandler(automateManuscriptDoi),
+);
+
+// doi automation
+router.post(
+  '/:uuid/github-myst-import',
+  [ensureUser, ensureNodeAccess, validateInputs(githubMystImportSchema)],
+  asyncHandler(githubMystImport),
 );
 
 router.delete('/:uuid', [ensureGuestOrUser], deleteNode);
