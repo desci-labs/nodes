@@ -40,7 +40,7 @@ export type ChainConfig = {
 export const LEGACY_CHAIN_CONFIGS = {
   local: {
     chainId: "1337",
-    rpcUrl: "http://localhost:8545",
+    rpcUrl: process.env.CHAIN_RPC_URL || "http://localhost:8545",
     researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
       contracts.localRoInfo.proxies[0].address,
       signerOrProvider
@@ -91,7 +91,7 @@ export const LEGACY_CHAIN_CONFIGS = {
 export const CHAIN_CONFIGS = {
   local: {
     chainId: "1337",
-    rpcUrl: "http://localhost:8545",
+    rpcUrl: process.env.CHAIN_RPC_URL || "http://localhost:8545",
     dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
       contracts.localDpidAliasInfo.proxies.at(0)!.address,
       signerOrProvider,

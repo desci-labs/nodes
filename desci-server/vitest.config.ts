@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
+export default defineConfig(() => ({
   test: {
     globals: false,
     environment: 'node',
@@ -8,11 +8,10 @@ export default defineConfig({
     isolate: false,
     testTimeout: 20000,
     hookTimeout: 20000,
-    setupFiles: ['dotenv/config'],
+    setupFiles: ['dotenv/config', './test/setup.ts'],
     include: ['test/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
-    fileParallelism: false,
-    maxConcurrency: 1,
+    //fileParallelism: false,
     // Only show console output for failed tests
     silent: 'passed-only',
     pool: 'forks',
@@ -27,4 +26,4 @@ export default defineConfig({
   resolve: {
     extensions: ['.js', '.ts', '.json'],
   },
-});
+}));

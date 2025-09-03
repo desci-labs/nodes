@@ -43,7 +43,7 @@ const DPID_ENV_MAPPING = {
   'https://nodes-api.desci.com': 'https://beta.dpid.org/',
 };
 
-const DPID_URL = DPID_ENV_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
+const DPID_URL = process.env.RESOLVER_URL || DPID_ENV_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
 
 async function indexResearchObject(nodeUuid: string) {
   nodeUuid = unpadUuid(nodeUuid);

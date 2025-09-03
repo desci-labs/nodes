@@ -77,6 +77,6 @@ if [ "$WAS_RUNNING" -eq "0" ]; then
   docker compose --project-name desci stop
 else
   echo "$CTX Leaving compose services up as they were already running when we started."
-fi 
+fi
 
 echo "$CTX Done! You need to run me again if local data is wiped."

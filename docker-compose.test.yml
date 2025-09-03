@@ -25,7 +25,10 @@ services:
     env_file:
       - .env.test
     environment:
-      - RUN_DEV=${RUN_DEV:-0}
+      # Conditionally start the server instead of invoking the integration test suite
+      RUN_SERVER: ${RUN_SERVER:-0}
+      RESOLVER_URL: http://dpid_resolver_test:5460
+      DPID_URL_OVERRIDE: http://dpid_resolver_test:5460
     ports:
       - "5421:5420"
       - "9227:9227"
@@ -39,6 +42,10 @@ services:
         condition: service_healthy
       nodes_test_ipfs:
         condition: service_healthy
+      desci_blockchain_ganache:
+        condition: service_healthy
+      dpid_resolver_test:
+        condition: service_started
     volumes:
       - .:/app/
     healthcheck:
@@ -47,9 +54,32 @@ services:
       timeout: 10s
       retries: 5
       start_period: 15s
-    #   - /app/node_modules
-    # volumes:
-    #   - ./tmp/nebulus:/tmp/nebulus
+
+  desci_blockchain_ganache:
+    container_name: "desci_blockchain_ganache"
+    build:
+      context: desci-contracts
+    restart: on-failure
+    healthcheck:
+      test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' localhost:8545
+      interval: 10s
+      timeout: 15s
+      retries: 10
+    ports:
+      - "8545:8545"
+    env_file:
+      - .env
+    environment:
+      PG_PORT: 5434
+      SKIP_SUBGRAPH: 1
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./local-data/test/ganache:/data
+      # - ./desci-contracts/.openzeppelin:/app/.openzeppelin
+    depends_on:
+      nodes_test_db:
+        condition: service_healthy
 
   nodes_test_ipfs:
     image: ipfs/kubo:v0.26.0
@@ -101,7 +131,32 @@ services:
       retries: 5
       start_period: 15s
 
-  ceramic-one-test:
+  nodes_lib_test:
+    container_name: nodes_lib_test
+    build:
+      context: ./nodes-lib
+      dockerfile: Dockerfile.test
+    entrypoint: /bin/sh -c
+    command:
+      - "sleep 5 && npm test"
+    environment:
+      NODES_API_URL: http://nodes_backend_test:5421
+      CHAIN_RPC_URL: http://desci_blockchain_ganache:8545
+      CERAMIC_ONE_RPC_URL: http://ceramic_one_test:5101
+      CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5102
+    depends_on:
+      nodes_backend_test:
+        condition: service_healthy
+      desci_blockchain_ganache:
+        condition: service_healthy
+      ceramic_one_test:
+        condition: service_healthy
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./nodes-lib:/app/nodes-lib
+
+  ceramic_one_test:
     container_name: ceramic_one_test
     image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
     restart: on-failure
@@ -119,7 +174,7 @@ services:
       RUST_LOG: "warn"
       CERAMIC_ONE_LOG_FORMAT: "multi-line"
     volumes:
-      - ../local-data/test/ceramic-one:/data/ceramic-one
+      - ./local-data/test/ceramic-one:/data/ceramic-one
     healthcheck:
       test:
         [
@@ -133,3 +188,28 @@ services:
       timeout: 5s
       retries: 5
 
+  dpid_resolver_test:
+    image: descilabs/dpid-resolver:develop
+    container_name: dpid_resolver_test
+    # Uncomment and set to local repo path for tinkering
+    # build:
+    #   context: ~/dev/desci/dpid-resolver
+    environment:
+      DPID_ENV: local
+      OPTIMISM_RPC_URL: http://desci_blockchain_ganache:8545
+      CERAMIC_FLIGHT_URL: http://ceramic_one_test:5102
+      IPFS_GATEWAY: http://nodes_test_ipfs:8089/ipfs
+      CACHE_TTL_ANCHORED: 86400
+      CACHE_TTL_PENDING: 300
+    restart: on-failure
+    ports:
+      - "5460:5460"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      nodes_test_ipfs:
+        condition: service_healthy
+      desci_blockchain_ganache:
+        condition: service_healthy
+      ceramic_one_test:
+        condition: service_healthy
