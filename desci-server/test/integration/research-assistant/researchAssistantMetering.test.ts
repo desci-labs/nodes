@@ -697,14 +697,14 @@ describe('Research Assistant Metering', () => {
     });
   });
 
-  describe.only('Onboard Usage Controller', () => {
+  describe('Onboard Usage Controller', () => {
     describe('POST /v1/services/ai/research-assistant/onboard-usage', () => {
       it('should successfully onboard guest usage', async () => {
         const res = await request(app)
           .post('/v1/services/ai/research-assistant/onboard-usage')
           .set('authorization', `Bearer ${authToken}`)
           .send({ guestUsageCount: 3 });
-        debugger;
+
         expect(res.status).to.equal(200);
         expect(res.body.ok).to.be.true;
         expect(res.body.data.currentStatus.totalUsed).to.equal(3);
