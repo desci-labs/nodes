@@ -12,7 +12,7 @@
 # chmod -R 777 /root/ && chown node:node /root/.cache/prisma/master/2920a97877e12e055c1333079b8d19cee7f33826/debian-openssl-1.1.x/libquery-engine # for prisma studio
 # mkdir -p /app/desci-server/repo-tmp
 # chmod -R 777 /app/desci-server/repo-tmp
-cd desci-server
+cd desci-server || exit 1
 yarn run migrate
 npx prisma db seed
 
@@ -20,9 +20,9 @@ npx prisma db seed
 # cp node_modules/.prisma/*/* ../desci-repo/node_modules/.prisma/
 
 (npx prisma studio &)
-if [[ "$RUN_DEV" == 1 ]]; then
-  yarn dev
+if [ "$RUN_SERVER" = 1 ]; then
+  yarn build && yarn start
 else
-  yarn test #:destructive:debug
-  # npm run test:destructive:analytics
+  yarn test
+  # yarn test:debug
 fi

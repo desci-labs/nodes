@@ -1,13 +1,11 @@
 import { AppServer } from '../src/server.js';
 
-// Global singleton to ensure only one AppServer instance across all test imports
-let testServerInstance: AppServer | null = null;
-
+// Get the test server instance created in test/setup.ts, which is run at vitest initialisation
 function getTestServer(): AppServer {
-  if (!testServerInstance) {
-    testServerInstance = new AppServer();
+  if (!globalThis.__testServer) {
+    throw new Error('Test server not initialized. Make sure setup.ts runs before tests.');
   }
-  return testServerInstance;
+  return globalThis.__testServer;
 }
 
 // Export the singleton instance

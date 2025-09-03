@@ -72,8 +72,5 @@ jobs:
           cd desci-server && yarn build
 
       - name: Run tests
-        run: |
-          cd desci-server && export DOCKER_BUILDKIT=1 && yarn --ignore-engines && yarn test
-          if [ $? -ne 0 ]; then
-            exit 1
-          fi
+        run:
+          SKIP_NODES_LIB=1 ./integrationTestRunner.sh

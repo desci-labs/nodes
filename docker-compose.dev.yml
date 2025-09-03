@@ -242,7 +242,7 @@ services:
         condition: service_healthy
 
   ceramic-one:
-    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.55.1
+    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
     container_name: ceramic-one
     restart: on-failure
     ports:
@@ -331,6 +331,8 @@ services:
       desci_blockchain_ganache:
         condition: service_healthy
       ceramic:
+        condition: service_healthy
+      ceramic-one:
         condition: service_healthy
       redis:
         condition: service_healthy

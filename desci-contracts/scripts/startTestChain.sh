@@ -10,6 +10,9 @@ catch() {
     exit 1
 }
 
+PG_PORT=${PG_PORT:-5433}
+SKIP_SUBGRAPH=${SKIP_SUBGRAPH:-0}
+
 # fake private key (junk mnemonic)
 ## only redeploy a new contract if 1 old entry is in the unknown-research-object.json file
 ## to force redeploy of fresh contract, delete 2nd entry under proxies in unknown-research-object.json file
@@ -35,9 +38,9 @@ checkTestDeployments() {
 }
 
 waitForPostgres() {
-    pg_uri="postgres://walter:white@host.docker.internal:5433/postgres"
+    pg_uri="postgres://walter:white@host.docker.internal:$PG_PORT/postgres"
     # make sure pg is ready to accept connections
-    until pg_isready -h host.docker.internal -p 5433 -U walter; do
+    until pg_isready -h host.docker.internal -p "$PG_PORT" -U walter; do
         echo "Waiting for postgres at: $pg_uri"
         sleep 2
     done
@@ -57,8 +60,11 @@ deployDpidSubgraph() {
 makeDeployments() {
     checkTestDeployments
     waitForPostgres
-    deployObjectSubgraph
-    deployDpidSubgraph
+
+    if [ "$SKIP_SUBGRAPH" != "1" ]; then
+        deployObjectSubgraph
+        deployDpidSubgraph
+    fi
 }
 
 

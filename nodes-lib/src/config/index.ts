@@ -19,12 +19,12 @@ export type NodesLibConfig = {
 
 export const NODESLIB_CONFIGS = {
   local: {
-    apiUrl: "http://localhost:5420",
+    apiUrl: process.env.NODES_API_URL || "http://localhost:5420",
     apiKey: undefined,
     ceramicNodeUrl: "http://localhost:7007",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.local,
-    ceramicOneRpcUrl: "http://localhost:5101",
-    ceramicOneFlightUrl: "http://localhost:5102",
+    ceramicOneRpcUrl: process.env.CERAMIC_ONE_RPC_URL || "http://localhost:5101",
+    ceramicOneFlightUrl: process.env.CERAMIC_ONE_FLIGHT_URL || "http://localhost:5102",
     chainConfig: CHAIN_CONFIGS.local,
   },
   dev: {

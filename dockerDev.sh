@@ -81,4 +81,5 @@ COMPOSE_HTTP_TIMEOUT=320 docker compose \
   $ADDITIONAL_FLAGS \
   --compatibility \
   up \
+  $ADDITIONAL_UP_FLAGS \
   --build

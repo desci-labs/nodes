@@ -321,6 +321,7 @@ function getRemoteAddress(req) {
   }
 }
 
-// Only create the server instance if not in test environment
-// Tests use their own singleton from testApp.ts
-export const server = process.env.NODE_ENV === 'test' ? (null as any as AppServer) : new AppServer();
+// Factory function to create server instances
+export function createServer(): AppServer {
+  return new AppServer();
+}
