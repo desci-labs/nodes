@@ -1,7 +1,19 @@
+import {
+  PrismaClient,
+  PlanType,
+  SubscriptionStatus,
+  StripeInvoiceStatus,
+  PaymentMethodType,
+  BillingInterval,
+  Prisma,
+  Feature,
+  PlanCodename,
+  Period,
+} from '@prisma/client';
 import Stripe from 'stripe';
-import { PrismaClient, PlanType, SubscriptionStatus, StripeInvoiceStatus, PaymentMethodType, BillingInterval, Prisma } from '@prisma/client';
-import { logger as parentLogger } from '../logger.js';
+
 import { getPlanTypeFromPriceId, getBillingIntervalFromPriceId } from '../config/stripe.js';
+import { logger as parentLogger } from '../logger.js';
 import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
 const logger = parentLogger.child({
@@ -55,10 +67,10 @@ export class SubscriptionService {
 
     const userId = customer.metadata?.userId ? parseInt(customer.metadata.userId) : null;
     if (!userId) {
-      logger.warn('Customer created without userId metadata', { 
+      logger.warn('Customer created without userId metadata', {
         customerId: customer.id,
         metadata: customer.metadata,
-        hasMetadata: !!customer.metadata 
+        hasMetadata: !!customer.metadata,
       });
       return;
     }
@@ -158,8 +170,8 @@ export class SubscriptionService {
       },
     });
 
-    // Reset user to free tier
-    await this.updateUserFeatureLimits(updatedSubscription.userId, PlanType.FREE);
+    // Update feature limits based on remaining active subscriptions
+    await this.updateFeatureLimitsAfterCancellation(updatedSubscription.userId);
 
     logger.info('Subscription deleted successfully', { subscriptionId: subscription.id });
   }
@@ -272,7 +284,7 @@ export class SubscriptionService {
 
   static async handleTrialWillEnd(subscription: Stripe.Subscription) {
     logger.info('Handling trial will end', { subscriptionId: subscription.id });
-    
+
     // TODO: Send trial ending notification
     logger.info('Trial will end processed', { subscriptionId: subscription.id });
   }
@@ -306,7 +318,7 @@ export class SubscriptionService {
 
     return {
       ...subscription,
-      invoices: subscription.invoices.map(invoice => ({
+      invoices: subscription.invoices.map((invoice) => ({
         ...invoice,
         amount: invoice.amount, // Already a number in cents
       })),
@@ -343,7 +355,7 @@ export class SubscriptionService {
       where: { stripeCustomerId: customerId },
       select: { userId: true },
     });
-    
+
     if (subscription?.userId) {
       return subscription.userId;
     }
@@ -359,20 +371,20 @@ export class SubscriptionService {
       logger.info('Falling back to Stripe API for customer lookup', { customerId });
       const stripe = getStripe();
       const customer = await stripe.customers.retrieve(customerId);
-      
+
       if (customer && !customer.deleted) {
         const stripeCustomer = customer as Stripe.Customer;
         if (stripeCustomer.metadata?.userId) {
           const userId = parseInt(stripeCustomer.metadata.userId);
-          
+
           // Validate that it's a valid number
           if (!isNaN(userId) && userId > 0) {
             logger.info('Found userId in customer metadata', { customerId, userId });
             return userId;
           } else {
-            logger.warn('Invalid userId in customer metadata', { 
-              customerId, 
-              rawUserId: stripeCustomer.metadata.userId 
+            logger.warn('Invalid userId in customer metadata', {
+              customerId,
+              rawUserId: stripeCustomer.metadata.userId,
             });
           }
         } else {
@@ -382,9 +394,9 @@ export class SubscriptionService {
         logger.warn('Customer is deleted or not found', { customerId });
       }
     } catch (error) {
-      logger.error('Failed to fetch customer from Stripe', { 
-        customerId, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      logger.error('Failed to fetch customer from Stripe', {
+        customerId,
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -393,9 +405,9 @@ export class SubscriptionService {
 
   private static mapStripePriceToPlanType(priceId?: string): PlanType {
     if (!priceId) return PlanType.FREE;
-    
+
     const planName = getPlanTypeFromPriceId(priceId);
-    
+
     switch (planName) {
       case 'AI_REFEREE_FINDER':
         return PlanType.AI_REFEREE_FINDER;
@@ -410,9 +422,9 @@ export class SubscriptionService {
 
   private static getBillingIntervalFromPriceIdHelper(priceId?: string): BillingInterval {
     if (!priceId) return BillingInterval.MONTHLY;
-    
+
     const interval = getBillingIntervalFromPriceId(priceId);
-    
+
     switch (interval) {
       case 'annual':
         return BillingInterval.ANNUAL;
@@ -438,7 +450,7 @@ export class SubscriptionService {
   private static mapStripeInvoiceStatusToPrismaStatus(stripeStatus: string | null): StripeInvoiceStatus {
     const statusMap: Record<string, StripeInvoiceStatus> = {
       draft: StripeInvoiceStatus.DRAFT,
-      open: StripeInvoiceStatus.OPEN, 
+      open: StripeInvoiceStatus.OPEN,
       paid: StripeInvoiceStatus.PAID,
       uncollectible: StripeInvoiceStatus.UNCOLLECTIBLE,
       void: StripeInvoiceStatus.VOID,
@@ -457,11 +469,220 @@ export class SubscriptionService {
 
   private static async updateUserFeatureLimits(userId: number, planType: PlanType) {
     logger.info('Updating user feature limits', { userId, planType });
-    
-    // TODO: Implement feature limit updates based on plan type
-    // This should integrate with your existing FeatureLimitsService
-    
-    // Example:
-    // await FeatureLimitsService.updateUserPlan(userId, planType);
+
+    const { FeatureLimitsService } = await import('./FeatureLimits/FeatureLimitsService.js');
+
+    try {
+      // Map Stripe PlanType to Feature configurations
+      const featureUpdates = this.mapPlanTypeToFeatureConfigs(planType);
+
+      // Update each feature limit
+      for (const config of featureUpdates) {
+        const result = await FeatureLimitsService.updateFeatureLimits({
+          userId,
+          feature: config.feature,
+          planCodename: config.planCodename,
+          period: config.period,
+          useLimit: config.useLimit,
+        });
+
+        if (result.isErr()) {
+          logger.error(
+            { error: result.error, userId, planType, feature: config.feature },
+            'Failed to update feature limit for specific feature',
+          );
+          // Continue with other features even if one fails
+        } else {
+          logger.info(
+            { userId, feature: config.feature, planCodename: config.planCodename, useLimit: config.useLimit },
+            'Successfully updated feature limit',
+          );
+        }
+      }
+
+      logger.info({ userId, planType, updatedFeatures: featureUpdates.length }, 'Completed feature limits update');
+    } catch (error) {
+      logger.error({ error, userId, planType }, 'Failed to update user feature limits');
+      throw error;
+    }
+  }
+
+  /**
+   * Updates feature limits after a subscription cancellation
+   * Checks all remaining active subscriptions to determine proper limits
+   */
+  private static async updateFeatureLimitsAfterCancellation(userId: number) {
+    logger.info('Updating feature limits after cancellation', { userId });
+
+    try {
+      // Get all active subscriptions for this user
+      const activeSubscriptions = await prisma.subscription.findMany({
+        where: {
+          userId,
+          status: SubscriptionStatus.ACTIVE,
+        },
+      });
+
+      logger.info({ userId, activeSubscriptionCount: activeSubscriptions.length }, 'Found active subscriptions');
+
+      if (activeSubscriptions.length === 0) {
+        // No active subscriptions, reset everything to FREE
+        await this.updateUserFeatureLimits(userId, PlanType.FREE);
+        return;
+      }
+
+      // Combine feature configs from all active subscriptions
+      const allFeatureConfigs = new Map<Feature, any>();
+
+      for (const subscription of activeSubscriptions) {
+        const planConfigs = this.mapPlanTypeToFeatureConfigs(subscription.planType);
+
+        for (const config of planConfigs) {
+          const existing = allFeatureConfigs.get(config.feature);
+
+          // If feature doesn't exist or new config is better (higher limits), use the new one
+          if (!existing || this.isBetterFeatureConfig(config, existing)) {
+            allFeatureConfigs.set(config.feature, config);
+          }
+        }
+      }
+
+      // Update feature limits based on combined active subscriptions
+      const { FeatureLimitsService } = await import('./FeatureLimits/FeatureLimitsService.js');
+
+      for (const [feature, config] of allFeatureConfigs) {
+        const result = await FeatureLimitsService.updateFeatureLimits({
+          userId,
+          feature: config.feature,
+          planCodename: config.planCodename,
+          period: config.period,
+          useLimit: config.useLimit,
+        });
+
+        if (result.isErr()) {
+          logger.error(
+            { error: result.error, userId, feature: config.feature },
+            'Failed to update feature limit after cancellation',
+          );
+        } else {
+          logger.info(
+            { userId, feature: config.feature, planCodename: config.planCodename, useLimit: config.useLimit },
+            'Updated feature limit after cancellation',
+          );
+        }
+      }
+
+      // Reset any features not covered by active subscriptions to FREE
+      const allFeatures = [Feature.RESEARCH_ASSISTANT, Feature.REFEREE_FINDER];
+      const uncoveredFeatures = allFeatures.filter((feature) => !allFeatureConfigs.has(feature));
+
+      for (const feature of uncoveredFeatures) {
+        const freeConfig = this.mapPlanTypeToFeatureConfigs(PlanType.FREE).find((config) => config.feature === feature);
+
+        if (freeConfig) {
+          const result = await FeatureLimitsService.updateFeatureLimits({
+            userId,
+            feature: freeConfig.feature,
+            planCodename: freeConfig.planCodename,
+            period: freeConfig.period,
+            useLimit: freeConfig.useLimit,
+          });
+
+          if (result.isOk()) {
+            logger.info(
+              { userId, feature: freeConfig.feature },
+              'Reset uncovered feature to FREE tier after cancellation',
+            );
+          }
+        }
+      }
+
+      logger.info(
+        { userId, updatedFeatures: allFeatureConfigs.size, resetFeatures: uncoveredFeatures.length },
+        'Completed feature limits update after cancellation',
+      );
+    } catch (error) {
+      logger.error({ error, userId }, 'Failed to update feature limits after cancellation');
+      throw error;
+    }
+  }
+
+  /**
+   * Determines if one feature config is better than another
+   * Better = higher limits (null is unlimited, higher numbers are better)
+   */
+  private static isBetterFeatureConfig(newConfig: any, existingConfig: any): boolean {
+    // If new config is unlimited (null), it's always better
+    if (newConfig.useLimit === null) return true;
+
+    // If existing is unlimited, new config can't be better
+    if (existingConfig.useLimit === null) return false;
+
+    // Compare numeric limits
+    return newConfig.useLimit > existingConfig.useLimit;
+  }
+
+  /**
+   * Maps Stripe PlanType to Feature configurations
+   * This is where we connect Stripe subscriptions to our feature limit system
+   */
+  private static mapPlanTypeToFeatureConfigs(planType: PlanType) {
+    switch (planType) {
+      case PlanType.OMNI_CHATS:
+        // Maps to unlimited research assistant chats
+        return [
+          {
+            feature: Feature.RESEARCH_ASSISTANT,
+            planCodename: PlanCodename.PREMIUM,
+            period: Period.MONTH,
+            useLimit: null, // unlimited
+          },
+        ];
+
+      case PlanType.AI_REFEREE_FINDER:
+        // Maps to PRO tier for referee finder (50 uses/month)
+        return [
+          {
+            feature: Feature.REFEREE_FINDER,
+            planCodename: PlanCodename.PRO,
+            period: Period.MONTH,
+            useLimit: 50,
+          },
+        ];
+
+      case PlanType.PREMIUM:
+        return [
+          {
+            feature: Feature.RESEARCH_ASSISTANT,
+            planCodename: PlanCodename.PREMIUM,
+            period: Period.MONTH,
+            useLimit: null, // unlimited
+          },
+          {
+            feature: Feature.REFEREE_FINDER,
+            planCodename: PlanCodename.PRO,
+            period: Period.MONTH,
+            useLimit: 50, // or null for unlimited if PREMIUM should be truly unlimited
+          },
+        ];
+
+      case PlanType.FREE:
+      default:
+        // FREE = No subscription, default free tier limits
+        return [
+          {
+            feature: Feature.RESEARCH_ASSISTANT,
+            planCodename: PlanCodename.FREE,
+            period: Period.MONTH,
+            useLimit: 10,
+          },
+          {
+            feature: Feature.REFEREE_FINDER,
+            planCodename: PlanCodename.FREE,
+            period: Period.MONTH,
+            useLimit: 2,
+          },
+        ];
+    }
   }
 }
