@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
+
 import { logger as parentLogger } from '../../logger.js';
 import { SubscriptionService } from '../../services/SubscriptionService.js';
 import { getStripe } from '../../utils/stripe.js';
@@ -12,7 +13,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export const handleStripeWebhook = async (req: Request, res: Response): Promise<Response> => {
   const sig = req.headers['stripe-signature'];
-  
+
   let event: Stripe.Event;
 
   try {
@@ -41,7 +42,7 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
       bodyFirst50Chars: req.body ? JSON.stringify(req.body).substring(0, 50) : 'no body',
       hasSignature: !!sig,
       signatureLength: sig ? sig.length : 0,
-      secretLength: endpointSecret ? endpointSecret.length : 0
+      secretLength: endpointSecret ? endpointSecret.length : 0,
     };
     logger.error('Webhook signature verification failed', errorDetails);
     console.error('WEBHOOK DEBUG:', JSON.stringify(errorDetails, null, 2));
@@ -130,13 +131,13 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
 
 async function handleCustomerCreated(customer: Stripe.Customer) {
   logger.info('Processing customer created', { customerId: customer.id });
-  
+
   try {
     await SubscriptionService.handleCustomerCreated(customer);
   } catch (error: any) {
-    logger.error('Failed to handle customer created', { 
-      customerId: customer.id, 
-      error: error.message 
+    logger.error('Failed to handle customer created', {
+      customerId: customer.id,
+      error: error.message,
     });
     throw error;
   }
@@ -144,13 +145,13 @@ async function handleCustomerCreated(customer: Stripe.Customer) {
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   logger.info('Processing subscription created', { subscriptionId: subscription.id });
-  
+
   try {
     await SubscriptionService.handleSubscriptionCreated(subscription);
   } catch (error: any) {
-    logger.error('Failed to handle subscription created', { 
-      subscriptionId: subscription.id, 
-      error: error.message 
+    logger.error('Failed to handle subscription created', {
+      subscriptionId: subscription.id,
+      error: error.message,
     });
     throw error;
   }
@@ -158,13 +159,13 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   logger.info('Processing subscription updated', { subscriptionId: subscription.id });
-  
+
   try {
     await SubscriptionService.handleSubscriptionUpdated(subscription);
   } catch (error: any) {
-    logger.error('Failed to handle subscription updated', { 
-      subscriptionId: subscription.id, 
-      error: error.message 
+    logger.error('Failed to handle subscription updated', {
+      subscriptionId: subscription.id,
+      error: error.message,
     });
     throw error;
   }
@@ -172,13 +173,13 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   logger.info('Processing subscription deleted', { subscriptionId: subscription.id });
-  
+
   try {
     await SubscriptionService.handleSubscriptionDeleted(subscription);
   } catch (error: any) {
-    logger.error('Failed to handle subscription deleted', { 
-      subscriptionId: subscription.id, 
-      error: error.message 
+    logger.error('Failed to handle subscription deleted', {
+      subscriptionId: subscription.id,
+      error: error.message,
     });
     throw error;
   }
@@ -186,13 +187,13 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
 async function handleInvoiceCreated(invoice: Stripe.Invoice) {
   logger.info('Processing invoice created', { invoiceId: invoice.id });
-  
+
   try {
     await SubscriptionService.handleInvoiceCreated(invoice);
   } catch (error: any) {
-    logger.error('Failed to handle invoice created', { 
-      invoiceId: invoice.id, 
-      error: error.message 
+    logger.error('Failed to handle invoice created', {
+      invoiceId: invoice.id,
+      error: error.message,
     });
     throw error;
   }
@@ -200,13 +201,13 @@ async function handleInvoiceCreated(invoice: Stripe.Invoice) {
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   logger.info('Processing invoice payment succeeded', { invoiceId: invoice.id });
-  
+
   try {
     await SubscriptionService.handleInvoicePaymentSucceeded(invoice);
   } catch (error: any) {
-    logger.error('Failed to handle invoice payment succeeded', { 
-      invoiceId: invoice.id, 
-      error: error.message 
+    logger.error('Failed to handle invoice payment succeeded', {
+      invoiceId: invoice.id,
+      error: error.message,
     });
     throw error;
   }
@@ -214,13 +215,13 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   logger.info('Processing invoice payment failed', { invoiceId: invoice.id });
-  
+
   try {
     await SubscriptionService.handleInvoicePaymentFailed(invoice);
   } catch (error: any) {
-    logger.error('Failed to handle invoice payment failed', { 
-      invoiceId: invoice.id, 
-      error: error.message 
+    logger.error('Failed to handle invoice payment failed', {
+      invoiceId: invoice.id,
+      error: error.message,
     });
     throw error;
   }
@@ -228,13 +229,13 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
 async function handlePaymentMethodAttached(paymentMethod: Stripe.PaymentMethod) {
   logger.info('Processing payment method attached', { paymentMethodId: paymentMethod.id });
-  
+
   try {
     await SubscriptionService.handlePaymentMethodAttached(paymentMethod);
   } catch (error: any) {
-    logger.error('Failed to handle payment method attached', { 
-      paymentMethodId: paymentMethod.id, 
-      error: error.message 
+    logger.error('Failed to handle payment method attached', {
+      paymentMethodId: paymentMethod.id,
+      error: error.message,
     });
     throw error;
   }
@@ -242,13 +243,13 @@ async function handlePaymentMethodAttached(paymentMethod: Stripe.PaymentMethod) 
 
 async function handlePaymentMethodDetached(paymentMethod: Stripe.PaymentMethod) {
   logger.info('Processing payment method detached', { paymentMethodId: paymentMethod.id });
-  
+
   try {
     await SubscriptionService.handlePaymentMethodDetached(paymentMethod);
   } catch (error: any) {
-    logger.error('Failed to handle payment method detached', { 
-      paymentMethodId: paymentMethod.id, 
-      error: error.message 
+    logger.error('Failed to handle payment method detached', {
+      paymentMethodId: paymentMethod.id,
+      error: error.message,
     });
     throw error;
   }
@@ -256,13 +257,13 @@ async function handlePaymentMethodDetached(paymentMethod: Stripe.PaymentMethod) 
 
 async function handleTrialWillEnd(subscription: Stripe.Subscription) {
   logger.info('Processing trial will end', { subscriptionId: subscription.id });
-  
+
   try {
     await SubscriptionService.handleTrialWillEnd(subscription);
   } catch (error: any) {
-    logger.error('Failed to handle trial will end', { 
-      subscriptionId: subscription.id, 
-      error: error.message 
+    logger.error('Failed to handle trial will end', {
+      subscriptionId: subscription.id,
+      error: error.message,
     });
     throw error;
   }
