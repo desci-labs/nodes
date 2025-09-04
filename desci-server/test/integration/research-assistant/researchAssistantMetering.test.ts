@@ -1,9 +1,9 @@
 import 'mocha';
 import { Feature, Period, PlanCodename, User, ExternalApi } from '@prisma/client';
 import { expect } from 'chai';
+import { addMonths, subMonths } from 'date-fns';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
-import { addMonths, subMonths } from 'date-fns';
 
 import { prisma } from '../../../src/client.js';
 import { server } from '../../../src/server.js';
@@ -693,6 +693,90 @@ describe('Research Assistant Metering', () => {
         expect(res.body.data.totalUsed).to.equal(1);
         expect(res.body.data.totalRemaining).to.be.null;
         expect(res.body.data.isWithinLimit).to.be.true;
+      });
+    });
+  });
+
+  describe('Onboard Usage Controller', () => {
+    describe('POST /v1/services/ai/research-assistant/onboard-usage', () => {
+      it('should successfully onboard guest usage', async () => {
+        const res = await request(app)
+          .post('/v1/services/ai/research-assistant/onboard-usage')
+          .set('authorization', `Bearer ${authToken}`)
+          .send({ guestUsageCount: 3 });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.ok).to.be.true;
+        expect(res.body.data.currentStatus.totalUsed).to.equal(3);
+        expect(res.body.data.currentStatus.totalRemaining).to.equal(7);
+        expect(res.body.data.currentStatus.isWithinLimit).to.be.true;
+
+        // Verify the usage entries were created in the database
+        const usageCount = await prisma.externalApiUsage.count({
+          where: {
+            userId: user.id,
+            apiType: ExternalApi.RESEARCH_ASSISTANT,
+          },
+        });
+        expect(usageCount).to.equal(3);
+      });
+
+      it('should handle zero guest usage', async () => {
+        const res = await request(app)
+          .post('/v1/services/ai/research-assistant/onboard-usage')
+          .set('authorization', `Bearer ${authToken}`)
+          .send({ guestUsageCount: 0 });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.ok).to.be.true;
+        expect(res.body.data.createdEntries).to.equal(0);
+
+        // Verify no usage entries were created
+        const usageCount = await prisma.externalApiUsage.count({
+          where: {
+            userId: user.id,
+            apiType: ExternalApi.RESEARCH_ASSISTANT,
+          },
+        });
+        expect(usageCount).to.equal(0);
+      });
+
+      it('should validate input parameters', async () => {
+        // Test negative number
+        let res = await request(app)
+          .post('/v1/services/ai/research-assistant/onboard-usage')
+          .set('authorization', `Bearer ${authToken}`)
+          .send({ guestUsageCount: -1 });
+
+        expect(res.status).to.equal(400);
+        expect(res.body.ok).to.be.false;
+
+        // Test number too high
+        res = await request(app)
+          .post('/v1/services/ai/research-assistant/onboard-usage')
+          .set('authorization', `Bearer ${authToken}`)
+          .send({ guestUsageCount: 5 });
+
+        expect(res.status).to.equal(400);
+        expect(res.body.ok).to.be.false;
+
+        // Test missing parameter
+        res = await request(app)
+          .post('/v1/services/ai/research-assistant/onboard-usage')
+          .set('authorization', `Bearer ${authToken}`)
+          .send({});
+
+        expect(res.status).to.equal(400);
+        expect(res.body.ok).to.be.false;
+      });
+
+      it('should require authentication', async () => {
+        const res = await request(app)
+          .post('/v1/services/ai/research-assistant/onboard-usage')
+          .send({ guestUsageCount: 2 });
+
+        expect(res.status).to.equal(401);
+        expect(res.body.ok).to.be.false;
       });
     });
   });

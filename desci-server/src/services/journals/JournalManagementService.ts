@@ -385,6 +385,10 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
         description: true,
         iconCid: true,
         createdAt: true,
+        aboutArticle: true,
+        editorialBoardArticle: true,
+        authorInstruction: true,
+        refereeInstruction: true,
         editors: {
           include: {
             user: {
@@ -593,6 +597,10 @@ async function listJournals(userId?: number): Promise<Result<ListedJournal[], Er
         description: true,
         iconCid: true,
         createdAt: true,
+        aboutArticle: true,
+        editorialBoardArticle: true,
+        authorInstruction: true,
+        refereeInstruction: true,
         submissions: {
           select: { id: true },
           where: {
@@ -905,6 +913,10 @@ export async function getJournalEditors(
 
 interface JournalSettingsInput {
   description?: string;
+  aboutArticle?: string;
+  editorialBoardArticle?: string;
+  authorInstruction?: string;
+  refereeInstruction?: string;
   settings?: {
     reviewDueHours?: {
       min?: number;
@@ -922,14 +934,28 @@ interface JournalSettingsInput {
   };
 }
 
-async function getJournalSettings(
-  journalId: number,
-): Promise<Result<{ description: string | null; settings: JournalSettings }, Error>> {
+async function getJournalSettings(journalId: number): Promise<
+  Result<
+    {
+      description: string | null;
+      aboutArticle: string | null;
+      editorialBoardArticle: string | null;
+      authorInstruction: string | null;
+      refereeInstruction: string | null;
+      settings: JournalSettings;
+    },
+    Error
+  >
+> {
   try {
     const journal = await prisma.journal.findUnique({
       where: { id: journalId },
       select: {
         description: true,
+        aboutArticle: true,
+        editorialBoardArticle: true,
+        authorInstruction: true,
+        refereeInstruction: true,
         settings: true,
       },
     });
@@ -943,6 +969,10 @@ async function getJournalSettings(
 
     return ok({
       description: journal.description,
+      aboutArticle: journal.aboutArticle,
+      editorialBoardArticle: journal.editorialBoardArticle,
+      authorInstruction: journal.authorInstruction,
+      refereeInstruction: journal.refereeInstruction,
       settings,
     });
   } catch (error) {
@@ -957,7 +987,19 @@ async function updateJournalSettings(
   journalId: number,
   userId: number,
   data: JournalSettingsInput,
-): Promise<Result<{ description: string | null; settings: JournalSettings }, Error>> {
+): Promise<
+  Result<
+    {
+      description: string | null;
+      aboutArticle: string | null;
+      editorialBoardArticle: string | null;
+      authorInstruction: string | null;
+      refereeInstruction: string | null;
+      settings: JournalSettings;
+    },
+    Error
+  >
+> {
   logger.trace({ journalId, userId, data }, 'Updating journal settings');
 
   try {
@@ -966,6 +1008,10 @@ async function updateJournalSettings(
       select: {
         description: true,
         settings: true,
+        aboutArticle: true,
+        editorialBoardArticle: true,
+        authorInstruction: true,
+        refereeInstruction: true,
       },
     });
 
@@ -980,6 +1026,28 @@ async function updateJournalSettings(
     // Check for description change
     if (data.description !== undefined && data.description !== journalBeforeUpdate.description) {
       changes.description = { old: journalBeforeUpdate.description, new: data.description };
+    }
+
+    if (data.aboutArticle !== undefined && data.aboutArticle !== journalBeforeUpdate.aboutArticle) {
+      changes.aboutArticle = { old: journalBeforeUpdate.aboutArticle, new: data.aboutArticle };
+    }
+
+    if (
+      data.editorialBoardArticle !== undefined &&
+      data.editorialBoardArticle !== journalBeforeUpdate.editorialBoardArticle
+    ) {
+      changes.editorialBoardArticle = {
+        old: journalBeforeUpdate.editorialBoardArticle,
+        new: data.editorialBoardArticle,
+      };
+    }
+
+    if (data.authorInstruction !== undefined && data.authorInstruction !== journalBeforeUpdate.authorInstruction) {
+      changes.authorInstruction = { old: journalBeforeUpdate.authorInstruction, new: data.authorInstruction };
+    }
+
+    if (data.refereeInstruction !== undefined && data.refereeInstruction !== journalBeforeUpdate.refereeInstruction) {
+      changes.refereeInstruction = { old: journalBeforeUpdate.refereeInstruction, new: data.refereeInstruction };
     }
 
     // Check for settings changes
@@ -1020,6 +1088,10 @@ async function updateJournalSettings(
       logger.info({ journalId, userId, receivedData: data }, 'No changes to update in journal settings.');
       return ok({
         description: journalBeforeUpdate.description,
+        aboutArticle: journalBeforeUpdate.aboutArticle,
+        editorialBoardArticle: journalBeforeUpdate.editorialBoardArticle,
+        authorInstruction: journalBeforeUpdate.authorInstruction,
+        refereeInstruction: journalBeforeUpdate.refereeInstruction,
         settings: currentSettings,
       });
     }
@@ -1029,10 +1101,18 @@ async function updateJournalSettings(
         where: { id: journalId },
         data: {
           description: data.description,
+          aboutArticle: data.aboutArticle,
+          editorialBoardArticle: data.editorialBoardArticle,
+          authorInstruction: data.authorInstruction,
+          refereeInstruction: data.refereeInstruction,
           settings: newSettings,
         },
         select: {
           description: true,
+          aboutArticle: true,
+          editorialBoardArticle: true,
+          authorInstruction: true,
+          refereeInstruction: true,
           settings: true,
         },
       }),
@@ -1049,6 +1129,10 @@ async function updateJournalSettings(
     logger.info({ journalId, userId, actualChanges: changes }, 'Journal settings updated successfully');
     return ok({
       description: updatedJournal.description,
+      aboutArticle: updatedJournal.aboutArticle,
+      editorialBoardArticle: updatedJournal.editorialBoardArticle,
+      authorInstruction: updatedJournal.authorInstruction,
+      refereeInstruction: updatedJournal.refereeInstruction,
       settings: getJournalSettingsWithDefaults(updatedJournal.settings),
     });
   } catch (error) {
