@@ -183,20 +183,19 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     }
 
     // trigger external publications email if any
-    dispatchExternalPublicationsCheck(node);
+    void dispatchExternalPublicationsCheck(node).catch((err) =>
+      logger.warn(err, 'Error: Dispatching external publications check failed'),
+    );
 
-    res.status(200).send({
+    // Index on ES
+    void ElasticNodesService.indexResearchObject(node.uuid).catch((err) =>
+      logger.warn(err, 'Error: Indexing published node in ElasticSearch failed'),
+    );
+
+    return res.status(200).send({
       ok: true,
       dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
     });
-
-    // Index on ES
-    try {
-      ElasticNodesService.indexResearchObject(node.uuid);
-    } catch (err) {
-      logger.error({ err }, 'Error: Indexing published node in ElasticSearch failed');
-    }
-    return null;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
     saveInteraction({
@@ -299,14 +298,19 @@ const syncPublish = async (
   logger.trace('[publish promises fulfilled]');
 
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
+
   // Intentionally above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  void PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId);
+  void PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId).catch((err) =>
+    logger.warn(err, 'Error: Handling deferred emails failed'),
+  );
 
   /*
    * Emit notification on publish
    */
-  void NotificationService.emitOnPublish(node, owner, dpid, publishStatusId);
+  void NotificationService.emitOnPublish(node, owner, dpid, publishStatusId).catch((err) =>
+    logger.warn(err, 'Error: Emitting on publish failed'),
+  );
 
   const targetDpidUrl = getTargetDpidUrl();
   void discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
@@ -314,7 +318,7 @@ const syncPublish = async (
   /**
    * Save the cover art for this Node for later sharing: PDF -> JPG for this version
    */
-  void cacheNodeMetadata(node.uuid, cid);
+  void cacheNodeMetadata(node.uuid, cid).catch((err) => logger.warn(err, 'Error: Caching node metadata failed'));
   return dpidAlias;
 };
 
