@@ -1,16 +1,16 @@
-// Stripe configuration - Replace with your actual price IDs from Stripe Dashboard
+// Stripe configuration - Configurable via environment variables
 export const STRIPE_PRICE_IDS = {
   AI_REFEREE_FINDER: {
-    MONTHLY: 'price_1ABC123example', // Replace with your actual price ID for $45/month
-    ANNUAL: 'price_1ABC123example_annual', // Replace with your actual price ID for $450/year (annual)
+    MONTHLY: process.env.STRIPE_AI_REFEREE_FINDER_MONTHLY_PRICE_ID || 'price_1ABC123example',
+    ANNUAL: process.env.STRIPE_AI_REFEREE_FINDER_ANNUAL_PRICE_ID || 'price_1ABC123example_annual',
   },
   OMNI_CHATS: {
-    MONTHLY: 'price_1S0rAKAqadM33xzp9x5Rkww1', // $9/month - confirmed working price
-    ANNUAL: 'price_1S0sHWAqadM33xzp6wNaaRe3', // Annual price - verify this exists in Stripe
+    MONTHLY: process.env.STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID || 'price_1S0rAKAqadM33xzp9x5Rkww1',
+    ANNUAL: process.env.STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID || 'price_1S0sHWAqadM33xzp6wNaaRe3',
   },
   PREMIUM: {
-    MONTHLY: 'price_3GHI789example', // Replace with your actual price ID for $99/month
-    ANNUAL: 'price_3GHI789example_annual', // Replace with your actual price ID for $990/year (annual)
+    MONTHLY: process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID || 'price_3GHI789example',
+    ANNUAL: process.env.STRIPE_PREMIUM_ANNUAL_PRICE_ID || 'price_3GHI789example_annual',
   },
 } as const;
 

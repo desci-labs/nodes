@@ -121,6 +121,8 @@ spec:
           export STRIPE_WEBHOOK_SECRET="{{ .Data.STRIPE_WEBHOOK_SECRET }}"
           export STRIPE_SECRET_KEY="{{ .Data.STRIPE_SECRET_KEY }}"
           export INTERNAL_SERVICE_SECRET="{{ .Data.INTERNAL_SERVICE_SECRET }}"
+          export STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID }}"
+          export STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";
