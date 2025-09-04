@@ -10,25 +10,49 @@ import { sendCookie } from '../../utils/sendCookie.js';
 
 import { generateAccessToken } from './magic.js';
 
-const googleClient = new OAuth2Client({
-  clientId: process.env.GOOGLE_CLIENT_ID_AUTH,
-});
+export enum GoogleAuthApp {
+  PUBLISH = 'PUBLISH',
+  SCIWEAVE = 'SCIWEAVE',
+}
+
+const GOOGLE_CLIENT_ID_MAP = {
+  [GoogleAuthApp.PUBLISH]: process.env.GOOGLE_CLIENT_ID_AUTH,
+  [GoogleAuthApp.SCIWEAVE]: process.env.SCIWEAVE_GOOGLE_CLIENT_ID,
+};
 
 /**
  * Handles Google OAuth callback and authentication
  */
 export const googleAuth = async (req: Request, res: Response) => {
-  const { idToken, dev } = req.body;
-  const logger = parentLogger.child({ module: 'AUTH::GoogleOAuthController', googleIdToken: idToken });
+  const { idToken, dev, app = GoogleAuthApp.PUBLISH } = req.body;
+  const logger = parentLogger.child({
+    module: 'AUTH::GoogleOAuthController',
+    googleIdTokenPresent: !!idToken,
+    googleIdTokenLength: idToken?.length,
+  });
   try {
     if (!idToken) {
       return res.status(400).send({ ok: false, message: 'Missing Google idToken' });
     }
-    logger.info({ idToken }, 'Google OAuth login attempt');
+
+    const clientId = GOOGLE_CLIENT_ID_MAP[app];
+
+    logger.info(
+      {
+        idToken: idToken?.substring(0, 20) + '...',
+        clientId: clientId?.substring(0, 20) + '...',
+        app,
+      },
+      'Google OAuth login attempt',
+    );
+
+    // Create OAuth2Client with the appropriate client ID
+    const googleClient = new OAuth2Client({ clientId });
+
     // Verify the Google token
     const ticket = await googleClient.verifyIdToken({
       idToken: idToken,
-      audience: process.env.GOOGLE_CLIENT_ID_AUTH,
+      audience: clientId,
     });
 
     const payload = ticket.getPayload();

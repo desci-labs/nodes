@@ -210,7 +210,18 @@ describe('Journal Management Service', () => {
 
       expect(result.isOk()).to.be.true;
       const journals = result._unsafeUnwrap();
-      expect(journals[0]).to.have.all.keys(['id', 'name', 'description', 'iconCid', 'createdAt']);
+      expect(journals[0]).to.have.all.keys([
+        'id',
+        'name',
+        'description',
+        'iconCid',
+        'createdAt',
+        'submissions',
+        'aboutArticle',
+        'editorialBoardArticle',
+        'authorInstruction',
+        'refereeInstruction',
+      ]);
     });
   });
 
@@ -419,7 +430,18 @@ describe('Journal Management Service', () => {
 
         expect(res.status).to.equal(200);
         expect(res.body.data.journals).to.be.an('array');
-        expect(res.body.data.journals[0]).to.have.all.keys(['id', 'name', 'description', 'iconCid', 'createdAt']);
+        expect(res.body.data.journals[0]).to.have.all.keys([
+          'id',
+          'name',
+          'description',
+          'iconCid',
+          'createdAt',
+          'publicationCount',
+          'aboutArticle',
+          'editorialBoardArticle',
+          'authorInstruction',
+          'refereeInstruction',
+        ]);
       });
     });
 
@@ -435,6 +457,10 @@ describe('Journal Management Service', () => {
           'iconCid',
           'createdAt',
           'editors',
+          'aboutArticle',
+          'editorialBoardArticle',
+          'authorInstruction',
+          'refereeInstruction',
         ]);
         expect(res.body.data.journal.editors).to.be.an('array');
       });

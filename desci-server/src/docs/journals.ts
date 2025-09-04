@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
-import { getJournalAnalyticsSchema, showUrgentSubmissionsSchema } from '../schemas/journals.schema.js';
+import {
+  getJournalAnalyticsSchema,
+  listFeaturedPublicationsSchema,
+  showUrgentSubmissionsSchema,
+} from '../schemas/journals.schema.js';
 import {
   getJournalSchema,
   inviteEditorSchema,
@@ -433,6 +437,66 @@ export const listJournalEditorsOperation: ZodOpenApiOperationObject = {
     },
   },
   security: [{ BearerAuth: [] }],
+};
+
+// View Journal Editors (Public)
+export const viewJournalEditorsOperation: ZodOpenApiOperationObject = {
+  operationId: 'viewJournalEditors',
+  tags: ['Journals'],
+  summary: 'View journal editors (public endpoint)',
+  description:
+    'Retrieve a list of editors for a journal with filtering and sorting options. This is a public endpoint that does not require authentication.',
+  requestParams: {
+    path: listJournalEditorsSchema.shape.params,
+    query: listJournalEditorsSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Journal editors retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z.object({
+              id: z.number(),
+              userId: z.number(),
+              journalId: z.number(),
+              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+              invitedAt: z.string(),
+              acceptedAt: z.string().nullable(),
+              expertise: z.array(z.string()).nullable(),
+              user: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+                orcid: z.string().nullable(),
+                organizations: z.array(
+                  z.object({
+                    id: z.number(),
+                    name: z.string(),
+                  }),
+                ),
+              }),
+            }),
+          ),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
 };
 
 // Remove Editor
@@ -2705,6 +2769,54 @@ export const showJournalAnalyticsOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Get Public Journal Analytics
+export const getPublicJournalAnalyticsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getPublicJournalAnalytics',
+  tags: ['Journals'],
+  summary: 'Get public journal statistics',
+  description:
+    'Retrieve public analytics data for a journal including average review turnaround time and average decision time. This endpoint is publicly accessible and does not require authentication.',
+  requestParams: {
+    path: getJournalAnalyticsSchema.shape.params,
+    query: getJournalAnalyticsSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Public journal statistics retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z
+            .array(
+              z.object({
+                value: z
+                  .string()
+                  .describe('Formatted time value (e.g., "2 days", "1 week") or "N/A" if no data available'),
+                label: z.string().describe('Human-readable label for the metric'),
+              }),
+            )
+            .describe('Array of public metrics including average review turnaround time and average decision time'),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+};
+
 // Show Urgent Journal Submissions
 export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = {
   operationId: 'showUrgentJournalSubmissions',
@@ -2775,6 +2887,182 @@ export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = 
     },
   },
   security: [{ BearerAuth: [] }],
+};
+
+// List Featured Publications
+export const listFeaturedPublicationsOperation: ZodOpenApiOperationObject = {
+  operationId: 'listFeaturedPublications',
+  tags: ['Journals'],
+  summary: 'List featured publications across all journals',
+  description:
+    'Retrieve a list of featured (accepted) publications from all journals. Supports filtering by search terms, date ranges, and sorting options. Results are cached for 24 hours.',
+  requestParams: listFeaturedPublicationsSchema.shape,
+  responses: {
+    '200': {
+      description: 'Featured publications retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            data: z
+              .array(
+                z.object({
+                  id: z.number().describe('Submission ID'),
+                  dpid: z.number().describe('DPID of the published research object'),
+                  version: z.number().describe('Version of the published research object'),
+                  doi: z.string().nullable().describe('DOI of the published research object'),
+                  submittedAt: z.string().describe('Date when the submission was made'),
+                  researchObject: z
+                    .object({
+                      uuid: z.string().describe('UUID of the research object'),
+                      doi: z.string().describe('DOI of the research object'),
+                      manifest: z
+                        .object({
+                          version: z.string().describe('Manifest version'),
+                          title: z.string().describe('Title of the research object'),
+                          authors: z
+                            .array(
+                              z.object({
+                                name: z.string().describe('Author name'),
+                                role: z.string().describe('Author role'),
+                                orcid: z.string().nullable().describe('Author ORCID'),
+                              }),
+                            )
+                            .describe('List of authors'),
+                          description: z.string().describe('Description/abstract of the research object'),
+                          components: z.array(z.any()).describe('Research object components'),
+                        })
+                        .describe('Research object manifest'),
+                      publishedAt: z.string().describe('Date when the research object was published'),
+                    })
+                    .describe('Research object details'),
+                  journal: z
+                    .object({
+                      id: z.number().describe('Journal ID'),
+                      name: z.string().describe('Journal name'),
+                    })
+                    .describe('Journal information'),
+                  author: z
+                    .object({
+                      name: z.string().describe('Author name'),
+                      id: z.number().describe('Author ID'),
+                      orcid: z.string().describe('Author ORCID'),
+                    })
+                    .describe('Author information'),
+                }),
+              )
+              .describe('Array of featured publications'),
+            meta: z
+              .object({
+                count: z.number().describe('Total number of publications returned'),
+                limit: z.number().describe('Number of publications requested'),
+                offset: z.number().describe('Number of publications skipped'),
+              })
+              .describe('Pagination metadata'),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+};
+
+// List Featured Journal Publications
+export const listFeaturedJournalPublicationsOperation: ZodOpenApiOperationObject = {
+  operationId: 'listFeaturedJournalPublications',
+  tags: ['Journals'],
+  summary: 'List featured publications for a specific journal',
+  description:
+    'Retrieve a list of featured (accepted) publications from a specific journal. Supports filtering by search terms, date ranges, and sorting options. Results are cached for 24 hours.',
+  requestParams: listFeaturedPublicationsSchema.shape,
+  responses: {
+    '200': {
+      description: 'Featured journal publications retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            data: z
+              .array(
+                z.object({
+                  id: z.number().describe('Submission ID'),
+                  dpid: z.number().describe('DPID of the published research object'),
+                  version: z.number().describe('Version of the published research object'),
+                  doi: z.string().nullable().describe('DOI of the published research object'),
+                  submittedAt: z.string().describe('Date when the submission was made'),
+                  researchObject: z
+                    .object({
+                      uuid: z.string().describe('UUID of the research object'),
+                      doi: z.string().describe('DOI of the research object'),
+                      manifest: z
+                        .object({
+                          version: z.string().describe('Manifest version'),
+                          title: z.string().describe('Title of the research object'),
+                          authors: z
+                            .array(
+                              z.object({
+                                name: z.string().describe('Author name'),
+                                role: z.string().describe('Author role'),
+                                orcid: z.string().nullable().describe('Author ORCID'),
+                              }),
+                            )
+                            .describe('List of authors'),
+                          description: z.string().describe('Description/abstract of the research object'),
+                          components: z.array(z.any()).describe('Research object components'),
+                        })
+                        .describe('Research object manifest'),
+                      publishedAt: z.string().describe('Date when the research object was published'),
+                    })
+                    .describe('Research object details'),
+                  journal: z
+                    .object({
+                      id: z.number().describe('Journal ID'),
+                      name: z.string().describe('Journal name'),
+                    })
+                    .describe('Journal information'),
+                  author: z
+                    .object({
+                      name: z.string().describe('Author name'),
+                      id: z.number().describe('Author ID'),
+                      orcid: z.string().describe('Author ORCID'),
+                    })
+                    .describe('Author information'),
+                }),
+              )
+              .describe('Array of featured publications'),
+            meta: z
+              .object({
+                count: z.number().describe('Total number of publications returned'),
+                limit: z.number().describe('Number of publications requested'),
+                offset: z.number().describe('Number of publications skipped'),
+              })
+              .describe('Pagination metadata'),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
 };
 
 // Get Journal Settings
@@ -3113,6 +3401,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals/profile': {
     get: showJournalProfileOperation,
   },
+  '/v1/journals/featured': {
+    get: listFeaturedPublicationsOperation,
+  },
   '/v1/journals/{journalId}': {
     get: showJournalOperation,
     patch: updateJournalOperation,
@@ -3128,6 +3419,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/editors': {
     get: listJournalEditorsOperation,
+  },
+  '/v1/journals/{journalId}/view-editors': {
+    get: viewJournalEditorsOperation,
   },
   '/v1/journals/{journalId}/editors/{editorUserId}': {
     delete: removeEditorOperation,
@@ -3230,6 +3524,12 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/analytics': {
     get: showJournalAnalyticsOperation,
+  },
+  '/v1/journals/{journalId}/public/statistics': {
+    get: getPublicJournalAnalyticsOperation,
+  },
+  '/v1/journals/{journalId}/featured': {
+    get: listFeaturedJournalPublicationsOperation,
   },
   '/v1/journals/{journalId}/urgentSubmissions': {
     get: showUrgentJournalSubmissionsOperation,

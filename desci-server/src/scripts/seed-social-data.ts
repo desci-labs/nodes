@@ -160,6 +160,12 @@ export const seedSocialData = async () => {
       // const template = attestationTemplates.find((template) => template.name === requiredAttestation);
       if (!attestationInstance || !attestationVersion) throw Error(`No attestation found for ${requiredAttestation}`);
 
+      console.log({
+        attestationId: attestationInstance.id,
+        attestationVersionId: attestationVersion.id,
+        desciCommunityId: communityFromDb.id,
+      });
+
       let selected = await prisma.communityEntryAttestation.findUnique({
         where: {
           attestationId_attestationVersionId_desciCommunityId: {

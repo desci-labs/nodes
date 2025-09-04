@@ -63,4 +63,10 @@ export type ManifestActions =
   | { type: 'Add References'; references: ResearchObjectReference[] }
   | { type: 'Set References'; references: ResearchObjectReference[] }
   | { type: 'Delete Reference'; referenceId: string }
-  | { type: 'Set Contributors'; contributors: ResearchObjectV1Author[] };
+  | { type: 'Set Contributors'; contributors: ResearchObjectV1Author[] }
+  | { type: 'Add Topic'; topic: string }
+  | { type: 'Set Topics'; topics: string[] }
+  | { type: 'Remove Topic'; topic: string }
+  | { type: 'Add Keyword'; keyword: string }
+  | { type: 'Set Keywords'; keywords: string[] }
+  | { type: 'Remove Keyword'; keyword: string };

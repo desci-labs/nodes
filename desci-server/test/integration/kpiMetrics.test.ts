@@ -193,7 +193,6 @@ describe('KPI Metrics', async () => {
       const response = await request
         .get('/v1/admin/metrics/user-engagements')
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log('response.body', JSON.stringify(response.body, null, 2));
       const data = response.body.data as UserEngagementMetricsData;
 
       // assert response status
@@ -320,7 +319,6 @@ describe('KPI Metrics', async () => {
       const response = await request
         .get('/v1/admin/metrics/publish-metrics')
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
       const data = response.body.data as PublishMetricsData;
 
       // assert response status
@@ -355,7 +353,6 @@ describe('KPI Metrics', async () => {
           compareToPreviousPeriod: true,
         })
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
       const data = response.body.data as PublishMetricsData;
 
       // assert response status
@@ -400,7 +397,6 @@ describe('KPI Metrics', async () => {
       const response = await request
         .get('/v1/admin/metrics/research-object-metrics')
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
       const data = response.body.data as ResearchObjectMetrics;
 
       // assert response status
@@ -424,7 +420,6 @@ describe('KPI Metrics', async () => {
           compareToPreviousPeriod: true,
         })
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
       const data = response.body.data as ResearchObjectMetrics;
 
       // assert response status
@@ -488,7 +483,6 @@ describe('KPI Metrics', async () => {
       const response = await request
         .get('/v1/admin/metrics/retention-metrics')
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
       const data = response.body.data as RetentionMetrics;
 
       const total = await countAllUsers();
@@ -651,7 +645,6 @@ describe('KPI Metrics', async () => {
           to: selectedDates.to,
         })
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
       const data = response.body.data as FeatureAdoptionMetricsData;
 
       // assert response status
@@ -671,7 +664,6 @@ describe('KPI Metrics', async () => {
       const response = await request
         .get('/v1/admin/metrics/feature-adoption-metrics')
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
       const data = response.body.data as FeatureAdoptionMetricsData;
 
       // assert response status
@@ -703,7 +695,6 @@ describe('KPI Metrics', async () => {
           compareToPreviousPeriod: true,
         })
         .set('Authorization', `Bearer ${admin.token}`);
-      console.log(response.body);
       const data = response.body.data as FeatureAdoptionMetricsData;
 
       // assert response status

@@ -21,10 +21,12 @@ import {
   check,
 } from '../../controllers/auth/index.js';
 import { updateMarketingConsentController } from '../../controllers/auth/marketingConsent.js';
+import { updateSignupDetails } from '../../controllers/auth/updateSignupDetails.js';
 import { walletLogin, walletNonce } from '../../controllers/users/associateWallet.js';
 import { ensureGuest, ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { updateMarketingConsentSchema } from '../../schemas/users.schema.js';
+import { googleAuthSchema } from '../../schemas/auth.schema.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 const router = Router();
 
@@ -39,13 +41,14 @@ router.patch(
   [ensureUser, validate(updateMarketingConsentSchema)],
   asyncHandler(updateMarketingConsentController),
 );
+router.patch('/signup-details', [ensureUser], asyncHandler(updateSignupDetails));
 router.get('/orcid/auth', orcidAuth);
 router.get('/orcid/auth/close', orcidAuthClose);
 router.get('/orcid/connect', orcidConnect);
 router.get('/orcid/connect/close', orcidConnectClose);
 router.get('/orcid/validate', validateOrcid);
 router.get('/orcid/validate', validateOrcid);
-router.post('/google/login', googleAuth);
+router.post('/google/login', [validate(googleAuthSchema)], asyncHandler(googleAuth));
 router.post('/magic', magic);
 router.post('/apiKey/issue', [ensureUser], issueApiKey);
 router.delete('/apiKey/revoke', [ensureUser], revokeApiKey);

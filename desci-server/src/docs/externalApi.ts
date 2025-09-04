@@ -391,6 +391,155 @@ export const externalApiDocs = {
       },
     },
   },
+  '/services/ai/research-assistant/usage': {
+    get: {
+      tags: ['External API'],
+      summary: 'Get research assistant usage status',
+      description:
+        'Retrieve the current usage status for the authenticated user including feature limits, used count, remaining quota, and plan information for the Research Assistant feature',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      responses: {
+        200: {
+          description: 'Usage status retrieved successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  totalLimit: {
+                    type: ['integer', 'null'],
+                    description: 'Maximum number of chat requests allowed in the billing period (null = unlimited)',
+                    example: 10,
+                  },
+                  totalUsed: {
+                    type: 'integer',
+                    description: 'Number of chat requests used in the current billing period',
+                    example: 3,
+                  },
+                  totalRemaining: {
+                    type: ['integer', 'null'],
+                    description: 'Number of chat requests remaining in the current billing period (null = unlimited)',
+                    example: 7,
+                  },
+                  planCodename: {
+                    type: 'string',
+                    description: 'User subscription plan codename',
+                    enum: ['FREE', 'STARTER', 'PRO', 'CUSTOM'],
+                    example: 'FREE',
+                  },
+                  isWithinLimit: {
+                    type: 'boolean',
+                    description: 'Whether the user is currently within their usage limits',
+                    example: true,
+                  },
+                },
+                required: ['totalLimit', 'totalUsed', 'totalRemaining', 'planCodename', 'isWithinLimit'],
+              },
+            },
+          },
+        },
+        401: {
+          description: 'Unauthorized - authentication required',
+        },
+        500: {
+          description: 'Internal server error - failed to retrieve usage status',
+        },
+      },
+    },
+  },
+  '/services/ai/research-assistant/onboard-usage': {
+    post: {
+      tags: ['External API'],
+      summary: 'Onboard guest usage to user account',
+      description:
+        "Creates usage entries for anonymous/guest chats when a user signs up. This maintains usage continuity by adding 0-4 usage records to the user's account based on their pre-signup activity.",
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                guestUsageCount: {
+                  type: 'integer',
+                  description: 'Number of chat requests used as a guest (0-4)',
+                  minimum: 0,
+                  maximum: 4,
+                  example: 3,
+                },
+              },
+              required: ['guestUsageCount'],
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Guest usage onboarded successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: {
+                    type: 'string',
+                    description: 'Success message',
+                    example: 'Success',
+                  },
+                  currentStatus: {
+                    type: 'object',
+                    description: 'Updated usage status after onboarding',
+                    properties: {
+                      totalLimit: {
+                        type: ['integer', 'null'],
+                        description: 'Maximum number of chat requests allowed in the billing period',
+                        example: 10,
+                      },
+                      totalUsed: {
+                        type: 'integer',
+                        description: 'Number of chat requests used in the current billing period',
+                        example: 3,
+                      },
+                      totalRemaining: {
+                        type: ['integer', 'null'],
+                        description: 'Number of chat requests remaining in the current billing period',
+                        example: 7,
+                      },
+                      isWithinLimit: {
+                        type: 'boolean',
+                        description: 'Whether the user is currently within their usage limits',
+                        example: true,
+                      },
+                    },
+                    required: ['totalLimit', 'totalUsed', 'totalRemaining', 'isWithinLimit'],
+                  },
+                },
+                required: ['message', 'currentStatus'],
+              },
+            },
+          },
+        },
+        400: {
+          description: 'Bad request - guestUsageCount must be between 0 and 4',
+        },
+        401: {
+          description: 'Unauthorized - authentication required',
+        },
+        500: {
+          description: 'Internal server error',
+        },
+      },
+    },
+  },
 };
 
 export const externalApiComponents = {

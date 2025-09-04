@@ -117,6 +117,10 @@ spec:
           export ML_REFEREE_FINDER_RESULT="{{ .Data.ML_REFEREE_FINDER_RESULT }}"
           export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
           export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
+          export SCIWEAVE_GOOGLE_CLIENT_ID="{{ .Data.SCIWEAVE_GOOGLE_CLIENT_ID }}"
+          export STRIPE_WEBHOOK_SECRET="{{ .Data.STRIPE_WEBHOOK_SECRET }}"
+          export STRIPE_SECRET_KEY="{{ .Data.STRIPE_SECRET_KEY }}"
+          export INTERNAL_SERVICE_SECRET="{{ .Data.INTERNAL_SERVICE_SECRET }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";

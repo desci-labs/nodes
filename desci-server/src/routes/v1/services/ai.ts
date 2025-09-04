@@ -4,6 +4,8 @@ import { getResults } from '../../../controllers/externalApi/RefereeRecommender/
 import { getUsageStatus } from '../../../controllers/externalApi/RefereeRecommender/getUsageStatus.js';
 import { generatePresignedUrl } from '../../../controllers/externalApi/RefereeRecommender/issuePresignedUrl.js';
 import { triggerRecommendation } from '../../../controllers/externalApi/RefereeRecommender/triggerRecommendation.js';
+import { getResearchAssistantUsageStatus } from '../../../controllers/externalApi/ResearchAssistant/getUsageStatus.js';
+import { onboardResearchAssistantUsage } from '../../../controllers/externalApi/ResearchAssistant/onboardUsage.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 
 const router = Router();
@@ -13,5 +15,7 @@ router.post('/referee-recommender/presigned-url', [ensureUser], generatePresigne
 router.post('/referee-recommender/trigger', [ensureUser], triggerRecommendation);
 router.get('/referee-recommender/results', [ensureUser], getResults);
 router.get('/referee-recommender/usage', [ensureUser], getUsageStatus);
+router.get('/research-assistant/usage', [ensureUser], getResearchAssistantUsageStatus);
+router.post('/research-assistant/onboard-usage', [ensureUser], onboardResearchAssistantUsage);
 
 export default router;

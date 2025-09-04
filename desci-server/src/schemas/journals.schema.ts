@@ -224,6 +224,25 @@ export const listJournalSubmissionsSchema = z.object({
   }),
 });
 
+export const listFeaturedPublicationsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().optional().describe('The ID of the journal'),
+  }),
+  query: z.object({
+    search: z.string().optional().describe('The search query to filter the submissions by'),
+    limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
+    startDate: z.coerce.date().optional().describe('The start date of the submissions to return'),
+    endDate: z.coerce.date().optional().describe('The end date of the submissions to return'),
+    sortBy: z
+      .enum(['newest', 'oldest', 'title', 'impact'])
+      .optional()
+      .default('newest')
+      .describe('The field to sort the submissions by'),
+    sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('The order to sort the submissions by'),
+  }),
+});
+
 export const assignSubmissionToEditorSchema = z.object({
   params: z.object({
     journalId: z.coerce.number(),
@@ -686,6 +705,10 @@ export const updateJournalSettingsSchema = z.object({
   body: z
     .object({
       description: z.string().optional(),
+      aboutArticle: z.string().optional(),
+      editorialBoardArticle: z.string().optional(),
+      authorInstruction: z.string().optional(),
+      refereeInstruction: z.string().optional(),
       settings: z
         .object({
           reviewDueHours: z
