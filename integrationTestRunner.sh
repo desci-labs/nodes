@@ -14,7 +14,9 @@ cleanup() {
 # shellcheck disable=SC2329
 handle_error() {
   echo "💥 test runner failed"
+  echo "::group::Full compose logs"
   docker compose -f docker-compose.test.yml logs
+  echo "::endgroup::"
   cleanup
   exit 1
 }
@@ -37,6 +39,9 @@ if [ "$SKIP_SERVER" != "1" ]; then
   echo "🤞 Running desci-server tests..."
   if ! docker compose -f docker-compose.test.yml run nodes_backend_test; then
     echo "❌ desci-server tests failed!"
+    echo "::group::Full compose logs"
+    docker compose -f docker-compose.test.yml logs
+    echo "::endgroup::"
     cleanup
     exit 1
   fi
@@ -64,7 +69,9 @@ if [ "$SKIP_NODES_LIB" != "1" ]; then
   echo "🤞 Running nodes-lib tests..."
   if ! RUN_SERVER=1 docker compose -f docker-compose.test.yml run nodes_lib_test; then
     echo "❌ nodes-lib tests failed!"
+    echo "::group::Full compose logs"
     docker compose -f docker-compose.test.yml logs
+    echo "::endgroup::"
     cleanup
     exit 1
   fi
