@@ -223,11 +223,14 @@ export const seedSocialData = async () => {
   return 'done';
 };
 
-if (process.env.RUN) {
-  seedSocialData()
-    .then(() => console.log('Communities and Attestations created/updated'))
-    .catch((err) => console.log('Error running script ', err));
-} else {
-  console.log('Must set RUN=1 to activate seeding of social data, skipping...');
-  process.exit(0);
+// Only run if executed directly, not when imported
+if (import.meta.url === `file://${process.argv[1]}`) {
+  if (process.env.RUN) {
+    seedSocialData()
+      .then(() => console.log('Communities and Attestations created/updated'))
+      .catch((err) => console.log('Error running script ', err));
+  } else {
+    console.log('Must set RUN=1 to activate seeding of social data, skipping...');
+    process.exit(0);
+  }
 }

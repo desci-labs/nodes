@@ -3,7 +3,7 @@ import axios from 'axios';
 import { prisma } from './client.js';
 import { THEGRAPH_API_URL } from './config/index.js';
 import { logger as parentLogger } from './logger.js';
-import { getCommitTimestamps } from './services/ceramic.js';
+import { getCommitTimestamps } from './services/codex.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
 
@@ -11,7 +11,7 @@ const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
 });
 
-const RESOLVER_URL = getTargetDpidUrl();
+const RESOLVER_URL = process.env.RESOLVER_URL || getTargetDpidUrl();
 
 export type IndexedResearchObject = {
   /** Hex: Node UUID */

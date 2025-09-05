@@ -1,20 +1,14 @@
-import { type NodeIDs } from "@desci-labs/desci-codex-lib";
 import {
   IndexedNodeVersion,
-  getDpidHistory,
   getDraftNode,
   getLegacyHistory,
   prePublishDraftNode,
 } from "./api.js";
-import { dpidPublish, hasDpid } from "./chain.js";
 import { codexPublish } from "./codex.js";
 import { Signer } from "ethers";
 import { DID } from "dids";
 import { PublishError } from "./errors.js";
 import { fullDidToLcAddress } from "./util/converting.js";
-import { errWithCause } from "pino-std-serializers";
-
-const LOG_CTX = "[nodes-lib::publish]";
 
 /**
  * Publish node to Codex, potentially migrating history from dPID token.
@@ -65,60 +59,6 @@ export const publish = async (uuid: string, didOrSigner: DID | Signer) => {
 };
 
 /**
- * The complete publish flow, including both the dPID registry and Codex.
- *
- * @param uuid - Node to publish
- * @param signer - Used to sign TXs for chain, and a SIWE CACAO for ceramic if did argument is not present
- * @param did - An authenticated DID from a DIDSession, better UX as it has a signing capability already
- *
- * @throws (@link WrongOwnerError) if signer address isn't token owner
- * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
- * @deprecated
- */
-export const legacyPublish = async (
-  uuid: string,
-  signer: Signer,
-  did?: DID
-) => {
-  const preexistingDpid = await hasDpid(uuid, signer);
-
-  // Throws on ownership check or dpid publish/update failure
-  const chainPubResponse = await dpidPublish(uuid, preexistingDpid, signer);
-  const dpidResult = {
-    manifest: chainPubResponse.prepubResult.updatedManifest,
-    cid: chainPubResponse.prepubResult.updatedManifestCid,
-    transactionId: chainPubResponse.reciept.transactionHash,
-    ceramicIDs: undefined,
-  };
-
-  let ceramicIDs: NodeIDs | undefined;
-  try {
-    // If the dPID is new, skip checking for history to potentially backfill
-    const publishHistory = preexistingDpid
-      ? (await getDpidHistory(uuid)).versions
-      : [];
-    ceramicIDs = await codexPublish(
-      chainPubResponse.prepubResult,
-      publishHistory,
-      did ?? signer
-    );
-  } catch (e) {
-    console.log(
-      `${LOG_CTX} publish failed, flow will continue as dPID has already been updated`,
-      {
-        uuid,
-        err: errWithCause(e as Error),
-      }
-    );
-  }
-
-  return {
-    ...dpidResult,
-    ceramicIDs,
-  };
-};
-
-/**
  * Looks for legacy history for a dPID, starting with the new contract's
  * legacy mapping, falling back to querying the nodes backend for subgraph
  * indexed updates.
@@ -141,13 +81,7 @@ const findLegacyHistory = async (
       console.log("findLegacyHistory: No match in contract legacy history", {
         dpid,
       });
-    } else {
-      throw e;
     }
+    throw e;
   }
-
-  // Keep for legacy publishing test suite, as it doesn't always import to legacy structs
-  const fallbackHistory = await getDpidHistory(uuid);
-
-  return { owner: fallbackHistory.owner, versions: fallbackHistory.versions };
 };

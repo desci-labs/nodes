@@ -3,7 +3,7 @@ import Base64Binary from "./base64binary.js";
 import { base16 } from "multiformats/bases/base16";
 import { base32 } from "multiformats/bases/base32";
 import { CID } from "multiformats/cid";
-import { BigNumber, BigNumberish, utils } from "ethers";
+import { BigNumber, BigNumberish } from "ethers";
 
 export const convertUUIDToHex = (uuid: string): string => {
   const decoded = decode(uuid);

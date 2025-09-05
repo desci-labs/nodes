@@ -3,12 +3,15 @@ import { errWithCause } from 'pino-std-serializers';
 import { prisma } from './client.js';
 import { logger as parentLogger } from './logger.js';
 import { redisClient, lockService } from './redisClient.js';
-import { server } from './server.js';
+import { createServer } from './server.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 
 const logger = parentLogger.child({
   module: 'index.ts',
 });
+
+// Create the server instance for production
+const server = createServer();
 
 server.ready().then((_) => {
   console.log('server is ready');

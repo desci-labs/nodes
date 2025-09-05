@@ -1,20 +1,19 @@
+# `desci-server`
+
 ## Testing
 
-Run integration tests
+To run the full test suite:
 
-```
-# this spins up docker environment for isolated tests (test db, test redis, test ipfs, etc)
-yarn test
+```bash
+yarn docker:test
 ```
 
-Testing a subset of tests
-modify `desci-server/package.json`
+### Run a subset
 
-```
-# edit the *.test.ts to specify the glob of tests to run then run yarn tets
-"test:destructive": "NODE_PATH=./src mocha --colors --require ts-node/register 'test/integration/**/*.test.ts' --timeout 20000 --exit",
-## TODO: make this easier to do without requiring package.json update of which reverting can be forgotton accidentally
-## maybe make a tmp file that is gitignored, if overwritten the specified tests are run
+Modify the test command in `desci-server/package.json` to specify a particular test file (or a glob) before running `yarn docker:test`:
+
+```json
+"test": "vitest --run --config vitest.config.ts test/ipts.test.ts",
 ```
 
 # RUNNING MIGRATIONS: when making changes to schema.prisma, run the following to migrate
@@ -65,17 +64,21 @@ POD_ID=$(kubectl get pods --no-headers=true | awk '{print $1}' | head -n 1)
 kubectl exec --stdin --tty $POD_ID -- /bin/bash -c "source /vault/secrets/config ; npx prisma migrate dev --skip-generate"
 ```
 
-# for visualizing Data Model
+# Visualizing the data model
 
 # generate DBML
 
+```bash
 npx prisma generate
 npm i -g @softwaretechnik/dbml-renderer
 npx dbml-renderer prisma/dbml/schema.dbml -o prisma/diagram.svg
+```
 
-# generate plantuml
+# Generate plantuml
 
+```bash
 npx prisma-uml ./schema.prisma --server http://localhost:8080
+```
 
 ## current cumbersome, yet reliable procedure for migrations or new npm packages in docker container (dev)
 

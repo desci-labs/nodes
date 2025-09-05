@@ -1,5 +1,3 @@
-import 'dotenv/config';
-import 'mocha';
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import {
   Annotation,
@@ -19,10 +17,9 @@ import {
   User,
   VoteType,
 } from '@prisma/client';
-import chai, { assert } from 'chai';
-import chaiAsPromised from 'chai-as-promised';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { describe, it, beforeEach, expect, assert, beforeAll, afterAll } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import { NodeAttestationFragment } from '../../src/controllers/attestations/show.js';
@@ -33,16 +30,12 @@ import {
   DuplicateVerificationError,
   VerificationError,
 } from '../../src/core/communities/error.js';
-import { app } from '../../src/index.js';
 import { AllAttestation, attestationService, CommunityAttestation } from '../../src/services/Attestation.js';
 import { communityService } from '../../src/services/Communities.js';
 import { client as ipfs, IPFS_NODE, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
+import { app } from '../testApp.js';
 import { createDraftNode, createUsers } from '../util.js';
-
-// use async chai assertions
-chai.use(chaiAsPromised);
-const expect = chai.expect;
 
 const communitiesData = [
   {
@@ -162,9 +155,7 @@ describe('Attestations Service', async () => {
   const setup = async () => {
     // Create communities
     desciCommunity = await communityService.createCommunity(communitiesData[0]);
-    console.log({ desciCommunity });
     localCommunity = await communityService.createCommunity(communitiesData[1]);
-    console.log({ localCommunity });
     assert(desciCommunity, 'desciCommunity is null or undefined');
     assert(localCommunity, 'localCommunity is null or undefined');
     // Create attestations
@@ -195,8 +186,6 @@ describe('Attestations Service', async () => {
       ),
     );
 
-    // console.log({ users });
-
     const baseManifest = await spawnEmptyManifest(IPFS_NODE.PRIVATE);
     // baseManifest = BASE_MANIFEST;
     const BASE_MANIFEST_CID = (await ipfs.add(JSON.stringify(baseManifest), { cidVersion: 1, pin: true })).cid;
@@ -214,7 +203,6 @@ describe('Attestations Service', async () => {
         }),
       ),
     );
-    // console.log({ nodes });
 
     nodeVersions = await Promise.all(
       nodes.map((node) =>
@@ -223,7 +211,6 @@ describe('Attestations Service', async () => {
         }),
       ),
     );
-    // console.log({ nodeVersions });
   };
 
   const tearDown = async () => {
@@ -238,14 +225,14 @@ describe('Attestations Service', async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
   };
 
-  before(async () => {
+  beforeAll(async () => {
     await clearDatabase();
     await tearDown();
 
     await setup();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await clearDatabase();
     await tearDown();
   });
@@ -259,7 +246,7 @@ describe('Attestations Service', async () => {
 
     let nodeVersion2: NodeVersion, UserJwtToken: string, UserAuthHeaderVal: string;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -287,7 +274,7 @@ describe('Attestations Service', async () => {
       UserAuthHeaderVal = `Bearer ${UserJwtToken}`;
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
 
@@ -296,14 +283,14 @@ describe('Attestations Service', async () => {
     });
 
     it('should claim an attestation to a node', () => {
-      expect(claim).to.be.not.undefined;
-      expect(claim.attestationId).to.be.equal(reproducibilityAttestation.id);
-      expect(claim.attestationVersionId).to.be.equal(attestationVersion.id);
-      expect(claim.claimedById).to.be.equal(author.id);
-      expect(claim.nodeDpid10).to.be.equal('1');
-      expect(claim.nodeUuid).to.be.equal(node.uuid);
-      expect(claim.nodeVersion).to.be.equal(nodeVersion);
-      expect(claim.desciCommunityId).to.be.equal(desciCommunity.id);
+      expect(claim).toBeDefined();
+      expect(claim.attestationId).toBe(reproducibilityAttestation.id);
+      expect(claim.attestationVersionId).toBe(attestationVersion.id);
+      expect(claim.claimedById).toBe(author.id);
+      expect(claim.nodeDpid10).toBe('1');
+      expect(claim.nodeUuid).toBe(node.uuid);
+      expect(claim.nodeVersion).toBe(nodeVersion);
+      expect(claim.desciCommunityId).toBe(desciCommunity.id);
     });
     // it('should add author to a community membership', () => {});
     // it('should assign attestation to correct node version', () => {});
@@ -318,7 +305,7 @@ describe('Attestations Service', async () => {
         claimerId: author.id,
       });
       // console.log('CAN CLAIM', canClaim);
-      expect(canClaim).to.be.false;
+      expect(canClaim).toBe(false);
     });
 
     it('should prevent double claim on new version if old claim is not revoked', async () => {
@@ -332,7 +319,7 @@ describe('Attestations Service', async () => {
         claimerId: author.id,
         attestationId: reproducibilityAttestation.id,
       });
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
 
       res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', UserAuthHeaderVal).send({
         nodeDpid: '1',
@@ -341,11 +328,11 @@ describe('Attestations Service', async () => {
         claimerId: author.id,
         communityId: reproducibilityAttestation.communityId,
       });
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
 
       // verify only one claim exists on the old version of the node
       const attestations = await attestationService.getAllNodeAttestations(node.uuid);
-      expect(attestations.length).to.equal(2);
+      expect(attestations.length).toBe(2);
     });
   });
 
@@ -360,7 +347,7 @@ describe('Attestations Service', async () => {
     let openDataClaim: NodeAttestation;
     let reproducibilityClaim: NodeAttestation;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -394,7 +381,7 @@ describe('Attestations Service', async () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
@@ -403,7 +390,7 @@ describe('Attestations Service', async () => {
       const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
       // console.log({ communityRadar });
       const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
-      expect(radarNode).to.be.undefined;
+      expect(radarNode).toBeUndefined();
     });
 
     it('should add node to community radar if it meets the entry requirements', async () => {
@@ -419,11 +406,11 @@ describe('Attestations Service', async () => {
       openDataClaim = Object.assign({}, claim);
 
       const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
-      expect(communityRadar.length).to.be.equal(1);
+      expect(communityRadar.length).toBe(1);
 
       const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
-      expect(radarNode).to.be.not.undefined;
-      expect(radarNode?.NodeAttestation.length).be.equal(2);
+      expect(radarNode).toBeDefined();
+      expect(radarNode?.NodeAttestation.length).toBe(2);
     });
 
     it('should claim an attestation (API)', async () => {
@@ -441,33 +428,31 @@ describe('Attestations Service', async () => {
         nodeDpid: '1',
         claimerId: node.ownerId,
       });
-      expect(res.status).to.equal(200);
-      console.log('CLAIM', claim);
+      expect(res.status).toBe(200);
       claim = res.body.data;
 
       const claimed: NodeAttestation = res.body.data;
-      expect(claimed.attestationId).to.equal(reproducibilityAttestation.id);
-      expect(claimed.attestationVersionId).to.equal(reproducibilityAttestationVersion.id);
-      expect(claimed.claimedById).to.equal(node.ownerId);
-      expect(claimed.desciCommunityId).to.equal(desciCommunity.id);
-      expect(claimed.nodeDpid10).to.equal('1');
-      expect(claimed.nodeVersion).to.equal(nodeVersion);
-      expect(claimed.nodeUuid).to.equal(node.uuid);
+      expect(claimed.attestationId).toBe(reproducibilityAttestation.id);
+      expect(claimed.attestationVersionId).toBe(reproducibilityAttestationVersion.id);
+      expect(claimed.claimedById).toBe(node.ownerId);
+      expect(claimed.desciCommunityId).toBe(desciCommunity.id);
+      expect(claimed.nodeDpid10).toBe('1');
+      expect(claimed.nodeVersion).toBe(nodeVersion);
+      expect(claimed.nodeUuid).toBe(node.uuid);
     });
 
     it('should unclaim an attestation (API)', async () => {
       const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
       const authHeaderVal = `Bearer ${JwtToken}`;
-      console.log('UNCLAIM', claim);
       const res = await request(app).post(`/v1/attestations/unclaim`).set('authorization', authHeaderVal).send({
         claimId: claim.id,
         nodeUuid: node.uuid,
         dpid: '1',
         // claimerId: node.ownerId,
       });
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const attestations = await attestationService.getAllNodeAttestations('1');
-      expect(attestations.length).to.equal(0);
+      expect(attestations.length).toBe(0);
     });
   });
 
@@ -480,7 +465,7 @@ describe('Attestations Service', async () => {
     let openDataAttestationVersion: AttestationVersion;
     let author: User;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -521,10 +506,9 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
-      // console.log({ claim, openDataAttestationClaim });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
@@ -547,32 +531,26 @@ describe('Attestations Service', async () => {
       expect(openDataAttestationClaim.claimedById).equal(author.id);
 
       const claims = await attestationService.getNodeCommunityClaims('1', desciCommunity.id);
-      // console.log({ claims });
       expect(claims.length).equal(2);
     });
 
     it('should add node to community radar after claiming all entry requirements', async () => {
       const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
-      // console.log({ communityRadar });
-      expect(communityRadar.length).to.be.equal(1);
+      expect(communityRadar.length).toBe(1);
       const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
-      expect(radarNode).to.be.not.undefined;
-      expect(radarNode?.NodeAttestation.length).be.equal(2);
-      // console.log({ radarNode });
-      //
-      expect(radarNode?.NodeAttestation[0].attestationId).to.be.equal(claim.attestationId);
-      expect(radarNode?.NodeAttestation[0].attestationVersionId).to.be.equal(claim.attestationVersionId);
-      expect(radarNode?.NodeAttestation[0].desciCommunityId).to.be.equal(claim.desciCommunityId);
-      expect(radarNode?.NodeAttestation[0].nodeDpid10).to.be.equal('1');
-      expect(radarNode?.NodeAttestation[0].nodeVersion).to.be.equal(nodeVersion);
+      expect(radarNode).toBeDefined();
+      expect(radarNode?.NodeAttestation.length).toBe(2);
+      expect(radarNode?.NodeAttestation[0].attestationId).toBe(claim.attestationId);
+      expect(radarNode?.NodeAttestation[0].attestationVersionId).toBe(claim.attestationVersionId);
+      expect(radarNode?.NodeAttestation[0].desciCommunityId).toBe(claim.desciCommunityId);
+      expect(radarNode?.NodeAttestation[0].nodeDpid10).toBe('1');
+      expect(radarNode?.NodeAttestation[0].nodeVersion).toBe(nodeVersion);
 
-      expect(radarNode?.NodeAttestation[1].attestationId).to.be.equal(openDataAttestationClaim.attestationId);
-      expect(radarNode?.NodeAttestation[1].attestationVersionId).to.be.equal(
-        openDataAttestationClaim.attestationVersionId,
-      );
-      expect(radarNode?.NodeAttestation[1].desciCommunityId).to.be.equal(openDataAttestationClaim.desciCommunityId);
-      expect(radarNode?.NodeAttestation[1].nodeDpid10).to.be.equal('1');
-      expect(radarNode?.NodeAttestation[1].nodeVersion).to.be.equal(nodeVersion);
+      expect(radarNode?.NodeAttestation[1].attestationId).toBe(openDataAttestationClaim.attestationId);
+      expect(radarNode?.NodeAttestation[1].attestationVersionId).toBe(openDataAttestationClaim.attestationVersionId);
+      expect(radarNode?.NodeAttestation[1].desciCommunityId).toBe(openDataAttestationClaim.desciCommunityId);
+      expect(radarNode?.NodeAttestation[1].nodeDpid10).toBe('1');
+      expect(radarNode?.NodeAttestation[1].nodeVersion).toBe(nodeVersion);
     });
   });
 
@@ -585,7 +563,7 @@ describe('Attestations Service', async () => {
     let openDataAttestationVersion: AttestationVersion;
     let author: User;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -619,12 +597,12 @@ describe('Attestations Service', async () => {
         communityId: desciCommunity.id,
       });
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const claims: NodeAttestation[] = res.body.data;
       [claim, openDataAttestationClaim] = claims;
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
@@ -652,26 +630,21 @@ describe('Attestations Service', async () => {
 
     it('should add node to community radar after claiming all entry requirements', async () => {
       const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
-      // console.log({ communityRadar });
-      expect(communityRadar.length).to.be.equal(1);
+      expect(communityRadar.length).toBe(1);
       const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
-      expect(radarNode).to.be.not.undefined;
-      expect(radarNode?.NodeAttestation.length).be.equal(2);
-      // console.log({ radarNode });
-      //
-      expect(radarNode?.NodeAttestation[0].attestationId).to.be.equal(claim.attestationId);
-      expect(radarNode?.NodeAttestation[0].attestationVersionId).to.be.equal(claim.attestationVersionId);
-      expect(radarNode?.NodeAttestation[0].desciCommunityId).to.be.equal(claim.desciCommunityId);
-      expect(radarNode?.NodeAttestation[0].nodeDpid10).to.be.equal('1');
-      expect(radarNode?.NodeAttestation[0].nodeVersion).to.be.equal(nodeVersion);
+      expect(radarNode).toBeDefined();
+      expect(radarNode?.NodeAttestation.length).toBe(2);
+      expect(radarNode?.NodeAttestation[0].attestationId).toBe(claim.attestationId);
+      expect(radarNode?.NodeAttestation[0].attestationVersionId).toBe(claim.attestationVersionId);
+      expect(radarNode?.NodeAttestation[0].desciCommunityId).toBe(claim.desciCommunityId);
+      expect(radarNode?.NodeAttestation[0].nodeDpid10).toBe('1');
+      expect(radarNode?.NodeAttestation[0].nodeVersion).toBe(nodeVersion);
 
-      expect(radarNode?.NodeAttestation[1].attestationId).to.be.equal(openDataAttestationClaim.attestationId);
-      expect(radarNode?.NodeAttestation[1].attestationVersionId).to.be.equal(
-        openDataAttestationClaim.attestationVersionId,
-      );
-      expect(radarNode?.NodeAttestation[1].desciCommunityId).to.be.equal(openDataAttestationClaim.desciCommunityId);
-      expect(radarNode?.NodeAttestation[1].nodeDpid10).to.be.equal('1');
-      expect(radarNode?.NodeAttestation[1].nodeVersion).to.be.equal(nodeVersion);
+      expect(radarNode?.NodeAttestation[1].attestationId).toBe(openDataAttestationClaim.attestationId);
+      expect(radarNode?.NodeAttestation[1].attestationVersionId).toBe(openDataAttestationClaim.attestationVersionId);
+      expect(radarNode?.NodeAttestation[1].desciCommunityId).toBe(openDataAttestationClaim.desciCommunityId);
+      expect(radarNode?.NodeAttestation[1].nodeDpid10).toBe('1');
+      expect(radarNode?.NodeAttestation[1].nodeVersion).toBe(nodeVersion);
     });
 
     it('should claim all entry requirements attestations even if some have been claimed before', async () => {
@@ -688,8 +661,8 @@ describe('Attestations Service', async () => {
         communityId: desciCommunity.id,
       });
 
-      expect(res.status).to.equal(200);
-      expect(res.body.data.length).to.equal(1);
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBe(1);
     });
   });
 
@@ -700,7 +673,7 @@ describe('Attestations Service', async () => {
     let attestationVersion: AttestationVersion;
     let author: User;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -724,7 +697,7 @@ describe('Attestations Service', async () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
@@ -732,38 +705,35 @@ describe('Attestations Service', async () => {
     it('should unclaim an attestation from a node', async () => {
       // check if it's appears in community radar
       const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
-      // console.log({ communityRadar });
-      expect(communityRadar.length).to.be.equal(1);
+      expect(communityRadar.length).toBe(1);
       const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
-      expect(radarNode).to.be.not.undefined;
-      expect(radarNode?.NodeAttestation.length).be.equal(1);
+      expect(radarNode).toBeDefined();
+      expect(radarNode?.NodeAttestation.length).toBe(1);
 
       // unclaim attestaion
       const unclaimed = await attestationService.unClaimAttestation(claim.id);
-      // console.log({ unclaimed });
-      expect(unclaimed).to.be.not.null;
-      expect(unclaimed).to.be.not.undefined;
-      expect(unclaimed.attestationId).to.be.equal(reproducibilityAttestation.id);
-      expect(unclaimed.desciCommunityId).to.be.equal(desciCommunity.id);
-      expect(unclaimed.attestationVersionId).to.be.equal(attestationVersion.id);
-      expect(unclaimed.nodeDpid10).to.be.equal('1');
+      expect(unclaimed).not.toBeNull();
+      expect(unclaimed).toBeDefined();
+      expect(unclaimed.attestationId).toBe(reproducibilityAttestation.id);
+      expect(unclaimed.desciCommunityId).toBe(desciCommunity.id);
+      expect(unclaimed.attestationVersionId).toBe(attestationVersion.id);
+      expect(unclaimed.nodeDpid10).toBe('1');
 
       const nodeClaim = await attestationService.getClaimOnAttestationVersion(
         '1',
         reproducibilityAttestation.id,
         attestationVersion.id,
       );
-      expect(nodeClaim).to.be.null;
+      expect(nodeClaim).toBeNull();
     });
 
     it('should remove/hide node from community feed if entry requirement is not met', async () => {
       // check if it's has been removed from community radar
       // await attestationService.unClaimAttestation(claim.id);
       const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
-      // console.log({ communityRadar });
-      expect(communityRadar.length).to.be.equal(0);
+      expect(communityRadar.length).toBe(0);
       const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
-      expect(radarNode).to.be.undefined;
+      expect(radarNode).toBeUndefined();
     });
     // it('should assign attestation to correct node version', () => {});
   });
@@ -776,7 +746,7 @@ describe('Attestations Service', async () => {
     let author: User;
     let reaction: NodeAttestationReaction;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -798,15 +768,15 @@ describe('Attestations Service', async () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
     });
 
     it('should react to a node attestation', () => {
-      expect(reaction.authorId).to.be.equal(users[1].id);
-      expect(reaction.nodeAttestationId).to.be.equal(claim.id);
-      expect(reaction.reaction).to.be.equal('U+1F42F');
+      expect(reaction.authorId).toBe(users[1].id);
+      expect(reaction.nodeAttestationId).toBe(claim.id);
+      expect(reaction.reaction).toBe('U+1F42F');
     });
 
     it('should prevent duplicate reaction', async () => {
@@ -817,24 +787,24 @@ describe('Attestations Service', async () => {
           reaction: 'U+1F42F',
         });
       } catch (err) {
-        expect(err).to.be.instanceOf(DuplicateReactionError);
+        expect(err).toBeInstanceOf(DuplicateReactionError);
       }
     });
 
     it('should remove reaction to a node attestation', async () => {
       const removedReaction = await attestationService.removeReaction(reaction.id);
-      expect(removedReaction).to.not.be.null;
-      expect(removedReaction).to.not.be.undefined;
-      expect(removedReaction.id).to.equal(reaction.id);
-      expect(removedReaction.reaction).to.equal('U+1F42F');
+      expect(removedReaction).not.toBeNull();
+      expect(removedReaction).toBeDefined();
+      expect(removedReaction.id).toBe(reaction.id);
+      expect(removedReaction.reaction).toBe('U+1F42F');
 
       const voidReaction = await attestationService.getReactions({
         nodeAttestationId: claim.id,
         authorId: users[1].id,
         reaction: 'U+1F42F',
       });
-      expect(voidReaction.length).to.be.equal(0);
-      expect(voidReaction[0]).to.be.undefined;
+      expect(voidReaction.length).toBe(0);
+      expect(voidReaction[0]).toBeUndefined();
     });
   });
 
@@ -849,7 +819,7 @@ describe('Attestations Service', async () => {
     let author1: User;
     let reply: Annotation;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       author1 = users[1];
@@ -876,27 +846,27 @@ describe('Attestations Service', async () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
     });
 
     it('should add comment to a node attestation', async () => {
-      expect(comment.authorId).to.be.equal(users[1].id);
-      expect(comment.nodeAttestationId).to.be.equal(claim.id);
-      expect(comment.body).to.be.equal('Love the attestation');
+      expect(comment.authorId).toBe(users[1].id);
+      expect(comment.nodeAttestationId).toBe(claim.id);
+      expect(comment.body).toBe('Love the attestation');
     });
 
     it('should remove comment on a node attestation', async () => {
       const removedComment = await attestationService.removeComment(comment.id);
-      expect(removedComment).to.not.be.null;
-      expect(removedComment).to.not.be.undefined;
-      expect(removedComment.id).to.equal(comment.id);
-      expect(removedComment.body).to.equal('Love the attestation');
+      expect(removedComment).not.toBeNull();
+      expect(removedComment).toBeDefined();
+      expect(removedComment.id).toBe(comment.id);
+      expect(removedComment.body).toBe('Love the attestation');
 
       const voidComment = await attestationService.getUserClaimComments(claim.id, users[1].id);
-      expect(voidComment.length).to.be.equal(0);
-      expect(voidComment[0]).to.be.undefined;
+      expect(voidComment.length).toBe(0);
+      expect(voidComment[0]).toBeUndefined();
     });
 
     it('should edit a comment', async () => {
@@ -914,8 +884,8 @@ describe('Attestations Service', async () => {
         authorId: users[1].id,
         id: comment.id,
       });
-      expect(editedComment.body).to.be.equal('edited comment');
-      expect(editedComment.links[0]).to.be.equal('https://google.com');
+      expect(editedComment.body).toBe('edited comment');
+      expect(editedComment.links[0]).toBe('https://google.com');
     });
 
     it('should not allow another author to edit a comment', async () => {
@@ -926,7 +896,7 @@ describe('Attestations Service', async () => {
           id: comment.id,
         });
       } catch (error) {
-        expect(error).to.be.instanceOf(ForbiddenError);
+        expect(error).toBeInstanceOf(ForbiddenError);
       }
     });
 
@@ -935,17 +905,15 @@ describe('Attestations Service', async () => {
         expiresIn: '1y',
       });
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
-      console.log('edit comment', nodes[1], comment);
       const res = await request(app)
         .put(`/v1/nodes/${nodes[1].uuid}/comments/${comment.id}`)
         .set('authorization', commenterJwtHeader)
         .send({ body: 'edit comment via api', links: ['https://desci.com'] });
-      console.log('response', res.body);
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       const editedComment = (await res.body.data) as Annotation;
 
-      expect(editedComment.body).to.be.equal('edit comment via api');
-      expect(editedComment.links[0]).to.be.equal('https://desci.com');
+      expect(editedComment.body).toBe('edit comment via api');
+      expect(editedComment.links[0]).toBe('https://desci.com');
     });
 
     it('should reply a comment', async () => {
@@ -965,8 +933,8 @@ describe('Attestations Service', async () => {
         comment: 'Reply to Old comment to be edited',
         visible: true,
       });
-      expect(reply.body).to.be.equal('Reply to Old comment to be edited');
-      expect(reply.replyToId).to.be.equal(comment.id);
+      expect(reply.body).toBe('Reply to Old comment to be edited');
+      expect(reply.replyToId).toBe(comment.id);
     });
 
     // should post comments and reply, should validate comments length,  getComments Api, replyCount and pull reply via api
@@ -984,10 +952,9 @@ describe('Attestations Service', async () => {
         uuid: node.uuid,
         visible: true,
       });
-      expect(res.statusCode).to.equal(200);
-      console.log('comment', res.body.data);
+      expect(res.statusCode).toBe(200);
       comment = res.body.data as Annotation;
-      expect(comment.body).to.equal('post comment with reply');
+      expect(comment.body).toBe('post comment with reply');
 
       const author1JwtToken = jwt.sign({ email: author1.email }, process.env.JWT_SECRET!, {
         expiresIn: '1y',
@@ -1004,13 +971,13 @@ describe('Attestations Service', async () => {
       });
       reply = res.body.data as Annotation;
 
-      expect(res.statusCode).to.equal(200);
-      expect(reply.replyToId).to.equal(comment.id);
+      expect(res.statusCode).toBe(200);
+      expect(reply.replyToId).toBe(comment.id);
 
       // check comment
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', authorJwtHeader).send();
-      expect(res.statusCode).to.equal(200);
-      expect(res.body.data.count).to.be.equal(1);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.count).toBe(1);
       const data = (await res.body.data.comments) as (Annotation & {
         meta: {
           upvotes: number;
@@ -1020,9 +987,8 @@ describe('Attestations Service', async () => {
           isDownVoted: boolean;
         };
       })[];
-      console.log('commentsss', data);
       const parentComment = data.find((c) => c.id === comment.id);
-      expect(parentComment?.meta.replyCount).to.be.equal(1);
+      expect(parentComment?.meta.replyCount).toBe(1);
     });
   });
 
@@ -1034,7 +1000,7 @@ describe('Attestations Service', async () => {
     let author: User;
     let verification: NodeAttestationVerification;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -1052,22 +1018,22 @@ describe('Attestations Service', async () => {
       verification = await attestationService.verifyClaim(claim.id, users[1].id);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
     });
 
     it('should allow users verify a node attestation(claim)', async () => {
-      expect(verification.nodeAttestationId).to.be.equal(claim.id);
-      expect(verification.userId).to.be.equal(users[1].id);
+      expect(verification.nodeAttestationId).toBe(claim.id);
+      expect(verification.userId).toBe(users[1].id);
     });
 
     it('should prevent double verification of Node Attestation(Claim)', async () => {
       try {
         await attestationService.verifyClaim(claim.id, users[1].id);
       } catch (err) {
-        expect(err).to.be.instanceOf(DuplicateVerificationError);
+        expect(err).toBeInstanceOf(DuplicateVerificationError);
       }
     });
 
@@ -1076,35 +1042,35 @@ describe('Attestations Service', async () => {
         assert(author.id === node.ownerId);
         await attestationService.verifyClaim(claim.id, author.id);
       } catch (err) {
-        expect(err).to.be.instanceOf(VerificationError);
+        expect(err).toBeInstanceOf(VerificationError);
       }
     });
 
     it('should remove verification', async () => {
       const removedVerification = await attestationService.removeVerification(verification.id, users[1].id);
-      expect(removedVerification).to.not.be.null;
-      expect(removedVerification).to.not.be.undefined;
-      expect(removedVerification.id).to.equal(verification.id);
+      expect(removedVerification).not.toBeNull();
+      expect(removedVerification).toBeDefined();
+      expect(removedVerification.id).toBe(verification.id);
 
       const voidVerification = await attestationService.getUserClaimVerification(claim.id, users[1].id);
-      expect(voidVerification).to.be.null;
+      expect(voidVerification).toBeNull();
     });
 
     it('should allow multiple users verify a node attestation(claim)', async () => {
       const user2Verification = await attestationService.verifyClaim(claim.id, users[2].id);
-      expect(user2Verification.nodeAttestationId).to.be.equal(claim.id);
-      expect(user2Verification.userId).to.be.equal(users[2].id);
+      expect(user2Verification.nodeAttestationId).toBe(claim.id);
+      expect(user2Verification.userId).toBe(users[2].id);
 
       const user3Verification = await attestationService.verifyClaim(claim.id, users[3].id);
-      expect(user3Verification.nodeAttestationId).to.be.equal(claim.id);
-      expect(user3Verification.userId).to.be.equal(users[3].id);
+      expect(user3Verification.nodeAttestationId).toBe(claim.id);
+      expect(user3Verification.userId).toBe(users[3].id);
 
       const verifications = await attestationService.getAllClaimVerfications(claim.id);
-      expect(verifications.length).to.be.equal(2);
+      expect(verifications.length).toBe(2);
 
       assert(node.uuid);
       const nodeVerifications = await attestationService.getAllNodeVerfications(node.uuid);
-      expect(nodeVerifications.length).to.be.equal(2);
+      expect(nodeVerifications.length).toBe(2);
     });
   });
 
@@ -1121,7 +1087,7 @@ describe('Attestations Service', async () => {
     let author: User;
     let author2: User;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       node2 = nodes[1];
       author = users[0];
@@ -1208,7 +1174,7 @@ describe('Attestations Service', async () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
@@ -1216,43 +1182,43 @@ describe('Attestations Service', async () => {
     it('should return curated community nodes', async () => {
       const curatedNodes = await communityService.getCuratedNodes(desciCommunity.id);
       // console.log({ curatedNodes });
-      expect(curatedNodes.length).to.be.equal(1);
+      expect(curatedNodes.length).toBe(1);
 
       const curatedNode = curatedNodes[0];
-      expect(curatedNode.NodeAttestation.length).to.be.equal(2);
-      expect(curatedNode.nodeDpid10).to.be.equal('1');
-      expect(curatedNode.nodeuuid).to.be.equal(node.uuid);
+      expect(curatedNode.NodeAttestation.length).toBe(2);
+      expect(curatedNode.nodeDpid10).toBe('1');
+      expect(curatedNode.nodeuuid).toBe(node.uuid);
     });
 
     it('should return community nodes on Radar', async () => {
       const curatedNodes = await communityService.getCommunityRadar(desciCommunity.id);
       // console.log({ curatedNodes });
-      expect(curatedNodes.length).to.be.equal(2);
+      expect(curatedNodes.length).toBe(2);
 
       const curatedNode = curatedNodes[0];
-      expect(curatedNode.NodeAttestation.length).to.be.equal(2);
-      expect(curatedNode.nodeDpid10).to.be.equal('1');
-      expect(curatedNode.nodeuuid).to.be.equal(node.uuid);
+      expect(curatedNode.NodeAttestation.length).toBe(2);
+      expect(curatedNode.nodeDpid10).toBe('1');
+      expect(curatedNode.nodeuuid).toBe(node.uuid);
 
       const curatedNode1 = curatedNodes[1];
-      expect(curatedNode1.NodeAttestation.length).to.be.equal(2);
-      expect(curatedNode1.nodeDpid10).to.be.equal('2');
-      expect(curatedNode1.nodeuuid).to.be.equal(node2.uuid);
+      expect(curatedNode1.NodeAttestation.length).toBe(2);
+      expect(curatedNode1.nodeDpid10).toBe('2');
+      expect(curatedNode1.nodeuuid).toBe(node2.uuid);
     });
 
     it('should remove node from curated feed if verification requirement is not met', async () => {
       const verifications = await attestationService.getAllClaimVerfications(openDataAttestationClaim.id);
       // console.log({ verifications });
-      expect(verifications.length).to.equal(1);
+      expect(verifications.length).toBe(1);
       await attestationService.removeVerification(verifications[0].id, users[1].id);
 
       const curatedNodes = await communityService.getCuratedNodes(desciCommunity.id);
       // console.log({ curatedNodes });
-      expect(curatedNodes.length).to.be.equal(0);
+      expect(curatedNodes.length).toBe(0);
 
       const radarNodes = await communityService.getCommunityRadar(desciCommunity.id);
       // console.log({ radarNodes });
-      expect(radarNodes.length).to.be.equal(2);
+      expect(radarNodes.length).toBe(2);
     });
   });
 
@@ -1269,7 +1235,7 @@ describe('Attestations Service', async () => {
     let author: User;
     let author2: User;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       node2 = nodes[1];
       author = users[0];
@@ -1371,7 +1337,7 @@ describe('Attestations Service', async () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
@@ -1381,10 +1347,9 @@ describe('Attestations Service', async () => {
 
     it('should curate all node impressions across all attestations', async () => {
       const engagements = await communityService.getCommunityEngagementSignals(desciCommunity.id);
-      console.log({ engagements });
-      expect(engagements.annotations).to.be.equal(2);
-      expect(engagements.reactions).to.be.equal(3);
-      expect(engagements.verifications).to.be.equal(5);
+      expect(engagements.annotations).toBe(2);
+      expect(engagements.reactions).toBe(3);
+      expect(engagements.verifications).toBe(5);
     });
     it.skip('should list all engaging users and only count users once', () => {});
   });
@@ -1408,7 +1373,7 @@ describe('Attestations Service', async () => {
     let author: User;
     let author2: User;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       node2 = nodes[1];
       author = users[0];
@@ -1569,7 +1534,7 @@ describe('Attestations Service', async () => {
       await attestationService.verifyClaim(localClaim2.id, users[3].id);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
@@ -1580,29 +1545,29 @@ describe('Attestations Service', async () => {
     it('should return all node engagement signal across all attestations in a community', async () => {
       const dPid1Engagements = await communityService.getNodeCommunityEngagementSignals(desciCommunity.id, '1');
       // console.log({ dPid1Engagements });
-      expect(dPid1Engagements.annotations).to.equal(1);
-      expect(dPid1Engagements.reactions).to.equal(2);
-      expect(dPid1Engagements.verifications).to.equal(3);
+      expect(dPid1Engagements.annotations).toBe(1);
+      expect(dPid1Engagements.reactions).toBe(2);
+      expect(dPid1Engagements.verifications).toBe(3);
 
       const dPid2Engagements = await communityService.getNodeCommunityEngagementSignals(desciCommunity.id, '2');
       // console.log({ dPid2Engagements });
-      expect(dPid2Engagements.annotations).to.equal(2);
-      expect(dPid2Engagements.reactions).to.equal(2);
-      expect(dPid2Engagements.verifications).to.equal(3);
+      expect(dPid2Engagements.annotations).toBe(2);
+      expect(dPid2Engagements.reactions).toBe(2);
+      expect(dPid2Engagements.verifications).toBe(3);
     });
 
     it('should curate all node engagement across all attestations(claims)', async () => {
       const dPid1Engagements = await attestationService.getNodeEngagementSignals('1');
       // console.log({ dPid1Engagements });
-      expect(dPid1Engagements.annotations).to.equal(2);
-      expect(dPid1Engagements.reactions).to.equal(3);
-      expect(dPid1Engagements.verifications).to.equal(4);
+      expect(dPid1Engagements.annotations).toBe(2);
+      expect(dPid1Engagements.reactions).toBe(3);
+      expect(dPid1Engagements.verifications).toBe(4);
 
       const dPid2Engagements = await attestationService.getNodeEngagementSignals('2');
       // console.log({ dPid2Engagements });
-      expect(dPid2Engagements.annotations).to.equal(2);
-      expect(dPid2Engagements.reactions).to.equal(2);
-      expect(dPid2Engagements.verifications).to.equal(5);
+      expect(dPid2Engagements.annotations).toBe(2);
+      expect(dPid2Engagements.reactions).toBe(2);
+      expect(dPid2Engagements.verifications).toBe(5);
     });
 
     it('should curate all node community verification signal across all attestations(claims)', async () => {
@@ -1613,8 +1578,8 @@ describe('Attestations Service', async () => {
       );
       // console.log({ dPid1Engagements });
       // console.log({ dPid1LocalEngagements });
-      expect(dPid1Engagements.verifications).to.equal(3);
-      expect(dPid1LocalEngagements.verifications).to.equal(1);
+      expect(dPid1Engagements.verifications).toBe(3);
+      expect(dPid1LocalEngagements.verifications).toBe(1);
 
       const dPid2Engagements = await attestationService.getNodeCommunityVerificationSignals(desciCommunity.id, '2');
       const dPid2LocalEngagements = await attestationService.getNodeCommunityVerificationSignals(
@@ -1623,8 +1588,8 @@ describe('Attestations Service', async () => {
       );
       // console.log({ dPid2Engagements });
       // console.log({ dPid2LocalEngagements });
-      expect(dPid2Engagements.verifications).to.equal(2);
-      expect(dPid2LocalEngagements.verifications).to.equal(2);
+      expect(dPid2Engagements.verifications).toBe(2);
+      expect(dPid2LocalEngagements.verifications).toBe(2);
     });
 
     it('should validate all attestations engagement signals', async () => {
@@ -1633,27 +1598,27 @@ describe('Attestations Service', async () => {
         reproducibilityAttestationVersion.id,
       );
       // console.log({ reproducibilityAttestationEngagements });
-      expect(reproducibilityAttestationEngagements.annotations).to.equal(0);
-      expect(reproducibilityAttestationEngagements.reactions).to.equal(2);
-      expect(reproducibilityAttestationEngagements.verifications).to.equal(4);
+      expect(reproducibilityAttestationEngagements.annotations).toBe(0);
+      expect(reproducibilityAttestationEngagements.reactions).toBe(2);
+      expect(reproducibilityAttestationEngagements.verifications).toBe(4);
 
       const openDataAttestationEngagements = await attestationService.getAttestationVersionEngagementSignals(
         openDataAttestation.id,
         openDataAttestationVersion.id,
       );
       // console.log({ openDataAttestationEngagements });
-      expect(openDataAttestationEngagements.annotations).to.equal(2);
-      expect(openDataAttestationEngagements.reactions).to.equal(1);
-      expect(openDataAttestationEngagements.verifications).to.equal(1);
+      expect(openDataAttestationEngagements.annotations).toBe(2);
+      expect(openDataAttestationEngagements.reactions).toBe(1);
+      expect(openDataAttestationEngagements.verifications).toBe(1);
 
       const fairMetadataAttestationEngagements = await attestationService.getAttestationVersionEngagementSignals(
         fairMetadataAttestation.id,
         fairMetadataAttestationVersion.id,
       );
       // console.log({ fairMetadataAttestationEngagements });
-      expect(fairMetadataAttestationEngagements.annotations).to.equal(1);
-      expect(fairMetadataAttestationEngagements.reactions).to.equal(1);
-      expect(fairMetadataAttestationEngagements.verifications).to.equal(1);
+      expect(fairMetadataAttestationEngagements.annotations).toBe(1);
+      expect(fairMetadataAttestationEngagements.reactions).toBe(1);
+      expect(fairMetadataAttestationEngagements.verifications).toBe(1);
 
       const LocalReproducibilityAttestationEngagements =
         await attestationService.getAttestationVersionEngagementSignals(
@@ -1661,9 +1626,9 @@ describe('Attestations Service', async () => {
           localReproducibilityAttestationVersion.id,
         );
       // console.log({ LocalReproducibilityAttestationEngagements });
-      expect(LocalReproducibilityAttestationEngagements.annotations).to.equal(1);
-      expect(LocalReproducibilityAttestationEngagements.reactions).to.equal(1);
-      expect(LocalReproducibilityAttestationEngagements.verifications).to.equal(3);
+      expect(LocalReproducibilityAttestationEngagements.annotations).toBe(1);
+      expect(LocalReproducibilityAttestationEngagements.reactions).toBe(1);
+      expect(LocalReproducibilityAttestationEngagements.verifications).toBe(3);
     });
 
     // TESTS FOR showNodeAttestations api
@@ -1672,8 +1637,7 @@ describe('Attestations Service', async () => {
       const authHeaderVal = `Bearer ${JwtToken}`;
       const res = await request(app).get(`/v1/attestations/${node.uuid}`).set('authorization', authHeaderVal);
       const attestations: NodeAttestationFragment[] = res.body.data;
-      console.log(attestations);
-      expect(attestations.length).to.be.equal(3);
+      expect(attestations.length).toBe(3);
     });
 
     // TESTS FOR showNodeAttestations api
@@ -1682,7 +1646,7 @@ describe('Attestations Service', async () => {
       const authHeaderVal = `Bearer ${JwtToken}`;
       const res = await request(app).get(`/v1/attestations/${node2.uuid}`).set('authorization', authHeaderVal);
       const attestations: NodeAttestationFragment[] = res.body.data;
-      expect(attestations.length).to.be.equal(4);
+      expect(attestations.length).toBe(4);
     });
 
     it.skip('should list all engaging users and only count users once', () => {});
@@ -1712,7 +1676,7 @@ describe('Attestations Service', async () => {
     let res: request.Response;
     let apiResponse: NodeRadarEntry[];
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       node2 = nodes[1];
       node3 = nodes[2];
@@ -1829,12 +1793,12 @@ describe('Attestations Service', async () => {
         .field('communityId', desciCommunity.id);
 
       apiResponse = res.body.data.data;
-      console.log(apiResponse[0]);
-      console.log(apiResponse[1]);
-      console.log(apiResponse[2]);
+      // console.log(apiResponse[0]);
+      // console.log(apiResponse[1]);
+      // console.log(apiResponse[2]);
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
@@ -1843,11 +1807,11 @@ describe('Attestations Service', async () => {
     });
 
     it('should return nodes in radar in ASC order of verified engagements sorted by last submission/claim date', async () => {
-      expect(res.status).to.equal(200);
-      expect(apiResponse.length).to.equal(3);
-      expect(apiResponse[0].nodeUuid).to.be.equal(node2.uuid);
-      expect(apiResponse[1].nodeUuid).to.be.equal(node3.uuid);
-      expect(apiResponse[2].nodeUuid).to.be.equal(node.uuid);
+      expect(res.status).toBe(200);
+      expect(apiResponse.length).toBe(3);
+      expect(apiResponse[0].nodeUuid).toBe(node2.uuid);
+      expect(apiResponse[1].nodeUuid).toBe(node3.uuid);
+      expect(apiResponse[2].nodeUuid).toBe(node.uuid);
     });
   });
 
@@ -1874,7 +1838,7 @@ describe('Attestations Service', async () => {
     let allResponse: AllAttestation[];
     let communityResponse: CommunityAttestation[];
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       node2 = nodes[1];
       author = users[0];
@@ -2022,16 +1986,14 @@ describe('Attestations Service', async () => {
 
       const allRes = await request(app).get(`/v1/attestations/suggestions/all`).set('authorization', authHeaderVal);
       allResponse = allRes.body.data;
-      console.log({ allResponse });
 
       res = await request(app)
         .get(`/v1/communities/${desciCommunity.slug}/attestations`)
         .set('authorization', authHeaderVal);
       communityResponse = res.body.data;
-      console.log({ communityResponse });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
@@ -2041,31 +2003,30 @@ describe('Attestations Service', async () => {
 
     it.skip('should list all attestation Recommendations', async () => {
       const rawListAll = await attestationService.listAll();
-      console.log({ rawListAll: rawListAll.length });
 
-      expect(res.status).to.equal(200);
-      expect(allResponse.length).to.equal(6);
+      expect(res.status).toBe(200);
+      expect(allResponse.length).toBe(6);
       const desciAttestations = allResponse.filter((att) => att.communityId === desciCommunity.id);
       const desciEngagements = desciAttestations.reduce(
         (total, att) => total + att.annotations + att.reactions + att.verifications,
         0,
       );
-      expect(desciAttestations.length).to.equal(3);
-      expect(desciEngagements).to.equal(13);
+      expect(desciAttestations.length).toBe(3);
+      expect(desciEngagements).toBe(13);
 
       const localAttestations = allResponse.filter((att) => att.communityId === localCommunity.id);
       const localEngagements = localAttestations.reduce(
         (total, att) => total + att.annotations + att.reactions + att.verifications,
         0,
       );
-      expect(localAttestations.length).to.equal(3);
-      expect(localEngagements).to.equal(5);
+      expect(localAttestations.length).toBe(3);
+      expect(localEngagements).toBe(5);
     });
 
     it.skip('should list all community attestations Recommendations', async () => {
       communityResponse = res.body.data;
-      expect(res.status).to.equal(200);
-      expect(communityResponse.length).to.equal(3);
+      expect(res.status).toBe(200);
+      expect(communityResponse.length).toBe(3);
 
       const desciAttestations = communityResponse.filter((att) => att.communityId === desciCommunity.id);
       const desciEngagements = desciAttestations.reduce(
@@ -2073,8 +2034,8 @@ describe('Attestations Service', async () => {
         0,
       );
 
-      expect(desciAttestations.length).to.equal(3);
-      expect(desciEngagements).to.equal(13);
+      expect(desciAttestations.length).toBe(3);
+      expect(desciEngagements).toBe(13);
     });
   });
 
@@ -2104,7 +2065,7 @@ describe('Attestations Service', async () => {
         selfAssigned: boolean;
       };
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       node2 = nodes[1];
       author = users[0];
@@ -2198,7 +2159,7 @@ describe('Attestations Service', async () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
@@ -2209,22 +2170,22 @@ describe('Attestations Service', async () => {
         nodeUuid: node.uuid,
         claimId: claim.id,
       });
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
 
       const claims = await attestationService.getAllNodeAttestations(node.uuid!);
-      expect(claims.length).to.equal(1);
+      expect(claims.length).toBe(1);
     });
 
     it('should remove revoked claim engagements from node and community engagement signals', async () => {
       const engagmentSignal = await attestationService.getNodeEngagementSignals('1');
-      expect(engagmentSignal.verifications).to.equal(1);
-      expect(engagmentSignal.annotations).to.equal(1);
-      expect(engagmentSignal.reactions).to.equal(0);
+      expect(engagmentSignal.verifications).toBe(1);
+      expect(engagmentSignal.annotations).toBe(1);
+      expect(engagmentSignal.reactions).toBe(0);
 
       const communityEngagementSignal = await communityService.getCommunityEngagementSignals(desciCommunity.id);
-      expect(communityEngagementSignal.verifications).to.equal(3);
-      expect(communityEngagementSignal.annotations).to.equal(2);
-      expect(communityEngagementSignal.reactions).to.equal(0);
+      expect(communityEngagementSignal.verifications).toBe(3);
+      expect(communityEngagementSignal.annotations).toBe(2);
+      expect(communityEngagementSignal.reactions).toBe(0);
     });
 
     it('should remove node from radar and curated if claim is revoked', async () => {
@@ -2232,23 +2193,21 @@ describe('Attestations Service', async () => {
         .get(`/v1/communities/${desciCommunity.id}/radar`)
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
-      console.log('radar', res1.body);
       const radar = res1.body.data.data as NodeRadarEntry[];
-      expect(res1.status).to.equal(200);
-      expect(radar.length).to.equal(1);
+      expect(res1.status).toBe(200);
+      expect(radar.length).toBe(1);
       const radarNode = radar[0];
-      // expect(radarNode.nodeDpid10).to.be.equal('2');
-      expect(radarNode.nodeUuid).to.be.equal(node2.uuid);
+      // expect(radarNode.nodeDpid10).toBe('2');
+      expect(radarNode.nodeUuid).toBe(node2.uuid);
 
       const res = await request(app)
         .get(`/v1/communities/${desciCommunity.id}/feed`)
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
 
-      console.log('feed', res.body);
       const curatedNodes = res.body.data.data as NodeRadarEntry[];
-      expect(res.status).to.equal(200);
-      expect(curatedNodes.length).to.equal(0);
+      expect(res.status).toBe(200);
+      expect(curatedNodes.length).toBe(0);
     });
 
     it('should reclaim node attestation', async () => {
@@ -2259,16 +2218,16 @@ describe('Attestations Service', async () => {
         claimerId: author.id,
         attestationId: reproducibilityAttestation.id,
       });
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
 
       const attestations = await attestationService.getAllNodeAttestations(node.uuid!);
-      expect(attestations.length).to.equal(2);
+      expect(attestations.length).toBe(2);
 
       res = await request(app).get(`/v1/attestations/${node.uuid}`).set('authorization', authHeaderVal);
       const claims = res.body.data as NodeClaim[];
       const revoked = claims.find((c) => c.id === claim.id);
-      expect(revoked?.revoked).to.be.false;
-      // expect(revoked?.revokedAt).to.be.undefined;
+      expect(revoked?.revoked).toBe(false);
+      // expect(revoked?.revokedAt).toBeUndefined();
     });
   });
 
@@ -2290,7 +2249,7 @@ describe('Attestations Service', async () => {
       memberAuthHeaderVal1: string,
       memberAuthHeaderVal2: string;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -2322,7 +2281,7 @@ describe('Attestations Service', async () => {
       UserAuthHeaderVal = `Bearer ${UserJwtToken}`;
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
@@ -2336,17 +2295,17 @@ describe('Attestations Service', async () => {
         .send({
           claimId: openCodeClaim.id,
         });
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       res = await request(app).post(`/v1/attestations/verification`).set('authorization', memberAuthHeaderVal2).send({
         claimId: openCodeClaim.id,
       });
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
-      expect(verifications.length).to.equal(2);
-      expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
-      expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
+      expect(verifications.length).toBe(2);
+      expect(verifications.some((v) => v.userId === members[0].userId)).toBe(true);
+      expect(verifications.some((v) => v.userId === members[1].userId)).toBe(true);
     });
 
     it('should prevent non-authorized users from verifying a protected attestation(claim)', async () => {
@@ -2356,12 +2315,12 @@ describe('Attestations Service', async () => {
         .send({
           claimId: openCodeClaim.id,
         });
-      expect(userVerificationResponse.statusCode).to.equal(401);
+      expect(userVerificationResponse.statusCode).toBe(401);
 
       const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
-      expect(verifications.length).to.equal(2);
-      expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
-      expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
+      expect(verifications.length).toBe(2);
+      expect(verifications.some((v) => v.userId === members[0].userId)).toBe(true);
+      expect(verifications.some((v) => v.userId === members[1].userId)).toBe(true);
     });
   });
 
@@ -2382,7 +2341,7 @@ describe('Attestations Service', async () => {
       memberAuthHeaderVal1: string,
       memberAuthHeaderVal2: string;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       assert(node.uuid);
@@ -2414,7 +2373,7 @@ describe('Attestations Service', async () => {
       UserAuthHeaderVal = `Bearer ${UserJwtToken}`;
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
@@ -2432,7 +2391,7 @@ describe('Attestations Service', async () => {
         .post(`/v1/attestations/comments`)
         .set('authorization', memberAuthHeaderVal1)
         .send(body);
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       body = {
         authorId: members[1].userId,
@@ -2441,12 +2400,12 @@ describe('Attestations Service', async () => {
         uuid: openCodeClaim.nodeUuid,
       };
       res = await request(app).post(`/v1/attestations/comments`).set('authorization', memberAuthHeaderVal2).send(body);
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
-      expect(comments.length).to.equal(2);
-      expect(comments.some((v) => v.authorId === members[0].userId && v.body)).to.equal(true);
-      expect(comments.some((v) => v.authorId === members[1].userId)).to.equal(true);
+      expect(comments.length).toBe(2);
+      expect(comments.some((v) => v.authorId === members[0].userId && v.body)).toBe(true);
+      expect(comments.some((v) => v.authorId === members[1].userId)).toBe(true);
     });
 
     it('should prevent non community members from reviewing a protected attestation(claim)', async () => {
@@ -2459,10 +2418,10 @@ describe('Attestations Service', async () => {
           body: 'review 1',
           uuid: openCodeClaim.nodeUuid,
         });
-      expect(apiResponse.statusCode).to.equal(401);
+      expect(apiResponse.statusCode).toBe(401);
 
       const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
-      expect(comments.length).to.equal(2);
+      expect(comments.length).toBe(2);
     });
   });
 
@@ -2482,7 +2441,7 @@ describe('Attestations Service', async () => {
 
     let vote: CommentVote;
 
-    before(async () => {
+    beforeAll(async () => {
       node = nodes[0];
       author = users[0];
       commenter = users[1];
@@ -2520,7 +2479,7 @@ describe('Attestations Service', async () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommentVote" CASCADE;`;
@@ -2532,12 +2491,12 @@ describe('Attestations Service', async () => {
         annotationId: comment.id,
         type: VoteType.Yes,
       });
-      expect(vote.annotationId).to.be.equal(comment.id);
-      expect(vote.userId).to.be.equal(voter.id);
-      expect(vote.type).to.be.equal(VoteType.Yes);
+      expect(vote.annotationId).toBe(comment.id);
+      expect(vote.userId).toBe(voter.id);
+      expect(vote.type).toBe(VoteType.Yes);
 
       const cVote = await attestationService.getCommentUpvotes(comment.id);
-      expect(cVote).to.be.equal(1);
+      expect(cVote).toBe(1);
     });
 
     it('should downvote comment', async () => {
@@ -2546,22 +2505,22 @@ describe('Attestations Service', async () => {
         annotationId: comment.id,
         type: VoteType.No,
       });
-      expect(vote.annotationId).to.be.equal(comment.id);
-      expect(vote.userId).to.be.equal(voter.id);
-      expect(vote.type).to.be.equal(VoteType.No);
+      expect(vote.annotationId).toBe(comment.id);
+      expect(vote.userId).toBe(voter.id);
+      expect(vote.type).toBe(VoteType.No);
 
       let cVote = await attestationService.getCommentUpvotes(comment.id);
-      expect(cVote).to.be.equal(0);
+      expect(cVote).toBe(0);
       cVote = await attestationService.getCommentDownvotes(comment.id);
-      expect(cVote).to.be.equal(1);
+      expect(cVote).toBe(1);
     });
 
     it('should delete comment vote', async () => {
       await attestationService.deleteCommentVote(vote.id);
       let cVote = await attestationService.getCommentUpvotes(comment.id);
-      expect(cVote).to.be.equal(0);
+      expect(cVote).toBe(0);
       cVote = await attestationService.getCommentDownvotes(comment.id);
-      expect(cVote).to.be.equal(0);
+      expect(cVote).toBe(0);
     });
 
     it('should account for multiple upvotes/downvotes on comment', async () => {
@@ -2597,48 +2556,48 @@ describe('Attestations Service', async () => {
       });
 
       const comments = await attestationService.getComments({ visible: true });
-      expect(comments.length).to.be.equal(2);
+      expect(comments.length).toBe(2);
       // const [commentVotes, comment1Votes] = comments;
 
-      expect((await attestationService.getVotesByCommentId(comment.id)).length).to.be.equal(3);
-      expect((await attestationService.getVotesByCommentId(comment1.id)).length).to.be.equal(3);
-      // expect(comment1Votes.CommentVote.length).to.be.equal(3);
+      expect((await attestationService.getVotesByCommentId(comment.id)).length).toBe(3);
+      expect((await attestationService.getVotesByCommentId(comment1.id)).length).toBe(3);
+      // expect(comment1Votes.CommentVote.length).toBe(3);
 
       // verify voter comments
       const voterComment = await attestationService.getUserCommentVote(voter.id, comment.id);
       const voterComment1 = await attestationService.getUserCommentVote(voter.id, comment1.id);
-      expect(voterComment).to.not.be.undefined;
-      expect(voterComment1).to.not.be.undefined;
-      expect(voterComment?.type).to.be.equal(VoteType.Yes);
-      expect(voterComment1?.type).to.be.equal(VoteType.No);
+      expect(voterComment).toBeDefined();
+      expect(voterComment1).toBeDefined();
+      expect(voterComment?.type).toBe(VoteType.Yes);
+      expect(voterComment1?.type).toBe(VoteType.No);
       // verify voter1 comments
       const voter1Comment = await attestationService.getUserCommentVote(voter1.id, comment.id);
       const voter1Comment1 = await attestationService.getUserCommentVote(voter1.id, comment1.id);
-      expect(voter1Comment).to.not.be.undefined;
-      expect(voter1Comment1).to.not.be.undefined;
-      expect(voter1Comment?.type).to.be.equal(VoteType.Yes);
-      expect(voter1Comment1?.type).to.be.equal(VoteType.No);
+      expect(voter1Comment).toBeDefined();
+      expect(voter1Comment1).toBeDefined();
+      expect(voter1Comment?.type).toBe(VoteType.Yes);
+      expect(voter1Comment1?.type).toBe(VoteType.No);
       // verify voter2 comments
       const voter2Comment = await attestationService.getUserCommentVote(voter2.id, comment.id);
       const voter2Comment1 = await attestationService.getUserCommentVote(voter2.id, comment1.id);
-      expect(voter2Comment).to.not.be.undefined;
-      expect(voter2Comment1).to.not.be.undefined;
-      expect(voter2Comment?.type).to.be.equal(VoteType.No);
-      expect(voter2Comment1?.type).to.be.equal(VoteType.Yes);
+      expect(voter2Comment).toBeDefined();
+      expect(voter2Comment1).toBeDefined();
+      expect(voter2Comment?.type).toBe(VoteType.No);
+      expect(voter2Comment1?.type).toBe(VoteType.Yes);
 
       // verify comment upvotes
       let cVote = await attestationService.getCommentUpvotes(comment.id);
-      expect(cVote).to.be.equal(2);
+      expect(cVote).toBe(2);
       // verify comment downvotes
       cVote = await attestationService.getCommentDownvotes(comment.id);
-      expect(cVote).to.be.equal(1);
+      expect(cVote).toBe(1);
 
       // verify comment1 upvotes
       cVote = await attestationService.getCommentUpvotes(comment1.id);
-      expect(cVote).to.be.equal(1);
+      expect(cVote).toBe(1);
       // verify comment downvotes
       cVote = await attestationService.getCommentDownvotes(comment1.id);
-      expect(cVote).to.be.equal(2);
+      expect(cVote).toBe(2);
 
       // clean up
       await prisma.commentVote.deleteMany({});
@@ -2655,18 +2614,18 @@ describe('Attestations Service', async () => {
         .post(`/v1/nodes/${node.uuid}/comments/${comment.id}/upvote`)
         .set('authorization', voterJwtHeader)
         .send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       // check upvote
       res = await request(app)
         .get(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
         .set('authorization', voterJwtHeader)
         .send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       const data = (await res.body.data) as CommentVote;
-      expect(data.userId).to.be.equal(voter.id);
-      expect(data.annotationId).to.be.equal(comment.id);
-      expect(data.type).to.be.equal(VoteType.Yes);
+      expect(data.userId).toBe(voter.id);
+      expect(data.annotationId).toBe(comment.id);
+      expect(data.type).toBe(VoteType.Yes);
 
       // check comment has votes
       const commenterJwtToken = jwt.sign({ email: commenter.email }, process.env.JWT_SECRET!, {
@@ -2674,7 +2633,7 @@ describe('Attestations Service', async () => {
       });
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       let comments = (await res.body.data.comments) as {
         meta: {
           upvotes: number;
@@ -2689,14 +2648,14 @@ describe('Attestations Service', async () => {
         authorId: number;
       }[];
       let c1 = comments.find((c) => c.id === comment.id);
-      expect(c1?.meta.upvotes).to.be.equal(1);
-      expect(c1?.meta.downvotes).to.be.equal(0);
+      expect(c1?.meta.upvotes).toBe(1);
+      expect(c1?.meta.downvotes).toBe(0);
 
       const voterRes = await request(app)
         .get(`/v1/nodes/${node.uuid}/comments`)
         .set('authorization', voterJwtHeader)
         .send();
-      expect(voterRes.statusCode).to.equal(200);
+      expect(voterRes.statusCode).toBe(200);
       comments = (await voterRes.body.data.comments) as {
         meta: {
           upvotes: number;
@@ -2711,8 +2670,8 @@ describe('Attestations Service', async () => {
         authorId: number;
       }[];
       c1 = comments.find((c) => c.id === comment.id);
-      expect(c1?.meta.isUpvoted).to.be.true;
-      expect(c1?.meta.isDownVoted).to.be.false;
+      expect(c1?.meta.isUpvoted).toBe(true);
+      expect(c1?.meta.isDownVoted).toBe(false);
     });
 
     it('should test user downvote via api', async () => {
@@ -2726,18 +2685,18 @@ describe('Attestations Service', async () => {
         .post(`/v1/nodes/${node.uuid}/comments/${comment.id}/downvote`)
         .set('authorization', voterJwtHeader)
         .send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       // check downvote
       res = await request(app)
         .get(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
         .set('authorization', voterJwtHeader)
         .send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       const data = (await res.body.data) as CommentVote;
-      expect(data.userId).to.be.equal(voter.id);
-      expect(data.annotationId).to.be.equal(comment.id);
-      expect(data.type).to.be.equal(VoteType.No);
+      expect(data.userId).toBe(voter.id);
+      expect(data.annotationId).toBe(comment.id);
+      expect(data.type).toBe(VoteType.No);
 
       // check comment has votes
       const commenterJwtToken = jwt.sign({ email: commenter.email }, process.env.JWT_SECRET!, {
@@ -2745,7 +2704,7 @@ describe('Attestations Service', async () => {
       });
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       let comments = (await res.body.data.comments) as {
         meta: {
           upvotes: number;
@@ -2760,14 +2719,14 @@ describe('Attestations Service', async () => {
         authorId: number;
       }[];
       let c1 = comments.find((c) => c.id === comment.id);
-      expect(c1?.meta.upvotes).to.be.equal(0);
-      expect(c1?.meta.downvotes).to.be.equal(1);
+      expect(c1?.meta.upvotes).toBe(0);
+      expect(c1?.meta.downvotes).toBe(1);
 
       const voterRes = await request(app)
         .get(`/v1/nodes/${node.uuid}/comments`)
         .set('authorization', voterJwtHeader)
         .send();
-      expect(voterRes.statusCode).to.equal(200);
+      expect(voterRes.statusCode).toBe(200);
       comments = (await voterRes.body.data.comments) as {
         meta: {
           upvotes: number;
@@ -2782,8 +2741,8 @@ describe('Attestations Service', async () => {
         authorId: number;
       }[];
       c1 = comments.find((c) => c.id === comment.id);
-      expect(c1?.meta.isUpvoted).to.be.false;
-      expect(c1?.meta.isDownVoted).to.be.true;
+      expect(c1?.meta.isUpvoted).toBe(false);
+      expect(c1?.meta.isDownVoted).toBe(true);
     });
 
     it('should delete user vote via api', async () => {
@@ -2797,16 +2756,16 @@ describe('Attestations Service', async () => {
         .delete(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
         .set('authorization', voterJwtHeader)
         .send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
 
       // check upvote
       res = await request(app)
         .get(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
         .set('authorization', voterJwtHeader)
         .send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       const data = (await res.body.data) as CommentVote;
-      expect(data).to.be.undefined;
+      expect(data).toBeUndefined();
 
       // check comment has votes
       const commenterJwtToken = jwt.sign({ email: commenter.email }, process.env.JWT_SECRET!, {
@@ -2814,7 +2773,7 @@ describe('Attestations Service', async () => {
       });
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
-      expect(res.statusCode).to.equal(200);
+      expect(res.statusCode).toBe(200);
       const comments = (await res.body.data.comments) as {
         meta: {
           upvotes: number;
@@ -2829,10 +2788,10 @@ describe('Attestations Service', async () => {
         authorId: number;
       }[];
       const c1 = comments.find((c) => c.id === comment.id);
-      expect(c1?.meta.upvotes).to.be.equal(0);
-      expect(c1?.meta.downvotes).to.be.equal(0);
-      expect(c1?.meta.isUpvoted).to.be.false;
-      expect(c1?.meta.isDownVoted).to.be.false;
+      expect(c1?.meta.upvotes).toBe(0);
+      expect(c1?.meta.downvotes).toBe(0);
+      expect(c1?.meta.isUpvoted).toBe(false);
+      expect(c1?.meta.isDownVoted).toBe(false);
     });
   });
 });

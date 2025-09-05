@@ -1,11 +1,10 @@
-import 'mocha';
 import { AuthTokenSource, User } from '@prisma/client';
 import bodyParser from 'body-parser';
-import { expect } from 'chai';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { pinoHttp } from 'pino-http';
 import supertest from 'supertest';
+import { describe, it, beforeAll, expect, beforeEach } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
@@ -50,14 +49,12 @@ describe('ORCiD Auth Endpoints', () => {
   const ORCID_JSON_PAYLOAD = { access_token: '1234', refresh_token: '5657', expires_in: 322141241, orcid: TEST_ORCID };
 
   beforeEach(async () => {
-    console.log('[orcidNext.test::beforeEach] start');
     await prisma.authToken.deleteMany({});
     await prisma.user.updateMany({
       data: {
         orcid: null,
       },
     });
-    console.log('[orcidNext.test::beforeEach] end');
   });
 
   const ensureOrcidAuthInfoSaved = async () => {
@@ -67,10 +64,10 @@ describe('ORCiD Auth Endpoints', () => {
         source: AuthTokenSource.ORCID,
       },
     });
-    expect(authToken).to.not.be.null;
-    expect(authToken?.accessToken).to.equal(ORCID_JSON_PAYLOAD.access_token);
-    expect(authToken?.refreshToken).to.equal(ORCID_JSON_PAYLOAD.refresh_token);
-    expect(authToken?.expiresIn).to.equal(ORCID_JSON_PAYLOAD.expires_in);
+    expect(authToken).not.toBeNull();
+    expect(authToken?.accessToken).toBe(ORCID_JSON_PAYLOAD.access_token);
+    expect(authToken?.refreshToken).toBe(ORCID_JSON_PAYLOAD.refresh_token);
+    expect(authToken?.expiresIn).toBe(ORCID_JSON_PAYLOAD.expires_in);
   };
 
   const ensureOrcidAuthInfo_NOT_Saved = async () => {
@@ -80,10 +77,9 @@ describe('ORCiD Auth Endpoints', () => {
         source: AuthTokenSource.ORCID,
       },
     });
-    expect(authToken).to.be.null;
+    expect(authToken).toBeNull();
   };
-  before(async () => {
-    console.log('[orcidNext.test::before] start');
+  beforeAll(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
 
     app = express();
@@ -140,7 +136,6 @@ describe('ORCiD Auth Endpoints', () => {
     mockToken = generateAccessToken({ email: mockUser.email });
 
     request = supertest(app);
-    console.log('[orcidNext.test::before] end');
   });
 
   describe('POST orcid/next', () => {
@@ -150,9 +145,9 @@ describe('ORCiD Auth Endpoints', () => {
         // .set('authorization', `Bearer ${mockToken}`)
         .send(ORCID_JSON_PAYLOAD);
 
-      expect(response.status).to.equal(200);
-      expect(response.body.userFound).to.equal(false);
-      expect(response.body.error).to.equal('need to attach email');
+      expect(response.status).toBe(200);
+      expect(response.body.userFound).toBe(false);
+      expect(response.body.error).toBe('need to attach email');
 
       await ensureOrcidAuthInfo_NOT_Saved();
     });
@@ -169,8 +164,8 @@ describe('ORCiD Auth Endpoints', () => {
         // .set('authorization', `Bearer ${mockToken}`)
         .send(ORCID_JSON_PAYLOAD);
 
-      expect(response.status).to.equal(200);
-      expect(response.body.userFound).to.equal(true);
+      expect(response.status).toBe(200);
+      expect(response.body.userFound).toBe(true);
 
       await ensureOrcidAuthInfoSaved();
     });
@@ -182,8 +177,8 @@ describe('ORCiD Auth Endpoints', () => {
           .set('authorization', `Bearer ${mockToken}`)
           .send(ORCID_JSON_PAYLOAD);
 
-        expect(response.status).to.equal(200);
-        expect(response.body.userFound).to.equal(true);
+        expect(response.status).toBe(200);
+        expect(response.body.userFound).toBe(true);
 
         await ensureOrcidAuthInfoSaved();
       });
@@ -200,8 +195,8 @@ describe('ORCiD Auth Endpoints', () => {
           .set('authorization', `Bearer ${mockToken}`)
           .send(ORCID_JSON_PAYLOAD);
 
-        expect(response.status).to.equal(200);
-        expect(response.body.userFound).to.equal(true);
+        expect(response.status).toBe(200);
+        expect(response.body.userFound).toBe(true);
 
         await ensureOrcidAuthInfo_NOT_Saved();
       });

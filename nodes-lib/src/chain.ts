@@ -4,106 +4,35 @@ import {
   ContractTransaction,
   Signer,
   providers,
-  utils,
 } from "ethers";
-import { convertUUIDToHex, convertCidTo0xHex } from "./util/converting.js";
-import {
-  changeManifest,
-  prePublishDraftNode,
-  type PrepublishResponse,
-} from "./api.js";
+import { convertUUIDToHex } from "./util/converting.js";
 import { getNodesLibInternalConfig } from "./config/index.js";
-import { StreamID } from "@desci-labs/desci-codex-lib/dist/streams.js";
+import { streams } from "@desci-labs/desci-codex-lib";
 import { typechain as tc } from "@desci-labs/desci-contracts";
 import { PublishError } from "./errors.js";
 import { errWithCause } from "pino-std-serializers";
 
 const LOG_CTX = "[nodes-lib::chain]";
 
-const DEFAULT_DPID_PREFIX_STRING = "beta";
-const DEFAULT_DPID_PREFIX = utils.formatBytes32String(
-  DEFAULT_DPID_PREFIX_STRING
-);
-
+/**
+ * Interact with the legacy ResearchObject contract
+ * @deprecated
+ */
 const researchObjectWriter = (signer: Signer) =>
   getNodesLibInternalConfig().legacyChainConfig.researchObjectConnector(signer);
 
+/**
+ * Interact with the legacy dPID contract
+ * @deprecated
+ */
 const dpidRegistryWriter = (signer: Signer) =>
   getNodesLibInternalConfig().legacyChainConfig.dpidRegistryConnector(signer);
 
-const dpidAliasRegistryWriter = (signer: Signer) =>
+export const dpidAliasRegistryWriter = (signer: Signer) =>
   getNodesLibInternalConfig().chainConfig.dpidAliasRegistryConnector(signer);
 
 const dpidAliasRegistryReader = (provider: providers.Provider) =>
   getNodesLibInternalConfig().chainConfig.dpidAliasRegistryConnector(provider);
-
-export type DpidPublishResult = {
-  prepubResult: PrepublishResponse;
-  reciept: ContractReceipt;
-};
-
-/**
- * Publish a node to the dPID registry contract.
- *
- * @throws (@link WrongOwnerError) if signer address isn't token owner
- * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
- * @deprecated
- */
-export const dpidPublish = async (
-  uuid: string,
-  dpidExists: boolean,
-  signer: Signer
-): Promise<DpidPublishResult> => {
-  let reciept: ContractReceipt;
-  let prepubResult: PrepublishResponse;
-
-  if (dpidExists) {
-    console.log(`${LOG_CTX} dpid exists for ${uuid}, checking token ownership`);
-    const signingAddress = (await signer.getAddress()).toLowerCase();
-    const researchObjectOwner = await getTokenOwner(uuid, signer);
-
-    if (signingAddress !== researchObjectOwner) {
-      throw PublishError.wrongOwner(
-        "Credentials do not match the research object token owner",
-        researchObjectOwner,
-        signingAddress
-      );
-    }
-
-    console.log(`${LOG_CTX} owner looks OK, trying to update dpid`);
-    try {
-      prepubResult = await prePublishDraftNode(uuid);
-      reciept = await updateExistingDpid(
-        uuid,
-        prepubResult.updatedManifestCid,
-        signer
-      );
-    } catch (e) {
-      console.error(`${LOG_CTX} failed to update dpid`, {
-        uuid,
-        err: errWithCause(e as Error),
-      });
-      throw PublishError.dpidUpdate("dPID update failed", e as Error);
-    }
-  } else {
-    console.log(`${LOG_CTX} no dpid found for ${uuid}, registering new`);
-    try {
-      const registrationResult = await registerNewDpid(uuid, signer);
-      reciept = registrationResult.reciept;
-      prepubResult = registrationResult.prepubResult;
-    } catch (e) {
-      console.error(`${LOG_CTX} failed to register new dpid`, {
-        uuid,
-        err: errWithCause(e as Error),
-      });
-      throw PublishError.dpidRegistration(
-        "dPID registration failed",
-        e as Error
-      );
-    }
-  }
-  return { prepubResult, reciept };
-};
 
 /**
  * Mint a new ID for a stream in the new dPID alias registry.
@@ -116,7 +45,7 @@ export const dpidPublish = async (
  * API method and let the backend mint the ID for you.
  */
 export const createDpidAlias = async (
-  streamId: StreamID,
+  streamId: streams.StreamID,
   signer: Signer
 ): Promise<{ dpid: number; receipt: ContractReceipt }> => {
   let tx: ContractTransaction | undefined;
@@ -195,93 +124,14 @@ export const findDpid = async (streamId: string): Promise<number> => {
 };
 
 /**
- * Update an existing dPID with a new version of the manifest.
- * @deprecated
- */
-const updateExistingDpid = async (
-  uuid: string,
-  prepubManifestCid: string,
-  signer: Signer
-): Promise<ContractReceipt> => {
-  const cidBytes = convertCidTo0xHex(prepubManifestCid);
-  const hexUuid = convertUUIDToHex(uuid);
-
-  const tx = await researchObjectWriter(signer).updateMetadata(
-    hexUuid,
-    cidBytes
-  );
-  return await tx.wait();
-};
-
-/**
- * Optimistically create a manifest with the next available dPID,
- * and try to register it as such.
- * @throws on dpid registration failure.
- * @deprecated use createDpidAlias
- */
-const registerNewDpid = async (
-  uuid: string,
-  signer: Signer
-): Promise<{ reciept: ContractReceipt; prepubResult: PrepublishResponse }> => {
-  const optimisticDpid = await getPreliminaryDpid(signer);
-  const regFee = await dpidRegistryWriter(signer).getFee();
-
-  await changeManifest(uuid, [
-    {
-      type: "Publish Dpid",
-      dpid: {
-        prefix: DEFAULT_DPID_PREFIX_STRING,
-        id: optimisticDpid.toString(),
-      },
-    },
-  ]);
-
-  let prepubResult: PrepublishResponse;
-  let reciept: ContractReceipt;
-  try {
-    prepubResult = await prePublishDraftNode(uuid);
-    const cidBytes = convertCidTo0xHex(prepubResult.updatedManifestCid);
-    const hexUuid = convertUUIDToHex(uuid);
-
-    // Throws if the expected dPID isn't available
-    const tx = await researchObjectWriter(signer).mintWithDpid(
-      hexUuid,
-      cidBytes,
-      DEFAULT_DPID_PREFIX,
-      optimisticDpid,
-      { value: regFee, gasLimit: 350000 }
-    );
-    reciept = await tx.wait();
-  } catch (e) {
-    console.log(
-      `${LOG_CTX} dPID registration failed, revert optimistic dPID in manifest of ${uuid}`
-    );
-    await changeManifest(uuid, [{ type: "Remove Dpid" }]);
-    throw e;
-  }
-  console.log(`${LOG_CTX} Successfully registered as dPID ${optimisticDpid}`);
-  return { reciept, prepubResult };
-};
-
-/**
- * Get the next dPID up for minting, for creating an optimistic manifest.
- * @returns the next free dPID
- * @deprecated
- */
-const getPreliminaryDpid = async (signer: Signer): Promise<BigNumber> => {
-  const [nextFreeDpid, _] = await dpidRegistryWriter(signer).getOrganization(
-    DEFAULT_DPID_PREFIX
-  );
-  return nextFreeDpid;
-};
-
-/**
+ * Check if an UUID has an assigned legacy dPID
  * @deprecated
  */
 export const hasDpid = async (uuid: string, signer: Signer): Promise<boolean> =>
   await researchObjectWriter(signer).exists(convertUUIDToHex(uuid));
 
 /**
+ * Get the owner address of a legacy dPID
  * @deprecated
  */
 export const getTokenOwner = async (
@@ -293,7 +143,8 @@ export const getTokenOwner = async (
   ).toLowerCase();
 
 /**
- * Get the research object token ID for a given (legacy) dPID
+ * Get the research object token ID for a legacy dPID
+ * @deprecated
  */
 export const getTokenId = async (
   dpid: number,

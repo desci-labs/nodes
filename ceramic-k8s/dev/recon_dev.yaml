@@ -21,6 +21,7 @@ data:
   CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
   CERAMIC_ONE_LOCAL_NETWORK_ID: "0"
   CERAMIC_ONE_NETWORK: "testnet-clay"
+  CERAMIC_ONE_EXTRA_INTERESTS: "kh4q0ozorrgaq2mezktnrmdwleo1d,kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0"
   RUST_LOG: "info,ceramic_one=debug,multipart=error"
   CERAMIC_ONE_LOG_FORMAT: "json"
 ---
@@ -37,7 +38,7 @@ data:
     MY_POD_INDEX=$(echo $HOSTNAME | grep -o '[0-9]\+$')
     TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
     NAMESPACE=default
-    
+
     LB_DOMAIN=$(curl -s --header "Authorization: Bearer $TOKEN" \
         --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
         https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/services/ceramic-recon-dev-$MY_POD_INDEX-swarm\
@@ -89,7 +90,7 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.55.0
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null
@@ -223,14 +224,6 @@ spec:
     App: CeramicReconDev
     statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
   ports:
-    # - port: 4101
-    #   name: swarm-tcp
-    #   protocol: TCP
-    #   targetPort: swarm-tcp
-    # - port: 4102
-    #   name: swarm-udp
-    #   protocol: UDP
-    #   targetPort: swarm-udp
     - port: 5102
       name: flight-sql
       targetPort: flight-sql
@@ -240,25 +233,6 @@ spec:
     - port: 9465
       name: one-metrics
       targetPort: one-metrics
-# ---
-# apiVersion: v1
-# kind: Service
-# metadata:
-#   name: ceramic-recon-dev-0-public
-# spec:
-#   type: LoadBalancer
-#   selector:
-#     App: CeramicReconDev
-#     statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
-#   ports:
-#     - port: 4101
-#       name: swarm-tcp
-#       protocol: TCP
-#       targetPort: swarm-tcp
-#     - port: 4102
-#       name: swarm-udp
-#       protocol: UDP
-#       targetPort: swarm-udp
 ---
 apiVersion: v1
 kind: Service
@@ -283,7 +257,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: preserve_client_ip.enabled=true
 spec:
   type: LoadBalancer
-  externalTrafficPolicy: Local
+  # externalTrafficPolicy: Local
   selector:
     App: CeramicReconDev
   ports:
@@ -299,3 +273,30 @@ spec:
       protocol: TCP
       port: 5102
       targetPort: 5102
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ceramic-recon-dev-rpc-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: 'ip'
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /ceramic/events
+        pathType: Prefix
+        backend:
+          service:
+            name: ceramic-recon-dev-0-internal
+            port:
+              number: 5101
+      - path: /ceramic/streams
+        pathType: Prefix
+        backend:
+          service:
+            name: ceramic-recon-dev-0-internal
+            port:
+              number: 5101

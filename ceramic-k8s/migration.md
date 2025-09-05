@@ -61,7 +61,6 @@ ceramic-one migrations from-ipfs \
   --non-sharded-paths \
   --output-store-path $CERAMIC_ONE_STORE_DIR \
   --network testnet-clay \
-  --log-tile-docs \
   --log-format json \
   > "$CERAMIC_ONE_STORE_DIR/migration-info/log_$(date --iso-8601=minutes | sed 's|+00:00||').json" 2>&1
 
@@ -75,7 +74,6 @@ ceramic-one migrations from-ipfs \
     --network testnet-clay \
     --validate-signatures \
     --model-filter='kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0,kh4q0ozorrgaq2mezktnrmdwleo1d' \
-    --log-tile-docs \
     --log-format json \
     > "$CERAMIC_ONE_STORE_DIR/migration-info/log_$(date --iso-8601=minutes | sed 's|+00:00||').json" \
     2>&1

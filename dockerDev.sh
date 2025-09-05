@@ -44,7 +44,6 @@ init_node() {
 
 # Check prerequisites
 assert_command_available "docker"
-assert_command_available "docker-compose"
 assert_command_available "lsof"
 assert_command_available "make"
 assert_command_available "curl"
@@ -77,9 +76,9 @@ COMPOSE_HTTP_TIMEOUT=320 docker compose \
   --project-name desci \
   --file docker-compose.yml \
   --file docker-compose.dev.yml \
-  --file docker-compose.repo.yml \
   --file docker-compose.sync.yml \
   $ADDITIONAL_FLAGS \
   --compatibility \
   up \
+  $ADDITIONAL_UP_FLAGS \
   --build

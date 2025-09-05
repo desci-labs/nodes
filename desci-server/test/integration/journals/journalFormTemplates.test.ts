@@ -1,4 +1,3 @@
-import 'mocha';
 import {
   Journal,
   User,
@@ -9,24 +8,19 @@ import {
   JournalFormTemplate,
   FormResponseStatus,
 } from '@prisma/client';
-import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { describe, it, beforeEach, expect } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import { JournalFormService } from '../../../src/services/journals/JournalFormService.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
 import { JournalRefereeManagementService } from '../../../src/services/journals/JournalRefereeManagementService.js';
 import { journalSubmissionService } from '../../../src/services/journals/JournalSubmissionService.js';
+import { app } from '../../testApp.js';
 import { publishMockNode } from '../../util.js';
 
 import { VALID_FORM_STRUCTURE } from './formMockData.js';
-
-server.ready().then((_) => {
-  console.log('server is ready');
-});
-export const app = server.app;
 
 describe('Journal Form Template Service & Endpoints', () => {
   let chiefEditor: User;
@@ -141,12 +135,12 @@ describe('Journal Form Template Service & Endpoints', () => {
           structure: VALID_FORM_STRUCTURE,
         });
 
-      expect(res.status).to.equal(200);
-      expect(res.body.ok).to.be.true;
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
       const { template } = res.body.data;
-      expect(template.name).to.equal('Review Form');
-      expect(template.createdById).to.equal(chiefEditor.id);
-      expect(template.journalId).to.equal(journal.id);
+      expect(template.name).toBe('Review Form');
+      expect(template.createdById).toBe(chiefEditor.id);
+      expect(template.journalId).toBe(journal.id);
     });
 
     it('should not allow an associate editor to create a form template', async () => {
@@ -159,7 +153,7 @@ describe('Journal Form Template Service & Endpoints', () => {
           structure: VALID_FORM_STRUCTURE,
         });
 
-      expect(res.status).to.equal(403);
+      expect(res.status).toBe(403);
     });
 
     it('should reject a template with an invalid structure', async () => {
@@ -171,8 +165,8 @@ describe('Journal Form Template Service & Endpoints', () => {
           structure: { sections: [] }, // Invalid, must have sections
         });
 
-      expect(res.status).to.equal(400);
-      expect(res.body.message).to.include('Form must have at least one section');
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain('Form must have at least one section');
     });
   });
 
@@ -202,17 +196,18 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/templates`)
         .set('authorization', `Bearer ${associateEditorAuthToken}`);
 
-      expect(res.status).to.equal(200);
-      expect(res.body.data.templates).to.be.an('array').with.lengthOf(2);
+      expect(res.status).toBe(200);
+      expect(res.body.data.templates).toBeInstanceOf(Array);
+      expect(res.body.data.templates).toHaveLength(2);
 
       // Get the first form group (which is an object with formUuid as key)
       const firstFormGroup = res.body.data.templates[0];
       const formUuid = Object.keys(firstFormGroup)[0];
       const templatesInGroup = firstFormGroup[formUuid];
 
-      expect(templatesInGroup).to.be.an('array');
-      expect(templatesInGroup[0].name).to.equal('Active Template');
-      expect(templatesInGroup[0].formUuid).to.be.a('string');
+      expect(templatesInGroup).toBeInstanceOf(Array);
+      expect(templatesInGroup[0].name).toBe('Active Template');
+      expect(templatesInGroup[0].formUuid).toBeTypeOf('string');
     });
 
     it('should list all templates when activeOnly is false', async () => {
@@ -220,15 +215,16 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/templates?includeInactive=true`)
         .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
-      expect(res.status).to.equal(200);
-      expect(res.body.data.templates).to.be.an('array').with.lengthOf(3);
+      expect(res.status).toBe(200);
+      expect(res.body.data.templates).toBeInstanceOf(Array);
+      expect(res.body.data.templates).toHaveLength(3);
 
       // Verify we have 2 form groups (one for active, one for inactive)
       const firstFormGroup = res.body.data.templates[0];
       const secondFormGroup = res.body.data.templates[1];
 
-      expect(Object.keys(firstFormGroup)).to.have.lengthOf(1);
-      expect(Object.keys(secondFormGroup)).to.have.lengthOf(1);
+      expect(Object.keys(firstFormGroup)).toHaveLength(1);
+      expect(Object.keys(secondFormGroup)).toHaveLength(1);
     });
   });
 
@@ -257,12 +253,12 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
         .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
-      expect(res.status).to.equal(200);
-      expect(res.body.ok).to.be.true;
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
       const { template: responseTemplate } = res.body.data;
-      expect(responseTemplate.id).to.equal(template.id);
-      expect(responseTemplate.name).to.equal('Test Template');
-      expect(responseTemplate.description).to.equal('Template for testing show route');
+      expect(responseTemplate.id).toBe(template.id);
+      expect(responseTemplate.name).toBe('Test Template');
+      expect(responseTemplate.description).toBe('Template for testing show route');
     });
 
     it('should allow an associate editor to view a template', async () => {
@@ -270,11 +266,11 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
         .set('authorization', `Bearer ${associateEditorAuthToken}`);
 
-      expect(res.status).to.equal(200);
-      expect(res.body.ok).to.be.true;
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
       const { template: responseTemplate } = res.body.data;
-      expect(responseTemplate.id).to.equal(template.id);
-      expect(responseTemplate.name).to.equal('Test Template');
+      expect(responseTemplate.id).toBe(template.id);
+      expect(responseTemplate.name).toBe('Test Template');
     });
 
     it('should allow a referee with the template assigned to view it', async () => {
@@ -282,11 +278,11 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
         .set('authorization', `Bearer ${refereeUserAuthToken}`);
 
-      expect(res.status).to.equal(200);
-      expect(res.body.ok).to.be.true;
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
       const { template: responseTemplate } = res.body.data;
-      expect(responseTemplate.id).to.equal(template.id);
-      expect(responseTemplate.name).to.equal('Test Template');
+      expect(responseTemplate.id).toBe(template.id);
+      expect(responseTemplate.name).toBe('Test Template');
     });
 
     it('should not allow a referee without the template assigned to view it', async () => {
@@ -300,8 +296,8 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
         .set('authorization', `Bearer ${otherRefereeToken}`);
 
-      expect(res.status).to.equal(403);
-      expect(res.body.message).to.equal('Not authorized to view this template');
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe('Not authorized to view this template');
     });
 
     it('should not allow an unauthorized user to view a template', async () => {
@@ -309,8 +305,8 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/templates/${template.id}`)
         .set('authorization', `Bearer ${authorUserAuthToken}`);
 
-      expect(res.status).to.equal(403);
-      expect(res.body.message).to.equal('Not authorized to view this template');
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe('Not authorized to view this template');
     });
 
     it('should return 404 for non-existent template', async () => {
@@ -318,8 +314,8 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/templates/99999`)
         .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
-      expect(res.status).to.equal(404);
-      expect(res.body.message).to.equal('Template not found');
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('Template not found');
     });
 
     it('should return 404 if template belongs to a different journal', async () => {
@@ -335,8 +331,8 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${otherJournal.id}/forms/templates/${template.id}`)
         .set('authorization', `Bearer ${chiefEditorAuthToken}`);
 
-      expect(res.status).to.equal(404);
-      expect(res.body.message).to.equal('Template not found in this journal');
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('Template not found in this journal');
     });
 
     it('should enforce server-controlled formStructureVersion regardless of user input', async () => {
@@ -355,12 +351,12 @@ describe('Journal Form Template Service & Endpoints', () => {
           structure: userStructure,
         });
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const { template: createdTemplate } = res.body.data;
 
       // Verify the server overwrote the user's version
-      expect(createdTemplate.structure.formStructureVersion).to.equal('journal-forms-v1.0.0');
-      expect(createdTemplate.structure.formStructureVersion).to.not.equal('user-controlled-v99.0.0');
+      expect(createdTemplate.structure.formStructureVersion).toBe('journal-forms-v1.0.0');
+      expect(createdTemplate.structure.formStructureVersion).not.toBe('user-controlled-v99.0.0');
     });
   });
 
@@ -381,11 +377,11 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/response/${assignment.id}/${template.id}`)
         .set('authorization', `Bearer ${refereeUserAuthToken}`);
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const { formResponse } = res.body.data;
-      expect(formResponse.refereeAssignmentId).to.equal(assignment.id);
-      expect(formResponse.templateId).to.equal(template.id);
-      expect(formResponse.status).to.equal(FormResponseStatus.DRAFT);
+      expect(formResponse.refereeAssignmentId).toBe(assignment.id);
+      expect(formResponse.templateId).toBe(template.id);
+      expect(formResponse.status).toBe(FormResponseStatus.DRAFT);
     });
 
     it('should allow the assigned referee to retrieve an existing form response', async () => {
@@ -399,7 +395,7 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/response/${assignment.id}/${template.id}`)
         .set('authorization', `Bearer ${refereeUserAuthToken}`);
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
     });
 
     it('should allow an editor to retrieve an existing form response', async () => {
@@ -411,7 +407,7 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/response/${assignment.id}/${template.id}`)
         .set('authorization', `Bearer ${associateEditorAuthToken}`);
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
     });
 
     it('should NOT allow an editor to create a new form response', async () => {
@@ -419,8 +415,8 @@ describe('Journal Form Template Service & Endpoints', () => {
         .get(`/v1/journals/${journal.id}/forms/response/${assignment.id}/${template.id}`)
         .set('authorization', `Bearer ${associateEditorAuthToken}`);
 
-      expect(res.status).to.equal(404);
-      expect(res.body.error).to.include('Form response not found');
+      expect(res.status).toBe(404);
+      expect(res.body.error).toContain('Form response not found');
     });
   });
 
@@ -454,11 +450,11 @@ describe('Journal Form Template Service & Endpoints', () => {
         .set('authorization', `Bearer ${refereeUserAuthToken}`)
         .send({ fieldResponses: formData });
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const { saved: savedResponse } = res.body.data;
 
-      expect(savedResponse.status).to.equal(FormResponseStatus.DRAFT);
-      expect(savedResponse.formData.field_1.value).to.equal('This is a test summary.');
+      expect(savedResponse.status).toBe(FormResponseStatus.DRAFT);
+      expect(savedResponse.formData.field_1.value).toBe('This is a test summary.');
     });
 
     it('should allow the referee to submit a completed response', async () => {
@@ -475,17 +471,17 @@ describe('Journal Form Template Service & Endpoints', () => {
           fieldResponses: formData,
         });
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const { submitted: submittedResponse } = res.body.data;
       // debugger;
-      expect(submittedResponse.status).to.equal(FormResponseStatus.SUBMITTED);
-      expect(submittedResponse.submittedAt).to.not.be.null;
+      expect(submittedResponse.status).toBe(FormResponseStatus.SUBMITTED);
+      expect(submittedResponse.submittedAt).not.toBeNull();
 
       // Check if a review was created
       const review = await prisma.journalSubmissionReview.findFirst({
         where: { refereeAssignmentId: assignment.id },
       });
-      expect(review).to.not.be.null;
+      expect(review).not.toBeNull();
     });
 
     it('should prevent submission if required fields are missing', async () => {
@@ -501,11 +497,11 @@ describe('Journal Form Template Service & Endpoints', () => {
           fieldResponses: formData,
         });
 
-      expect(res.status).to.equal(400);
-      expect(res.body.message).to.include('Invalid inputs');
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain('Invalid inputs');
       const errors = res.body.errors;
       const firstField = errors['field_1'];
-      expect(firstField).to.contain('Required');
+      expect(firstField).toContain('Required');
     });
   });
 
@@ -565,16 +561,16 @@ describe('Journal Form Template Service & Endpoints', () => {
           structure: updatedStructure,
         });
 
-      expect(res.status).to.equal(200);
-      expect(res.body.ok).to.be.true;
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
       const { template: updatedTemplate } = res.body.data;
 
-      expect(updatedTemplate.id).to.equal(template.id); // Same ID (in-place update)
-      expect(updatedTemplate.name).to.equal('Updated Template Name');
-      expect(updatedTemplate.description).to.equal('Updated description');
-      expect(updatedTemplate.version).to.equal(1); // Version unchanged
-      expect(updatedTemplate.structure.sections[0].title).to.equal('Updated Section Title');
-      expect(updatedTemplate.structure.formStructureVersion).to.equal('journal-forms-v1.0.0');
+      expect(updatedTemplate.id).toBe(template.id); // Same ID (in-place update)
+      expect(updatedTemplate.name).toBe('Updated Template Name');
+      expect(updatedTemplate.description).toBe('Updated description');
+      expect(updatedTemplate.version).toBe(1); // Version unchanged
+      expect(updatedTemplate.structure.sections[0].title).toBe('Updated Section Title');
+      expect(updatedTemplate.structure.formStructureVersion).toBe('journal-forms-v1.0.0');
     });
 
     it('should create a new version when updating a used template', async () => {
@@ -589,23 +585,23 @@ describe('Journal Form Template Service & Endpoints', () => {
           description: 'Updated description for used template',
         });
 
-      expect(res.status).to.equal(200);
-      expect(res.body.ok).to.be.true;
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
       const { template: newVersionTemplate } = res.body.data;
 
       // Should be a new template with incremented version
-      expect(newVersionTemplate.id).to.not.equal(usedTemplate.id); // Different ID (new version)
-      expect(newVersionTemplate.formUuid).to.equal(originalFormUuid); // Same formUuid
-      expect(newVersionTemplate.name).to.equal('Updated Used Template');
-      expect(newVersionTemplate.description).to.equal('Updated description for used template');
-      expect(newVersionTemplate.version).to.equal(originalVersion + 1); // Incremented version
-      expect(newVersionTemplate.isActive).to.be.true;
+      expect(newVersionTemplate.id).not.toBe(usedTemplate.id); // Different ID (new version)
+      expect(newVersionTemplate.formUuid).toBe(originalFormUuid); // Same formUuid
+      expect(newVersionTemplate.name).toBe('Updated Used Template');
+      expect(newVersionTemplate.description).toBe('Updated description for used template');
+      expect(newVersionTemplate.version).toBe(originalVersion + 1); // Incremented version
+      expect(newVersionTemplate.isActive).toBe(true);
 
       // Original template should be deactivated
       const originalTemplate = await prisma.journalFormTemplate.findUnique({
         where: { id: usedTemplate.id },
       });
-      expect(originalTemplate?.isActive).to.be.false;
+      expect(originalTemplate?.isActive).toBe(false);
     });
 
     it('should allow updating only specific fields', async () => {
@@ -617,12 +613,12 @@ describe('Journal Form Template Service & Endpoints', () => {
           // description and structure not provided
         });
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const { template: updatedTemplate } = res.body.data;
 
-      expect(updatedTemplate.name).to.equal('Only Name Updated');
-      expect(updatedTemplate.description).to.equal(template.description); // Unchanged
-      expect(updatedTemplate.structure).to.deep.equal(template.structure); // Unchanged
+      expect(updatedTemplate.name).toBe('Only Name Updated');
+      expect(updatedTemplate.description).toBe(template.description); // Unchanged
+      expect(updatedTemplate.structure).toEqual(template.structure); // Unchanged
     });
 
     it('should allow updating isActive status', async () => {
@@ -633,10 +629,10 @@ describe('Journal Form Template Service & Endpoints', () => {
           isActive: false,
         });
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const { template: updatedTemplate } = res.body.data;
 
-      expect(updatedTemplate.isActive).to.be.false;
+      expect(updatedTemplate.isActive).toBe(false);
     });
 
     it('should enforce server-controlled formStructureVersion on update', async () => {
@@ -652,12 +648,12 @@ describe('Journal Form Template Service & Endpoints', () => {
           structure: userStructure,
         });
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const { template: updatedTemplate } = res.body.data;
 
       // Verify the server overwrote the user's version
-      expect(updatedTemplate.structure.formStructureVersion).to.equal('journal-forms-v1.0.0');
-      expect(updatedTemplate.structure.formStructureVersion).to.not.equal('user-controlled-v99.0.0');
+      expect(updatedTemplate.structure.formStructureVersion).toBe('journal-forms-v1.0.0');
+      expect(updatedTemplate.structure.formStructureVersion).not.toBe('user-controlled-v99.0.0');
     });
 
     it('should not allow an associate editor to update a template', async () => {
@@ -668,8 +664,8 @@ describe('Journal Form Template Service & Endpoints', () => {
           name: 'Associate Editor Update Attempt',
         });
 
-      expect(res.status).to.equal(403);
-      expect(res.body.message).to.include('Forbidden - Insufficient permissions');
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain('Forbidden - Insufficient permissions');
     });
 
     it('should not allow a referee to update a template', async () => {
@@ -680,8 +676,8 @@ describe('Journal Form Template Service & Endpoints', () => {
           name: 'Referee Update Attempt',
         });
 
-      expect(res.status).to.equal(403);
-      expect(res.body.message).to.include('Forbidden - Not a journal editor');
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain('Forbidden - Not a journal editor');
     });
 
     it('should not allow an author to update a template', async () => {
@@ -692,8 +688,8 @@ describe('Journal Form Template Service & Endpoints', () => {
           name: 'Author Update Attempt',
         });
 
-      expect(res.status).to.equal(403);
-      expect(res.body.message).to.include('Forbidden - Not a journal editor');
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain('Forbidden - Not a journal editor');
     });
 
     it('should return 404 for non-existent template', async () => {
@@ -704,8 +700,8 @@ describe('Journal Form Template Service & Endpoints', () => {
           name: 'Non-existent Template Update',
         });
 
-      expect(res.status).to.equal(404);
-      expect(res.body.message).to.include('Template not found');
+      expect(res.status).toBe(404);
+      expect(res.body.message).toContain('Template not found');
     });
 
     it('should return 404 if template belongs to a different journal', async () => {
@@ -724,8 +720,8 @@ describe('Journal Form Template Service & Endpoints', () => {
           name: 'Cross-journal Update Attempt',
         });
 
-      expect(res.status).to.equal(404);
-      expect(res.body.message).to.include('Template not found');
+      expect(res.status).toBe(404);
+      expect(res.body.message).toContain('Template not found');
     });
 
     it('should reject invalid form structure', async () => {
@@ -741,9 +737,9 @@ describe('Journal Form Template Service & Endpoints', () => {
           structure: invalidStructure,
         });
 
-      expect(res.status).to.equal(400);
-      expect(res.body.message).to.include('Invalid form structure');
-      expect(res.body.message).to.include('Form must have at least one section');
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain('Invalid form structure');
+      expect(res.body.message).toContain('Form must have at least one section');
     });
 
     it('should preserve formUuid when creating new version', async () => {
@@ -755,7 +751,7 @@ describe('Journal Form Template Service & Endpoints', () => {
         .set('authorization', `Bearer ${chiefEditorAuthToken}`)
         .send({ name: 'Version 2' });
 
-      expect(res1.status).to.equal(200);
+      expect(res1.status).toBe(200);
       const version2Template = res1.body.data.template;
 
       // Add a response to version 2 to make it "used"
@@ -774,16 +770,16 @@ describe('Journal Form Template Service & Endpoints', () => {
         .set('authorization', `Bearer ${chiefEditorAuthToken}`)
         .send({ name: 'Version 3' });
 
-      expect(res2.status).to.equal(200);
+      expect(res2.status).toBe(200);
       const version3Template = res2.body.data.template;
 
       // All versions should have the same formUuid
-      expect(version2Template.formUuid).to.equal(originalFormUuid);
-      expect(version3Template.formUuid).to.equal(originalFormUuid);
+      expect(version2Template.formUuid).toBe(originalFormUuid);
+      expect(version3Template.formUuid).toBe(originalFormUuid);
 
       // But different versions
-      expect(version2Template.version).to.equal(2);
-      expect(version3Template.version).to.equal(3);
+      expect(version2Template.version).toBe(2);
+      expect(version3Template.version).toBe(3);
     });
 
     it('should handle updating with empty request body gracefully', async () => {
@@ -792,13 +788,13 @@ describe('Journal Form Template Service & Endpoints', () => {
         .set('authorization', `Bearer ${chiefEditorAuthToken}`)
         .send({}); // Empty body
 
-      expect(res.status).to.equal(200);
+      expect(res.status).toBe(200);
       const { template: updatedTemplate } = res.body.data;
 
       // Template should remain unchanged
-      expect(updatedTemplate.name).to.equal(template.name);
-      expect(updatedTemplate.description).to.equal(template.description);
-      expect(updatedTemplate.version).to.equal(template.version);
+      expect(updatedTemplate.name).toBe(template.name);
+      expect(updatedTemplate.description).toBe(template.description);
+      expect(updatedTemplate.version).toBe(template.version);
     });
   });
 });
