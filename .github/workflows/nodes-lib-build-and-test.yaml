@@ -5,6 +5,8 @@ on:
       - nodes-lib/**
       - desci-server/**
       - desci-contracts/**
+      - integrationTestRunner.sh
+      - docker-compose.test.yml
 env:
   PRIVATE_KEY: ${{ secrets.CERAMIC_ADMIN_SEED }}
 jobs:

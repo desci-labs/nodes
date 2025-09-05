@@ -9,6 +9,8 @@ on:
       - desci-server/**
       - desci-contracts/**
       - Dockerfile
+      - integrationTestRunner.sh
+      - docker-compose.test.yml
     branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
       - main # triggers on pushes that contain changes
       - develop
