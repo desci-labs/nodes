@@ -35,7 +35,7 @@ docker compose -f docker-compose.test.yml up \
 if [ "$SKIP_SERVER" != "1" ]; then
   # 2. Run desci-server tests
   echo "🤞 Running desci-server tests..."
-  if ! docker compose -f docker-compose.test.yml run -it nodes_backend_test; then
+  if ! docker compose -f docker-compose.test.yml run nodes_backend_test; then
     echo "❌ desci-server tests failed!"
     cleanup
     exit 1
