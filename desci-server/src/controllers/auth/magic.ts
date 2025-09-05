@@ -20,7 +20,7 @@ export const oneYear = 1000 * 60 * 60 * 24 * 365;
 export const oneDay = 1000 * 60 * 60 * 24;
 export const oneMinute = 1000 * 60;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
-  const { email, code, dev, orcid, access_token, refresh_token, expires_in } = req.body;
+  const { email, code, dev, orcid, access_token, refresh_token, expires_in, isSciweave } = req.body;
   const cleanEmail = email?.toLowerCase().trim();
 
   const logger = parentLogger.child({
@@ -47,7 +47,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     try {
       const ip = req.ip;
       // debugger;
-      const ok = await sendMagicLink(cleanEmail, ip);
+      const ok = await sendMagicLink(cleanEmail, ip, undefined, isSciweave);
       logger.info({ ok }, 'Magic link sent');
       res.send({ ok: !!ok });
     } catch (err) {
