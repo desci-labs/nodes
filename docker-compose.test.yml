@@ -68,7 +68,7 @@ services:
     ports:
       - "8545:8545"
     env_file:
-      - .env
+      - desci-contracts/.env.test
     environment:
       PG_PORT: 5434
       SKIP_SUBGRAPH: 1
