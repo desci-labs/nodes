@@ -1,0 +1,18 @@
+on:
+  push:
+    paths:
+      - .github/workflows/**
+      - nodes-lib/**
+      - desci-server/**
+      - desci-contracts/**
+env:
+  PRIVATE_KEY: ${{ secrets.CERAMIC_ADMIN_SEED }}
+jobs:
+  build-and-test:
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: |
+          SKIP_SERVER=1 ./integrationTestRunner.sh
