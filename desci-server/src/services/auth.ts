@@ -148,7 +148,7 @@ const magicLinkRedeem = async (email: string, token: string): Promise<{ user: Us
   return { user, isNewUser };
 };
 
-const sendMagicLinkEmail = async (email: string, ip?: string) => {
+const sendMagicLinkEmail = async (email: string, ip?: string, isSciweave?: boolean) => {
   email = email.toLowerCase();
   const token = createRandomCode();
 
@@ -177,7 +177,7 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
 
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
     const goodIp = ip?.length > 0 && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost';
-    const emailHtml = MagicCodeEmailHtml({ magicCode: token, ip: goodIp ? ip : '' });
+    const emailHtml = MagicCodeEmailHtml({ magicCode: token, ip: goodIp ? ip : '', isSciweave });
     const msg = {
       to: email, // Change to your recipient
       from: 'no-reply@desci.com', // Change to your verified sender
@@ -251,7 +251,7 @@ const MAGIC_LINK_COOLDOWN = 5 * 1000; // 5 second
 /**
  * @param ignoreTestEnv For testing purposes, ignore the test environment check, this is to be able to test the rate limiting functionality.
  */
-const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean) => {
+const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean, isSciweave?: boolean) => {
   email = email.toLowerCase();
 
   // Check for recent magic link generation
@@ -293,7 +293,7 @@ const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean
   //   throw Error('Login Method associated, skipping magic link');
   // }
   // }
-  return sendMagicLinkEmail(email.toLowerCase(), ip);
+  return sendMagicLinkEmail(email.toLowerCase(), ip, isSciweave);
 
   // throw Error('Not found');
 };

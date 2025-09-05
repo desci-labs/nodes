@@ -6,13 +6,15 @@ import MainLayout from './MainLayout.js';
 export interface MagicCodeEmailProps {
   magicCode: string;
   ip?: string;
+  isSciweave?: boolean;
 }
 
-export const MagicCodeEmail = ({ magicCode, ip }: MagicCodeEmailProps) => (
+export const MagicCodeEmail = ({ magicCode, ip, isSciweave }: MagicCodeEmailProps) => (
   <MainLayout
     footerMsg={`${
       ip ? `Sent from ip: ${ip} --` : ''
     } If you weren't logging in please forward this email to info@desci.com`}
+    isSciweave={isSciweave}
   >
     <Html>
       <Head />
