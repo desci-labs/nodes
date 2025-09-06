@@ -16,6 +16,9 @@ import { getPlanTypeFromPriceId, getBillingIntervalFromPriceId } from '../config
 import { logger as parentLogger } from '../logger.js';
 import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
+import { sendEmail } from './email/email.js';
+import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
+
 const logger = parentLogger.child({
   module: 'SUBSCRIPTION_SERVICE',
 });
@@ -126,6 +129,31 @@ export class SubscriptionService {
     // Update user feature limits based on new plan
     await this.updateUserFeatureLimits(userId, planType);
 
+    // Send upgrade email for paid plans (any plan that's not FREE)
+    if (planType !== PlanType.FREE) {
+      try {
+        const user = await this.getUserForEmail(userId);
+        if (user) {
+          await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL,
+            payload: {
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            },
+          });
+          logger.info('Upgrade email sent', { userId, subscriptionId: subscription.id, planType });
+        }
+      } catch (emailError) {
+        logger.error('Failed to send upgrade email', {
+          error: emailError,
+          userId,
+          subscriptionId: subscription.id,
+          planType,
+        });
+      }
+    }
+
     logger.info('Subscription created successfully', { subscriptionId: subscription.id, userId });
   }
 
@@ -172,6 +200,28 @@ export class SubscriptionService {
 
     // Update feature limits based on remaining active subscriptions
     await this.updateFeatureLimitsAfterCancellation(updatedSubscription.userId);
+
+    // Send cancellation email
+    try {
+      const user = await this.getUserForEmail(updatedSubscription.userId);
+      if (user) {
+        await sendEmail({
+          type: SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL,
+          payload: {
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          },
+        });
+        logger.info('Cancellation email sent', { userId: updatedSubscription.userId, subscriptionId: subscription.id });
+      }
+    } catch (emailError) {
+      logger.error('Failed to send cancellation email', {
+        error: emailError,
+        userId: updatedSubscription.userId,
+        subscriptionId: subscription.id,
+      });
+    }
 
     logger.info('Subscription deleted successfully', { subscriptionId: subscription.id });
   }
@@ -684,5 +734,33 @@ export class SubscriptionService {
           },
         ];
     }
+  }
+
+  /**
+   * Get user information needed for email sending
+   */
+  private static async getUserForEmail(userId: number) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        name: true,
+      },
+    });
+
+    if (!user || !user.email) {
+      return null;
+    }
+
+    // Split name into first and last name
+    const nameParts = user.name?.split(' ') || [];
+    const firstName = nameParts?.[0] || 'User';
+    const lastName = nameParts?.slice(1).join(' ') || '';
+
+    return {
+      email: user.email,
+      firstName,
+      lastName,
+    };
   }
 }
