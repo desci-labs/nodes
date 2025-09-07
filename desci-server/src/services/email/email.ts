@@ -1,6 +1,7 @@
 import { EditorRole } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
+import { SHOULD_SEND_EMAIL } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { getRelativeTime } from '../../utils/clock.js';
@@ -179,7 +180,7 @@ const logger = parentLogger.child({ module: 'EmailService' });
  */
 async function sendSgMail(message: sgMail.MailDataRequired, devLog?: Record<string, string>) {
   try {
-    if (process.env.SHOULD_SEND_EMAIL) {
+    if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
         process.env.SERVER_URL === 'https://nodes-api.desci.com'
           ? '[nodes.desci.com]'

@@ -19,6 +19,9 @@ const MainLayout = ({
   footerMsg?: string;
   isSciweave?: boolean;
 }) => {
+  // Debug log to track isSciweave value
+  console.log('MainLayout render - isSciweave:', isSciweave);
+
   return (
     <BaseProvider>
       <Html>
@@ -50,20 +53,24 @@ const MainLayout = ({
             <Container className="backdrop-blur-2xl bg-opacity-50">
               <Section className="h-full backdrop-blur-lg w-full" align="center">
                 {isSciweave ? (
-                  <div className="m-auto flex items-center justify-center gap-2">
-                    <Img
-                      src={`${emailAssetsBaseUrl}/${sciweaveLogo}`}
-                      height="60"
-                      alt="SciWeave Logo"
-                      // className="m-auto"
-                    />
-                    <Img
-                      src={`${emailAssetsBaseUrl}/${sciweaveText}`}
-                      height="25"
-                      alt="SciWeave"
-                      className="invert mix-blend-difference"
-                    />
-                  </div>
+                  <Row style={{ margin: '0 auto', textAlign: 'center' }}>
+                    <Column>
+                      <div style={{ textAlign: 'center' }}>
+                        <Img
+                          src={`${emailAssetsBaseUrl}/${sciweaveLogo}`}
+                          height="60"
+                          alt="SciWeave Logo"
+                          className="inline-block align-middle mr-2"
+                        />
+                        <Img
+                          src={`${emailAssetsBaseUrl}/${sciweaveText}`}
+                          height="25"
+                          alt="SciWeave"
+                          className="inline-block align-middle invert mix-blend-difference"
+                        />
+                      </div>
+                    </Column>
+                  </Row>
                 ) : (
                   <Img
                     src={`${emailAssetsBaseUrl}/${labsLogo}`}

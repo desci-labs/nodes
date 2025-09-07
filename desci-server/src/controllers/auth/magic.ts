@@ -31,6 +31,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     cleanEmail: cleanEmail,
     code: `${code ? 'XXXX' + code.slice(-2) : ''}`,
     orcid,
+    isSciweave,
   });
 
   if (process.env.NODE_ENV === 'production') {

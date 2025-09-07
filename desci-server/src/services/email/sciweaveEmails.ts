@@ -1,5 +1,6 @@
 import sgMail from '@sendgrid/mail';
 
+import { SHOULD_SEND_EMAIL } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 
 import {
@@ -34,7 +35,7 @@ const logger = parentLogger.child({ module: 'SciweaveEmailService' });
  */
 async function sendSciweaveEmail(message: sgMail.MailDataRequired, devLog?: Record<string, string>) {
   try {
-    if (process.env.SHOULD_SEND_EMAIL) {
+    if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
         process.env.SERVER_URL === 'https://nodes-api.desci.com'
           ? '[sciweave.com]'
