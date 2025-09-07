@@ -17,7 +17,7 @@ export const clearSocialData = async () => {
   await prisma.attestationTemplate.deleteMany({});
 };
 
-if (process.env.RUN) {
+if (process.env.ENABLE_SOCIAL_DATA_SEED_SCRIPTS) {
   clearSocialData()
     .then(() => {
       console.log('Social data cleared');
@@ -28,6 +28,6 @@ if (process.env.RUN) {
       process.exit(1);
     });
 } else {
-  console.log('Must set RUN=1');
+  console.log('Must set ENABLE_SOCIAL_DATA_SEED_SCRIPTS=1 to activate clearing of social data, skipping...');
   process.exit(0);
 }

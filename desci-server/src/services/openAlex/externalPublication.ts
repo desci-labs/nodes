@@ -3,6 +3,7 @@ import { Node } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { Searcher } from 'fast-fuzzy';
 
+import { SHOULD_SEND_EMAIL } from '../../config.js';
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
 import { ExternalPublicationsEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
@@ -238,7 +239,7 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
 
   try {
     logger.info({ message, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ExternalPublications EMAIL');
-    if (process.env.SHOULD_SEND_EMAIL) {
+    if (SHOULD_SEND_EMAIL) {
       const response = await sgMail.send(message);
       logger.info(response, '[EMAIL]:: Response');
     } else {

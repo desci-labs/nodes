@@ -317,3 +317,11 @@ export const prependIndefiniteArticle = (word: string) => {
   const firstLetter = word.toLowerCase().charAt(0);
   return vowels.includes(firstLetter) ? `an ${word}` : `a ${word}`;
 };
+
+export const splitName = (name: string) => {
+  const nameParts = name.split(' ');
+  return {
+    firstName: nameParts?.[0] || '',
+    lastName: nameParts?.slice(1).join(' ') || '',
+  };
+};

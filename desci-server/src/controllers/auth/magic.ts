@@ -6,8 +6,10 @@ import { prisma as prismaClient } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
+import { sendEmail } from '../../services/email/email.js';
+import { SciweaveEmailTypes } from '../../services/email/sciweaveEmailTypes.js';
 import { saveInteraction } from '../../services/interactionLog.js';
-import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../services/user.js';
+import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible, getUserNameByUser } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { getOrcidRecord } from './orcid.js';
@@ -29,6 +31,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     cleanEmail: cleanEmail,
     code: `${code ? 'XXXX' + code.slice(-2) : ''}`,
     orcid,
+    isSciweave,
   });
 
   if (process.env.NODE_ENV === 'production') {
@@ -117,7 +120,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         submitToMixpanel: true,
       });
 
-      if (isNewUser)
+      if (isNewUser) {
         await saveInteraction({
           req,
           action: ActionType.USER_SIGNUP_SUCCESS,
@@ -125,6 +128,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
           userId: user.id,
           submitToMixpanel: true,
         });
+      }
     } catch (err) {
       logger.error({ err }, 'Failed redeeming code');
       res.status(400).send({ ok: false, error: 'Failed redeeming code' });

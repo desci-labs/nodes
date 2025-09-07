@@ -1,6 +1,7 @@
 import { DataType, EmailType, Node, NodeContribution, NodeVersion, Prisma, PublishStatus, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
+import { SENDGRID_API_KEY, SHOULD_SEND_EMAIL } from '../config.js';
 import { prisma } from '../client.js';
 import { getNodeVersion } from '../controllers/communities/util.js';
 import { createOrUpgradeDpidAlias, handlePublicDataRefs } from '../controllers/nodes/publish.js';
@@ -98,7 +99,7 @@ async function sendVersionUpdateEmailToAllContributors({
     return { contributor, emailMsg };
   });
 
-  if (process.env.SHOULD_SEND_EMAIL && process.env.SENDGRID_API_KEY) {
+  if (SHOULD_SEND_EMAIL && SENDGRID_API_KEY) {
     const results = await Promise.allSettled(
       emailPromises.map(async (emailPromiseEntry) => {
         const emailEntry = await emailPromiseEntry;
