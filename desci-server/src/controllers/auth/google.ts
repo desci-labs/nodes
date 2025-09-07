@@ -9,6 +9,7 @@ import { checkIfUserAcceptedTerms } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { generateAccessToken } from './magic.js';
+import { splitName } from '../../utils.js';
 
 export enum GoogleAuthApp {
   PUBLISH = 'PUBLISH',
@@ -69,11 +70,14 @@ export const googleAuth = async (req: Request, res: Response) => {
     let isNewUser = false;
     if (!user) {
       isNewUser = true;
+      const { firstName, lastName } = splitName(name);
       // Create new user
       user = await prisma.user.create({
         data: {
           email: email.toLowerCase(),
           name,
+          firstName,
+          lastName,
         },
       });
       logger.info({ userId: user.id, email: user.email }, 'Created new user from Google OAuth');
@@ -82,9 +86,10 @@ export const googleAuth = async (req: Request, res: Response) => {
 
       // Check if the user has a name set, if not use the one from Google.
       if (!user.name) {
-        await prisma.user.update({
+        const { firstName, lastName } = splitName(name);
+        user = await prisma.user.update({
           where: { id: user.id },
-          data: { name },
+          data: { name, firstName, lastName },
         });
       }
     }
