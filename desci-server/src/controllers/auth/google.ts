@@ -79,6 +79,14 @@ export const googleAuth = async (req: Request, res: Response) => {
       logger.info({ userId: user.id, email: user.email }, 'Created new user from Google OAuth');
     } else {
       logger.info({ userId: user.id, email: user.email }, 'Found existing user from Google OAuth');
+
+      // Check if the user has a name set, if not use the one from Google.
+      if (!user.name) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { name },
+        });
+      }
     }
 
     if (isNewUser)

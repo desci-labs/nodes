@@ -8,7 +8,6 @@ import { SciweaveEmailTypes } from '../../services/email/sciweaveEmailTypes.js';
 import { getUserNameByUser } from '../../services/user.js';
 
 interface ExpectedBody {
-  username: string;
   profile: {
     email?: string;
     name?: string;
