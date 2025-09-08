@@ -32,7 +32,7 @@ services:
       # This is set in CI but not automatically passed to the container
       GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
     ports:
-      - "5421:5420"
+      - "5421:5421"
       - "9227:9227"
       - "5557:5555"
     extra_hosts:

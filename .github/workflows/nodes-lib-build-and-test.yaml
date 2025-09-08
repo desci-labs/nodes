@@ -10,10 +10,13 @@ on:
 env:
   PRIVATE_KEY: ${{ secrets.CERAMIC_ADMIN_SEED }}
 jobs:
-  build-and-test:
+  test-nodes-lib:
     runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
+
+      # Enable blacksmith docker layer caching
+      - uses: useblacksmith/setup-docker-builder@v1
 
       - name: Run tests
         run: |

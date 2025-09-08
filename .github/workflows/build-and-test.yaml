@@ -53,6 +53,9 @@ jobs:
             desci-server/yarn.lock
             desci-repo/yarn.lock
 
+      # Enable blacksmith docker layer caching
+      - uses: useblacksmith/setup-docker-builder@v1
+
       - name: Install dependencies
         run: |
           cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn --ignore-engines && cd ../desci-repo && yarn
