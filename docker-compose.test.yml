@@ -76,8 +76,8 @@ services:
       SKIP_SUBGRAPH: 1
     extra_hosts:
       - host.docker.internal:host-gateway
-    volumes:
-      - ./local-data/test/ganache:/data
+    #volumes:
+      #- ./local-data/test/ganache:/data
       # - ./desci-contracts/.openzeppelin:/app/.openzeppelin
     depends_on:
       nodes_test_db:

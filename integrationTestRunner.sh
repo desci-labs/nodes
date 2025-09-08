@@ -56,7 +56,7 @@ if [ "$SKIP_NODES_LIB" != "1" ]; then
   RUN_SERVER=1 docker compose -f docker-compose.test.yml up \
     --remove-orphans \
     --wait \
-    --wait-timeout 120 \
+    --wait-timeout 600 \
     nodes_backend_test \
     desci_blockchain_ganache \
     ceramic_one_test
