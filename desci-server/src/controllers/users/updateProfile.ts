@@ -5,7 +5,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { sendEmail } from '../../services/email/email.js';
 import { SciweaveEmailTypes } from '../../services/email/sciweaveEmailTypes.js';
-import { getUserNameByUser } from '../../services/user.js';
+import { getUserNameById } from '../../services/user.js';
 
 interface ExpectedBody {
   profile: {
@@ -101,8 +101,10 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       throw error;
     }
 
+    debugger
     if (body.isNewSciweaveUser) {
-      const { firstName, lastName } = await getUserNameByUser(user);
+      
+      const { firstName, lastName } = await getUserNameById(user.id); // ID variant for refreshed name, instead of user obj.
       await sendEmail({
         type: SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL,
         payload: { email: user.email, firstName, lastName },
@@ -116,23 +118,3 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-/**
-   * Legacy code for validating gitcoin passport
-   * May be useful in future
-   * 
-  if (profile.gitPasLinked) {
-    //broken lib atm
-    // const reader = new PassportReader('https://ceramic.passport-iam.gitcoin.co', '1');
-    // const valid = await reader.getPassport(profile.gitPasLinked);
-    const valid = true; //hardcoded for now
-
-    const wallets = await prisma.wallet.findMany({
-      where: { userId: user.id },
-    });
-
-    //verify its associated with the user already
-    const assoc = wallets.some((wallet) => wallet.address === profile.gitPasLinked);
-
-    if (!valid || !assoc) profile.gitPasLinked = null;
-  }
-  */
