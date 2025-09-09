@@ -53,8 +53,8 @@ services:
       test: curl -f http://localhost:5421/readyz || exit 1
       interval: 5s
       timeout: 10s
-      retries: 5
-      start_period: 15s
+      retries: 10
+      start_period: 30s
 
   desci_blockchain_ganache:
     container_name: "desci_blockchain_ganache"
