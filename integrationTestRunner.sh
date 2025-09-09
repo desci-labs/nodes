@@ -70,7 +70,10 @@ if [ "$SKIP_NODES_LIB" != "1" ]; then
     desci_blockchain_ganache \
     ceramic_one_test
 
-  CERAMIC_ADMIN_SEED=$(grep "CERAMIC_ADMIN_SEED" .env | cut -d"=" -f2)
+  if [ -z "$GITHUB_ACTIONS" ]; then
+    CERAMIC_ADMIN_SEED=$(grep "CERAMIC_ADMIN_SEED" .env | cut -d"=" -f2)
+  fi
+
   CERAMIC_ONE_RPC_URL="http://localhost:5101" PRIVATE_KEY="$CERAMIC_ADMIN_SEED" npx --yes @desci-labs/desci-codex-models deploy
   CERAMIC_ONE_RPC_URL="http://localhost:5101" npx --yes @desci-labs/desci-codex-models register
 

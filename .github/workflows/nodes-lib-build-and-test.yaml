@@ -8,7 +8,7 @@ on:
       - integrationTestRunner.sh
       - docker-compose.test.yml
 env:
-  PRIVATE_KEY: ${{ secrets.CERAMIC_ADMIN_SEED }}
+  CERAMIC_ADMIN_SEED: ${{ secrets.CERAMIC_ADMIN_SEED }}
 jobs:
   test-nodes-lib:
     runs-on: blacksmith-4vcpu-ubuntu-2204
@@ -20,4 +20,5 @@ jobs:
 
       - name: Run tests
         run: |
+          echo "CERAMIC_ADMIN_SEED=$CERAMIC_ADMIN_SEED" >> nodes-lib/.env.test
           SKIP_SERVER=1 ./integrationTestRunner.sh
