@@ -18,6 +18,20 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
     getUserQuestionnaireSubmitted(user.id),
   ]);
 
+  type QuestionnaireExtra = { role?: string; discoverySource?: string };
+
+  const questionnaireExtra: QuestionnaireExtra = (() => {
+    const raw = questionnaireSubmitted?.extra;
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'object' && parsed !== null ? (parsed as QuestionnaireExtra) : {};
+    } catch (err) {
+      logger.warn({ fn: 'profile', userId: user.id, err }, 'Invalid questionnaire extra JSON; defaulting to {}');
+      return {};
+    }
+  })();
+
   const extra = {
     profile: {
       name: user.name,
@@ -27,8 +41,8 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
       consent: !!consent,
       receiveMarketingEmails: user.receiveMarketingEmails,
       questionnaireSubmitted: !!questionnaireSubmitted,
-      role: JSON.parse(questionnaireSubmitted?.extra || '{}')?.role || null,
-      discoverySource: JSON.parse(questionnaireSubmitted?.extra || '{}')?.discoverySource || null,
+      role: questionnaireExtra.role ?? null,
+      discoverySource: questionnaireExtra.discoverySource ?? null,
       notificationSettings: user.notificationSettings || {},
     },
   };
