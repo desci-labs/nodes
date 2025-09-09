@@ -9,26 +9,51 @@ import { checkIfUserAcceptedTerms } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { generateAccessToken } from './magic.js';
+import { splitName } from '../../utils.js';
 
-const googleClient = new OAuth2Client({
-  clientId: process.env.GOOGLE_CLIENT_ID_AUTH,
-});
+export enum GoogleAuthApp {
+  PUBLISH = 'PUBLISH',
+  SCIWEAVE = 'SCIWEAVE',
+}
+
+const GOOGLE_CLIENT_ID_MAP = {
+  [GoogleAuthApp.PUBLISH]: process.env.GOOGLE_CLIENT_ID_AUTH,
+  [GoogleAuthApp.SCIWEAVE]: process.env.SCIWEAVE_GOOGLE_CLIENT_ID,
+};
 
 /**
  * Handles Google OAuth callback and authentication
  */
 export const googleAuth = async (req: Request, res: Response) => {
-  const { idToken, dev } = req.body;
-  const logger = parentLogger.child({ module: 'AUTH::GoogleOAuthController', googleIdToken: idToken });
+  const { idToken, dev, app = GoogleAuthApp.PUBLISH } = req.body;
+  const logger = parentLogger.child({
+    module: 'AUTH::GoogleOAuthController',
+    googleIdTokenPresent: !!idToken,
+    googleIdTokenLength: idToken?.length,
+  });
   try {
     if (!idToken) {
       return res.status(400).send({ ok: false, message: 'Missing Google idToken' });
     }
-    logger.info({ idToken }, 'Google OAuth login attempt');
+
+    const clientId = GOOGLE_CLIENT_ID_MAP[app];
+
+    logger.info(
+      {
+        idToken: idToken?.substring(0, 20) + '...',
+        clientId: clientId?.substring(0, 20) + '...',
+        app,
+      },
+      'Google OAuth login attempt',
+    );
+
+    // Create OAuth2Client with the appropriate client ID
+    const googleClient = new OAuth2Client({ clientId });
+
     // Verify the Google token
     const ticket = await googleClient.verifyIdToken({
       idToken: idToken,
-      audience: process.env.GOOGLE_CLIENT_ID_AUTH,
+      audience: clientId,
     });
 
     const payload = ticket.getPayload();
@@ -45,16 +70,28 @@ export const googleAuth = async (req: Request, res: Response) => {
     let isNewUser = false;
     if (!user) {
       isNewUser = true;
+      const { firstName, lastName } = splitName(name);
       // Create new user
       user = await prisma.user.create({
         data: {
           email: email.toLowerCase(),
           name,
+          firstName,
+          lastName,
         },
       });
       logger.info({ userId: user.id, email: user.email }, 'Created new user from Google OAuth');
     } else {
       logger.info({ userId: user.id, email: user.email }, 'Found existing user from Google OAuth');
+
+      // Check if the user has a name set, if not use the one from Google.
+      if (!user.name) {
+        const { firstName, lastName } = splitName(name);
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { name, firstName, lastName },
+        });
+      }
     }
 
     if (isNewUser)

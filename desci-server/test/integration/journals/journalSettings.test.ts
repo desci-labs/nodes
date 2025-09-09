@@ -403,6 +403,10 @@ describe('Journal Settings', () => {
 
         expect(res.status).to.equal(200);
         expect(res.body.data.description).to.equal(updateData.description);
+        expect(res.body.data.aboutArticle).to.be.null;
+        expect(res.body.data.editorialBoardArticle).to.be.null;
+        expect(res.body.data.authorInstruction).to.be.null;
+        expect(res.body.data.refereeInstruction).to.be.null;
         expect(res.body.data.settings).to.deep.equal(DEFAULT_JOURNAL_SETTINGS);
       });
 
@@ -422,6 +426,10 @@ describe('Journal Settings', () => {
 
         expect(res.status).to.equal(200);
         expect(res.body.data.description).to.equal('A test journal for settings');
+        expect(res.body.data.aboutArticle).to.be.null;
+        expect(res.body.data.editorialBoardArticle).to.be.null;
+        expect(res.body.data.authorInstruction).to.be.null;
+        expect(res.body.data.refereeInstruction).to.be.null;
         expect(res.body.data.settings.refereeCount.value).to.equal(4);
         expect(res.body.data.settings.reviewDueHours).to.deep.equal(DEFAULT_JOURNAL_SETTINGS.reviewDueHours);
       });

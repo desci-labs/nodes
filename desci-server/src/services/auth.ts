@@ -11,6 +11,7 @@ import createRandomCode from '../utils/createRandomCode.js';
 import { encryptForLog, hideEmail } from '../utils.js';
 
 import { contributorService } from './Contributors.js';
+import { SHOULD_SEND_EMAIL } from '../config.js';
 
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -148,7 +149,7 @@ const magicLinkRedeem = async (email: string, token: string): Promise<{ user: Us
   return { user, isNewUser };
 };
 
-const sendMagicLinkEmail = async (email: string, ip?: string) => {
+const sendMagicLinkEmail = async (email: string, ip?: string, isSciweave?: boolean) => {
   email = email.toLowerCase();
   const token = createRandomCode();
 
@@ -172,12 +173,12 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
     },
   });
 
-  if (env.SHOULD_SEND_EMAIL) {
-    logger.info({ fn: 'sendMagicLinkEmail', email }, `Sending actual email`);
+  if (SHOULD_SEND_EMAIL) {
+    logger.info({ fn: 'sendMagicLinkEmail', email, isSciweave }, `Sending actual email`);
 
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
     const goodIp = ip?.length > 0 && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost';
-    const emailHtml = MagicCodeEmailHtml({ magicCode: token, ip: goodIp ? ip : '' });
+    const emailHtml = MagicCodeEmailHtml({ magicCode: token, ip: goodIp ? ip : '', isSciweave });
     const msg = {
       to: email, // Change to your recipient
       from: 'no-reply@desci.com', // Change to your verified sender
@@ -243,7 +244,9 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
     const BgGreen = '\x1b[42m';
     const BgYellow = '\x1b[43m';
     const BIG_SIGNAL = `\n\n${BgYellow}$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$${Reset}\n\n`;
-    logger.info(`${BIG_SIGNAL}Simulating email to ${email}\n\nToken: ${BgGreen}${token}${Reset}${BIG_SIGNAL}`);
+    logger.info(
+      `${BIG_SIGNAL}Simulating email to ${email}\n\nToken: ${BgGreen}${token}${Reset}\n\nisSciweave: ${isSciweave}${BIG_SIGNAL}`,
+    );
     return true;
   }
 };
@@ -251,7 +254,7 @@ const MAGIC_LINK_COOLDOWN = 5 * 1000; // 5 second
 /**
  * @param ignoreTestEnv For testing purposes, ignore the test environment check, this is to be able to test the rate limiting functionality.
  */
-const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean) => {
+const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean, isSciweave?: boolean) => {
   email = email.toLowerCase();
 
   // Check for recent magic link generation
@@ -293,7 +296,7 @@ const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean
   //   throw Error('Login Method associated, skipping magic link');
   // }
   // }
-  return sendMagicLinkEmail(email.toLowerCase(), ip);
+  return sendMagicLinkEmail(email.toLowerCase(), ip, isSciweave);
 
   // throw Error('Not found');
 };

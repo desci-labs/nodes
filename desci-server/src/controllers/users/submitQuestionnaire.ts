@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import { sendError, sendSuccess } from '../../core/api.js';
 import { logger as parentLogger } from '../../logger.js';
-import { DiscoverySource } from '../../schemas/users.schema.js';
+import { UserRole } from '../../schemas/users.schema.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 
 export const submitQuestionnaire = async (req: Request, res: Response, next: NextFunction) => {
@@ -11,18 +11,17 @@ export const submitQuestionnaire = async (req: Request, res: Response, next: Nex
 
   const logger = parentLogger.child({ module: 'USERS::submitQuestionnaireController', userId: user?.id });
 
-  console.log('submitQuestionnaire', req.body);
-  const { discoverySource, other } = req.body as {
-    discoverySource: DiscoverySource;
-    other?: string;
+  const { role, discoverySource } = req.body as {
+    role: UserRole;
+    discoverySource: string;
   };
   try {
     await saveInteraction({
       req,
       action: ActionType.SUBMIT_QUESTIONNAIRE,
       data: {
+        role,
         discoverySource,
-        ...(discoverySource === DiscoverySource.OTHER ? { other } : {}),
         email: user?.email,
       },
       userId: user?.id,

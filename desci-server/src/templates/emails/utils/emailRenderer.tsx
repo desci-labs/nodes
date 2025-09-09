@@ -44,7 +44,8 @@ export const ContributorInviteEmailHtml = ({
 }: ContributorInviteEmailProps) =>
   render(ContributorInvite({ inviter, nodeUuid, privShareCode, contributorId, newUser, nodeTitle }));
 
-export const MagicCodeEmailHtml = ({ magicCode, ip }: MagicCodeEmailProps) => render(MagicCodeEmail({ magicCode }));
+export const MagicCodeEmailHtml = ({ magicCode, ip, isSciweave }: MagicCodeEmailProps) =>
+  render(MagicCodeEmail({ magicCode, ip, isSciweave }));
 
 export const AttestationClaimedEmailHtml = (props: AttestationClaimedEmailProps) =>
   render(AttestationClaimedEmail(props));

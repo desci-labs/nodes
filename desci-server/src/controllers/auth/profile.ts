@@ -27,6 +27,8 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
       consent: !!consent,
       receiveMarketingEmails: user.receiveMarketingEmails,
       questionnaireSubmitted: !!questionnaireSubmitted,
+      role: JSON.parse(questionnaireSubmitted?.extra || '{}')?.role || null,
+      discoverySource: JSON.parse(questionnaireSubmitted?.extra || '{}')?.discoverySource || null,
       notificationSettings: user.notificationSettings || {},
     },
   };

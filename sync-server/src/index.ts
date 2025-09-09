@@ -197,7 +197,7 @@ export class AutomergeServer extends PartyServer {
 
   async dispatchAction(request: Request) {
     try {
-      let body = (await request.clone().json()) as { uuid: string; documentId: DocumentId; actions: ManifestActions[] };
+      let body = (await request.json()) as { uuid: string; documentId: DocumentId; actions: ManifestActions[] };
       const actions = body.actions as ManifestActions[];
       const documentId = body.documentId as DocumentId;
 
@@ -245,7 +245,7 @@ async function handleCreateDocument(request: Request, env: Env) {
   };
 
   const repo = new Repo(config);
-  let body = (await request.clone().json()) as { uuid: string; manifest: ResearchObjectV1 };
+  let body = (await request.json()) as { uuid: string; manifest: ResearchObjectV1 };
   assert(body && body.uuid && body.manifest, 'Invalid request body');
   let uuid = ensureUuidEndsWithDot(body.uuid);
 

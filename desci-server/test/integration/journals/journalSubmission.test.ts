@@ -117,7 +117,6 @@ describe('Journal Submission Service', () => {
     });
 
     it('should create a journal submission', async () => {
-      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
       const body = response.body as { ok: boolean; data: { submissionId: number } };
       expect(response.status).to.equal(200);
       expect(body.ok).to.be.true;
@@ -147,7 +146,6 @@ describe('Journal Submission Service', () => {
           dpid: draftNode?.dpidAlias,
           version: 2,
         });
-      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
       expect(response.status).to.equal(403);
       expect(response.body.message).to.equal('Node version not found');
     });
@@ -160,7 +158,6 @@ describe('Journal Submission Service', () => {
           dpid: draftNode?.dpidAlias,
           version: 0,
         });
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       const errorResponse = response.body as { ok: boolean; errors: { field: string; message: string }[] };
       expect(response.status).to.equal(400);
@@ -176,7 +173,6 @@ describe('Journal Submission Service', () => {
           dpid: -1,
           version: 1,
         });
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
       const errorResponse = response.body as { ok: boolean; errors: { field: string; message: string }[] };
 
       expect(response.status).to.equal(400);
@@ -192,7 +188,6 @@ describe('Journal Submission Service', () => {
           dpid: 'test-dpid',
           version: 1,
         });
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
       const errorResponse = response.body as { ok: boolean; errors: { field: string; message: string }[] };
 
       expect(response.status).to.equal(400);
@@ -300,11 +295,8 @@ describe('Journal Submission Service', () => {
         .get(`/v1/journals/${journal.id}/submissions`)
         .set('authorization', `Bearer ${chiefEditor.token}`);
 
-      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
-
       expect(response.status).to.equal(200);
       const submissions = response.body.data.data;
-      console.log({ submissions });
       expect(submissions).to.be.an('array');
       expect(submissions.length).to.equal(3);
       expect(submissions.map((s: any) => s.status)).to.include.members([
@@ -321,7 +313,6 @@ describe('Journal Submission Service', () => {
         .send({
           editorId: associateEditor.user.id,
         });
-      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
       expect(response.status).to.equal(200);
       expect(response.body.data.assignedEditorId).to.equal(associateEditor.user.id);
     });
@@ -367,7 +358,6 @@ describe('Journal Submission Service', () => {
         .send({
           reason: 'Test reason',
         });
-      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
       expect(response.status).to.equal(200);
     });
   });
@@ -496,11 +486,8 @@ describe('Journal Submission Service', () => {
         .get(`/v1/journals/${journal.id}/submissions`)
         .set('authorization', `Bearer ${associateEditor.token}`);
 
-      console.log({ response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
-
       expect(response.status).to.equal(200);
       const submissions = response.body.data.data;
-      console.log({ submissions });
       expect(submissions).to.be.an('array');
       expect(submissions.length).to.equal(1);
       expect(submissions.map((s: any) => s.status)).to.include.members([SubmissionStatus.UNDER_REVIEW]);
@@ -593,7 +580,6 @@ describe('Journal Submission Service', () => {
       response = await request
         .get(`/v1/journals/${journal.id}/my-submissions`)
         .set('authorization', `Bearer ${author.token}`);
-      // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(200);
       const submissions = response.body.data.data;
@@ -788,8 +774,6 @@ describe('Journal Submission Service', () => {
         .post(`/v1/journals/${journal.id}/submissions/${submission.id}/reject`)
         .set('authorization', `Bearer ${associateEditor.token}`)
         .send();
-
-      // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(200);
       expect(response.body.ok).to.be.true;

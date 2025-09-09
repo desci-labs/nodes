@@ -3,12 +3,25 @@ import React from 'react';
 
 import { BaseProvider } from './BaseProvider.js';
 
-export const emailAssetsBaseUrl = 'https://pub.desci.com/ipfs';
+const emailAssetsBaseUrl = 'https://assets.desci.com';
 // const cubertBkg = 'bafkreih6yx7ywj7trvpp45vergrnytad7ezsku75tefyro4qrrcfrrmrt4';
-const labsLogo = 'bafkreie2jto3flk2r43yt545xrasftbsc2atp5eb7qcbsmhacm26k4wiz4';
+const labsLogo = 'logos/desci-labs-full-white.png';
+const sciweaveLogo = 'logos/sciweave-logo-color.png';
+const sciweaveText = 'logos/sciweave-text.png';
 const defaultFooterMsg = "If you didn't request this email, there's nothing to worry about, you can safely ignore it.";
 
-const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.Element; footerMsg?: string }) => {
+const MainLayout = ({
+  children,
+  footerMsg = defaultFooterMsg,
+  isSciweave = false,
+}: {
+  children: JSX.Element;
+  footerMsg?: string;
+  isSciweave?: boolean;
+}) => {
+  // Debug log to track isSciweave value
+  console.log('MainLayout render - isSciweave:', isSciweave);
+
   return (
     <BaseProvider>
       <Html>
@@ -39,13 +52,34 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
           >
             <Container className="backdrop-blur-2xl bg-opacity-50">
               <Section className="h-full backdrop-blur-lg w-full" align="center">
-                <Img
-                  src={`${emailAssetsBaseUrl}/${labsLogo}`}
-                  width="193"
-                  height="60"
-                  alt="Desci Labs"
-                  className="m-auto invert mix-blend-difference"
-                />
+                {isSciweave ? (
+                  <Row style={{ margin: '0 auto', textAlign: 'center' }}>
+                    <Column>
+                      <div style={{ textAlign: 'center' }}>
+                        <Img
+                          src={`${emailAssetsBaseUrl}/${sciweaveLogo}`}
+                          height="60"
+                          alt="SciWeave Logo"
+                          className="inline-block align-middle mr-2"
+                        />
+                        <Img
+                          src={`${emailAssetsBaseUrl}/${sciweaveText}`}
+                          height="25"
+                          alt="SciWeave"
+                          className="inline-block align-middle invert mix-blend-difference"
+                        />
+                      </div>
+                    </Column>
+                  </Row>
+                ) : (
+                  <Img
+                    src={`${emailAssetsBaseUrl}/${labsLogo}`}
+                    width="193"
+                    height="60"
+                    alt="Desci Labs"
+                    className="m-auto invert mix-blend-difference"
+                  />
+                )}
               </Section>
               <Section>{children}</Section>
               <Text className="pl-3" style={{ color: 'gray' }}>

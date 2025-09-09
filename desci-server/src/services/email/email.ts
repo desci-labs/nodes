@@ -1,6 +1,7 @@
 import { EditorRole } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
+import { SHOULD_SEND_EMAIL } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { getRelativeTime } from '../../utils/clock.js';
@@ -25,6 +26,8 @@ import {
   FinalRejectionDecisionPayload,
   SubmissionExtended,
 } from './journalEmailTypes.js';
+import { sendSciweaveEmailService } from './sciweaveEmails.js';
+import { SciweaveEmailProps, SciweaveEmailTypes } from './sciweaveEmailTypes.js';
 
 /**
  * Used to add a suffix to the email subject to indicate the deployment environment
@@ -165,7 +168,9 @@ export type EmailProps =
   | SubmissionReassignedToEditorPayload
   | SubmissionAcceptedPayload
   | DeskRejectionPayload
-  | FinalRejectionDecisionPayload;
+  | FinalRejectionDecisionPayload
+  // Sciweave
+  | SciweaveEmailProps;
 
 const logger = parentLogger.child({ module: 'EmailService' });
 
@@ -175,7 +180,7 @@ const logger = parentLogger.child({ module: 'EmailService' });
  */
 async function sendSgMail(message: sgMail.MailDataRequired, devLog?: Record<string, string>) {
   try {
-    if (process.env.SHOULD_SEND_EMAIL) {
+    if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
         process.env.SERVER_URL === 'https://nodes-api.desci.com'
           ? '[nodes.desci.com]'
@@ -816,6 +821,12 @@ export const sendEmail = async (props: EmailProps) => {
       return sendSubmissionDeskRejectedEmail(props.payload);
     case EmailTypes.SUBMISSION_FINAL_REJECTED:
       return sendSubmissionFinalRejectedEmail(props.payload);
+
+    // SCIWEAVE
+    case SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL:
+    case SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL:
+    case SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL:
+      return sendSciweaveEmailService(props);
 
     default:
       assertNever(props);
