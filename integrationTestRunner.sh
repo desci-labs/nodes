@@ -79,7 +79,7 @@ if [ "$SKIP_NODES_LIB" != "1" ]; then
 
   # 4. Run nodes-lib tests
   echo "🤞 Running nodes-lib tests..."
-  if ! RUN_SERVER=1 docker compose -f docker-compose.test.yml run nodes_lib_test; then
+  if ! RUN_SERVER=1 docker compose -f docker-compose.test.yml run --build nodes_lib_test; then
     echo "❌ nodes-lib tests failed!"
     logs_or_notice
     cleanup
