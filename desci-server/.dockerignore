@@ -4,3 +4,8 @@ dist
 node_modules
 .git
 .env
+kubernetes
+postman
+ssl
+*.md
+LICENSE

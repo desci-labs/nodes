@@ -8,15 +8,23 @@ set -e  # Exit on error
 cleanup() {
   echo "🧹 cleaning up..."
   cd "$(git rev-parse --show-toplevel)"
-  docker compose -f docker-compose.test.yml down || true
+  docker compose -f docker-compose.test.yml stop || true
+}
+
+logs_or_notice() {
+  if [ -n "$GITHUB_ACTIONS" ]; then
+    echo "::group::Full compose logs"
+    docker compose -f docker-compose.test.yml logs
+    echo "::endgroup::"
+  else
+    echo "🔎 Check logs with 'docker compose -f docker-compose.test.yml logs [container]'"
+  fi
 }
 
 # shellcheck disable=SC2329
 handle_error() {
   echo "💥 test runner failed"
-  echo "::group::Full compose logs"
-  docker compose -f docker-compose.test.yml logs
-  echo "::endgroup::"
+  logs_or_notice
   cleanup
   exit 1
 }
@@ -24,6 +32,9 @@ handle_error() {
 trap handle_error ERR
 
 echo "⚒️ Starting test infrastructure..."
+
+# 0. Build all images, utilising cache
+docker compose -f docker-compose.test.yml build
 
 # 1. Start infrastructure services, blocking until healthy
 docker compose -f docker-compose.test.yml up \
@@ -39,9 +50,7 @@ if [ "$SKIP_SERVER" != "1" ]; then
   echo "🤞 Running desci-server tests..."
   if ! docker compose -f docker-compose.test.yml run nodes_backend_test; then
     echo "❌ desci-server tests failed!"
-    echo "::group::Full compose logs"
-    docker compose -f docker-compose.test.yml logs
-    echo "::endgroup::"
+    logs_or_notice
     cleanup
     exit 1
   fi
@@ -69,9 +78,7 @@ if [ "$SKIP_NODES_LIB" != "1" ]; then
   echo "🤞 Running nodes-lib tests..."
   if ! RUN_SERVER=1 docker compose -f docker-compose.test.yml run nodes_lib_test; then
     echo "❌ nodes-lib tests failed!"
-    echo "::group::Full compose logs"
-    docker compose -f docker-compose.test.yml logs
-    echo "::endgroup::"
+    logs_or_notice
     cleanup
     exit 1
   fi

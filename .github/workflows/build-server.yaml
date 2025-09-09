@@ -8,7 +8,6 @@ on:
       - .github/workflows/**
       - desci-server/**
       - desci-contracts/**
-      - Dockerfile
       - integrationTestRunner.sh
       - docker-compose.test.yml
     branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
@@ -32,42 +31,22 @@ env:
 jobs:
   build-and-test:
     runs-on: blacksmith-4vcpu-ubuntu-2204
-    # container:
-    #   image: ubuntu:latest
-    #   options: --user 1001
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Delete huge unnecessary tools folder
-        run: |
-          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
-          rm -rf /opt/hostedtoolcache
-          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
-
-      - name: Set up the environment
-        # Replace this line with the appropriate setup for your project
-        # Examples:
+      - name: Set up node
         uses: useblacksmith/setup-node@v5
         with:
           node-version-file: ".nvmrc"
           check-latest: false
           cache: "yarn"
           cache-dependency-path: |
-            desci-models/yarn.lock
             desci-server/yarn.lock
 
       # Enable blacksmith docker layer caching
       - uses: useblacksmith/setup-docker-builder@v1
-
-      - name: Install dependencies
-        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn --ignore-engines
-
-      - name: Stub contract
-        run: |
-          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
-          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
 
       - name: Set up Sentry CLI
         run: |
@@ -76,14 +55,11 @@ jobs:
           sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
           # append to .env
           echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
+          cd desci-server && yarn build
 
       - name: Run tests
         run: |
-          cd desci-server && export DOCKER_BUILDKIT=1 && yarn --ignore-engines && yarn test
-          echo "exit code $?"
-          if [ $? -ne 0 ]; then
-            exit 1
-          fi
+          SKIP_NODES_LIB=1 ./integrationTestRunner.sh
 
   build-and-push-images:
     # we build and push for every commit, even if tests pass, that way when tests pass deployment is short (run test + build in parallel)
@@ -113,11 +89,6 @@ jobs:
 
       # Enable blacksmith docker layer caching
       - uses: useblacksmith/setup-docker-builder@v1
-
-      - name: Stub contract
-        run: |
-          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
-          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
 
       - name: Set up Sentry CLI
         run: |
