@@ -32,7 +32,7 @@ jobs:
             desci-server/yarn.lock
 
       # Enable blacksmith docker layer caching
-      - uses: useblacksmith/setup-docker-builder@v1
+      #- uses: useblacksmith/setup-docker-builder@v1
 
       - name: Run tests
         run:

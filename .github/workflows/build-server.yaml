@@ -46,7 +46,7 @@ jobs:
             desci-server/yarn.lock
 
       # Enable blacksmith docker layer caching
-      - uses: useblacksmith/setup-docker-builder@v1
+      #- uses: useblacksmith/setup-docker-builder@v1
 
       - name: Set up Sentry CLI
         run: |
@@ -103,27 +103,30 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
+            -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-dev:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
-             .
+             ./desci-server
 
       - name: Build and tag the image (DEMO)
         if: github.ref == 'refs/heads/demo'
         run: |
           # Build and tag the image
           docker build \
+            -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-demo:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo \
-             .
+             ./desci-server
 
       - name: Build and tag the image (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
           # Build and tag the image
           docker build \
+            -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
-             .
+             ./desci-server
 
       - name: Push (DEV)
         if: github.ref == 'refs/heads/develop'

@@ -14,7 +14,8 @@ cleanup() {
 logs_or_notice() {
   if [ -n "$GITHUB_ACTIONS" ]; then
     echo "::group::Full compose logs"
-    docker compose -f docker-compose.test.yml logs
+    echo "note: sync worker logs are hidden"
+    docker compose -f docker-compose.test.yml logs | grep -v "nodes_sync_test_worker"
     echo "::endgroup::"
   else
     echo "🔎 Check logs with 'docker compose -f docker-compose.test.yml logs [container]'"
@@ -31,11 +32,14 @@ handle_error() {
 
 trap handle_error ERR
 
-echo "⚒️ Starting test infrastructure..."
+# Cleanup old containers
+docker compose -f docker-compose.test.yml down
 
 # 0. Build all images, utilising cache
+echo "🔨 Building test cluster images..."
 docker compose -f docker-compose.test.yml build
 
+echo "⚒️ Starting test infrastructure..."
 # 1. Start infrastructure services, blocking until healthy
 docker compose -f docker-compose.test.yml up \
   --remove-orphans \
@@ -79,7 +83,7 @@ if [ "$SKIP_NODES_LIB" != "1" ]; then
 
   # 4. Run nodes-lib tests
   echo "🤞 Running nodes-lib tests..."
-  if ! RUN_SERVER=1 docker compose -f docker-compose.test.yml run --build nodes_lib_test; then
+  if ! RUN_SERVER=1 docker compose -f docker-compose.test.yml run nodes_lib_test; then
     echo "❌ nodes-lib tests failed!"
     logs_or_notice
     cleanup
