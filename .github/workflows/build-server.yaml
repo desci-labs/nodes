@@ -88,7 +88,7 @@ jobs:
           aws sts get-caller-identity
 
       # Enable blacksmith docker layer caching
-      - uses: useblacksmith/setup-docker-builder@v1
+      #- uses: useblacksmith/setup-docker-builder@v1
 
       - name: Set up Sentry CLI
         run: |

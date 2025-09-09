@@ -20,7 +20,7 @@ npx prisma db seed
 
 (npx prisma studio &)
 if [ "$RUN_SERVER" = 1 ]; then
-  yarn build && yarn start
+  yarn start
 else
   yarn test
   # yarn test:debug
