@@ -156,8 +156,6 @@ services:
         condition: service_healthy
     extra_hosts:
       - host.docker.internal:host-gateway
-    volumes:
-      - ./nodes-lib:/app/nodes-lib
 
   ceramic_one_test:
     container_name: ceramic_one_test
