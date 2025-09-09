@@ -101,7 +101,7 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       throw error;
     }
 
-    debugger
+    
     if (body.isNewSciweaveUser) {
       
       const { firstName, lastName } = await getUserNameById(user.id); // ID variant for refreshed name, instead of user obj.
