@@ -11,6 +11,7 @@ export const submitQuestionnaire = async (req: Request, res: Response, next: Nex
 
   const logger = parentLogger.child({ module: 'USERS::submitQuestionnaireController', userId: user?.id });
 
+  console.log('submitQuestionnaire', req.body);
   const { discoverySource, other } = req.body as {
     discoverySource: DiscoverySource;
     other?: string;
