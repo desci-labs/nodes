@@ -593,3 +593,45 @@ export const getUsersWithMarketingConsent = async (range?: { from: Date; to: Dat
 
   return users;
 };
+
+/**
+ * Names weren't always stored in separated fName+lName format, this helper is to handle both cases.
+ */
+export const getUserNameById = async (
+  userId: number,
+): Promise<{ name: string; firstName: string; lastName: string }> => {
+  const user = await client.user.findFirst({
+    where: { id: userId },
+    select: { name: true, firstName: true, lastName: true },
+  });
+  return getUserNameByUser(user);
+};
+
+/**
+ * Names weren't always stored in separated format, this helper is to handle both cases.
+ */
+export const getUserNameByUser = async (
+  user: Pick<User, 'name' | 'firstName' | 'lastName'>,
+): Promise<{ name: string; firstName: string; lastName: string }> => {
+  if (user.firstName) {
+    return {
+      name: `${user.firstName} ${user.lastName}`,
+      firstName: user.firstName,
+      lastName: user.lastName || '',
+    };
+  }
+  if (user.name) {
+    const firstName = user.name?.split(' ')?.[0];
+    const lastName = user.name?.split(' ')?.slice(1).join(' ');
+    return {
+      name: user.name,
+      firstName: firstName || '',
+      lastName: lastName || '',
+    };
+  }
+  return {
+    name: 'User',
+    firstName: 'User',
+    lastName: '',
+  };
+};

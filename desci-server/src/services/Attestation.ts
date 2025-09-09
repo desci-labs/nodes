@@ -14,6 +14,7 @@ import {
 import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
+import { SHOULD_SEND_EMAIL } from '../config.js';
 import { prisma } from '../client.js';
 import { ForbiddenError } from '../core/ApiError.js';
 import {
@@ -1364,7 +1365,7 @@ export class AttestationService {
 
     try {
       logger.info({ members: messages, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ATTESTATION EMAIL');
-      if (process.env.SHOULD_SEND_EMAIL) {
+      if (SHOULD_SEND_EMAIL) {
         const response = await sgMail.send(messages);
         logger.info(response, '[EMAIL]:: Response');
       } else {

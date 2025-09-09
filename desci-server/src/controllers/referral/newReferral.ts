@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { logger as parentLogger } from '../../logger.js';
 import { saveFriendReferral } from '../../services/friendReferral.js';
 import { saveInteraction } from '../../services/interactionLog.js';
+import { SHOULD_SEND_EMAIL } from '../../config.js';
 const { SES } = awsSdk;
 
 interface ExpectedBody {
@@ -110,7 +111,7 @@ async function sendReferralEmailsHelper(user: User, referrals: FriendReferral[])
         html: `<a href="${url}" target="_blank">Sign up</a>`,
       };
 
-      if (!process.env.SHOULD_SEND_EMAIL) {
+      if (!SHOULD_SEND_EMAIL) {
         logger.warn({ msg }, 'Fake referral email');
         return msg;
       }

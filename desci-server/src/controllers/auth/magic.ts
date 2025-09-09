@@ -6,8 +6,10 @@ import { prisma as prismaClient } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
+import { sendEmail } from '../../services/email/email.js';
+import { SciweaveEmailTypes } from '../../services/email/sciweaveEmailTypes.js';
 import { saveInteraction } from '../../services/interactionLog.js';
-import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../services/user.js';
+import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible, getUserNameByUser } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { getOrcidRecord } from './orcid.js';
@@ -20,7 +22,7 @@ export const oneYear = 1000 * 60 * 60 * 24 * 365;
 export const oneDay = 1000 * 60 * 60 * 24;
 export const oneMinute = 1000 * 60;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
-  const { email, code, dev, orcid, access_token, refresh_token, expires_in } = req.body;
+  const { email, code, dev, orcid, access_token, refresh_token, expires_in, isSciweave } = req.body;
   const cleanEmail = email?.toLowerCase().trim();
 
   const logger = parentLogger.child({
@@ -29,6 +31,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     cleanEmail: cleanEmail,
     code: `${code ? 'XXXX' + code.slice(-2) : ''}`,
     orcid,
+    isSciweave,
   });
 
   if (process.env.NODE_ENV === 'production') {
@@ -47,7 +50,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     try {
       const ip = req.ip;
       // debugger;
-      const ok = await sendMagicLink(cleanEmail, ip);
+      const ok = await sendMagicLink(cleanEmail, ip, undefined, isSciweave);
       logger.info({ ok }, 'Magic link sent');
       res.send({ ok: !!ok });
     } catch (err) {
@@ -117,7 +120,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         submitToMixpanel: true,
       });
 
-      if (isNewUser)
+      if (isNewUser) {
         await saveInteraction({
           req,
           action: ActionType.USER_SIGNUP_SUCCESS,
@@ -125,6 +128,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
           userId: user.id,
           submitToMixpanel: true,
         });
+      }
     } catch (err) {
       logger.error({ err }, 'Failed redeeming code');
       res.status(400).send({ ok: false, error: 'Failed redeeming code' });

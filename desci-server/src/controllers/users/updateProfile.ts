@@ -3,9 +3,11 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { sendEmail } from '../../services/email/email.js';
+import { SciweaveEmailTypes } from '../../services/email/sciweaveEmailTypes.js';
+import { getUserNameByUser } from '../../services/user.js';
 
 interface ExpectedBody {
-  username: string;
   profile: {
     email?: string;
     name?: string;
@@ -13,6 +15,7 @@ interface ExpectedBody {
     rorPid?: string[];
     organization: Organization[];
   };
+  isNewSciweaveUser?: boolean;
 }
 
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
@@ -96,6 +99,14 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     } catch (error) {
       logger.error({ error }, 'Failed to update user in DB');
       throw error;
+    }
+
+    if (body.isNewSciweaveUser) {
+      const { firstName, lastName } = await getUserNameByUser(user);
+      await sendEmail({
+        type: SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL,
+        payload: { email: user.email, firstName, lastName },
+      });
     }
 
     return res.send({ ok: true });
