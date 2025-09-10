@@ -7,6 +7,7 @@ import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
 import { NotificationService } from '../../../services/Notifications/NotificationService.js';
 import { ContributorInviteEmailHtml } from '../../../templates/emails/utils/emailRenderer.js';
+import { NODES_SUBJECT_PREFIX } from '../../../services/email/email.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -93,11 +94,12 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         nodeTitle: node.title,
         newUser: !!!contributorAdded.userId,
       });
+
       const inviterName = user.name || 'A user';
       const emailMsg = {
         to: email,
         from: 'no-reply@desci.com',
-        subject: `[nodes.desci.com] ${inviterName} has added you as a contributor to their research object.`,
+        subject: `${NODES_SUBJECT_PREFIX} ${inviterName} has added you as a contributor to their research object.`,
         text: `${inviterName} has added as a contributor to ${node.title}. Confirm your contribution to ensure you're credited for your work. 
         Your private share code: ${shareCode}`,
         html: emailHtml,

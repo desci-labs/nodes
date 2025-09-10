@@ -5,11 +5,8 @@ import jwt from 'jsonwebtoken';
 import { prisma as prismaClient } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
-import { contributorService } from '../../services/Contributors.js';
-import { sendEmail } from '../../services/email/email.js';
-import { SciweaveEmailTypes } from '../../services/email/sciweaveEmailTypes.js';
 import { saveInteraction } from '../../services/interactionLog.js';
-import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible, getUserNameByUser } from '../../services/user.js';
+import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { getOrcidRecord } from './orcid.js';
