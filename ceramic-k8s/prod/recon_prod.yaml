@@ -1,0 +1,292 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ceramic-one-env-prod
+data:
+  CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
+  CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
+  CERAMIC_ONE_BIND_ADDRESS: "0.0.0.0:5101"
+  CERAMIC_ONE_SWARM_ADDRESSES: "/ip4/0.0.0.0/tcp/4101,/ip4/0.0.0.0/udp/4102/quic-v1"
+  CERAMIC_ONE_FLIGHT_SQL_BIND_ADDRESS: "0.0.0.0:5102"
+  CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
+  CERAMIC_ONE_LOCAL_NETWORK_ID: "0"
+  CERAMIC_ONE_NETWORK: "mainnet"
+  CERAMIC_ONE_EXTRA_INTERESTS: "kh4q0ozorrgaq2mezktnrmdwleo1d,kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0"
+  RUST_LOG: "info,ceramic_one=debug,multipart=error"
+  CERAMIC_ONE_LOG_FORMAT: "json"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ceramic-init-prod
+data:
+  get-external-multiaddr.sh: |
+    #!/bin/bash
+
+    set -eo pipefail
+
+    MY_POD_INDEX=$(echo $HOSTNAME | grep -o '[0-9]\+$')
+    TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    NAMESPACE=default
+
+    LB_DOMAIN=$(curl -s --header "Authorization: Bearer $TOKEN" \
+        --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+        https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/services/ceramic-recon-prod-$MY_POD_INDEX-swarm\
+      | grep -oE "k8s-.*.elb.*.amazonaws.com")
+
+    if [ -z "$LB_DOMAIN" ]; then
+      echo "Failed to query for LB_DOMAIN"
+      exit 1
+    fi
+
+    EXTERNAL_MULTIADDR="/dns4/${LB_DOMAIN}/tcp/4101,/dns4/${LB_DOMAIN}/udp/4102/quic-v1"
+    echo -n "$EXTERNAL_MULTIADDR" > /config/external-multiaddr
+    echo "Wrote $EXTERNAL_MULTIADDR to /config/external-multiaddr"
+---
+
+# Stateful set to manage container and volume in pairs
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ceramic-recon-prod
+  labels:
+    App: CeramicReconProd
+spec:
+  serviceName: ceramic-recon-prod
+  replicas: 1
+  selector:
+    matchLabels:
+      App: CeramicReconProd
+  template:
+    metadata:
+      labels:
+        App: CeramicReconProd
+      annotations:
+        # inject vault agent container
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: app-vault-reader
+        # only run as init container; don't linger as a sidecar
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        # run before other init containers
+        vault.hashicorp.com/agent-init-first: "true"
+        vault.hashicorp.com/agent-inject-secret-config: "secrets/ceramic/production"
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/ceramic/production" -}}
+          {{- range $k, $v := .Data }}
+          export {{ $k }}={{ $v }}
+          {{- end }}
+          {{- end }}
+    spec:
+      serviceAccountName: "vault-auth"
+      containers:
+        - name: ceramic-one
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
+          command: [ "bash", "-c" ]
+          args:
+            # - echo "Container idling..."; tail --follow /dev/null
+            - ceramic-one daemon
+              --external-swarm-addresses="$(< /config/external-multiaddr)"
+          env:
+            - name: BASH_ENV
+              value: /vault/secrets/config
+          envFrom:
+            - configMapRef:
+                name: ceramic-one-env-prod
+          ports:
+            - containerPort: 5102
+              name: flight-sql
+              protocol: TCP
+            - containerPort: 4101
+              name: swarm-tcp
+              protocol: TCP
+            - containerPort: 4102
+              name: swarm-udp
+              protocol: UDP
+            - containerPort: 5101
+              name: rpc
+              protocol: TCP
+            - containerPort: 9465
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 4
+              memory: 4Gi
+            requests:
+              cpu: 1
+              memory: 1Gi
+          # livenessProbe:
+          #   httpGet:
+          #     path: /ceramic/liveness
+          #     port: rpc
+          #     scheme: HTTP
+          # readinessProbe:
+          #   httpGet:
+          #     path: /ceramic/liveness
+          #     port: rpc
+          #     scheme: HTTP
+          volumeMounts:
+            - name: ceramic-one-data
+              mountPath: /data/ceramic-one
+            - name: config-volume
+              mountPath: /config
+      initContainers:
+        - name: init-ceramic-config
+          image: alpine:3
+          imagePullPolicy: Always
+          command: [ "sh", "-c" ]
+          args:
+            - apk add --no-cache bash curl &&
+              bash /ceramic-init/get-external-multiaddr.sh
+          env:
+            - name: BASH_ENV
+              value: /vault/secrets/config
+          volumeMounts:
+            - mountPath: /config
+              name: config-volume
+            - mountPath: /ceramic-init
+              name: ceramic-init-prod
+
+      volumes:
+          # holds the config file during the lifetime of the pod
+        - emptyDir: {}
+          name: config-volume
+          # set 755 on files to allow executing init script
+        - configMap:
+            defaultMode: 493
+            name: ceramic-init-prod
+          name: ceramic-init-prod
+        - configMap:
+            name: ceramic-one-env-prod
+          name: ceramic-one-env-prod
+
+  volumeClaimTemplates:
+    - metadata:
+        name: ceramic-one-data
+        labels:
+          App: CeramicReconProd
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: retained-standard-csi
+        resources:
+          requests:
+            storage: 100Gi
+---
+
+# headless service for StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: ceramic-recon-prod
+  labels:
+    App: CeramicReconProd
+spec:
+  clusterIP: None
+  selector:
+    App: CeramicReconProd
+  ports:
+    - port: 5102
+      name: flight-sql
+    - port: 4101
+      name: swarm-tcp
+      protocol: TCP
+    - port: 4102
+      name: swarm-udp
+      protocol: UDP
+    - port: 5101
+      name: rpc
+    - port: 9465
+      name: one-metrics
+---
+
+# individual services (add/remove when scaling)
+# 0
+apiVersion: v1
+kind: Service
+metadata:
+  name: ceramic-recon-prod-0-internal
+  labels:
+    App: CeramicReconProd
+spec:
+  type: ClusterIP
+  selector:
+    App: CeramicReconProd
+    statefulset.kubernetes.io/pod-name: ceramic-recon-prod-0
+  ports:
+    - port: 5102
+      name: flight-sql
+      targetPort: flight-sql
+    - port: 5101
+      name: rpc
+      targetPort: rpc
+    - port: 9465
+      name: one-metrics
+      targetPort: one-metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ceramic-recon-prod-0-swarm
+  labels:
+    App: CeramicReconProd
+  annotations:
+    # NLB is preferred for libp2p/Kubo due to connection handling and UDP use
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    # Required for mixed protocol support
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    # AWS targetgroups doesn't support UDP checks, but defaults to creating one on the UDP port
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "4101"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: TCP
+    # Enable cross-AZ load balancing for better availability
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    # External access required for IPFS network participation
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    # Long timeout for libp2p connections
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "3600"
+    service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: preserve_client_ip.enabled=true
+spec:
+  type: LoadBalancer
+  # externalTrafficPolicy: Local
+  selector:
+    App: CeramicReconProd
+  ports:
+    - name: swarm-tcp
+      protocol: TCP
+      port: 4101
+      targetPort: 4101
+    - name: swarm-udp
+      protocol: UDP
+      port: 4102
+      targetPort: 4102
+    - name: flight-sql
+      protocol: TCP
+      port: 5102
+      targetPort: 5102
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ceramic-recon-prod-rpc-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: 'ip'
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /ceramic/events
+        pathType: Prefix
+        backend:
+          service:
+            name: ceramic-recon-prod-0-internal
+            port:
+              number: 5101
+      - path: /ceramic/streams
+        pathType: Prefix
+        backend:
+          service:
+            name: ceramic-recon-prod-0-internal
+            port:
+              number: 5101
