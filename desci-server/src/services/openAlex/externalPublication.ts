@@ -11,6 +11,7 @@ import { transformInvertedAbstractToText } from '../AutomatedMetadata.js';
 import { getOrcidFromURL } from '../crossRef/utils.js';
 
 import { OpenAlexWork } from './types.js';
+import { NODES_SUBJECT_PREFIX } from '../email/email.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -223,7 +224,7 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
   const message = {
     to: user.email,
     from: 'no-reply@desci.com',
-    subject: `[nodes.desci.com] Verify your external publications`,
+    subject: `${NODES_SUBJECT_PREFIX} Verify your external publications`,
     text: `${
       publications.length > 1
         ? `We found a similar publications to ${node.title}, View your publication to verify external publications`

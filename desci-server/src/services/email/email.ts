@@ -5,7 +5,7 @@ import { SHOULD_SEND_EMAIL } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { getRelativeTime } from '../../utils/clock.js';
-import { prependIndefiniteArticle } from '../../utils.js';
+import { DeploymentEnvironment, getDeploymentEnvironment, prependIndefiniteArticle } from '../../utils.js';
 
 import {
   EditorInvitePayload,
@@ -174,6 +174,11 @@ export type EmailProps =
 
 const logger = parentLogger.child({ module: 'EmailService' });
 
+
+const deploymentEnvironment = getDeploymentEnvironment();
+export const NODES_SUBJECT_PREFIX = deploymentEnvironment === DeploymentEnvironment.PROD ? '[nodes.desci.com]' : deploymentEnvironment === DeploymentEnvironment.DEV ? '[nodes-dev.desci.com]' : '[nodes-local-dev]';
+
+
 /**
  * Sends an email using SendGrid
  * @param devLog - Optional object with additional information to log in dev mode
@@ -181,14 +186,7 @@ const logger = parentLogger.child({ module: 'EmailService' });
 async function sendSgMail(message: sgMail.MailDataRequired, devLog?: Record<string, string>) {
   try {
     if (SHOULD_SEND_EMAIL) {
-      const subjectPrefix =
-        process.env.SERVER_URL === 'https://nodes-api.desci.com'
-          ? '[nodes.desci.com]'
-          : process.env.SERVER_URL === 'https://nodes-api-dev.desci.com'
-            ? '[nodes-dev.desci.com]'
-            : '[nodes-local-dev]';
-
-      message.subject = `${subjectPrefix} ${message.subject}`;
+      message.subject = `${NODES_SUBJECT_PREFIX} ${message.subject}`;
       const response = await sgMail.send(message);
       logger.trace(response, '[EMAIL]:: Response');
     } else {
@@ -261,7 +259,7 @@ async function sendRejectSubmissionEmail({
   const message = {
     to: recipient.email,
     from: 'no-reply@desci.com',
-    subject: `[nodes.desci.com] Your submission to ${communityName} for DPID://${nodeDpid}/v${nodeVersion} was rejected `,
+    subject: `${NODES_SUBJECT_PREFIX} Your submission to ${communityName} for DPID://${nodeDpid}/v${nodeVersion} was rejected `,
     text: `Hi ${recipient.name}, your submission to ${communityName} was rejected.`,
     html: RejectedSubmissionEmailHtml({
       reason,
@@ -832,3 +830,5 @@ export const sendEmail = async (props: EmailProps) => {
       assertNever(props);
   }
 };
+
+

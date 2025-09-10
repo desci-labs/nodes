@@ -37,6 +37,7 @@ import { AttestationClaimedEmailHtml } from '../templates/emails/utils/emailRend
 import { asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
 import { CommunityRadarNode, communityService } from './Communities.js';
+import { NODES_SUBJECT_PREFIX } from './email/email.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -1352,7 +1353,7 @@ export class AttestationService {
     const messages = members.map((member) => ({
       to: member.user.email,
       from: 'no-reply@desci.com',
-      subject: `[nodes.desci.com] ${versionedAttestation.name} claimed on DPID://${nodeDpid}/v${nodeVersion + 1}`,
+      subject: `${NODES_SUBJECT_PREFIX} ${versionedAttestation.name} claimed on DPID://${nodeDpid}/v${nodeVersion + 1}`,
       text: `${user.name} just claimed ${versionedAttestation.name} on ${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}/badges`,
       html: AttestationClaimedEmailHtml({
         dpid: nodeDpid,

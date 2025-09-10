@@ -1,6 +1,6 @@
 import sgMail from '@sendgrid/mail';
 
-import { SHOULD_SEND_EMAIL } from '../../config.js';
+import { SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP, SHOULD_SEND_EMAIL } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 
 import {
@@ -22,7 +22,7 @@ const deploymentEnvironmentString =
       ? 'dev.'
       : 'local.';
 
-const sciweaveTemplateIdMap = JSON.parse(process.env.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP ?? '{}') as Record<
+const sciweaveTemplateIdMap = JSON.parse(SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP ?? '{}') as Record<
   SciweaveEmailTypes,
   string
 >;
@@ -82,7 +82,7 @@ async function sendWelcomeEmail({ email, firstName, lastName }: WelcomeEmailPayl
 
   const message = {
     to: email,
-    from: 'no-reply@sciweave.com',
+    from: 'no-reply@desci.com',
     templateId,
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
@@ -107,7 +107,7 @@ async function sendUpgradeEmail({ email, firstName, lastName }: UpgradeEmailPayl
 
   const message = {
     to: email,
-    from: 'no-reply@sciweave.com',
+    from: 'no-reply@desci.com',
     templateId,
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
@@ -132,7 +132,7 @@ async function sendCancellationEmail({ email, firstName, lastName }: Cancellatio
 
   const message = {
     to: email,
-    from: 'no-reply@sciweave.com',
+    from: 'no-reply@desci.com',
     templateId,
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
