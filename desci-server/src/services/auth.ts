@@ -177,13 +177,15 @@ const sendMagicLinkEmail = async (email: string, ip?: string, isSciweave?: boole
   if (SHOULD_SEND_EMAIL) {
     logger.info({ fn: 'sendMagicLinkEmail', email, isSciweave }, `Sending actual email`);
 
+    const subjectPrefix = isSciweave ? '[sciweave.com]' : NODES_SUBJECT_PREFIX;
+    
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
     const goodIp = ip?.length > 0 && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost';
     const emailHtml = MagicCodeEmailHtml({ magicCode: token, ip: goodIp ? ip : '', isSciweave });
     const msg = {
       to: email, // Change to your recipient
       from: 'no-reply@desci.com', // Change to your verified sender
-      subject: `${NODES_SUBJECT_PREFIX} Verification: ${token}`,
+      subject: `${subjectPrefix} Verification: ${token}`,
       text: `Login with: ${token} ${url}${
         goodIp
           ? `\n\n (sent from ip: ${ip} -- if you weren't logging in, please forward this email to info@desci.com)`
