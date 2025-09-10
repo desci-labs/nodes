@@ -15,6 +15,7 @@ import { contributorService } from './Contributors.js';
 import { getManifestFromNode } from './data/processing.js';
 import { getLatestManifestFromNode } from './manifestRepo.js';
 import { NotificationService } from './Notifications/NotificationService.js';
+import { NODES_SUBJECT_PREFIX } from './email/email.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -92,7 +93,7 @@ async function sendVersionUpdateEmailToAllContributors({
     const emailMsg = {
       to: contributor.email ?? contributor.user?.email,
       from: 'no-reply@desci.com',
-      subject: `[nodes.desci.com] Your submission package is ready`,
+      subject: `${NODES_SUBJECT_PREFIX} Your submission package is ready`,
       text: `${nodeOwner.name} has published their research object titled "${node.title}" that you have contributed to.`,
       html: emailHtml,
     };

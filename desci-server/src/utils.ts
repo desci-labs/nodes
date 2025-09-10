@@ -325,3 +325,22 @@ export const splitName = (name: string) => {
     lastName: nameParts?.slice(1).join(' ') || '',
   };
 };
+
+
+export enum DeploymentEnvironment {
+  PROD = 'prod',
+  DEV = 'dev',
+  LOCAL = 'local',
+}
+
+export const getDeploymentEnvironment = (): DeploymentEnvironment => {
+
+const deploymentEnvironment =
+process.env.SERVER_URL === 'https://nodes-api.desci.com'
+  ? DeploymentEnvironment.PROD
+  : process.env.SERVER_URL === 'https://nodes-api-dev.desci.com'
+    ? DeploymentEnvironment.DEV
+    : DeploymentEnvironment.LOCAL;
+
+  return deploymentEnvironment;
+}

@@ -6,6 +6,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { saveFriendReferral } from '../../services/friendReferral.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { SHOULD_SEND_EMAIL } from '../../config.js';
+import { NODES_SUBJECT_PREFIX } from '../../services/email/email.js';
 const { SES } = awsSdk;
 
 interface ExpectedBody {
@@ -106,7 +107,7 @@ async function sendReferralEmailsHelper(user: User, referrals: FriendReferral[])
       const msg = {
         to: toEmail,
         from: 'no-reply@desci.com', // Change to your verified sender
-        subject: `[nodes.desci.com] ${fromUserName} would love for you to join DeSci with them!`,
+        subject: `${NODES_SUBJECT_PREFIX} ${fromUserName} would love for you to join DeSci with them!`,
         text: `You were invited to join DeSci by ${fromUserName}! Join us here: ${url}`,
         html: `<a href="${url}" target="_blank">Sign up</a>`,
       };

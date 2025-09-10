@@ -12,6 +12,7 @@ import { encryptForLog, hideEmail } from '../utils.js';
 
 import { contributorService } from './Contributors.js';
 import { SHOULD_SEND_EMAIL } from '../config.js';
+import { NODES_SUBJECT_PREFIX } from './email/email.js';
 
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -182,7 +183,7 @@ const sendMagicLinkEmail = async (email: string, ip?: string, isSciweave?: boole
     const msg = {
       to: email, // Change to your recipient
       from: 'no-reply@desci.com', // Change to your verified sender
-      subject: `[nodes.desci.com] Verification: ${token}`,
+      subject: `${NODES_SUBJECT_PREFIX} Verification: ${token}`,
       text: `Login with: ${token} ${url}${
         goodIp
           ? `\n\n (sent from ip: ${ip} -- if you weren't logging in, please forward this email to info@desci.com)`
