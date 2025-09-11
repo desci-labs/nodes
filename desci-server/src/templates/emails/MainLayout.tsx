@@ -6,8 +6,7 @@ import { BaseProvider } from './BaseProvider.js';
 const emailAssetsBaseUrl = 'https://assets.desci.com';
 // const cubertBkg = 'bafkreih6yx7ywj7trvpp45vergrnytad7ezsku75tefyro4qrrcfrrmrt4';
 const labsLogo = 'logos/desci-labs-full-white.png';
-const sciweaveLogo = 'logos/sciweave-logo-color.png';
-const sciweaveText = 'logos/sciweave-text.png';
+const sciweaveLogo = 'logos/sciweave_logo_white.png';
 const defaultFooterMsg = "If you didn't request this email, there's nothing to worry about, you can safely ignore it.";
 
 const MainLayout = ({
@@ -53,24 +52,12 @@ const MainLayout = ({
             <Container className="backdrop-blur-2xl bg-opacity-50">
               <Section className="h-full backdrop-blur-lg w-full" align="center">
                 {isSciweave ? (
-                  <Row style={{ margin: '0 auto', textAlign: 'center' }}>
-                    <Column>
-                      <div style={{ textAlign: 'center' }}>
-                        <Img
-                          src={`${emailAssetsBaseUrl}/${sciweaveLogo}`}
-                          height="60"
-                          alt="SciWeave Logo"
-                          className="inline-block align-middle mr-2"
-                        />
-                        <Img
-                          src={`${emailAssetsBaseUrl}/${sciweaveText}`}
-                          height="25"
-                          alt="SciWeave"
-                          className="inline-block align-middle invert mix-blend-difference"
-                        />
-                      </div>
-                    </Column>
-                  </Row>
+                  <Img
+                  src={`${emailAssetsBaseUrl}/${sciweaveLogo}`}
+                  height="60"
+                  alt="SciWeave"
+                  className="m-auto invert mix-blend-difference"
+                />
                 ) : (
                   <Img
                     src={`${emailAssetsBaseUrl}/${labsLogo}`}
