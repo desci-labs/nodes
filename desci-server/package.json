@@ -30,6 +30,8 @@
     "script:DESTRUCTIVE-clear-social-data": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/DESTRUCTIVE-clear-social-data.ts",
     "script:seed-community-member": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/seed-community-members.ts",
     "script:backfill-annotations": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/backfill-annotations.ts",
+    "script:orcid-recommendations": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/orcid-recommendation-script.ts",
+    "script:test-orcid": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/test-orcid-script.ts",
     "script:prune-auth-tokens": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/prune-auth-tokens.ts",
     "script:backfill-radar": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/backfill-radar.ts",
     "script:pruneExternalPublications": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/pruneExternalPublications.ts",
