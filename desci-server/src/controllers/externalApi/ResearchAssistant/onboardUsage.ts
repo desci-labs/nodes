@@ -11,7 +11,7 @@ import { FeatureLimitsService } from '../../../services/FeatureLimits/FeatureLim
 const logger = parentLogger.child({ module: 'ResearchAssistant::OnboardUsageController' });
 
 const onboardUsageSchema = z.object({
-  guestUsageCount: z.number().int().min(0).max(4),
+  guestUsageCount: z.number().int().min(0).max(100),
 });
 
 export const onboardResearchAssistantUsage = async (req: AuthenticatedRequest, res: Response) => {

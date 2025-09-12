@@ -183,6 +183,8 @@ model User {
   lastName                    String?
   role                        String?
   source                      String?
+  signupHost                  String?
+  profileImage                String?
   website                     String?
   googleScholarUrl            String?
   researchInterests           String?

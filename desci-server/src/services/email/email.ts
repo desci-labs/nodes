@@ -94,7 +94,9 @@ export enum EmailTypes {
   SUBMISSION_FINAL_REJECTED = 'SUBMISSION_FINAL_REJECTED',
 }
 
-const templateIdMap = JSON.parse(process.env.SENDGRID_TEMPLATE_ID_MAP ?? '{}') as Record<EmailTypes, string>;
+const templateIdMap = process.env.SENDGRID_TEMPLATE_ID_MAP
+  ? (JSON.parse(process.env.SENDGRID_TEMPLATE_ID_MAP ?? '{}') as Record<EmailTypes, string>)
+  : {};
 
 // export const JournalEmailTemplates = {
 //   InviteEditor: (props: InviteEditorEmailProps) => render(InviteEditorEmail(props)),
@@ -174,10 +176,13 @@ export type EmailProps =
 
 const logger = parentLogger.child({ module: 'EmailService' });
 
-
 const deploymentEnvironment = getDeploymentEnvironment();
-export const NODES_SUBJECT_PREFIX = deploymentEnvironment === DeploymentEnvironment.PROD ? '[nodes.desci.com]' : deploymentEnvironment === DeploymentEnvironment.DEV ? '[nodes-dev.desci.com]' : '[nodes-local-dev]';
-
+export const NODES_SUBJECT_PREFIX =
+  deploymentEnvironment === DeploymentEnvironment.PROD
+    ? '[nodes.desci.com]'
+    : deploymentEnvironment === DeploymentEnvironment.DEV
+      ? '[nodes-dev.desci.com]'
+      : '[nodes-local-dev]';
 
 /**
  * Sends an email using SendGrid
@@ -830,5 +835,3 @@ export const sendEmail = async (props: EmailProps) => {
       assertNever(props);
   }
 };
-
-

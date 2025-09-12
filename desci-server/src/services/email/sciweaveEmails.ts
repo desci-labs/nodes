@@ -22,10 +22,9 @@ const deploymentEnvironmentString =
       ? 'dev.'
       : 'local.';
 
-const sciweaveTemplateIdMap = JSON.parse(SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP ?? '{}') as Record<
-  SciweaveEmailTypes,
-  string
->;
+const sciweaveTemplateIdMap = SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP
+  ? (JSON.parse(SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP || '{}') as Record<SciweaveEmailTypes, string>)
+  : {};
 
 const logger = parentLogger.child({ module: 'SciweaveEmailService' });
 
