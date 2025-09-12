@@ -112,7 +112,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       await saveInteraction({
         req,
         action: ActionType.USER_LOGIN,
-        data: { userId: user.id, method: 'magic' },
+        data: { userId: user.id, method: 'magic', isSciweave },
         userId: user.id,
         submitToMixpanel: true,
       });
@@ -121,7 +121,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         await saveInteraction({
           req,
           action: ActionType.USER_SIGNUP_SUCCESS,
-          data: { userId: user.id, email: user.email, orcid, method: !orcid ? 'magic' : 'orcid' },
+          data: { userId: user.id, email: user.email, orcid, method: !orcid ? 'magic' : 'orcid', isSciweave },
           userId: user.id,
           submitToMixpanel: true,
         });

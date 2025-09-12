@@ -7,9 +7,9 @@ import { logger as parentLogger } from '../../logger.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { checkIfUserAcceptedTerms } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
+import { splitName } from '../../utils.js';
 
 import { generateAccessToken } from './magic.js';
-import { splitName } from '../../utils.js';
 
 export enum GoogleAuthApp {
   PUBLISH = 'PUBLISH',
@@ -98,7 +98,7 @@ export const googleAuth = async (req: Request, res: Response) => {
       await saveInteraction({
         req,
         action: ActionType.USER_SIGNUP_SUCCESS,
-        data: { userId: user.id, email: user.email, method: 'google' },
+        data: { userId: user.id, email: user.email, method: 'google', isSciweave: app === GoogleAuthApp.SCIWEAVE },
         userId: user.id,
         submitToMixpanel: true,
       });

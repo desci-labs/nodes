@@ -755,7 +755,7 @@ describe('Research Assistant Metering', () => {
         res = await request(app)
           .post('/v1/services/ai/research-assistant/onboard-usage')
           .set('authorization', `Bearer ${authToken}`)
-          .send({ guestUsageCount: 5 });
+          .send({ guestUsageCount: 1000 });
 
         expect(res.status).to.equal(400);
         expect(res.body.ok).to.be.false;
