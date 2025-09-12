@@ -11,6 +11,12 @@ interface ExpectedBody {
   profile: {
     email?: string;
     name?: string;
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+    discoverySource?: string;
+    signupHost?: string;
+    profileImage?: string;
     googleScholarUrl?: string;
     rorPid?: string[];
     organization: Organization[];
@@ -39,6 +45,12 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
      */
     const updatedProfile = {} as {
       name?: string;
+      firstName?: string;
+      lastName?: string;
+      role?: string;
+      source?: string;
+      signupHost?: string;
+      profileImage?: string;
       googleScholarUrl?: string;
       rorPid?: string[];
       organization?: string;
@@ -46,6 +58,30 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     };
 
     updatedProfile.name = profile.name;
+
+    if (profile?.firstName) {
+      updatedProfile.firstName = profile.firstName;
+    }
+
+    if (profile?.lastName) {
+      updatedProfile.lastName = profile.lastName;
+    }
+
+    if (profile?.role) {
+      updatedProfile.role = profile.role;
+    }
+
+    if (profile?.discoverySource) {
+      updatedProfile.source = profile.discoverySource;
+    }
+
+    if (profile?.signupHost) {
+      updatedProfile.signupHost = profile.signupHost;
+    }
+
+    if (profile?.profileImage) {
+      updatedProfile.profileImage = profile.profileImage;
+    }
 
     if (profile?.organization) {
       const userOrgs = await prisma.userOrganizations.findMany({ where: { userId: user.id } });
