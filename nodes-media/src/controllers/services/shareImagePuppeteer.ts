@@ -357,21 +357,21 @@ function processMarkdownToHTML(text: string): string {
 
   // Debug the input text format (only in development)
   if (process.env.NODE_ENV !== 'production') {
-    logger.debug('Raw input text for markdown processing:', {
+    logger.debug({
       length: text.length,
       sample: text.substring(0, 100), // Reduced sample size
       hasNewlines: text.includes('\n'),
       hasNumberedLists: /\d+\.\s/.test(text),
-    });
+    }, 'Raw input text for markdown processing');
   }
 
   // First process citations
   const { processedAnswer } = processAnswerWithCitations(text);
 
   if (process.env.NODE_ENV !== 'production') {
-    logger.debug('After citation processing:', {
+    logger.debug({
       sample: processedAnswer.substring(0, 100),
-    });
+    }, 'After citation processing');
   }
 
   // Pre-process to ensure numbered lists are properly formatted
@@ -383,9 +383,9 @@ function processMarkdownToHTML(text: string): string {
     .trim();
 
   if (process.env.NODE_ENV !== 'production') {
-    logger.debug('After preprocessing:', {
+    logger.debug({
       sample: preprocessed.substring(0, 100),
-    });
+    }, 'After preprocessing');
   }
 
   // Configure marked to handle breaks properly
@@ -395,9 +395,9 @@ function processMarkdownToHTML(text: string): string {
   let html = marked.parse(preprocessed);
 
   if (process.env.NODE_ENV !== 'production') {
-    logger.debug('Generated HTML:', {
+    logger.debug({
       sample: html.substring(0, 100),
-    });
+    }, 'Generated HTML');
   }
 
   // Add custom classes to elements for styling

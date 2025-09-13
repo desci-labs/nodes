@@ -390,9 +390,10 @@ function calculateDynamicLayout(
  * Processes markdown elements in text and returns structured content
  */
 interface MarkdownElement {
-  type: 'text' | 'bold' | 'list' | 'paragraph';
+  type: 'text' | 'bold' | 'list' | 'paragraph' | 'spacing' | 'numbered-list';
   content: string;
   indent?: number;
+  number?: string;
 }
 
 function parseBasicMarkdown(text: string): MarkdownElement[] {
