@@ -29,6 +29,7 @@ spec:
           export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
           export IPFS_NODE_URL={{ .Data.IPFS_NODE_URL }}
           export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
+          export NODES_ENV=production
           {{- end -}}
       labels:
         App: NodesMediaServerDev

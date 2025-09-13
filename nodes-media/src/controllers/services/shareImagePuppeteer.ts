@@ -147,7 +147,11 @@ function formatCitation(citation: Citation, index: number) {
 
   const title = citation.title || 'Untitled';
 
-  const metadata = `${authors}${year}.${journal}`;
+  // Add DOI URL if available
+  const doiUrl = citation.doi
+    ? (citation.doi.startsWith('http') ? ` ${citation.doi}` : ` https://doi.org/${citation.doi}`)
+    : (citation.url ? ` ${citation.url}` : '');
+  const metadata = `${authors}${year}.${journal}${doiUrl}`;
 
   return {
     number: index,
@@ -283,30 +287,18 @@ function configureMarkdown() {
 function processSimpleMarkdownToHTML(text: string): string {
   if (!text) return '';
 
-  // Simple markdown replacements for basic formatting
-  const html = text
-    // Headers
-    .replace(/^### (.*$)/gm, '<h3 class="heading-3">$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2 class="heading-2">$1</h2>')
-    .replace(/^# (.*$)/gm, '<h1 class="heading-1">$1</h1>')
-    // Bold
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="answer-bold">$1</strong>')
-    .replace(/__(.*?)__/g, '<strong class="answer-bold">$1</strong>')
-    // Lists (simple)
-    .replace(/^[\s]*[-*]\s+(.*$)/gm, '<li class="answer-list-item">$1</li>')
-    // Wrap list items in ul
-    .replace(/(<li class="answer-list-item">.*<\/li>)/gs, '<ul class="answer-list">$1</ul>')
-    // Paragraphs (split by double newlines)
-    .split('\n\n')
-    .map((paragraph) => {
-      paragraph = paragraph.trim();
-      if (!paragraph) return '';
-      if (paragraph.includes('<h') || paragraph.includes('<ul') || paragraph.includes('<li')) {
-        return paragraph;
-      }
-      return `<p class="answer-paragraph">${paragraph}</p>`;
-    })
-    .join('\n');
+  // Use marked library for proper markdown parsing
+  let html = marked.parse(text);
+
+  // Add custom classes to elements for styling
+  html = html
+    .replace(/<h1>/g, '<h1 class="heading-1">')
+    .replace(/<h2>/g, '<h2 class="heading-2">')
+    .replace(/<h3>/g, '<h3 class="heading-3">')
+    .replace(/<strong>/g, '<strong class="answer-bold">')
+    .replace(/<p>/g, '<p class="answer-paragraph">')
+    .replace(/<ul>/g, '<ul class="answer-list">')
+    .replace(/<li>/g, '<li class="answer-list-item">');
 
   return html;
 }
@@ -317,11 +309,57 @@ function processSimpleMarkdownToHTML(text: string): string {
 function processMarkdownToHTML(text: string): string {
   if (!text) return '';
 
+  // Debug the input text format
+  logger.info('Raw input text for markdown processing:', {
+    length: text.length,
+    sample: text.substring(0, 300),
+    hasNewlines: text.includes('\n'),
+    hasNumberedLists: /\d+\.\s/.test(text),
+  });
+
   // First process citations
   const { processedAnswer } = processAnswerWithCitations(text);
 
-  // Then process markdown
-  return processSimpleMarkdownToHTML(processedAnswer);
+  logger.info('After citation processing:', {
+    sample: processedAnswer.substring(0, 300),
+  });
+
+  // Pre-process to ensure numbered lists are properly formatted
+  let preprocessed = processedAnswer
+    // Ensure numbered lists have proper spacing
+    .replace(/^(\d+\.)\s+/gm, '\n$1 ')
+    // Ensure there are line breaks around lists
+    .replace(/(\n\d+\.\s.*?)(?=\n\d+\.\s)/gs, '$1\n')
+    .trim();
+
+  logger.info('After preprocessing:', {
+    sample: preprocessed.substring(0, 300),
+  });
+
+  // Configure marked to handle breaks properly
+  configureMarkdown();
+
+  // Use marked with breaks enabled to preserve newlines
+  let html = marked.parse(preprocessed);
+
+  logger.info('Generated HTML:', {
+    sample: html.substring(0, 400),
+  });
+
+  // Add custom classes to elements for styling
+  html = html
+    .replace(/<h1>/g, '<h1 class="heading-1">')
+    .replace(/<h2>/g, '<h2 class="heading-2">')
+    .replace(/<h3>/g, '<h3 class="heading-3">')
+    .replace(/<strong>/g, '<strong class="answer-bold">')
+    .replace(/<em>/g, '<em class="answer-italic">')
+    .replace(/<p>/g, '<p class="answer-paragraph">')
+    .replace(/<ul>/g, '<ul class="answer-list">')
+    .replace(/<ol>/g, '<ol class="answer-list answer-list-ordered">')
+    .replace(/<li>/g, '<li class="answer-list-item">')
+    .replace(/<br>/g, '<br/>');
+
+  return html;
 }
 
 /**
@@ -359,8 +397,8 @@ function generateHTML(data: ShareImageData): string {
   // Process answer with citations and convert to HTML
   const answerHTML = processMarkdownToHTML(data.answer || '');
 
-  // Determine how many citations to guarantee space for (limit to 3 for display)
-  const guaranteedCitations = Math.max(2, Math.min(formattedCitations.length, 3));
+  // Determine how many citations to guarantee space for (limit to 2 for display)
+  const guaranteedCitations = Math.min(formattedCitations.length, 2);
 
   // Load background image
   const backgroundImage = loadBackgroundImageAsBase64();
@@ -382,7 +420,9 @@ function generateHTML(data: ShareImageData): string {
         body {
             width: 1536px;
             height: 1024px;
-            background-image: url('${backgroundImage}');
+            ${backgroundImage ? `background-image: url('${backgroundImage}');` : `
+                background: linear-gradient(135deg, #1e1e2e 0%, #2d1b69 25%, #5f2c82 50%, #8e44ad 75%, #3498db 100%);
+            `}
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -416,11 +456,6 @@ function generateHTML(data: ShareImageData): string {
             margin-bottom: 40px;
             color: #ffffff;
             flex-shrink: 0;
-            max-height: 380px;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 4;
-            -webkit-box-orient: vertical;
         }
 
         .answer {
@@ -432,6 +467,7 @@ function generateHTML(data: ShareImageData): string {
             overflow: hidden;
             position: relative;
             min-height: 0;
+            max-height: 400px; /* Limit answer height to ensure references are visible */
         }
 
         .answer-content {
@@ -467,12 +503,34 @@ function generateHTML(data: ShareImageData): string {
         }
 
         .answer .answer-list {
-            margin: 16px 0;
-            padding-left: 24px;
+            margin: 20px 0;
+            padding-left: 32px;
+        }
+
+        .answer .answer-list-ordered {
+            list-style-type: decimal;
+            margin: 20px 0;
+            padding-left: 40px;
         }
 
         .answer .answer-list-item {
-            margin-bottom: 8px;
+            margin-bottom: 16px;
+            line-height: 1.4;
+            display: list-item;
+        }
+
+        .answer ol li {
+            margin-bottom: 16px;
+            line-height: 1.4;
+            display: list-item;
+            list-style-position: outside;
+        }
+
+        .answer ul li {
+            margin-bottom: 12px;
+            line-height: 1.4;
+            display: list-item;
+            list-style-position: outside;
         }
 
         .answer .citation {
@@ -485,7 +543,8 @@ function generateHTML(data: ShareImageData): string {
 
         .references {
             flex-shrink: 0;
-            max-height: ${guaranteedCitations * 80 + 60}px; /* Dynamic based on guaranteed citations */
+            max-height: ${guaranteedCitations * 50 + 30}px; /* More compact references */
+            min-height: 120px; /* Ensure references always have minimum space */
         }
 
         .references-header {
@@ -496,11 +555,12 @@ function generateHTML(data: ShareImageData): string {
         }
 
         .reference-item {
-            margin-bottom: 12px;
+            margin-bottom: 8px; /* Reduced from 12px */
             display: flex;
-            gap: 12px;
-            font-size: 20px;
+            gap: 8px; /* Reduced from 12px */
+            font-size: 18px; /* Reduced from 20px */
             width: 100%;
+            line-height: 1.3; /* Tighter line height */
         }
 
         .reference-number {
@@ -571,6 +631,7 @@ function generateHTML(data: ShareImageData): string {
         <div class="references">
             <div class="references-header">Academic References</div>
             ${formattedCitations
+              .slice(0, 2)
               .map(
                 (citation) => `
                 <div class="reference-item">
@@ -618,12 +679,8 @@ export const generateShareImagePuppeteer = async (req: Request<any, any, any, Sh
 
     logger.info({ query: req.query }, 'Generating share image with Puppeteer');
 
-    // Check if Chrome is available, if not, immediately fall back to SVG
-    const chromeAvailable = await checkChromeAvailability();
-    if (!chromeAvailable) {
-      logger.info('Chrome not available, using SVG fallback approach');
-      return await useSvgFallback(req, res);
-    }
+    // Force Puppeteer usage - skip Chrome availability check
+    logger.info('Forcing Puppeteer usage, skipping Chrome availability check');
 
     // If we have an ID, fetch data from Supabase
     if (id && typeof id === 'string') {
@@ -766,7 +823,12 @@ async function generateImageFromData(res: Response, data: ShareImageData) {
   try {
     // Set response headers for PNG image
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=21600'); // Cache for 6 hours
+    // Set cache headers based on environment
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' || !process.env.NODE_ENV;
+    res.setHeader('Cache-Control', isDevelopment
+      ? 'no-cache, no-store, must-revalidate' // Disable cache for development
+      : 'public, max-age=21600' // Cache for 6 hours in production
+    );
 
     // Generate HTML content
     const htmlContent = generateHTML(data);

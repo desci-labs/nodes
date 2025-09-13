@@ -14,14 +14,21 @@ const logger = parentLogger.child({ module: 'shareImage' });
 // Supabase configuration - to be initialized if needed
 let supabase: any = null;
 
-// Initialize Supabase if environment variables are set
-if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-  import('@supabase/supabase-js').then(({ createClient }) => {
-    supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
-  }).catch(err => {
-    logger.warn({ err }, 'Failed to initialize Supabase client');
-  });
+// Initialize Supabase synchronously if environment variables are set
+async function initSupabase() {
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+      logger.info('Supabase client initialized successfully');
+    } catch (err) {
+      logger.warn({ err }, 'Failed to initialize Supabase client');
+    }
+  }
 }
+
+// Initialize immediately
+initSupabase();
 
 interface Citation {
   id: string;
@@ -116,7 +123,11 @@ function formatCitationForImage(citation: Citation, index: number) {
     title = title.substring(0, 77) + '...';
   }
 
-  const metadata = `${authors}${year}.${journal}`;
+  // Add DOI URL if available
+  const doiUrl = citation.doi
+    ? (citation.doi.startsWith('http') ? ` ${citation.doi}` : ` https://doi.org/${citation.doi}`)
+    : (citation.url ? ` ${citation.url}` : '');
+  const metadata = `${authors}${year}.${journal}${doiUrl}`;
 
   return {
     number: index,
@@ -238,7 +249,7 @@ const LAYOUT = {
     LINE_HEIGHT: 16,
     BLOCK_HEIGHT: 40, // Height per citation block including spacing
     MIN_GUARANTEED: 2, // Always guarantee space for at least 2 citations
-    MAX_COUNT: 3,
+    MAX_COUNT: 2,
     HEADER_HEIGHT: 25, // Height for "References:" header
     HEADER_COLOR: '#9ca3af',
     NUMBER_COLOR: '#64748b',
@@ -388,13 +399,37 @@ function parseBasicMarkdown(text: string): MarkdownElement[] {
   const elements: MarkdownElement[] = [];
 
   // Split by lines first to handle lists and paragraphs
-  const lines = text.split('\n').filter((line) => line.trim());
+  const lines = text.split('\n');
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const trimmedLine = line.trim();
 
-    // Handle list items
-    if (trimmedLine.match(/^[-*]\s+/)) {
+    // Skip empty lines but preserve spacing
+    if (!trimmedLine) {
+      // Add spacing only if it's between content
+      if (elements.length > 0 && i < lines.length - 1 && lines[i + 1]?.trim()) {
+        elements.push({
+          type: 'spacing',
+          content: '',
+        });
+      }
+      continue;
+    }
+
+    // Handle numbered list items (1. 2. 3. etc.)
+    if (trimmedLine.match(/^\d+\.\s+/)) {
+      const content = trimmedLine.replace(/^\d+\.\s+/, '');
+      const number = trimmedLine.match(/^(\d+)\./)?.[1] || '1';
+      elements.push({
+        type: 'numbered-list',
+        content: processInlineMarkdown(content),
+        indent: LAYOUT.ANSWER.LIST_INDENT,
+        number,
+      });
+    }
+    // Handle bullet list items
+    else if (trimmedLine.match(/^[-*]\s+/)) {
       const content = trimmedLine.replace(/^[-*]\s+/, '');
       elements.push({
         type: 'list',
@@ -746,7 +781,12 @@ async function generateShareImageFromData(res: Response, data: ShareImageData) {
   try {
     // Set response headers for PNG image
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=21600'); // Cache for 6 hours
+    // Set cache headers based on environment
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' || !process.env.NODE_ENV;
+    res.setHeader('Cache-Control', isDevelopment
+      ? 'no-cache, no-store, must-revalidate' // Disable cache for development
+      : 'public, max-age=21600' // Cache for 6 hours in production
+    );
 
     // Prepare data
     const displayText = data.text;
