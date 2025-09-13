@@ -1,11 +1,15 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 import type { Request, Response } from 'express';
 import { marked } from 'marked';
 import puppeteer from 'puppeteer';
 
 import { logger as parentLogger } from '../../logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const logger = parentLogger.child({ module: 'shareImagePuppeteer' });
 

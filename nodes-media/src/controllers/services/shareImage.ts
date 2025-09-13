@@ -2,8 +2,12 @@ import type { Request, Response } from 'express';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import xss from 'xss';
 import { logger as parentLogger } from '../../logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const logger = parentLogger.child({ module: 'shareImage' });
 
