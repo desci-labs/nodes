@@ -484,10 +484,10 @@ function prepareAnswerPreview(
     }
   });
 
-  // Replace complex citations with styled citation markers
+  // Replace complex citations with styled citation markers (safe split/join to avoid ReDoS)
   citationMap.forEach((index, citation) => {
-    const complexPattern = new RegExp(`\\[${citation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]`, 'g');
-    cleanAnswer = cleanAnswer.replace(complexPattern, ` {{CITE:${index}}}`);
+    const token = `[${citation}]`;
+    cleanAnswer = cleanAnswer.split(token).join(` {{CITE:${index}}}`);
   });
 
   // Basic cleanup while preserving structure for markdown

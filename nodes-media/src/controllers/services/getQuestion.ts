@@ -5,22 +5,44 @@ const logger = baseLogger.child({ module: 'getQuestion' });
 
 // Supabase configuration - to be initialized if needed
 let supabase: any = null;
+let initPromise: Promise<any> | null = null;
 
-// Initialize Supabase synchronously if environment variables are set
-async function initSupabase() {
+/**
+ * Promise-based Supabase initializer and accessor
+ * Returns the Supabase client, initializing it if necessary
+ */
+async function getSupabase(): Promise<any> {
+  // If already initialized, return immediately
+  if (supabase) {
+    return supabase;
+  }
+
+  // If initialization is in progress, wait for it
+  if (initPromise) {
+    await initPromise;
+    return supabase;
+  }
+
+  // Start initialization
   if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-    try {
-      const { createClient } = await import('@supabase/supabase-js');
-      supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
-      logger.info('Supabase client initialized successfully');
-    } catch (err) {
-      logger.warn({ err }, 'Failed to initialize Supabase client');
-    }
+    initPromise = (async () => {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+        logger.info('Supabase client initialized successfully');
+        return supabase;
+      } catch (err) {
+        logger.warn({ err }, 'Failed to initialize Supabase client');
+        throw err;
+      }
+    })();
+
+    await initPromise;
+    return supabase;
+  } else {
+    throw new Error('Supabase environment variables not configured');
   }
 }
-
-// Initialize immediately
-initSupabase();
 
 interface GetQuestionQuery {
   id?: string;
@@ -44,15 +66,12 @@ export const getQuestion = async (req: Request<any, any, any, GetQuestionQuery>,
 
     logger.info({ id }, 'Fetching question for search ID');
 
-    // Check if Supabase is available
-    if (!supabase) {
-      logger.error('Supabase client not available');
-      return res.status(503).json({ error: 'Database service not available' });
-    }
-
     try {
+      // Get Supabase client, initializing if necessary
+      const supabaseClient = await getSupabase();
+
       // Fetch only the query field from the search_logs table
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('search_logs')
         .select('query')
         .eq('id', id)
@@ -71,7 +90,13 @@ export const getQuestion = async (req: Request<any, any, any, GetQuestionQuery>,
         question: data.query
       });
 
-    } catch (dbError) {
+    } catch (dbError: any) {
+      // Handle Supabase initialization errors specifically
+      if (dbError.message?.includes('environment variables not configured')) {
+        logger.error('Supabase not configured');
+        return res.status(503).json({ error: 'Database service not available' });
+      }
+
       logger.error({ error: dbError, id }, 'Database error while fetching question');
       return res.status(500).json({ error: 'Failed to fetch question from database' });
     }

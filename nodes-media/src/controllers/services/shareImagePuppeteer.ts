@@ -13,16 +13,45 @@ const __dirname = path.dirname(__filename);
 
 const logger = parentLogger.child({ module: 'shareImagePuppeteer' });
 
-// Supabase configuration - to be initialized if needed
+// Supabase configuration - lazy initialization
 let supabase: any = null;
+let initPromise: Promise<any> | null = null;
 
-// Initialize Supabase if environment variables are set
-if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-  import('@supabase/supabase-js').then(({ createClient }) => {
-    supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
-  }).catch(err => {
-    logger.warn({ err }, 'Failed to initialize Supabase client');
-  });
+/**
+ * Promise-based Supabase initializer and accessor
+ * Returns the Supabase client, initializing it if necessary
+ */
+async function getSupabase(): Promise<any> {
+  // If already initialized, return immediately
+  if (supabase) {
+    return supabase;
+  }
+
+  // If initialization is in progress, wait for it
+  if (initPromise) {
+    await initPromise;
+    return supabase;
+  }
+
+  // Start initialization
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    initPromise = (async () => {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+        logger.info('Supabase client initialized successfully');
+        return supabase;
+      } catch (err) {
+        logger.warn({ err }, 'Failed to initialize Supabase client');
+        throw err;
+      }
+    })();
+
+    await initPromise;
+    return supabase;
+  } else {
+    throw new Error('Supabase environment variables not configured');
+  }
 }
 
 /**
@@ -41,6 +70,20 @@ function replaceAllSafe(text: string, target: string, replacement: string): stri
   }
 
   return result;
+}
+
+/**
+ * Escapes HTML characters to prevent XSS attacks
+ */
+function escapeHtml(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;');
 }
 
 /**
@@ -134,12 +177,15 @@ function capitalizeExceptArticles(text: string): string {
  */
 function formatCitation(citation: Citation, index: number) {
   const authors = citation.authors
-    ? citation.authors
-        .split(',')
-        .map((a) => a.trim())
-        .filter((a) => a.length > 0) // Remove empty entries
-        .slice(0, 3)
-        .join(', ') + (citation.authors.split(',').length > 3 ? ', et al.' : '')
+    ? (() => {
+        const authorArray = citation.authors
+          .split(',')
+          .map((a) => a.trim())
+          .filter((a) => a.length > 0); // Remove empty entries
+        const displayAuthors = authorArray.slice(0, 3);
+        const shouldShowEtAl = authorArray.length > 3;
+        return displayAuthors.join(', ') + (shouldShowEtAl ? ', et al.' : '');
+      })()
     : 'Unknown Author';
 
   const year = citation.year ? ` (${citation.year})` : '';
@@ -309,20 +355,24 @@ function processSimpleMarkdownToHTML(text: string): string {
 function processMarkdownToHTML(text: string): string {
   if (!text) return '';
 
-  // Debug the input text format
-  logger.info('Raw input text for markdown processing:', {
-    length: text.length,
-    sample: text.substring(0, 300),
-    hasNewlines: text.includes('\n'),
-    hasNumberedLists: /\d+\.\s/.test(text),
-  });
+  // Debug the input text format (only in development)
+  if (process.env.NODE_ENV !== 'production') {
+    logger.debug('Raw input text for markdown processing:', {
+      length: text.length,
+      sample: text.substring(0, 100), // Reduced sample size
+      hasNewlines: text.includes('\n'),
+      hasNumberedLists: /\d+\.\s/.test(text),
+    });
+  }
 
   // First process citations
   const { processedAnswer } = processAnswerWithCitations(text);
 
-  logger.info('After citation processing:', {
-    sample: processedAnswer.substring(0, 300),
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    logger.debug('After citation processing:', {
+      sample: processedAnswer.substring(0, 100),
+    });
+  }
 
   // Pre-process to ensure numbered lists are properly formatted
   let preprocessed = processedAnswer
@@ -332,9 +382,11 @@ function processMarkdownToHTML(text: string): string {
     .replace(/(\n\d+\.\s.*?)(?=\n\d+\.\s)/gs, '$1\n')
     .trim();
 
-  logger.info('After preprocessing:', {
-    sample: preprocessed.substring(0, 300),
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    logger.debug('After preprocessing:', {
+      sample: preprocessed.substring(0, 100),
+    });
+  }
 
   // Configure marked to handle breaks properly
   configureMarkdown();
@@ -342,9 +394,11 @@ function processMarkdownToHTML(text: string): string {
   // Use marked with breaks enabled to preserve newlines
   let html = marked.parse(preprocessed);
 
-  logger.info('Generated HTML:', {
-    sample: html.substring(0, 400),
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    logger.debug('Generated HTML:', {
+      sample: html.substring(0, 100),
+    });
+  }
 
   // Add custom classes to elements for styling
   html = html
@@ -617,7 +671,7 @@ function generateHTML(data: ShareImageData): string {
     </div>
 
     <div class="content">
-        <div class="question">${data.text}</div>
+        <div class="question">${escapeHtml(data.text)}</div>
         
         <div class="answer">
             <div class="answer-content">
@@ -637,8 +691,8 @@ function generateHTML(data: ShareImageData): string {
                 <div class="reference-item">
                     <div class="reference-number">[${citation.number}]</div>
                     <div class="reference-content">
-                        <div class="reference-title">${citation.title}</div>
-                        <div class="reference-meta">${citation.metadata}</div>
+                        <div class="reference-title">${escapeHtml(citation.title)}</div>
+                        <div class="reference-meta">${escapeHtml(citation.metadata)}</div>
                     </div>
                 </div>
             `,
@@ -684,12 +738,10 @@ export const generateShareImagePuppeteer = async (req: Request<any, any, any, Sh
 
     // If we have an ID, fetch data from Supabase
     if (id && typeof id === 'string') {
-      if (!supabase) {
-        return res.status(500).json({ error: 'Database not configured' });
-      }
-
       try {
-        const { data, error } = await supabase.from('search_logs').select('*').eq('id', id).single();
+        // Get Supabase client, initializing if necessary
+        const supabaseClient = await getSupabase();
+        const { data, error } = await supabaseClient.from('search_logs').select('*').eq('id', id).single();
 
         if (error || !data) {
           logger.error({ error, id }, 'Search result not found');
@@ -721,10 +773,13 @@ export const generateShareImagePuppeteer = async (req: Request<any, any, any, Sh
       }
     }
 
-    // Fallback to URL parameters
-    if (!text || typeof text !== 'string') {
-      return res.status(400).json({ error: 'Text parameter is required' });
+    // Disable text parameter for security
+    if (text) {
+      return res.status(400).json({ error: 'Text parameter is not supported. Use ID parameter instead.' });
     }
+
+    // No fallback to URL parameters - require ID
+    return res.status(400).json({ error: 'ID parameter is required' });
 
     const referenceCount = refs ? parseInt(refs as string) : 0;
     let citationsData: Citation[] = [];
@@ -760,43 +815,6 @@ export const generateShareImagePuppeteer = async (req: Request<any, any, any, Sh
   }
 };
 
-/**
- * Checks if Chrome/Chromium is available for Puppeteer
- */
-async function checkChromeAvailability(): Promise<boolean> {
-  try {
-    // Check environment variable first
-    if (process.env.FORCE_SVG_FALLBACK === 'true') {
-      return false;
-    }
-
-    // Check if Chrome/Chromium executable exists
-    const { execSync } = await import('child_process');
-
-    const possiblePaths = [
-      '/usr/bin/chromium', // Debian/Ubuntu Chromium
-      '/usr/bin/chromium-browser', // Alternative Chromium path
-      '/usr/bin/google-chrome-stable', // Google Chrome (if available)
-      '/usr/bin/google-chrome', // Alternative Chrome path
-    ];
-
-    for (const path of possiblePaths) {
-      try {
-        execSync(`test -f ${path}`, { stdio: 'ignore' });
-        logger.info(`Found browser at: ${path}`);
-        return true;
-      } catch {
-        // Continue checking other paths
-      }
-    }
-
-    logger.warn('No Chrome/Chromium executable found, will use SVG fallback');
-    return false;
-  } catch (error) {
-    logger.warn({ error }, 'Error checking browser availability, will use SVG fallback');
-    return false;
-  }
-}
 
 /**
  * Handles fallback to the original SVG approach
@@ -835,9 +853,10 @@ async function generateImageFromData(res: Response, data: ShareImageData) {
 
     logger.info('Attempting to launch Puppeteer browser...');
 
-    // Launch browser with Docker-optimized settings
+    // Launch browser with Docker-optimized settings and timeout
     browser = await puppeteer.launch({
       headless: true,
+      timeout: 30000,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -853,7 +872,7 @@ async function generateImageFromData(res: Response, data: ShareImageData) {
         '--disable-features=TranslateUI',
         '--disable-ipc-flooding-protection',
         '--memory-pressure-off',
-        '--max_old_space_size=4096',
+        '--js-flags=--max_old_space_size=4096',
       ],
       // Try to use system Chrome if available, fallback to bundled
       executablePath: process.env.CHROME_EXECUTABLE_PATH || undefined,
