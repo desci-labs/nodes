@@ -14,6 +14,8 @@ const createSubscriptionSchema = z.object({
   priceId: z.string(),
   successUrl: z.string().optional(),
   cancelUrl: z.string().optional(),
+  allowPromotionCodes: z.boolean().optional(),
+  coupon: z.string().optional(),
 });
 
 const customerPortalSchema = z.object({
@@ -27,16 +29,16 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { priceId, successUrl, cancelUrl } = createSubscriptionSchema.parse(req.body);
+    const { priceId, successUrl, cancelUrl, allowPromotionCodes, coupon } = createSubscriptionSchema.parse(req.body);
 
-    logger.info('Creating subscription checkout', { userId, priceId });
+    logger.info('Creating subscription checkout', { userId, priceId, allowPromotionCodes, coupon });
 
     // Get or create Stripe customer
     const customer = await SubscriptionService.getOrCreateStripeCustomer(userId);
 
     // Create checkout session
     const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       customer: customer.id,
       payment_method_types: ['card'],
       line_items: [
@@ -51,7 +53,16 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       metadata: {
         userId: userId.toString(),
       },
-    });
+    };
+
+    // Add promotion codes or specific coupon support
+    if (allowPromotionCodes) {
+      sessionConfig.allow_promotion_codes = true;
+    } else if (coupon) {
+      sessionConfig.discounts = [{ coupon }];
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     return res.status(200).json({ sessionId: session.id });
   } catch (error: any) {
