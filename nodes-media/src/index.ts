@@ -92,9 +92,35 @@ app.get('/readyz', (req, res) => {
 
 app.use('/', routes);
 
+// Global error handler - must be before Sentry error handler
+app.use((err: any, req: any, res: any, next: any) => {
+  // Ensure response object exists and hasn't been sent
+  if (res && !res.headersSent) {
+    console.error('Unhandled error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+  next(err);
+});
+
 if (ENABLE_SENTRY) {
   app.use(Sentry.Handlers.errorHandler());
 }
+
+// Process-level error handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  if (ENABLE_SENTRY) {
+    Sentry.captureException(reason);
+  }
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  if (ENABLE_SENTRY) {
+    Sentry.captureException(error);
+  }
+  process.exit(1);
+});
 
 const port = process.env.PORT || 5454;
 app.listen(port, () => {

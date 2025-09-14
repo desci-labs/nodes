@@ -24,11 +24,14 @@ spec:
         vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/db
         vault.hashicorp.com/agent-inject-template-config: |
           {{- with secret "secrets/desci-server/dev/app" -}}
-          echo "sourcing"; 
+          echo "sourcing";
           export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
           export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
           export IPFS_NODE_URL={{ .Data.IPFS_NODE_URL }}
           export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
+          export SUPABASE_URL={{ .Data.SUPABASE_URL }}
+          export SUPABASE_ANON_KEY={{ .Data.SUPABASE_ANON_KEY }}
+          export NODE_ENV=production
           {{- end -}}
       labels:
         App: NodesMediaServerDev
