@@ -133,13 +133,13 @@ export async function processExternalUrlDataToIpfs({
           const response = await axios.head(url);
           const contentType = response.headers['content-type'];
 
-          if (contentType === 'application/pdf') {
+          if (contentType === 'application/pdf' || contentType === 'application/octet-stream') {
             const res = await axios.get(url, { responseType: 'arraybuffer' });
             const buffer = Buffer.from(res.data, 'binary');
             externalUrlFiles = [{ path: externalUrl.path, content: buffer }];
             externalUrlTotalSizeBytes = buffer.length;
           } else {
-            throw new Error('Invalid file type. Only PDF files are supported.');
+            throw new Error(`Invalid file type. Only PDF files are supported. ${contentType}`);
           }
         }
       } catch (e) {
