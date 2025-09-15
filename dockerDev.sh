@@ -71,6 +71,7 @@ done
 
 # Default to empty if unset
 ADDITIONAL_FLAGS=${ADDITIONAL_FLAGS:-""}
+ADDITIONAL_UP_FLAGS=${ADDITIONAL_UP_FLAGS:-""}
 echo "[dockerDev] PWD=$PWD"
 COMPOSE_HTTP_TIMEOUT=320 docker compose \
   --project-name desci \

@@ -33,6 +33,8 @@ services:
       - "8545:8545"
     env_file:
       - .env
+    environment:
+      PG_PORT: 5433
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
