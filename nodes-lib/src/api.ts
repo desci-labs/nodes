@@ -26,13 +26,13 @@ import {randomUUID} from "crypto";
 import {makeRequest} from "./routes.js";
 import {Signer} from "ethers";
 import {type DID} from "dids";
-import {getCodexHistory, getFullState} from "./codex.js";
+import {getCodexHistory} from "./codex.js";
 import {bnToString, convertUUIDToDecimal} from "./util/converting.js";
 import {lookupLegacyDpid} from "./chain.js";
 import {PublishError} from "./errors.js";
 import {errWithCause} from "pino-std-serializers";
 import {getHeaders} from "./util/headers.js";
-import { sleep } from "../test/util.js";
+import { sleep } from "./util/sleep.js";
 
 export const ENDPOINTS = {
   deleteData: {
