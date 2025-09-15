@@ -110,3 +110,6 @@ export const ENABLE_SOCIAL_DATA_SEED_SCRIPTS = process.env.ENABLE_SOCIAL_DATA_SE
 // Miscellaneous
 export const MAX_LOCK_TIME = process.env.MAX_LOCK_TIME;
 export const npm_package_version = process.env.npm_package_version;
+
+// Feature Limits Configuration (For new users)
+export const SCIWEAVE_FREE_LIMIT = parseInt(process.env.SCIWEAVE_FREE_LIMIT || '20');
