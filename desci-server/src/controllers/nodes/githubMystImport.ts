@@ -1,6 +1,11 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { projectFrontmatterSchema } from '@awesome-myst/myst-zod';
-import { ManifestActions } from '@desci-labs/desci-models';
+import {
+  ManifestActions,
+  ResearchObjectComponentDocumentSubtype,
+  ResearchObjectComponentType,
+} from '@desci-labs/desci-models';
+import { UpdateResponse } from '@elastic/elasticsearch/lib/api/types.js';
 import axios from 'axios';
 import { NextFunction, Response } from 'express';
 import { load } from 'js-yaml';
@@ -11,8 +16,9 @@ import { z } from 'zod';
 
 import { sendError, sendSuccess } from '../../core/api.js';
 import { UnProcessableRequestError } from '../../core/ApiError.js';
-import { AuthenticatedRequest, ValidatedRequest } from '../../core/types.js';
+import { AuthenticatedRequestWithNode, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
+import { processExternalUrlDataToIpfs } from '../../services/data/externalUrlProcessing.js';
 import { getNodeByUuid } from '../../services/node.js';
 import repoService from '../../services/repoService.js';
 
@@ -33,7 +39,7 @@ export const githubMystImportSchema = z.object({
     dryRun: z.boolean().optional().default(false),
   }),
 });
-type GithubMystImportRequest = ValidatedRequest<typeof githubMystImportSchema, AuthenticatedRequest>;
+type GithubMystImportRequest = ValidatedRequest<typeof githubMystImportSchema, AuthenticatedRequestWithNode>;
 
 const mystYamlSchema = z.object({
   version: z.number(),
@@ -51,55 +57,58 @@ const mystYamlSchema = z.object({
         }),
       )
       .optional(),
-    license: z.string().optional(),
-    open_access: z.boolean().optional(),
-    github: z.string().optional(),
-    keywords: z.array(z.string()).optional(),
-    venue: z
-      .object({
-        title: z.string().optional(),
-        url: z.string().optional(),
-      })
-      .optional(),
-    bibliography: z.array(z.string()).optional(),
-    exports: z
-      .array(
-        z.object({
-          format: z.string().optional(),
-          template: z.string().optional(),
-          article_type: z.string().optional(),
-          output: z.string().optional(),
-        }),
-      )
-      .optional(),
-    resources: z.array(z.string()).optional(),
-    requirements: z.array(z.string()).optional(),
+    // license: z
+    //   .object({
+    //     content: z.string().optional().describe('License for the content'),
+    //     code: z.string().optional().describe('License for the code'),
+    //   })
+    //   .describe('Licenses for the notebook'),
+    // open_access: z.boolean().optional(),
+    // github: z.string().optional(),
+    // keywords: z.array(z.string()).optional(),
+    // venue: z
+    //   .object({
+    //     title: z.string().optional(),
+    //     url: z.string().optional(),
+    //   })
+    //   .optional(),
+    // bibliography: z.array(z.string()).optional(),
+    // exports: z
+    //   .array(
+    //     z.object({
+    //       format: z.string().optional(),
+    //       template: z.string().optional(),
+    //       article_type: z.string().optional(),
+    //       output: z.string().optional(),
+    //     }),
+    //   )
+    //   .optional(),
+    // resources: z.array(z.string()).optional(),
+    // requirements: z.array(z.string()).optional(),
   }),
-  site: z
-    .object({
-      title: z.string().optional(),
-      logo: z.string().optional(),
-      favicon: z.string().optional(),
-      nav: z
-        .array(
-          z.object({
-            title: z.string().optional(),
-            url: z.string().optional(),
-          }),
-        )
-        .optional(),
-      options: z.object({
-        logo_text: z.string().optional(),
-        hide_title_on_index: z.boolean().optional(),
-      }),
-      domains: z.array(z.string()).optional(),
-    })
-    .optional(),
+  // site: z
+  //   .object({
+  //     title: z.string().optional(),
+  //     logo: z.string().optional(),
+  //     favicon: z.string().optional(),
+  //     nav: z
+  //       .array(
+  //         z.object({
+  //           title: z.string().optional(),
+  //           url: z.string().optional(),
+  //         }),
+  //       )
+  //       .optional(),
+  //     options: z.object({
+  //       logo_text: z.string().optional(),
+  //       hide_title_on_index: z.boolean().optional(),
+  //     }),
+  //     domains: z.array(z.string()).optional(),
+  //   })
+  //   .optional(),
 });
 
-const parseMystDocument = async (
-  url: string,
-): Promise<Result<z.infer<typeof mystYamlSchema>, UnProcessableRequestError>> => {
+const parseImportUrl = (url: string) => {
   try {
     const matchList = url.match(/github.com[\/:]([^\/]+)\/([^\/^.]+)\/blob\/([^\/^.]+)\/(.+)/);
     logger.trace({ matchList }, 'MYST::matchList');
@@ -110,11 +119,20 @@ const parseMystDocument = async (
     const [, author, repo, branch, contentPath] = matchList as RegExpMatchArray;
     logger.trace({ author, repo, branch, contentPath }, 'MYST::Regex');
 
-    const rawDownloadUrl = `https://raw.githubusercontent.com/${author}/${repo}/${branch ? branch + '/' : ''}${contentPath}`;
+    const baseDownloadUrl = `https://raw.githubusercontent.com/${author}/${repo}/${branch ? branch + '/' : ''}`;
+    const rawDownloadUrl = `${baseDownloadUrl}${contentPath}`;
     // const contentDownloadUrl = `https://api.github.com/repos/${author}/${repo}/contents/${contentPath}?ref=${branch}`;
 
     logger.trace({ rawDownloadUrl }, 'MYST::apiUrl');
 
+    return ok({ baseDownloadUrl, rawDownloadUrl });
+  } catch (error) {
+    return err(new UnProcessableRequestError('Failed to parse github URL', error));
+  }
+};
+
+const downloadFileFromUrl = async (rawDownloadUrl: string) => {
+  try {
     const apiResponse = await axios(rawDownloadUrl, {
       responseType: 'text',
       validateStatus: () => true,
@@ -126,28 +144,65 @@ const parseMystDocument = async (
 
     logger.trace({ data: apiResponse.data, contentType: apiResponse.headers['content-type'] }, 'MYST::apiResponse');
 
-    const yamlText = await apiResponse.data;
-    // logger.trace({ yamlText: yamlText.slice(0, 20) }, 'MYST::githubResponse');
+    const rawFile = await apiResponse.data;
 
+    return ok(rawFile);
+  } catch (error) {
+    return err(new UnProcessableRequestError('Failed to download file', error));
+  }
+};
+
+const downloadManuscriptFromUrl = async (
+  rawDownloadUrl: string,
+): Promise<Result<Buffer, UnProcessableRequestError>> => {
+  try {
+    const apiResponse = await axios(rawDownloadUrl, {
+      responseType: 'arraybuffer',
+      validateStatus: () => true,
+    });
+
+    if (apiResponse.status !== 200) {
+      return err(new UnProcessableRequestError('File not found'));
+    }
+
+    logger.trace({ data: apiResponse.data, contentType: apiResponse.headers['content-type'] }, 'MYST::apiResponse');
+
+    const rawFile = Buffer.from(apiResponse.data);
+
+    return ok(rawFile);
+  } catch (error) {
+    return err(new UnProcessableRequestError('Failed to download file', error));
+  }
+};
+
+const parseMystDocument = async (
+  yamlText: string,
+): Promise<Result<z.infer<typeof projectFrontmatterSchema>, UnProcessableRequestError>> => {
+  try {
     const parsedYaml = load(yamlText, { json: true }) as Record<string, unknown>;
     logger.trace({ parsedYaml }, 'MYST::parsedYaml');
 
+    const parsedProject = projectFrontmatterSchema.safeParse(parsedYaml['project']);
+    if (parsedProject.error) {
+      logger.trace({ error: parsedProject.error }, 'MYST::yamlValidationFailed');
+      return err(new UnProcessableRequestError('yaml file validation failed!'));
+    }
+    // logger.trace({ parsedProject: parsedProject.data }, 'MYST::parsedProject');
+
     const parsed = mystYamlSchema.safeParse(parsedYaml);
     if (parsed.error) {
+      logger.trace({ error: parsed.error }, 'MYST::yamlValidationFailed');
       return err(new UnProcessableRequestError('yaml file validation failed!'));
     }
 
     if (!parsedYaml['project']) {
+      logger.trace({ parsedYaml }, 'MYST::missingProjectMetadata');
       return err(new UnProcessableRequestError('Missing project metadata!'));
     }
 
-    // const parsedProject = projectFrontmatterSchema.safeParse(parsedYaml['project']);
-    // if (parsedProject.error) {
-    //   return err(new UnProcessableRequestError('Project metadata validation failed!'));
-    // }
     logger.trace({ document: parsed.data }, 'MYST::doc');
 
-    return ok(parsed.data);
+    return ok({ ...parsedProject.data, authors: parsed.data.project.authors });
   } catch (error) {
     return err(new UnProcessableRequestError('Failed to fetch/parse MyST YAML', error));
   }
@@ -164,12 +219,26 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     return sendError(res, 'Node not initialized', 404);
   }
 
-  const parsedDocument = await parseMystDocument(url);
+  const parseUrlResult = parseImportUrl(url);
+  if (parseUrlResult.isErr()) {
+    return err(parseUrlResult.error);
+  }
+
+  const { rawDownloadUrl, baseDownloadUrl } = parseUrlResult.value;
+
+  const downloadFileResult = await downloadFileFromUrl(rawDownloadUrl);
+  if (downloadFileResult.isErr()) {
+    return err(downloadFileResult.error);
+  }
+
+  const yamlText = downloadFileResult.value;
+
+  const parsedDocument = await parseMystDocument(yamlText);
   if (parsedDocument.isErr()) {
     return sendError(res, parsedDocument.error.message, 400);
   }
 
-  const { title, authors, description, license, keywords } = parsedDocument.value.project;
+  const { title, authors, description, license, keywords, affiliations } = parsedDocument.value;
 
   const actions: ManifestActions[] = [];
 
@@ -180,17 +249,15 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
   if (authors?.length > 0) {
     actions.push({
       type: 'Set Contributors',
-      contributors: authors.map((author) => {
-        // const organizations = author?.affiliations?.map((affiliation) => ({
-        //   id: affiliation.email ?? '',
-        //   name: affiliation.name,
-        // }));
+      contributors: authors.map((author, authorIndex) => {
+        const organization = affiliations?.[authorIndex];
         return {
           id: uuidv4(),
           name: author.name,
           role: [],
-          // organizations,
+          email: author.email,
           ...(author?.orcid && { orcid: author.orcid }),
+          ...(organization && { organizations: [{ id: author.email ?? '', name: organization.name }] }),
           // ...(author?.affiliation && { organizations: [{ id: author.email ?? '', name: author.affiliation }] }),
         };
       }),
@@ -198,7 +265,7 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
   }
 
   // in projectFrontmatterSchema, license is an object with content and code properties
-  if (license) actions.push({ type: 'Update License', defaultLicense: license as string });
+  if (license) actions.push({ type: 'Update License', defaultLicense: license?.content?.id ?? license?.code?.id });
 
   if (keywords?.length > 0) actions.push({ type: 'Set Keywords', keywords });
 
@@ -209,6 +276,7 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     });
   }
 
+  let manuscriptImport: { ok: boolean; value: UpdateResponse } | undefined;
   if (actions.length > 0) {
     logger.trace({ actions }, 'Populate Node with myst metadata');
     const response = await repoService.dispatchAction({
@@ -217,11 +285,34 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
       actions,
     });
 
-    logger.trace({ response: response.manifest }, 'myst metadata updated');
+    // logger.trace({ response: response.manifest }, 'myst metadata updated');
+
+    const exportRef = parsedDocument.value.exports.find((entry) => entry.format === 'typst' || entry.format === 'pdf');
+    if (exportRef) {
+      const externalUrl = { path: 'manuscript.pdf', url: `${baseDownloadUrl}${exportRef.output}` };
+      logger.trace({ exportRef, exports: parsedDocument.value.exports, externalUrl }, 'myst exportRef');
+      const { ok, value } = await processExternalUrlDataToIpfs({
+        user: req.user,
+        node: req.node,
+        externalUrl,
+        contextPath: 'root',
+        componentType: ResearchObjectComponentType.PDF,
+        componentSubtype:
+          exportRef.format === 'pdf'
+            ? ResearchObjectComponentDocumentSubtype.MANUSCRIPT
+            : ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
+        autoStar: true,
+      });
+
+      if (ok) {
+        logger.trace({ manuscriptImport: ok, value: value }, 'MYST::manuscriptImport');
+        manuscriptImport = { ok, value };
+      }
+    }
 
     return sendSuccess(res, {
       ok: response.manifest !== null,
-      debug: isDesciUser ? { actions, parsedDocument, response } : undefined,
+      debug: isDesciUser ? { actions, parsedDocument, response, manuscriptImport } : undefined,
     });
   } else {
     logger.error('NO DATA EXTRACTED');
