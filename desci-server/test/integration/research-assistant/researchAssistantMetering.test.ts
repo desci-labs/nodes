@@ -77,7 +77,7 @@ describe('Research Assistant Metering', () => {
         expect(result.isOk()).to.be.true;
         const status = result._unsafeUnwrap();
         expect(status.currentUsage).to.equal(2);
-        expect(status.remainingUses).to.equal(8);
+        expect(status.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT - 2);
         expect(status.isWithinLimit).to.be.true;
       });
 
@@ -170,7 +170,7 @@ describe('Research Assistant Metering', () => {
         expect(result.isOk()).to.be.true;
         const status = result._unsafeUnwrap();
         expect(status.currentUsage).to.equal(1); // Only current month usage counts
-        expect(status.remainingUses).to.equal(9);
+        expect(status.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT - 1);
         expect(status.isWithinLimit).to.be.true;
 
         // Verify the period was reset
@@ -205,7 +205,7 @@ describe('Research Assistant Metering', () => {
         expect(result.isOk()).to.be.true;
         const status = result._unsafeUnwrap();
         expect(status.currentUsage).to.equal(1); // Only RESEARCH_ASSISTANT counts
-        expect(status.remainingUses).to.equal(9);
+        expect(status.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT - 1);
       });
     });
 
@@ -655,7 +655,7 @@ describe('Research Assistant Metering', () => {
 
         expect(res.status).to.equal(200);
         expect(res.body.data.totalUsed).to.equal(2);
-        expect(res.body.data.totalRemaining).to.equal(8);
+        expect(res.body.data.totalRemaining).to.equal(SCIWEAVE_FREE_LIMIT - 2);
         expect(res.body.data.isWithinLimit).to.be.true;
       });
 
