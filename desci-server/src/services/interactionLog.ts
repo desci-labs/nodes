@@ -71,12 +71,17 @@ export const saveInteractionWithoutReq = async ({
   });
 };
 
-export const getUserConsent = async (userId?: number) => {
+export enum AppType {
+  PUBLISH = 'PUBLISH',
+  SCIWEAVE = 'SCIWEAVE',
+}
+
+export const getUserConsent = async (userId: number, appType: AppType) => {
   logger.info({ fn: 'getUserConsent', userId }, 'interactionLog::getUserConsent');
   return await prisma.interactionLog.findFirst({
     where: {
       userId,
-      action: ActionType.USER_TERMS_CONSENT,
+      action: appType === AppType.PUBLISH ? ActionType.USER_TERMS_CONSENT : ActionType.USER_SCIWEAVE_TERMS_CONSENT,
     },
     // data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
   });
