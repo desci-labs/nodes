@@ -301,7 +301,6 @@ const backfillNewStreamC1 = async (
   did: DID,
   versions: IndexedNodeVersion[]
 ): Promise<string> => {
-  debugger;
   console.log(
     LOG_CTX,
     `starting backfill migration for versions:\n${JSON.stringify(
