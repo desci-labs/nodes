@@ -1,4 +1,12 @@
-FROM node:18.17.0
+FROM ghcr.io/prefix-dev/pixi:latest AS build
+
+RUN pixi -V
+
+FROM node:18.17.0 AS base
+
+COPY --from=build --chown=root:root --chmod=0555 /usr/local/bin/pixi /usr/local/bin/pixi
+ENV PATH="/root/.pixi/bin:${PATH}"
+RUN pixi -V
 
 VOLUME /root/.yarn
 
@@ -47,10 +55,12 @@ RUN apt-get -qy update && apt-get install -y \
 
 RUN apt-get -qy update && apt-get install -y    inkscape 
 RUN apt-get -qy update && apt-get install -y    texlive-full  --fix-missing
+RUN apt-get -qy update && apt-get install -y    texlive-latex-recommended
 RUN apt-get -qy update && apt-get install -y     texlive-xetex 
 RUN apt-get -qy update && apt-get install -y    unzip \
     curl
 
+# install imagemagick
 RUN apt-get update && apt-get install imagemagick
 
 # update imagemagick security policy to allow pdf
@@ -59,6 +69,17 @@ RUN sed '/"PDF"/d' /etc/ImageMagick-6/policy.xml > /etc/ImageMagick-6/policy.xml
 # Set Puppeteer to use installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV CHROME_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Install xzdec - a tool for decompressing .xz files, needed by tlmgr (TeX Live package manager)
+RUN apt-get install -y xzdec
+
+RUN mkdir -p /root/texmf
+RUN tlmgr init-usertree
+
+RUN which latexmk
+
+# install ghostscript
+RUN apt-get install -y ghostscript
 
 RUN npm install -g npm@8.10.0
 
