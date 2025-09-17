@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { getUserSubmissions } from '../../controllers/communities/submissions.js';
+import { consentSciweave } from '../../controllers/nodes/consent.js';
 import { list, associateWallet, updateProfile, associateOrcidWallet } from '../../controllers/users/index.js';
 import { addPublishedWallet } from '../../controllers/users/publishedWallets/create.js';
 import { getUserPublishedWallets } from '../../controllers/users/publishedWallets/index.js';
@@ -24,6 +25,7 @@ router.post('/orcid/associate', [ensureUser], associateOrcidWallet);
 router.patch('/updateProfile', [ensureUser], updateProfile);
 router.get('/search', [ensureGuestOrUser], searchProfiles);
 router.get('/:userId/submissions', [ensureUser, validate(getUserSubmissionsSchema)], asyncHandler(getUserSubmissions));
+router.post('/sciweave/consent', [ensureUser], consentSciweave);
 
 // Published wallet logging
 router.get('/addresses', [ensureUser], asyncHandler(getUserPublishedWallets));
