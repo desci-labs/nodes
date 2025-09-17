@@ -54,10 +54,24 @@ export const NODESLIB_CONFIGS = {
   },
 } as const satisfies { [Env in NodesEnv ]: NodesLibConfig };
 
-// Default config to dev environment
-let config: NodesLibConfig = NODESLIB_CONFIGS.dev;
-console.log(`[nodes-lib::config] initialising with nodes-dev config. Use setConfig and setApiKey to change this: \n${JSON.stringify(NODESLIB_CONFIGS.dev, undefined, 2)}`);
-console.log("[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!")
+// Config storage - starts undefined
+let config: NodesLibConfig | undefined;
+let hasLoggedInitialization = false;
+
+/**
+ * Initialize config with default if not already set
+ */
+const ensureConfig = (): NodesLibConfig => {
+  if (!config) {
+    config = NODESLIB_CONFIGS.dev;
+    if (!hasLoggedInitialization) {
+      hasLoggedInitialization = true;
+      console.log(`[nodes-lib::config] initialising with nodes-dev config. Use setConfig and setApiKey to change this: \n${JSON.stringify(NODESLIB_CONFIGS.dev, undefined, 2)}`);
+      console.log("[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!");
+    }
+  }
+  return config;
+};
 
 /**
  * Set API key in config. Note that it needs to be created in the correct environment:
@@ -66,7 +80,7 @@ console.log("[nodes-lib::config] config.apiKey is unset; non-public API requests
 */
 export const setApiKey = (apiKey: string) => {
   console.log(`[nodes-lib::config] setting new apiKey: \n${apiKey.slice(0, 5) + "..."}`);
-  config.apiKey = apiKey;
+  ensureConfig().apiKey = apiKey;
 };
 
 /**
@@ -83,11 +97,12 @@ export const setNodesLibConfig = (newConfig: NodesLibConfig): void => {
     undefined, 2
   );
   console.log(`[nodes-lib::config] setting new config: \n${confWithRedactedKey}`);
-  if (!config.apiKey) {
+  if (!newConfig.apiKey) {
     console.log("[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!")
   };
 
   config = newConfig;
+  hasLoggedInitialization = true; // Prevent duplicate init logs
 };
 
 /**
@@ -95,5 +110,5 @@ export const setNodesLibConfig = (newConfig: NodesLibConfig): void => {
  * masked by the type to allow browser auth cookie override.
 */
 export const getNodesLibInternalConfig = () => {
-  return config as Required<NodesLibConfig>;
+  return ensureConfig() as Required<NodesLibConfig>;
 };

@@ -15,6 +15,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     "./browser": {
       "import": "./dist/export-entrypoints/browser.js",

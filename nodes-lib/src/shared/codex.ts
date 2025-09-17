@@ -4,10 +4,8 @@ import {
   updateResearchObject,
   ComposeClient,
   type NodeIDs,
-  queryResearchObject,
   newCeramicClient,
   streams,
-  ResearchObjectHistory,
 } from "@desci-labs/desci-codex-lib";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convert0xHexToCid } from "./util/converting.js";
@@ -23,6 +21,7 @@ import { updateResearchObject as updateResearchObjectC1, createResearchObject as
 import { sleep } from "./util/sleep.js";
 
 const LOG_CTX = "[nodes-lib::codex]";
+
 /**
  * Publish an object modification to Codex. If it's the initial publish, it will be done
  * onto a new stream. If there is a known existing stream for the object, the update is
@@ -370,8 +369,6 @@ const backfillNewStreamC1 = async (
   );
   return streamID;
 };
-
-
 
 /**
  * Get the raw stream state for a streamID.

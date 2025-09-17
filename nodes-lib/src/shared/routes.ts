@@ -3,18 +3,23 @@ import { ENDPOINTS } from "./api.js";
 import { getNodesLibInternalConfig } from "./config/index.js";
 
 // Default error serialization is huuuge due to circular refs
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const err = error as AxiosError;
-    console.log(`
-      ${err.name}: ${err.message}:
-      ${err.config?.method} to ${err.config?.url} got ${err.response?.status}:${err.response?.statusText}
-      Body: ${JSON.stringify(err.response?.data)}
-    `);
-    return Promise.reject(new Error(err.message))
-  },
-);
+let hasSetAxiosInterceptors = false;
+const ensureAxiosInterceptor = () => {
+  if (hasSetAxiosInterceptors) return;
+  axios.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      const err = error as AxiosError;
+      console.log(`
+        ${err.name}: ${err.message}:
+        ${err.config?.method} to ${err.config?.url} got ${err.response?.status}:${err.response?.statusText}
+        Body: ${JSON.stringify(err.response?.data)}
+      `);
+      return Promise.reject(new Error(err.message))
+    },
+  );
+  hasSetAxiosInterceptors = true;
+};
 
 /**
  * This function looks like all types are unions, but when called with
@@ -34,6 +39,7 @@ export async function makeRequest<
   payload: T["_payloadT"],
   routeTail?: string,
 ): Promise<T["_responseT"]> {
+  ensureAxiosInterceptor();
   const url = getNodesLibInternalConfig().apiUrl + endpoint.route + (routeTail ?? "");
   let res: AxiosResponse<T["_responseT"]>;
   const config: AxiosRequestConfig = {
