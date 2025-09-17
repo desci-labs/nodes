@@ -3,18 +3,24 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
-import { getUserConsent, getUserQuestionnaireSubmitted, saveInteraction } from '../../services/interactionLog.js';
+import {
+  AppType,
+  getUserConsent,
+  getUserQuestionnaireSubmitted,
+  saveInteraction,
+} from '../../services/interactionLog.js';
 
 export const profile = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
 
-  const [wallets, userOrganizations, consent, questionnaireSubmitted] = await Promise.all([
+  const [wallets, userOrganizations, consent, sciweaveConsent, questionnaireSubmitted] = await Promise.all([
     prisma.wallet.findMany({ where: { userId: user.id } }),
     prisma.userOrganizations.findMany({
       where: { userId: user.id },
       include: { organization: true },
     }),
-    getUserConsent(user.id),
+    getUserConsent(user.id, AppType.PUBLISH),
+    getUserConsent(user.id, AppType.SCIWEAVE),
     getUserQuestionnaireSubmitted(user.id),
   ]);
 
@@ -39,6 +45,7 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
       orcid: user.orcid,
       userOrganization: userOrganizations.map((org) => org.organization),
       consent: !!consent,
+      sciweaveConsent: !!sciweaveConsent,
       receiveMarketingEmails: user.receiveMarketingEmails,
       questionnaireSubmitted: !!questionnaireSubmitted,
       role: questionnaireExtra.role ?? null,

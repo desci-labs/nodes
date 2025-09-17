@@ -5,7 +5,7 @@ import { z as zod } from 'zod';
 
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger } from '../../logger.js';
-import { getUserConsent, getUserPublishConsent, saveInteraction } from '../../services/interactionLog.js';
+import { AppType, getUserConsent, getUserPublishConsent, saveInteraction } from '../../services/interactionLog.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const consent = async (req: Request, res: Response, next: NextFunction) => {
@@ -22,9 +22,29 @@ export const consent = async (req: Request, res: Response, next: NextFunction) =
   res.send({ ok: true });
 };
 
+export const consentSciweave = async (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user;
+  await saveInteraction({
+    req,
+    action: ActionType.USER_SCIWEAVE_TERMS_CONSENT,
+    data: {
+      ...req.body,
+      email: user?.email,
+    },
+    userId: user?.id,
+  });
+  res.send({ ok: true });
+};
+
 export const checkUserConsent = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
-  const consent = await getUserConsent(user.id);
+  const consent = await getUserConsent(user.id, AppType.PUBLISH);
+  res.send({ ok: true, consent });
+};
+
+export const checkUserConsentSciweave = async (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user;
+  const consent = await getUserConsent(user.id, AppType.SCIWEAVE);
   res.send({ ok: true, consent });
 };
 
