@@ -8,7 +8,7 @@ import { prisma } from '../../client.js';
 import { AuthFailureError, BadRequestError, ForbiddenError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
+import { AppType, getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 import { writeExternalIdToOrcidProfile } from '../../services/user.js';
 import { removeCookie, sendCookie } from '../../utils/sendCookie.js';
 import { generateAccessToken } from '../auth/magic.js';
@@ -288,7 +288,7 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
 
   sendCookie(res, token, dev === 'true');
   // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
-  const termsAccepted = !!(await getUserConsent(user.id));
+  const termsAccepted = !!(await getUserConsent(user.id, AppType.PUBLISH));
   // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
   new SuccessResponse({ user: { email: user.email, token, termsAccepted } }).send(res);
 
