@@ -2,7 +2,7 @@ FROM ghcr.io/prefix-dev/pixi:latest AS build
 
 RUN pixi -V
 
-FROM node:18.17.0 AS base
+FROM docker.io/node:20.9.0 AS base
 
 COPY --from=build --chown=root:root --chmod=0555 /usr/local/bin/pixi /usr/local/bin/pixi
 ENV PATH="/root/.pixi/bin:${PATH}"

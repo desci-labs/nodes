@@ -287,32 +287,45 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
 
     // logger.trace({ response: response.manifest }, 'myst metadata updated');
 
-    const exportRef = parsedDocument.value.exports.find((entry) => entry.format === 'typst' || entry.format === 'pdf');
-    if (exportRef) {
-      const externalUrl = { path: 'manuscript.pdf', url: `${baseDownloadUrl}${exportRef.output}` };
-      logger.trace({ exportRef, exports: parsedDocument.value.exports, externalUrl }, 'myst exportRef');
-      const { ok, value } = await processExternalUrlDataToIpfs({
-        user: req.user,
-        node: req.node,
-        externalUrl,
-        contextPath: 'root',
-        componentType: ResearchObjectComponentType.PDF,
-        componentSubtype:
-          exportRef.format === 'pdf'
-            ? ResearchObjectComponentDocumentSubtype.MANUSCRIPT
-            : ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
-        autoStar: true,
-      });
+    // const exportRef = parsedDocument.value.exports.find((entry) => entry.format === 'typst' || entry.format === 'pdf');
+    // if (exportRef) {
+    //   const externalUrl = { path: 'manuscript.pdf', url: `${baseDownloadUrl}${exportRef.output}` };
+    //   logger.trace({ exportRef, exports: parsedDocument.value.exports, externalUrl }, 'myst exportRef');
+    //   const { ok, value } = await processExternalUrlDataToIpfs({
+    //     user: req.user,
+    //     node: req.node,
+    //     externalUrl,
+    //     contextPath: 'root',
+    //     componentType: ResearchObjectComponentType.PDF,
+    //     componentSubtype:
+    //       exportRef.format === 'pdf'
+    //         ? ResearchObjectComponentDocumentSubtype.MANUSCRIPT
+    //         : ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
+    //     autoStar: true,
+    //   });
 
-      if (ok) {
-        logger.trace({ manuscriptImport: ok, value: value }, 'MYST::manuscriptImport');
-        manuscriptImport = { ok, value };
-      }
-    }
+    //   if (ok) {
+    //     logger.trace({ manuscriptImport: ok, value: value }, 'MYST::manuscriptImport');
+    //     manuscriptImport = { ok, value };
+    //   }
+    // }
+
+    const buildExportsResponse = await axios.post(
+      `${process.env.NODES_MEDIA_SERVER_URL}/v1/services/process-journal-submission`,
+      {
+        url,
+        parsedDocument: parsedDocument.value,
+      },
+      {
+        timeout: 60000,
+      },
+    );
+    const journalSubmissionExport = buildExportsResponse.data;
+    logger.trace({ buildExportsResponse: journalSubmissionExport }, 'MYST::createJournalSubmissionExportResponse');
 
     return sendSuccess(res, {
       ok: response.manifest !== null,
-      debug: isDesciUser ? { actions, parsedDocument, response, manuscriptImport } : undefined,
+      debug: isDesciUser ? { actions, parsedDocument, response, journalSubmissionExport } : undefined,
     });
   } else {
     logger.error('NO DATA EXTRACTED');

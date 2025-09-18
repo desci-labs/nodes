@@ -68,7 +68,7 @@ const wrappedHandler = (req, res, next) => {
   });
 };
 
-router.post('/update', [ensureGuestOrUser, wrappedHandler, ensureNodeAccess], update);
+router.post('/update', [ensureGuestOrUser, ensureNodeAccess, wrappedHandler], update);
 router.post('/updateExternalCid', [ensureGuestOrUser, ensureNodeAccess], updateExternalCid);
 router.post('/delete', [ensureGuestOrUser, ensureNodeAccess], deleteData);
 router.post('/rename', [ensureGuestOrUser, ensureNodeAccess], renameData);
