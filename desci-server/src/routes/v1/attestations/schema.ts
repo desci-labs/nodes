@@ -44,7 +44,7 @@ export const getAttestationCommentsSchema = z.object({
 export const getCommentsSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10),
+    uuid: z.string(),
   }),
   query: z.object({
     cursor: z.coerce.number().optional(),
@@ -56,7 +56,7 @@ export const getCommentsSchema = z.object({
 export const editCommentsSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10),
+    uuid: z.string(),
     id: z.coerce.number(),
   }),
   body: z.object({
@@ -68,7 +68,7 @@ export const editCommentsSchema = z.object({
 export const postCommentVoteSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10),
+    uuid: z.string(),
     commentId: z.coerce.number(),
   }),
 });
