@@ -1,19 +1,20 @@
-import { CHAIN_CONFIGS, ChainConfig, LEGACY_CHAIN_CONFIGS, LegacyChainConfig } from "./chain.js";
+import {
+  CHAIN_CONFIGS,
+  ChainConfig,
+  LEGACY_CHAIN_CONFIGS,
+  LegacyChainConfig,
+} from "./chain.js";
 
-export type NodesEnv =
-  | "local"
-  | "dev"
-  | "staging"
-  | "prod";
+export type NodesEnv = "local" | "dev" | "staging" | "prod";
 
 export type NodesLibConfig = {
-  apiUrl: string,
-  apiKey?: string,
-  ceramicNodeUrl: string,
-  legacyChainConfig: LegacyChainConfig,
-  ceramicOneRpcUrl?: string,
-  ceramicOneFlightUrl?: string,
-  chainConfig: ChainConfig,
+  apiUrl: string;
+  apiKey?: string;
+  ceramicNodeUrl: string;
+  legacyChainConfig: LegacyChainConfig;
+  ceramicOneRpcUrl?: string;
+  ceramicOneFlightUrl?: string;
+  chainConfig: ChainConfig;
 };
 
 export const NODESLIB_CONFIGS = {
@@ -22,8 +23,10 @@ export const NODESLIB_CONFIGS = {
     apiKey: undefined,
     ceramicNodeUrl: "http://localhost:7007",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.local,
-    ceramicOneRpcUrl: process.env.CERAMIC_ONE_RPC_URL || "http://localhost:5101",
-    ceramicOneFlightUrl: process.env.CERAMIC_ONE_FLIGHT_URL || "http://localhost:5102",
+    ceramicOneRpcUrl:
+      process.env.CERAMIC_ONE_RPC_URL || "http://localhost:5101",
+    ceramicOneFlightUrl:
+      process.env.CERAMIC_ONE_FLIGHT_URL || "http://localhost:5102",
     chainConfig: CHAIN_CONFIGS.local,
   },
   dev: {
@@ -52,7 +55,7 @@ export const NODESLIB_CONFIGS = {
     // ceramicOneRpcUrl: "https://ceramic-one-prod-rpc.desci.com:5101",
     chainConfig: CHAIN_CONFIGS.prod,
   },
-} as const satisfies { [Env in NodesEnv ]: NodesLibConfig };
+} as const satisfies { [Env in NodesEnv]: NodesLibConfig };
 
 // Config storage - starts undefined
 let config: NodesLibConfig | undefined;
@@ -66,8 +69,12 @@ const ensureConfig = (): NodesLibConfig => {
     config = NODESLIB_CONFIGS.dev;
     if (!hasLoggedInitialization) {
       hasLoggedInitialization = true;
-      console.log(`[nodes-lib::config] initialising with nodes-dev config. Use setConfig and setApiKey to change this: \n${JSON.stringify(NODESLIB_CONFIGS.dev, undefined, 2)}`);
-      console.log("[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!");
+      console.log(
+        `[nodes-lib::config] initialising with nodes-dev config. Use setConfig and setApiKey to change this: \n${JSON.stringify(NODESLIB_CONFIGS.dev, undefined, 2)}`,
+      );
+      console.log(
+        "[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!",
+      );
     }
   }
   return config;
@@ -77,15 +84,17 @@ const ensureConfig = (): NodesLibConfig => {
  * Set API key in config. Note that it needs to be created in the correct environment:
  * if apiUrl is `nodes-api-dev.desci.com`, generate the API key at
  * `https://nodes-dev.desci.com`.
-*/
+ */
 export const setApiKey = (apiKey: string) => {
-  console.log(`[nodes-lib::config] setting new apiKey: \n${apiKey.slice(0, 5) + "..."}`);
+  console.log(
+    `[nodes-lib::config] setting new apiKey: \n${apiKey.slice(0, 5) + "..."}`,
+  );
   ensureConfig().apiKey = apiKey;
 };
 
 /**
  * Set a new configuration. You likely want a preset from the `CONFIGS` object.
-*/
+ */
 export const setNodesLibConfig = (newConfig: NodesLibConfig): void => {
   const confWithRedactedKey = JSON.stringify(
     {
@@ -94,12 +103,17 @@ export const setNodesLibConfig = (newConfig: NodesLibConfig): void => {
         ? newConfig.apiKey?.slice(0, 5) + "..."
         : "[unset]",
     },
-    undefined, 2
+    undefined,
+    2,
   );
-  console.log(`[nodes-lib::config] setting new config: \n${confWithRedactedKey}`);
+  console.log(
+    `[nodes-lib::config] setting new config: \n${confWithRedactedKey}`,
+  );
   if (!newConfig.apiKey) {
-    console.log("[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!")
-  };
+    console.log(
+      "[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!",
+    );
+  }
 
   config = newConfig;
   hasLoggedInitialization = true; // Prevent duplicate init logs
@@ -108,7 +122,7 @@ export const setNodesLibConfig = (newConfig: NodesLibConfig): void => {
 /**
  * Get the current config. Note that apiKey may be undefined, something that is
  * masked by the type to allow browser auth cookie override.
-*/
+ */
 export const getNodesLibInternalConfig = () => {
   return ensureConfig() as Required<NodesLibConfig>;
 };

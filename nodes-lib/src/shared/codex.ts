@@ -11,13 +11,19 @@ import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convert0xHexToCid } from "./util/converting.js";
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { Signer } from "ethers";
-import { authorizedSessionDidFromSigner, getCacaoResources } from "./util/signing.js";
+import {
+  authorizedSessionDidFromSigner,
+  getCacaoResources,
+} from "./util/signing.js";
 import { type DID } from "dids";
 import { CID } from "multiformats";
 import { PublishError } from "./errors.js";
 import { errWithCause } from "pino-std-serializers";
 import { newStreamClient } from "@desci-labs/desci-codex-lib/c1/clients";
-import { updateResearchObject as updateResearchObjectC1, createResearchObject as createResearchObjectC1 } from "@desci-labs/desci-codex-lib/c1/mutate";
+import {
+  updateResearchObject as updateResearchObjectC1,
+  createResearchObject as createResearchObjectC1,
+} from "@desci-labs/desci-codex-lib/c1/mutate";
 import { sleep } from "./util/sleep.js";
 
 const LOG_CTX = "[nodes-lib::codex]";
@@ -36,7 +42,7 @@ const LOG_CTX = "[nodes-lib::codex]";
 export const codexPublish = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
-  didOrSigner: DID | Signer
+  didOrSigner: DID | Signer,
 ): Promise<NodeIDs> => {
   const config = getNodesLibInternalConfig();
   const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
@@ -46,13 +52,13 @@ export const codexPublish = async (
   } else {
     return codexPublishComposeDB(prepublishResult, dpidHistory, didOrSigner);
   }
-}
+};
 
 const codexPublishC1 = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
-  didOrSigner: DID | Signer
-) =>{
+  didOrSigner: DID | Signer,
+) => {
   const { ceramicOneRpcUrl } = getNodesLibInternalConfig();
   console.log(LOG_CTX, `starting C1 publish with node ${ceramicOneRpcUrl}...`);
 
@@ -72,19 +78,19 @@ const codexPublishC1 = async (
     did = await authorizedSessionDidFromSigner(
       didOrSigner,
       getCacaoResources(),
-      controllerChainID
+      controllerChainID,
     );
   } else {
     // NOTE: for a signer we can check and pass the controller EIP155 chainID, but we can't edit that if it's a preauthorized DID
     if (controller !== undefined && didOrSigner.parent !== controller) {
       console.error(
         `${LOG_CTX} DID and controller mismatch, is the chainID set correctly?`,
-        { didParent: didOrSigner.parent, streamController: controller }
+        { didParent: didOrSigner.parent, streamController: controller },
       );
       throw PublishError.wrongOwner(
         "DID and controller mismatch; is the chainID set correctly?",
         controller,
-        didOrSigner.parent
+        didOrSigner.parent,
       );
     }
     did = didOrSigner;
@@ -133,7 +139,7 @@ const codexPublishC1 = async (
     });
     throw PublishError.ceramicWrite(
       "Failed to write research object",
-      e as Error
+      e as Error,
     );
   }
   return ids;
@@ -142,8 +148,8 @@ const codexPublishC1 = async (
 const codexPublishComposeDB = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
-  didOrSigner: DID | Signer
-) =>{
+  didOrSigner: DID | Signer,
+) => {
   const nodeUrl = getNodesLibInternalConfig().ceramicNodeUrl;
   console.log(LOG_CTX, `starting ComposeDB publish with node ${nodeUrl}...`);
 
@@ -166,20 +172,20 @@ const codexPublishComposeDB = async (
       await authorizedSessionDidFromSigner(
         didOrSigner,
         compose.resources,
-        controllerChainID
-      )
+        controllerChainID,
+      ),
     );
   } else {
     // NOTE: for a signer we can check and pass the controller EIP155 chainID, but we can't edit that if it's a preauthorized DID
     if (controller !== undefined && didOrSigner.parent !== controller) {
       console.error(
         `${LOG_CTX} DID and controller mismatch, is the chainID set correctly?`,
-        { didParent: didOrSigner.parent, streamController: controller }
+        { didParent: didOrSigner.parent, streamController: controller },
       );
       throw PublishError.wrongOwner(
         "DID and controller mismatch; is the chainID set correctly?",
         controller,
-        didOrSigner.parent
+        didOrSigner.parent,
       );
     }
     compose.setDID(didOrSigner);
@@ -226,7 +232,7 @@ const codexPublishComposeDB = async (
     });
     throw PublishError.ceramicWrite(
       "Failed to write research object",
-      e as Error
+      e as Error,
     );
   }
   return ids;
@@ -248,20 +254,21 @@ const backfillNewStream = async (
     `starting backfill migration for versions:\n${JSON.stringify(
       versions,
       undefined,
-      2
-    )}`
+      2,
+    )}`,
   );
   const backfillSequential = async (
     prevPromise: Promise<NodeIDs>,
     nextVersion: IndexedNodeVersion,
-    ix: number
+    ix: number,
   ): Promise<NodeIDs> => {
     const { streamID, commitID } = await prevPromise;
-    streamID &&
+    if (streamID) {
       console.log(
         LOG_CTX,
-        `backfilled version ${ix} into ${streamID} with commit ${commitID}`
+        `backfilled version ${ix} into ${streamID} with commit ${commitID}`,
       );
+    }
 
     const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
     const license = "[BACKFILLED]";
@@ -272,11 +279,11 @@ const backfillNewStream = async (
     try {
       // If this works, it was a plaintext CID
       manifest = CID.parse(nextVersion.cid).toString();
-    } catch (e) {
+    } catch {
       // Otherwise, fall back to hex decoding old style representation
       console.log(
         `${LOG_CTX} got non-plaintext CID in next version to backfill`,
-        { nextVersion }
+        { nextVersion },
       );
       manifest = convert0xHexToCid(nextVersion.cid);
     }
@@ -290,7 +297,7 @@ const backfillNewStream = async (
 
   const { streamID } = await versions.reduce(
     backfillSequential,
-    Promise.resolve({ streamID: "", commitID: "" })
+    Promise.resolve({ streamID: "", commitID: "" }),
   );
   return streamID;
 };
@@ -298,20 +305,20 @@ const backfillNewStream = async (
 const backfillNewStreamC1 = async (
   client: ReturnType<typeof newStreamClient>,
   did: DID,
-  versions: IndexedNodeVersion[]
+  versions: IndexedNodeVersion[],
 ): Promise<string> => {
   console.log(
     LOG_CTX,
     `starting backfill migration for versions:\n${JSON.stringify(
       versions,
       undefined,
-      2
-    )}`
+      2,
+    )}`,
   );
   const backfillSequential = async (
     prevPromise: Promise<NodeIDs>,
     nextVersion: IndexedNodeVersion,
-    ix: number
+    ix: number,
   ): Promise<NodeIDs> => {
     const { streamID } = await prevPromise;
     await sleep(1_000);
@@ -325,11 +332,11 @@ const backfillNewStreamC1 = async (
     try {
       // If this works, it was a plaintext CID
       manifest = CID.parse(nextVersion.cid).toString();
-    } catch (e) {
+    } catch {
       // Otherwise, fall back to hex decoding old style representation
       console.log(
         `${LOG_CTX} got non-plaintext CID in next version to backfill`,
-        { nextVersion }
+        { nextVersion },
       );
       manifest = convert0xHexToCid(nextVersion.cid);
     }
@@ -337,27 +344,23 @@ const backfillNewStreamC1 = async (
     const op =
       streamID === ""
         ? createResearchObjectC1(client, did, { title, manifest, license })
-        : updateResearchObjectC1(client, did, { id: streamID, title, manifest });
+        : updateResearchObjectC1(client, did, {
+            id: streamID,
+            title,
+            manifest,
+          });
 
     let result;
     try {
       result = await op;
-      console.log(
-        LOG_CTX,
-        `backfilled version to stream`,
-        {
-          version: ix,
-          manifest,
-          streamID: result.streamID,
-          commitID: result.commitID,
-        }
-      );
+      console.log(LOG_CTX, `backfilled version to stream`, {
+        version: ix,
+        manifest,
+        streamID: result.streamID,
+        commitID: result.commitID,
+      });
     } catch (error) {
-      console.error(
-        LOG_CTX,
-        `failed to backfill version ${ix}:`,
-        error
-      );
+      console.error(LOG_CTX, `failed to backfill version ${ix}:`, error);
       throw error;
     }
     return result;
@@ -365,7 +368,7 @@ const backfillNewStreamC1 = async (
 
   const { streamID } = await versions.reduce(
     backfillSequential,
-    Promise.resolve({ streamID: "", commitID: "" })
+    Promise.resolve({ streamID: "", commitID: "" }),
   );
   return streamID;
 };
@@ -382,7 +385,10 @@ export const getStreamController = async (streamID: string) => {
     return state.controller;
   } else {
     const ceramic = newCeramicClient(config.ceramicNodeUrl);
-    const stream = await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
+    const stream = await streams.loadID(
+      ceramic,
+      streams.StreamID.fromString(streamID),
+    );
     return stream.state.metadata.controllers[0];
   }
 };

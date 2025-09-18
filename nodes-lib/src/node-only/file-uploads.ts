@@ -6,13 +6,19 @@ import FormData from "form-data";
 import { createReadStream } from "fs";
 import { makeRequest } from "../shared/routes.js";
 import { getHeaders } from "../shared/util/headers.js";
-import { ENDPOINTS, type UploadParams, type UploadFilesResponse } from "../shared/api.js";
+import {
+  ENDPOINTS,
+  type UploadParams,
+  type UploadFilesResponse,
+} from "../shared/api.js";
 import { makeAbsolutePath } from "../shared/util/manifest.js";
 
 /**
  * Upload local files to a node using Node.js fs module
  */
-export const uploadFiles = async (params: UploadParams): Promise<UploadFilesResponse> => {
+export const uploadFiles = async (
+  params: UploadParams,
+): Promise<UploadFilesResponse> => {
   const { contextPath, files, uuid } = params;
   const form = new FormData();
   form.append("uuid", uuid);
@@ -25,6 +31,6 @@ export const uploadFiles = async (params: UploadParams): Promise<UploadFilesResp
     ENDPOINTS.uploadFiles,
     getHeaders(true),
     // Formdata equivalent
-    form as unknown as UploadParams
+    form as unknown as UploadParams,
   );
 };

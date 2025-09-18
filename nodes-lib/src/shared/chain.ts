@@ -16,14 +16,14 @@ const LOG_CTX = "[nodes-lib::chain]";
 
 /**
  * Interact with the legacy ResearchObject contract
- * @deprecated
+ * @deprecated legacy registry only
  */
 const researchObjectWriter = (signer: Signer) =>
   getNodesLibInternalConfig().legacyChainConfig.researchObjectConnector(signer);
 
 /**
  * Interact with the legacy dPID contract
- * @deprecated
+ * @deprecated legacy registry only
  */
 const dpidRegistryWriter = (signer: Signer) =>
   getNodesLibInternalConfig().legacyChainConfig.dpidRegistryConnector(signer);
@@ -46,7 +46,7 @@ const dpidAliasRegistryReader = (provider: providers.Provider) =>
  */
 export const createDpidAlias = async (
   streamId: streams.StreamID,
-  signer: Signer
+  signer: Signer,
 ): Promise<{ dpid: number; receipt: ContractReceipt }> => {
   let tx: ContractTransaction | undefined;
   let receipt: ContractReceipt | undefined;
@@ -65,7 +65,7 @@ export const createDpidAlias = async (
     });
     throw PublishError.aliasRegistration(
       "Failed to register dPID alias",
-      e as Error
+      e as Error,
     );
   }
 };
@@ -73,12 +73,12 @@ export const createDpidAlias = async (
 export const upgradeDpidAlias = async (
   streamId: string,
   dpid: number,
-  signer: Signer
+  signer: Signer,
 ): Promise<ContractReceipt> => {
   try {
     const tx = await dpidAliasRegistryWriter(signer).upgradeDpid(
       BigNumber.from(dpid),
-      streamId
+      streamId,
     );
     return await tx.wait();
   } catch (e) {
@@ -94,10 +94,10 @@ export const upgradeDpidAlias = async (
  * Lookup the history of a legacy dPID in the new alias registry.
  */
 export const lookupLegacyDpid = async (
-  dpid: number
+  dpid: number,
 ): Promise<tc.DpidAliasRegistry.LegacyDpidEntryStruct> => {
   const provider = new providers.JsonRpcProvider(
-    getNodesLibInternalConfig().chainConfig.rpcUrl
+    getNodesLibInternalConfig().chainConfig.rpcUrl,
   );
   return await dpidAliasRegistryReader(provider).legacyLookup(dpid);
 };
@@ -107,7 +107,7 @@ export const lookupLegacyDpid = async (
  */
 export const lookupDpid = async (dpid: number): Promise<string> => {
   const provider = new providers.JsonRpcProvider(
-    getNodesLibInternalConfig().chainConfig.rpcUrl
+    getNodesLibInternalConfig().chainConfig.rpcUrl,
   );
   return await dpidAliasRegistryReader(provider).resolve(dpid);
 };
@@ -117,7 +117,7 @@ export const lookupDpid = async (dpid: number): Promise<string> => {
  */
 export const findDpid = async (streamId: string): Promise<number> => {
   const provider = new providers.JsonRpcProvider(
-    getNodesLibInternalConfig().chainConfig.rpcUrl
+    getNodesLibInternalConfig().chainConfig.rpcUrl,
   );
   const dpidBn = await dpidAliasRegistryReader(provider).find(streamId);
   return dpidBn.toNumber();
@@ -125,18 +125,18 @@ export const findDpid = async (streamId: string): Promise<number> => {
 
 /**
  * Check if an UUID has an assigned legacy dPID
- * @deprecated
+ * @deprecated legacy registry only
  */
 export const hasDpid = async (uuid: string, signer: Signer): Promise<boolean> =>
   await researchObjectWriter(signer).exists(convertUUIDToHex(uuid));
 
 /**
  * Get the owner address of a legacy dPID
- * @deprecated
+ * @deprecated legacy registry only
  */
 export const getTokenOwner = async (
   uuid: string,
-  signer: Signer
+  signer: Signer,
 ): Promise<string> =>
   (
     await researchObjectWriter(signer).ownerOf(convertUUIDToHex(uuid))
@@ -144,9 +144,9 @@ export const getTokenOwner = async (
 
 /**
  * Get the research object token ID for a legacy dPID
- * @deprecated
+ * @deprecated legacy registry only
  */
 export const getTokenId = async (
   dpid: number,
-  signer: Signer
+  signer: Signer,
 ): Promise<BigNumber> => await dpidRegistryWriter(signer).get("beta", dpid);

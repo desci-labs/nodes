@@ -22,7 +22,4 @@ export * from "../shared/chain.js";
 
 // Re-export Codex operations that don't use FlightSQL
 // (getFullState, getCurrentState, getCodexHistory have been moved to node-only modules)
-export {
-  codexPublish,
-  getStreamController
-} from "../shared/codex.js";
+export { codexPublish, getStreamController } from "../shared/codex.js";

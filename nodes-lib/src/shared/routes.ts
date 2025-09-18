@@ -15,7 +15,7 @@ const ensureAxiosInterceptor = () => {
         ${err.config?.method} to ${err.config?.url} got ${err.response?.status}:${err.response?.statusText}
         Body: ${JSON.stringify(err.response?.data)}
       `);
-      return Promise.reject(new Error(err.message))
+      return Promise.reject(new Error(err.message));
     },
   );
   hasSetAxiosInterceptors = true;
@@ -29,10 +29,10 @@ const ensureAxiosInterceptor = () => {
  *
  * It accepts an entry from the `ENDPOINTS` const object, uses that to validate
  * the shape of the payload and type the response from the server.
-*/
+ */
 export async function makeRequest<
   /** Any single entry in ENDPOINTS, is inferred by argument `endpoint` */
-  T extends typeof ENDPOINTS[keyof typeof ENDPOINTS]
+  T extends (typeof ENDPOINTS)[keyof typeof ENDPOINTS],
 >(
   endpoint: T,
   headers: Record<string, string>,
@@ -40,7 +40,8 @@ export async function makeRequest<
   routeTail?: string,
 ): Promise<T["_responseT"]> {
   ensureAxiosInterceptor();
-  const url = getNodesLibInternalConfig().apiUrl + endpoint.route + (routeTail ?? "");
+  const url =
+    getNodesLibInternalConfig().apiUrl + endpoint.route + (routeTail ?? "");
   let res: AxiosResponse<T["_responseT"]>;
   const config: AxiosRequestConfig = {
     headers,
@@ -50,20 +51,17 @@ export async function makeRequest<
   // Can't check against undefined if variable doesn't exist
   if (typeof window !== "undefined" && localStorage.getItem("auth")) {
     config.headers!.Authorization = `Bearer ${localStorage.getItem("auth")}`;
-  };
+  }
 
   // post is the only method that takes a data payload
   if (endpoint.method === "post") {
-   res = await axios[endpoint.method]<typeof endpoint._responseT>(
+    res = await axios[endpoint.method]<typeof endpoint._responseT>(
       url,
       payload,
       config,
     );
   } else {
-   res = await axios[endpoint.method]<typeof endpoint._responseT>(
-      url,
-      config,
-    );
-  };
+    res = await axios[endpoint.method]<typeof endpoint._responseT>(url, config);
+  }
   return res.data;
-};
+}

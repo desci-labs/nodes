@@ -32,6 +32,7 @@
   "scripts": {
     "build": "rm -rf dist; tsc --project tsconfig.build.json",
     "doPublish": "npm run build && npm publish --access public",
+    "lint": "eslint . --fix",
     "test": "vitest --run --config vitest.config.ts",
     "test:debug": "npm run test -- --inspect-brk --no-file-parallelism --test-timeout 99999999",
     "docs": "typedoc src/index.ts"
@@ -55,8 +56,17 @@
     "url-safe-base64": "1.2.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.35.0",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-tsdoc": "^0.4.0",
+    "prettier": "^3.6.2",
     "typedoc": "^0.25.8",
     "typescript": "^5.3.3",
     "vitest": "^1.2.1",

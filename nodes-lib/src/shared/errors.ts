@@ -10,7 +10,10 @@ type PublishErrorType =
   | { type: "DPID_UPGRADE"; cause: Error };
 
 export class PublishError extends Error {
-  constructor(message: string, public details: PublishErrorType) {
+  constructor(
+    message: string,
+    public details: PublishErrorType,
+  ) {
     super(message);
     this.name = "PublishError";
   }

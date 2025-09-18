@@ -6,7 +6,13 @@ import { getNodesLibInternalConfig } from "../shared/config/index.js";
 import { newFlightSqlClient } from "@desci-labs/desci-codex-lib/c1/clients";
 import { getStreamHistory } from "@desci-labs/desci-codex-lib/c1/resolve";
 import { errWithCause } from "pino-std-serializers";
-import { newCeramicClient, newComposeClient, queryResearchObject, streams, type ResearchObjectHistory } from "@desci-labs/desci-codex-lib";
+import {
+  newCeramicClient,
+  newComposeClient,
+  queryResearchObject,
+  streams,
+  type ResearchObjectHistory,
+} from "@desci-labs/desci-codex-lib";
 
 const LOG_CTX = "[nodes-lib::codex-queries]";
 
@@ -33,11 +39,14 @@ export const getFullState = async (streamID: string) => {
     };
   } else {
     const ceramic = newCeramicClient(config.ceramicNodeUrl);
-    const stream = await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
+    const stream = await streams.loadID(
+      ceramic,
+      streams.StreamID.fromString(streamID),
+    );
     const versions = streams.getVersionLog(stream);
     return {
       streamID,
-      versions: versions.map((v: any) => v.commit.toString()),
+      versions: versions.map((v) => v.commit.toString()),
     };
   }
 };
@@ -45,7 +54,9 @@ export const getFullState = async (streamID: string) => {
 /**
  * Get the current state of a Codex research object
  */
-export const getCurrentState = async (streamID: string): Promise<ResearchObjectHistory['versions'][number]> => {
+export const getCurrentState = async (
+  streamID: string,
+): Promise<ResearchObjectHistory["versions"][number]> => {
   const config = getNodesLibInternalConfig();
   const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
   if (useCeramicOne) {
@@ -70,7 +81,9 @@ export const getCurrentState = async (streamID: string): Promise<ResearchObjectH
   }
 };
 
-export const getCodexHistory = async (streamID: string): Promise<ResearchObjectHistory> => {
+export const getCodexHistory = async (
+  streamID: string,
+): Promise<ResearchObjectHistory> => {
   const config = getNodesLibInternalConfig();
   const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
 
@@ -79,22 +92,27 @@ export const getCodexHistory = async (streamID: string): Promise<ResearchObjectH
     return await getStreamHistory(client, streamID);
   } else {
     const ceramic = newCeramicClient(config.ceramicNodeUrl);
-    const stream = await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
+    const stream = await streams.loadID(
+      ceramic,
+      streams.StreamID.fromString(streamID),
+    );
     const versions = streams.getVersionLog(stream);
     return {
       id: streamID,
       owner: stream.state.metadata.controllers[0],
       manifest: stream.state.content.manifest,
-      versions: await Promise.all(versions.map(async (v: any) => {
-        const state = await streams.loadVersion(ceramic, v.commit);
-        return {
-          version: v.commit.toString(),
-          time: v.timestamp,
-          title: state.content.title,
-          manifest: state.content.manifest,
-          license: state.content.license || "",
-        };
-      })),
+      versions: await Promise.all(
+        versions.map(async (v) => {
+          const state = await streams.loadVersion(ceramic, v.commit);
+          return {
+            version: v.commit.toString(),
+            time: v.timestamp,
+            title: state.content.title,
+            manifest: state.content.manifest,
+            license: state.content.license || "",
+          };
+        }),
+      ),
     };
   }
 };

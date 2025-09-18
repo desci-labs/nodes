@@ -1,4 +1,4 @@
-import {AxiosError} from "axios";
+import { AxiosError } from "axios";
 import {
   type CodeComponent,
   type DataComponent,
@@ -17,19 +17,19 @@ import {
   type ResearchObjectV1Author,
   type ResearchObjectV1Component,
 } from "@desci-labs/desci-models";
-import type {NodeIDs} from "@desci-labs/desci-codex-lib";
-import { publish} from "./publish.js";
-import type {ResearchObjectDocument} from "./automerge.js";
+import type { NodeIDs } from "@desci-labs/desci-codex-lib";
+import { publish } from "./publish.js";
+import type { ResearchObjectDocument } from "./automerge.js";
 // Use browser-compatible crypto.randomUUID
 const randomUUID = () => globalThis.crypto.randomUUID();
-import {makeRequest} from "./routes.js";
-import {Signer} from "ethers";
-import {type DID} from "dids";
-import {bnToString} from "./util/converting.js";
-import {lookupLegacyDpid} from "./chain.js";
-import {PublishError} from "./errors.js";
-import {errWithCause} from "pino-std-serializers";
-import {getHeaders} from "./util/headers.js";
+import { makeRequest } from "./routes.js";
+import { Signer } from "ethers";
+import { type DID } from "dids";
+import { bnToString } from "./util/converting.js";
+import { lookupLegacyDpid } from "./chain.js";
+import { PublishError } from "./errors.js";
+import { errWithCause } from "pino-std-serializers";
+import { getHeaders } from "./util/headers.js";
 import { sleep } from "./util/sleep.js";
 import { makeAbsolutePath } from "./util/manifest.js";
 
@@ -183,7 +183,7 @@ export type CreateDraftResponse = {
  * remains private until the next call to `publishDraftNode`.
  */
 export const createDraftNode = async (
-  params: Omit<CreateDraftParams, "links">
+  params: Omit<CreateDraftParams, "links">,
 ) =>
   await makeRequest(ENDPOINTS.createDraft, getHeaders(), {
     ...params,
@@ -206,7 +206,7 @@ export type ListedNode = {
   manifestUrl: string;
   isPublished: boolean;
   cid: string;
-  NodeCover: any[];
+  NodeCover: unknown[];
   index?: IndexedNode[];
 };
 
@@ -286,7 +286,6 @@ export type PublishConfiguration = {
  * just tells the backend to prepare for it.
  *
  * @param uuid - UUID of the node to prepublish.
- * @param  - Your API key.
  */
 export const prePublishDraftNode = async (uuid: string) =>
   await makeRequest(ENDPOINTS.prepublish, getHeaders(), { uuid });
@@ -327,7 +326,7 @@ export type PublishResponse = {
 export const publishNode = async (
   uuid: string,
   didOrSigner: DID | Signer,
-  mintDoi = false
+  mintDoi = false,
 ): Promise<PublishResponse> => {
   const publishResult = await publish(uuid, didOrSigner);
   const pubParams: PublishParams = {
@@ -348,11 +347,11 @@ export const publishNode = async (
   } catch (e) {
     console.log(
       `${LOG_CTX} publish flow was successful, but backend request failed`,
-      { uuid, err: errWithCause(e as Error) }
+      { uuid, err: errWithCause(e as Error) },
     );
     throw PublishError.backendCall(
       "Publish finished, but backend request failed",
-      e as Error
+      e as Error,
     );
   }
 
@@ -451,7 +450,7 @@ export const retrieveDraftFileTree = async (uuid: string) =>
     ENDPOINTS.retrieveTree,
     getHeaders(),
     undefined,
-    `/${uuid}/tree`
+    `/${uuid}/tree`,
   );
 
 /** Parameters required for creating a new directory in the drive */
@@ -489,7 +488,7 @@ export const createNewFolder = async (params: CreateFolderParams) => {
     ENDPOINTS.createFolder,
     getHeaders(true),
     // Formdata equivalent
-    form as unknown as CreateFolderParams
+    form as unknown as CreateFolderParams,
   );
 };
 
@@ -569,7 +568,7 @@ export const uploadPdfFromUrl = async (params: UploadPdfFromUrlParams) => {
     ENDPOINTS.uploadFiles,
     getHeaders(true),
     // Formdata equivalent
-    form as unknown as UploadParams
+    form as unknown as UploadParams,
   );
 };
 
@@ -590,7 +589,7 @@ export type UploadGithubRepoFromUrlParams = {
  * an immutable copy of it.
  */
 export const uploadGithubRepoFromUrl = async (
-  params: UploadGithubRepoFromUrlParams
+  params: UploadGithubRepoFromUrlParams,
 ): Promise<UploadFilesResponse> => {
   const { uuid, externalUrl, targetPath, componentSubtype } = params;
   const form = new FormData();
@@ -603,7 +602,7 @@ export const uploadGithubRepoFromUrl = async (
     ENDPOINTS.uploadFiles,
     getHeaders(true),
     // Formdata equivalent
-    form as unknown as UploadParams
+    form as unknown as UploadParams,
   );
 };
 
@@ -661,10 +660,10 @@ export type IndexedNode = {
 
 /**
  * Lookup the history of a legacy dPID in the alias registry.
- * @throws (@link NoSuchEntryError) if no such legacy entry exists
+ * @throws {@link PublishError.noLegacyMatch} if no such legacy entry exists
  */
 export const getLegacyHistory = async (
-  dpid: number
+  dpid: number,
 ): Promise<{ owner: string; versions: IndexedNodeVersion[] }> => {
   let legacyEntry: Awaited<ReturnType<typeof lookupLegacyDpid>>;
   try {
@@ -714,12 +713,11 @@ const getManifestDocument = async (uuid: string) =>
  * special-purpose functions is easier to use.
  * @param uuid - ID of the node
  * @param actions - series of change actions to perform
- * @param  - your API key or session token
  * @returns the new state of the manifest document
  */
 export const changeManifest = async (
   uuid: string,
-  actions: ManifestActions[]
+  actions: ManifestActions[],
 ): Promise<ManifestDocumentResponse> => {
   let documentResponse: ManifestDocumentResponse;
   try {
@@ -727,7 +725,7 @@ export const changeManifest = async (
       ENDPOINTS.changeDocument,
       getHeaders(),
       { actions },
-      `/${uuid}/actions`
+      `/${uuid}/actions`,
     );
   } catch (e) {
     const err = e as AxiosError;
@@ -756,12 +754,11 @@ export type ComponentParam =
  * Creates a new component in the node.
  * @param uuid - ID of the node
  * @param params - component to add
- * @param  - your API key or session token
  * @returns the new state of the manifest document
  */
 export const addRawComponent = async (
   uuid: string,
-  params: ComponentParam
+  params: ComponentParam,
 ): Promise<ManifestDocumentResponse> => {
   const action: ManifestActions = {
     type: "Add Component",
@@ -782,7 +779,7 @@ export type UpdateComponentParams = {
 
 export const updateComponent = async (
   uuid: string,
-  params: UpdateComponentParams
+  params: UpdateComponentParams,
 ): Promise<ManifestDocumentResponse> => {
   const { component, componentIndex } = params;
   const action: ManifestActions = {
@@ -810,7 +807,7 @@ export type AddLinkComponentParams = {
  */
 export const addLinkComponent = async (
   uuid: string,
-  params: AddLinkComponentParams
+  params: AddLinkComponentParams,
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: ExternalLinkComponent = {
     id: randomUUID(),
@@ -849,7 +846,7 @@ export type AddPdfComponentParams = {
  */
 export const addPdfComponent = async (
   uuid: string,
-  params: AddPdfComponentParams
+  params: AddPdfComponentParams,
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: PdfComponent = {
     id: randomUUID(),
@@ -889,7 +886,7 @@ export type AddCodeComponentParams = {
  */
 export const addCodeComponent = async (
   uuid: string,
-  params: AddCodeComponentParams
+  params: AddCodeComponentParams,
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: CodeComponent = {
     id: randomUUID(),
@@ -909,7 +906,7 @@ export const addCodeComponent = async (
 /** Delete a component from the manifest */
 export const deleteComponent = async (
   uuid: string,
-  path: string
+  path: string,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [
     { type: "Delete Component", path: makeAbsolutePath(path) },
@@ -918,21 +915,21 @@ export const deleteComponent = async (
 /** Update the node title */
 export const updateTitle = async (
   uuid: string,
-  title: string
+  title: string,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update Title", title }]);
 
 /** Update the node description */
 export const updateDescription = async (
   uuid: string,
-  description: string
+  description: string,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update Description", description }]);
 
 /** Update the default license of the node */
 export const updateLicense = async (
   uuid: string,
-  license: License
+  license: License,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [
     { type: "Update License", defaultLicense: license },
@@ -941,7 +938,7 @@ export const updateLicense = async (
 /** Update the research fields of the node */
 export const updateResearchFields = async (
   uuid: string,
-  researchFields: ResearchField[]
+  researchFields: ResearchField[],
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [
     { type: "Update ResearchFields", researchFields },
@@ -950,14 +947,14 @@ export const updateResearchFields = async (
 /** Add a contributor to the node */
 export const addContributor = async (
   uuid: string,
-  author: ResearchObjectV1Author
+  author: ResearchObjectV1Author,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Add Contributor", author }]);
 
 /** Remove a contributor from the node */
 export const removeContributor = async (
   uuid: string,
-  contributorIndex: number
+  contributorIndex: number,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [
     { type: "Remove Contributor", contributorIndex },
@@ -966,7 +963,7 @@ export const removeContributor = async (
 /** Set or unset the cover image of the node */
 export const updateCoverImage = async (
   uuid: string,
-  cid: string | undefined
+  cid: string | undefined,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update CoverImage", cid }]);
 
@@ -976,21 +973,22 @@ export type ClaimAttestationParams = {
   nodeUuid: string;
   nodeDpid: string;
   claimerId: number;
-}
+};
 type NodeAttestation = {
-  id: number,attestationId: number,
-  attestationVersionId: number,
-  desciCommunityId: number,
-  claimedById: number,
-  nodeDpid10: string | null,
-  nodeUuid: string,
-  nodeVersion: number,
-  claimedAt: Date,
-  revoked: boolean,
-  revokedAt: Date | null
-}
+  id: number;
+  attestationId: number;
+  attestationVersionId: number;
+  desciCommunityId: number;
+  claimedById: number;
+  nodeDpid10: string | null;
+  nodeUuid: string;
+  nodeVersion: number;
+  claimedAt: Date;
+  revoked: boolean;
+  revokedAt: Date | null;
+};
 
 export const claimAttestation = async (
-  params: ClaimAttestationParams
+  params: ClaimAttestationParams,
 ): Promise<NodeAttestation> =>
   await makeRequest(ENDPOINTS.claimAttestation, getHeaders(), params);

@@ -4,7 +4,7 @@
  */
 import { getCodexHistory } from "./flight-sql.js";
 import { convertUUIDToDecimal } from "../shared/util/converting.js";
-import { getDraftNode, type IndexedNode, type IndexedNodeVersion } from "../shared/api.js";
+import { getDraftNode, type IndexedNode } from "../shared/api.js";
 
 /**
  * Get the codex publish history for a given node.
@@ -33,4 +33,3 @@ export const getPublishHistory = async (uuid: string): Promise<IndexedNode> => {
 
   return indexedNode;
 };
-

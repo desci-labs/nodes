@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
 import type {
   AddCodeComponentParams,
@@ -68,7 +67,10 @@ import { Signer } from "ethers";
 import { DpidAliasRegistry } from "@desci-labs/desci-contracts/dist/typechain-types/index.js";
 import { dpidAliasRegistryWriter, findDpid } from "../src/shared/chain.js";
 import { randomInt } from "crypto";
-import { getCodexHistory, getCurrentState } from "../src/node-only/flight-sql.js";
+import {
+  getCodexHistory,
+  getCurrentState,
+} from "../src/node-only/flight-sql.js";
 import { uploadFiles } from "../src/node-only/file-uploads.js";
 
 // Pre-funded ganache account
@@ -89,9 +91,9 @@ describe("nodes-lib", () => {
       console.log(`Checking server reachable at ${apiUrl}...`);
       await axios.get(apiUrl);
       console.log("Server is reachable");
-    } catch (e) {
+    } catch {
       console.error(
-        "Failed to connect to desci-server; is the service running?"
+        "Failed to connect to desci-server; is the service running?",
       );
       process.exit(1);
     }
@@ -325,7 +327,7 @@ describe("nodes-lib", () => {
       const updatedNode = await getDraftNode(uuid);
       const updatedComponent = updatedNode.manifestData.components[1];
       expect(updatedComponent.payload.url).toEqual(
-        expectedComponent.payload.url
+        expectedComponent.payload.url,
       );
     });
   });
@@ -335,7 +337,7 @@ describe("nodes-lib", () => {
     let publishResult: PublishResponse;
     const did = await authorizedSessionDidFromSigner(
       testSigner,
-      getResources()
+      getResources(),
     );
 
     beforeAll(async () => {
@@ -349,16 +351,16 @@ describe("nodes-lib", () => {
       test("to codex", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
         const ceramicObject = await getCurrentState(
-          publishResult.ceramicIDs!.streamID
+          publishResult.ceramicIDs!.streamID,
         );
         expect(ceramicObject?.manifest).toEqual(
-          publishResult.updatedManifestCid
+          publishResult.updatedManifestCid,
         );
       });
 
       test("has a new version", async () => {
         const history = await getCodexHistory(
-          publishResult.ceramicIDs!.streamID
+          publishResult.ceramicIDs!.streamID,
         );
         expect(history.versions.length).toEqual(1);
       });
@@ -370,11 +372,11 @@ describe("nodes-lib", () => {
 
       test("has a CACAO from the passed DID", async () => {
         const controller = await getStreamController(
-          publishResult.ceramicIDs!.streamID
+          publishResult.ceramicIDs!.streamID,
         );
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
-        console.log('TEST DID:', JSON.stringify(did, undefined, 2));
-        console.log('CONTROLLER:', JSON.stringify(controller, undefined, 2));
+        console.log("TEST DID:", JSON.stringify(did, undefined, 2));
+        console.log("CONTROLLER:", JSON.stringify(controller, undefined, 2));
 
         expect(controller).toEqual(did.parent);
         expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
@@ -383,7 +385,9 @@ describe("nodes-lib", () => {
       test("can optionally derive DID from just a signer", async () => {
         const { node } = await createBoilerplateNode();
         const result = await publishNode(node.uuid, testSigner);
-        const controller = await getStreamController(result.ceramicIDs!.streamID);
+        const controller = await getStreamController(
+          result.ceramicIDs!.streamID,
+        );
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
         expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
       });
@@ -411,16 +415,16 @@ describe("nodes-lib", () => {
 
       test("updates most recent state", async () => {
         const ceramicObject = await getCurrentState(
-          updateResult.ceramicIDs!.streamID
+          updateResult.ceramicIDs!.streamID,
         );
         expect(ceramicObject?.manifest).toEqual(
-          updateResult.updatedManifestCid
+          updateResult.updatedManifestCid,
         );
       });
 
       test("adds a new version", async () => {
         const ceramicHistory = await getCodexHistory(
-          updateResult.ceramicIDs!.streamID
+          updateResult.ceramicIDs!.streamID,
         );
         expect(ceramicHistory.versions.length).toEqual(2);
       });
@@ -439,19 +443,39 @@ describe("nodes-lib", () => {
     describe("node with long legacy history", async () => {
       let uuid: string;
       let pubResult: PublishResponse;
-      let legacyDpid: number = randomInt(1,1000);
+      const legacyDpid: number = randomInt(1, 1000);
 
       beforeAll(async () => {
         const { node } = await createBoilerplateNode();
         uuid = node.uuid;
         await setManifestDpid(uuid, legacyDpid);
-        await addLegacyDpid(testSigner, legacyDpid, await testSigner.getAddress(), [
-          { cid: 'bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i', time: 1 },
-          { cid: 'bafkreig6lp6265u42llqh6hkzxc54hmyfea7ax7gewg7tdyvthieotmwpy', time: 2 },
-          { cid: 'bafkreici3wzz7njqigyo7ebzwn3kibxgwjr43ihowwebl4exmfy75tkpjm', time: 3 },
-          { cid: 'bafkreicgxdcypaq5tmmrrva3tl7k2un47pfolg3mox72j5k65zitsukfii', time: 4 },
-          { cid: 'bafkreie7j6ji7ynh5d5yoldoxfevak55nkmcx5h7v3c6h4xy7le25sbgke', time: 5 },
-        ]);
+        await addLegacyDpid(
+          testSigner,
+          legacyDpid,
+          await testSigner.getAddress(),
+          [
+            {
+              cid: "bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i",
+              time: 1,
+            },
+            {
+              cid: "bafkreig6lp6265u42llqh6hkzxc54hmyfea7ax7gewg7tdyvthieotmwpy",
+              time: 2,
+            },
+            {
+              cid: "bafkreici3wzz7njqigyo7ebzwn3kibxgwjr43ihowwebl4exmfy75tkpjm",
+              time: 3,
+            },
+            {
+              cid: "bafkreicgxdcypaq5tmmrrva3tl7k2un47pfolg3mox72j5k65zitsukfii",
+              time: 4,
+            },
+            {
+              cid: "bafkreie7j6ji7ynh5d5yoldoxfevak55nkmcx5h7v3c6h4xy7le25sbgke",
+              time: 5,
+            },
+          ],
+        );
 
         // make a regular publish
         pubResult = await publishNode(uuid, did);
@@ -464,12 +488,12 @@ describe("nodes-lib", () => {
 
         // codex history has the legacy history, plus the new update
         const codexHistory = await getCodexHistory(
-          pubResult.ceramicIDs!.streamID
+          pubResult.ceramicIDs!.streamID,
         );
         expect(codexHistory.versions.length).toEqual(6);
 
         const cidsInDpidHistory = dpidHistory.versions.map((v) => v.cid);
-        const cidsInCodex = codexHistory.versions.map(v => v.manifest);
+        const cidsInCodex = codexHistory.versions.map((v) => v.manifest);
 
         expect(cidsInDpidHistory).toEqual(cidsInCodex.slice(0, -1));
       });
@@ -478,15 +502,23 @@ describe("nodes-lib", () => {
     describe("node with legacy history", async () => {
       let uuid: string;
       let pubResult: PublishResponse;
-      let legacyDpid: number = randomInt(1,1000);
+      const legacyDpid: number = randomInt(1, 1000);
 
       beforeAll(async () => {
         const { node } = await createBoilerplateNode();
         uuid = node.uuid;
         await setManifestDpid(uuid, legacyDpid);
-        await addLegacyDpid(testSigner, legacyDpid, await testSigner.getAddress(), [
-          { cid: 'bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i', time: 1337 }
-        ]);
+        await addLegacyDpid(
+          testSigner,
+          legacyDpid,
+          await testSigner.getAddress(),
+          [
+            {
+              cid: "bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i",
+              time: 1337,
+            },
+          ],
+        );
 
         // make a regular publish
         pubResult = await publishNode(uuid, did);
@@ -499,7 +531,7 @@ describe("nodes-lib", () => {
 
         // codex history has the legacy and the new update
         const codexHistory = await getCodexHistory(
-          pubResult.ceramicIDs!.streamID
+          pubResult.ceramicIDs!.streamID,
         );
         expect(codexHistory.versions.length).toEqual(2);
       });
@@ -518,35 +550,44 @@ describe("nodes-lib", () => {
 
     describe("node with legacy history but mismatched stream owner", async () => {
       let uuid: string;
-      let legacyDpid: number = randomInt(1,1000);
+      const legacyDpid: number = randomInt(1, 1000);
 
       beforeAll(async () => {
         const { node } = await createBoilerplateNode();
         uuid = node.uuid;
         await setManifestDpid(uuid, legacyDpid);
-        await addLegacyDpid(testSigner, legacyDpid, await testSigner.getAddress(), [
-          { cid: 'bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i', time: 1337 }]);
+        await addLegacyDpid(
+          testSigner,
+          legacyDpid,
+          await testSigner.getAddress(),
+          [
+            {
+              cid: "bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i",
+              time: 1337,
+            },
+          ],
+        );
       });
 
       test("refuses to upgrade with an unmatching DID", async () => {
         const differentDid = await authorizedSessionDidFromSigner(
           signerFromPkey(
             // Different last 4 chars
-            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa"
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa",
           ),
-          getResources()
+          getResources(),
         );
         await expect(publishNode(uuid, differentDid)).rejects.toThrowError(
-          "Refusing to migrate history"
+          "Refusing to migrate history",
         );
       });
 
       test("refuses to upgrade with an unmatching signer", async () => {
         const differentDid = await authorizedSessionDidFromSigner(
           signerFromPkey(
-            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa"
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa",
           ),
-          getResources()
+          getResources(),
         );
         await expect(publishNode(uuid, differentDid)).rejects.toThrow();
       });
@@ -644,7 +685,7 @@ describe("nodes-lib", () => {
         const driveContent = treeResult.tree[0].contains!;
 
         expect(driveContent.map((driveObject) => driveObject.name)).toEqual(
-          expect.arrayContaining(files)
+          expect.arrayContaining(files),
         );
         driveContent.forEach((driveObject) => {
           expect(driveObject.size).toBeGreaterThan(0);
@@ -662,7 +703,7 @@ describe("nodes-lib", () => {
           files,
         });
         expect(uploadResult.tree[0].contains![0].path).toEqual(
-          "root/package.json"
+          "root/package.json",
         );
 
         await moveData({
@@ -673,7 +714,7 @@ describe("nodes-lib", () => {
 
         const treeResult = await retrieveDraftFileTree(uuid);
         expect(treeResult.tree[0].contains![0].path).toEqual(
-          "root/json.package"
+          "root/json.package",
         );
       });
 
@@ -748,7 +789,7 @@ describe("nodes-lib", () => {
           });
 
           expect(components).toEqual(
-            expect.arrayContaining([expectedComponent])
+            expect.arrayContaining([expectedComponent]),
           );
         });
       });
@@ -818,7 +859,7 @@ describe("nodes-lib", () => {
             path: "root/catpics/cat.jpg",
             name: "cat.jpg",
             external: true,
-          })
+          }),
         );
       });
     });
@@ -840,14 +881,21 @@ const createBoilerplateNode = async () => {
  *
  * Note: only callable as the contract owner
  */
-const addLegacyDpid = async (signer: Signer, dpid: number, owner: string, versions: DpidAliasRegistry.LegacyVersionStruct[]) => {
+const addLegacyDpid = async (
+  signer: Signer,
+  dpid: number,
+  owner: string,
+  versions: DpidAliasRegistry.LegacyVersionStruct[],
+) => {
   const tx = await dpidAliasRegistryWriter(signer).importLegacyDpid(dpid, {
     owner,
     versions,
   });
   await tx.wait();
-}
+};
 
 const setManifestDpid = async (uuid: string, dpid: number) => {
-  return await changeManifest(uuid, [{ type: "Publish Dpid", dpid: { prefix: 'beta', id: dpid.toString() } }]);
-}
+  return await changeManifest(uuid, [
+    { type: "Publish Dpid", dpid: { prefix: "beta", id: dpid.toString() } },
+  ]);
+};

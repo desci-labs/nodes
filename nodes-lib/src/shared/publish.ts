@@ -38,7 +38,7 @@ export const publish = async (uuid: string, didOrSigner: DID | Signer) => {
       throw PublishError.wrongOwner(
         "Refusing to migrate history; signing addresses differ",
         legacyOwner,
-        signingAddress || "undefined"
+        signingAddress || "undefined",
       );
     }
   }
@@ -48,7 +48,7 @@ export const publish = async (uuid: string, didOrSigner: DID | Signer) => {
   const ceramicIDs = await codexPublish(
     prepubResult,
     legacyHistory,
-    didOrSigner
+    didOrSigner,
   );
 
   return {
@@ -72,7 +72,7 @@ export const publish = async (uuid: string, didOrSigner: DID | Signer) => {
  */
 const findLegacyHistory = async (
   uuid: string,
-  dpid: number
+  dpid: number,
 ): Promise<{ owner: string; versions: IndexedNodeVersion[] }> => {
   try {
     return await getLegacyHistory(dpid);

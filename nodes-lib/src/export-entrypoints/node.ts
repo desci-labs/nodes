@@ -13,10 +13,8 @@ export { uploadFiles } from "../node-only/file-uploads.js";
 export {
   getFullState,
   getCurrentState,
-  getCodexHistory
+  getCodexHistory,
 } from "../node-only/flight-sql.js";
 
 // Add history functions that depend on FlightSQL
-export {
-  getPublishHistory
-} from "../node-only/history.js";
+export { getPublishHistory } from "../node-only/history.js";
