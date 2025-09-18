@@ -8,7 +8,7 @@ export const automateManuscriptSchema = z.object({
   }),
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10).describe('UUID of the node'),
+    uuid: z.string().describe('UUID of the node'),
   }),
 });
 

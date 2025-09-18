@@ -64,37 +64,31 @@ export class AutomergeServer extends PartyServer {
     this.repo = new Repo(config);
 
     const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
-      // console.log({ change: change.handle.documentId, uuid: change.patchInfo.after.uuid }, 'Document Changed');
       const newTitle = change.patchInfo.after.manifest.title;
       const newCover = change.patchInfo.after.manifest.coverImage;
       const uuid = ensureUuidEndsWithDot(change.doc.uuid);
-      // console.log({ uuid: uuid, documentId: change.handle.documentId, newTitle }, 'UPDATE NODE');
 
       try {
         // TODO: Check if update message is 'UPDATE TITLE'
         if (newTitle) {
-          const result = await query('UPDATE "Node" SET title = $1 WHERE uuid = $2', [newTitle, uuid]);
-          // console.info({ newTitle, result }, 'TITLE UPDATED');
+          await query('UPDATE "Node" SET title = $1 WHERE uuid = $2', [newTitle, uuid]);
         }
 
         // TODO: Check if update message is 'UPDATE TITLE'
         // Update the cover image url in the db for fetching collection
         if (newCover) {
           const coverUrl = process.env.IPFS_RESOLVER_OVERRIDE + '/' + newCover;
-          const result = await query(
+          await query(
             'INSERT INTO "NodeCover" (url, cid, "nodeUuid", version) VALUES ($1, $2, $3, $4) ON CONFLICT("nodeUuid", version) DO UPDATE SET url = $1, cid = $2',
             [coverUrl, newCover as string, uuid, 0],
           );
-          // console.info({ uuid, coverUrl, result }, 'COVER UPDATED');
         }
       } catch (err) {
-        console.error('[Error in DOCUMENT repo.ts::handleChange CALLBACK]', err);
-        // console.error({err}, '[Error in DOCUMENT repo.ts::handleChange CALLBACK]');
+        console.error('[Error in DOCUMENT repo.ts::handleChange CALLBACK]', { error: errWithCause(err) });
       }
     };
 
     this.repo.on('document', async (doc) => {
-      // console.log({ documentId: doc.handle.documentId }, 'DOCUMENT Ready');
       doc.handle.on<keyof DocHandleEvents<'change'>>('change', handleChange);
     });
 
@@ -109,7 +103,6 @@ export class AutomergeServer extends PartyServer {
 
     const auth = params.get('auth');
     let isAuthorised = false;
-    // console.log('[onConnect]', { params });
     if (auth === this.env.API_TOKEN) {
       isAuthorised = true;
     } else {
@@ -125,13 +118,6 @@ export class AutomergeServer extends PartyServer {
       }
     }
 
-    // console.log('[onConnect]::isAuthorised', {
-    //   isAuthorised,
-    //   remotePeer: connection.id,
-    //   source: this.env.API_TOKEN === auth ? 'server' : 'client',
-    //   params,
-    // });
-
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
     } else {
@@ -141,7 +127,7 @@ export class AutomergeServer extends PartyServer {
   }
 
   async onRequest(request: Request) {
-    console.log('Incoming Request', request.method, request.url);
+    console.log('Incoming Request', { method: request.method, url: request.url });
 
     if (request.headers.get('x-api-key') != this.env.API_TOKEN) {
       console.log('[Error]::Api key error', { api: this.env.API_TOKEN, key: request.headers.get('x-api-key') });
