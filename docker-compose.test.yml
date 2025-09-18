@@ -57,7 +57,7 @@ services:
       start_period: 30s
 
   test_blockchain:
-    container_name: "desci_blockchain_ganache"
+    container_name: "test_blockchain"
     build:
       context: desci-contracts
     restart: no

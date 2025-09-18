@@ -71,7 +71,7 @@ if [ "$SKIP_NODES_LIB" != "1" ]; then
     --wait \
     --wait-timeout 600 \
     nodes_backend_test \
-    desci_blockchain_ganache \
+    test_blockchain \
     ceramic_one_test
 
   if [ -z "$GITHUB_ACTIONS" ]; then
