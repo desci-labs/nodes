@@ -1,5 +1,5 @@
 import { test, describe, expect } from "vitest";
-import { convertCidTo0xHex, convert0xHexToCid, convertUUIDToHex, convertUUIDToDecimal } from "../src/util/converting.js";
+import { convertCidTo0xHex, convert0xHexToCid, convertUUIDToHex, convertUUIDToDecimal } from "../src/shared/util/converting.js";
 
 describe("conversion", () => {
   describe("between UUID and hex", () => {

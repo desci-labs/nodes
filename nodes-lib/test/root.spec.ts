@@ -10,14 +10,13 @@ import type {
   PublishResponse,
   RetrieveResponse,
   UploadFilesResponse,
-} from "../src/api.js";
+} from "../src/shared/api.js";
 import {
   createDraftNode,
   getDraftNode,
   createNewFolder,
   retrieveDraftFileTree,
   moveData,
-  uploadFiles,
   deleteDraftNode,
   deleteData,
   addPdfComponent,
@@ -39,9 +38,9 @@ import {
   updateCoverImage,
   publishNode,
   getLegacyHistory,
-} from "../src/api.js";
+} from "../src/shared/api.js";
 import axios from "axios";
-import { getCodexHistory, getCurrentState, getStreamController } from "../src/codex.js";
+import { getStreamController } from "../src/shared/codex.js";
 import { sleep } from "./util.js";
 import {
   ResearchObjectComponentDocumentSubtype,
@@ -57,7 +56,7 @@ import {
 import {
   authorizedSessionDidFromSigner,
   signerFromPkey,
-} from "../src/util/signing.js";
+} from "../src/shared/util/signing.js";
 import {
   NODESLIB_CONFIGS,
   getNodesLibInternalConfig,
@@ -67,8 +66,10 @@ import {
 import { getResources } from "@desci-labs/desci-codex-lib";
 import { Signer } from "ethers";
 import { DpidAliasRegistry } from "@desci-labs/desci-contracts/dist/typechain-types/index.js";
-import { dpidAliasRegistryWriter, findDpid } from "../src/chain.js";
+import { dpidAliasRegistryWriter, findDpid } from "../src/shared/chain.js";
 import { randomInt } from "crypto";
+import { getCodexHistory, getCurrentState } from "../src/node-only/flight-sql.js";
+import { uploadFiles } from "../src/node-only/file-uploads.js";
 
 // Pre-funded ganache account
 const TEST_PKEY =

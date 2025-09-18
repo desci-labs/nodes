@@ -17,22 +17,21 @@ import {
   type ResearchObjectV1Author,
   type ResearchObjectV1Component,
 } from "@desci-labs/desci-models";
-import FormData from "form-data";
-import {createReadStream} from "fs";
 import type {NodeIDs} from "@desci-labs/desci-codex-lib";
 import { publish} from "./publish.js";
 import type {ResearchObjectDocument} from "./automerge.js";
-import {randomUUID} from "crypto";
+// Use browser-compatible crypto.randomUUID
+const randomUUID = () => globalThis.crypto.randomUUID();
 import {makeRequest} from "./routes.js";
 import {Signer} from "ethers";
 import {type DID} from "dids";
-import {getCodexHistory} from "./codex.js";
-import {bnToString, convertUUIDToDecimal} from "./util/converting.js";
+import {bnToString} from "./util/converting.js";
 import {lookupLegacyDpid} from "./chain.js";
 import {PublishError} from "./errors.js";
 import {errWithCause} from "pino-std-serializers";
 import {getHeaders} from "./util/headers.js";
 import { sleep } from "./util/sleep.js";
+import { makeAbsolutePath } from "./util/manifest.js";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -527,24 +526,8 @@ export type UploadFilesResponse = {
  * Note that these do not become public until `publishDraftNode` has been
  * called, even if the node has previously been published.
  */
-export const uploadFiles = async (params: UploadParams) => {
-  const { contextPath, files, uuid } = params;
-  const form = new FormData();
-  form.append("uuid", uuid);
-  form.append("contextPath", makeAbsolutePath(contextPath));
-
-  files.forEach((f) => {
-    const stream = createReadStream(f);
-    form.append("files", stream);
-  });
-
-  return await makeRequest(
-    ENDPOINTS.uploadFiles,
-    getHeaders(true),
-    // Formdata equivalent
-    form as unknown as UploadParams
-  );
-};
+// uploadFiles function moved to node-only/file-uploads.ts
+// Use that module for Node.js environments
 
 /** Parameters required for uploading an externally hosted PDF file */
 export type UploadPdfFromUrlParams = {
@@ -673,33 +656,8 @@ export type IndexedNode = {
   versions: IndexedNodeVersion[];
 };
 
-/**
- * Get the codex publish history for a given node.
- * Note: calling this right after publish may fail
- * since the publish operation may not have finished.
- */
-export const getPublishHistory = async (uuid: string): Promise<IndexedNode> => {
-  const { ceramicStream } = await getDraftNode(uuid);
-  if (!ceramicStream) {
-    throw new Error(`No known stream for node ${uuid}`);
-  }
-
-  const resolved = await getCodexHistory(ceramicStream);
-  const versions = resolved.versions.map((e) => ({
-    cid: e.manifest,
-    time: e.time?.toString() || "", // May happen if commit is not anchored
-  }));
-
-  const indexedNode: IndexedNode = {
-    id: uuid,
-    id10: convertUUIDToDecimal(uuid),
-    owner: resolved.owner,
-    recentCid: resolved.manifest,
-    versions,
-  };
-
-  return indexedNode;
-};
+// getPublishHistory moved to node-only/history.ts
+// It requires getCodexHistory which uses FlightSQL
 
 /**
  * Lookup the history of a legacy dPID in the alias registry.
@@ -1036,22 +994,3 @@ export const claimAttestation = async (
   params: ClaimAttestationParams
 ): Promise<NodeAttestation> =>
   await makeRequest(ENDPOINTS.claimAttestation, getHeaders(), params);
-
-/**
- * Best-effort way of ensuring reasonable representations of absolute paths
- * gets wrangled into the `root/`-prefixed string the API's/manifest expect.
- */
-export const makeAbsolutePath = (path: string) => {
-  // Sensible definitions of root
-  const ROOT_ALIASES = ["root", "root/", "/"];
-  if (!path || ROOT_ALIASES.includes(path)) return "root";
-
-  // Support unix-style absolute paths
-  if (path.startsWith("/")) return `root${path}`;
-
-  // What endpoints actually expect
-  if (path.startsWith("root/")) return path;
-
-  // Just add root to other paths
-  return `root/${path}`;
-};

@@ -18,9 +18,8 @@ import { type DID } from "dids";
 import { CID } from "multiformats";
 import { PublishError } from "./errors.js";
 import { errWithCause } from "pino-std-serializers";
-import { newFlightSqlClient, newStreamClient } from "@desci-labs/desci-codex-lib/c1/clients";
+import { newStreamClient } from "@desci-labs/desci-codex-lib/c1/clients";
 import { updateResearchObject as updateResearchObjectC1, createResearchObject as createResearchObjectC1 } from "@desci-labs/desci-codex-lib/c1/mutate";
-import { getStreamHistory } from "@desci-labs/desci-codex-lib/c1/resolve";
 import { sleep } from "./util/sleep.js";
 
 const LOG_CTX = "[nodes-lib::codex]";
@@ -373,114 +372,7 @@ const backfillNewStreamC1 = async (
   return streamID;
 };
 
-/**
- * Get full historical publish state of a research object.
- */
-export const getFullState = async (streamID: string) => {
-  const config = getNodesLibInternalConfig();
-  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
-  if (useCeramicOne) {
-    const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
-    let data;
-    try {
-      data = await getStreamHistory(client, streamID);
-    } catch (e) {
-      console.error(LOG_CTX, `failed to get stream history for ${streamID}`, {
-        err: errWithCause(e as Error),
-      });
-      throw new Error("codex resolution failed");
-    }
-    return {
-      owner: data.owner,
-      manifest: data.manifest,
-      events: data.versions.map((v) => ({
-        cid: v.manifest,
-        timestamp: v.time,
-      })),
-    };
-  } else {
-    const ceramic = newCeramicClient(config.ceramicNodeUrl);
-    const compose = newComposeClient({ ceramic });
-    const resolved = (await queryResearchObject(
-      compose,
-      streamID,
-      "owner { id } manifest"
-    )) as unknown as { owner: { id: string }; manifest: string };
 
-    console.log(JSON.stringify(resolved));
-
-    if (!resolved) {
-      console.log("Failed to resolve research object:", { streamID });
-      throw new Error("codex resolution failed");
-    }
-
-    const events = await getCodexHistory(streamID);
-    return {
-      owner: resolved.owner.id, // explicitly selected in query
-      manifest: resolved.manifest, // explicitly selected in query
-      events,
-    };
-  }
-};
-
-/**
- * Get the state of a research object as published on Codex.
- */
-export const getCurrentState = async (streamID: string): Promise<ResearchObjectHistory['versions'][number]> => {
-  const config = getNodesLibInternalConfig();
-  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
-  if (useCeramicOne) {
-    const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
-    const resolved = await getStreamHistory(client, streamID);
-    return resolved.versions.at(-1)!;
-  } else {
-    const ceramic = newCeramicClient(config.ceramicNodeUrl);
-    const compose = newComposeClient({ ceramic });
-
-    const resolved = await queryResearchObject(compose, streamID);
-    if (!resolved) {
-      throw new Error("codex resolution failed");
-    }
-    return {
-      version: streamID,
-      title: resolved.title!,
-      manifest: resolved.manifest!,
-      license: resolved.license!,
-      time: undefined,
-    };
-  }
-};
-/**
- * Get the historical events for a given stream.
- */
-export const getCodexHistory = async (streamID: string): Promise<ResearchObjectHistory> => {
-  const config = getNodesLibInternalConfig();
-  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
-
-  if (useCeramicOne) {
-    const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
-    return await getStreamHistory(client, streamID);
-  } else {
-    const ceramic = newCeramicClient(config.ceramicNodeUrl);
-    const stream = await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
-    const versions = streams.getVersionLog(stream);
-    return {
-      id: streamID,
-      owner: stream.state.metadata.controllers[0],
-      manifest: stream.state.content.manifest,
-      versions: await Promise.all(versions.map(async v => {
-        const state = await streams.loadVersion(ceramic, v.commit);
-        return {
-          version: v.commit.toString(),
-          time: v.timestamp,
-          title: state.content.title,
-          manifest: state.content.manifest,
-          license: state.content.license,
-        }
-      })),
-    }
-  }
-};
 
 /**
  * Get the raw stream state for a streamID.
