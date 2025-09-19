@@ -202,6 +202,7 @@ model User {
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
   receiveMarketingEmails      Boolean                       @default(false)
+  receiveSciweaveMarketingEmails Boolean                    @default(false)
   isAdmin                     Boolean                       @default(false)
   isVerified                  Boolean                       @default(false)
   verificationCode            String                        @default("")
@@ -1689,9 +1690,12 @@ enum ActionType {
   MERGE_GUEST_INTO_EXISTING_USER_SUCCESS
   MERGE_GUEST_INTO_EXISTING_USER_FAIL
   SUBMIT_QUESTIONNAIRE
+  SUBMIT_SCIWEAVE_QUESTIONNAIRE
   RETRIEVE_DPID_METADATA
   MARKETING_EMAIL_OPT_IN
   MARKETING_EMAIL_OPT_OUT
+  SCIWEAVE_MARKETING_EMAIL_OPT_IN
+  SCIWEAVE_MARKETING_EMAIL_OPT_OUT
 }
 
 enum ChainTransactionType {
