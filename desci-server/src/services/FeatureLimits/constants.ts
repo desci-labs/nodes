@@ -1,5 +1,7 @@
 import { PlanCodename, Feature, Period } from '@prisma/client';
 
+import { SCIWEAVE_FREE_LIMIT } from '../../config.js';
+
 export interface FeatureLimitConfig {
   planCodename: PlanCodename;
   feature: Feature;
@@ -34,7 +36,7 @@ export const FEATURE_LIMIT_DEFAULTS: Record<Feature, Partial<Record<PlanCodename
       planCodename: PlanCodename.FREE,
       feature: Feature.RESEARCH_ASSISTANT,
       period: Period.MONTH,
-      useLimit: 10,
+      useLimit: SCIWEAVE_FREE_LIMIT,
     },
     [PlanCodename.PREMIUM]: {
       planCodename: PlanCodename.PREMIUM,

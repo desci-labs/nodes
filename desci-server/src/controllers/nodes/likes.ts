@@ -11,14 +11,14 @@ import { ensureUuidEndsWithDot } from '../../utils.js';
 export const likeNodeSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10),
+    uuid: z.string(),
   }),
 });
 
 export const unlikeNodeSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10),
+    uuid: z.string(),
     // // quickly disqualify false uuid strings
     // likeId: z.coerce.number(),
   }),

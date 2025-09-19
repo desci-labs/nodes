@@ -124,6 +124,7 @@ spec:
           export INTERNAL_SERVICE_SECRET="{{ .Data.INTERNAL_SERVICE_SECRET }}"
           export STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID }}"
           export STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID }}"
+          export SCIWEAVE_FREE_LIMIT="{{ .Data.SCIWEAVE_FREE_LIMIT }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}

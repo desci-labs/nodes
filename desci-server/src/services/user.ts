@@ -9,7 +9,7 @@ import { hideEmail } from '../utils.js';
 
 import { safePct } from './admin/helper.js';
 import { contributorService } from './Contributors.js';
-import { getUserConsent } from './interactionLog.js';
+import { AppType, getUserConsent } from './interactionLog.js';
 const logger = parentLogger.child({
   module: 'Services::User',
 });
@@ -318,7 +318,7 @@ export async function checkIfUserAcceptedTerms(email: string): Promise<boolean> 
       email,
     },
   });
-  return !!(await getUserConsent(user.id));
+  return !!(await getUserConsent(user.id, AppType.PUBLISH));
 }
 
 export async function createUser({

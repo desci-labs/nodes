@@ -10,8 +10,10 @@ import { FeatureLimitsService } from '../../../services/FeatureLimits/FeatureLim
 
 const logger = parentLogger.child({ module: 'ResearchAssistant::OnboardUsageController' });
 
+const MAX_ONBOARD_COUNT = 100;
+
 const onboardUsageSchema = z.object({
-  guestUsageCount: z.number().int().min(0).max(100),
+  guestUsageCount: z.number().int().min(0).max(MAX_ONBOARD_COUNT),
 });
 
 export const onboardResearchAssistantUsage = async (req: AuthenticatedRequest, res: Response) => {
@@ -25,7 +27,7 @@ export const onboardResearchAssistantUsage = async (req: AuthenticatedRequest, r
     const parseResult = onboardUsageSchema.safeParse(req.body);
     if (!parseResult.success) {
       logger.warn({ userId: user.id, errors: parseResult.error.errors }, 'Invalid request parameters');
-      return sendError(res, 'Invalid parameters. guestUsageCount must be between 0 and 4', 400);
+      return sendError(res, `Invalid parameters. guestUsageCount must be between 0 and ${MAX_ONBOARD_COUNT}`, 400);
     }
 
     const { guestUsageCount } = parseResult.data;
