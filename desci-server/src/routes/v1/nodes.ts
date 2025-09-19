@@ -34,7 +34,14 @@ import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.j
 import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
 import { getPublishedNodes } from '../../controllers/nodes/getPublishedNodes.js';
 import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
-import { githubMystImport, githubMystImportSchema } from '../../controllers/nodes/githubMystImport.js';
+import {
+  cancelMystImportJob,
+  getMystImportJobStatusByJobId,
+  githubMystImport,
+  githubMystImportSchema,
+  processMystImportFiles,
+  updateMystImportJobStatus,
+} from '../../controllers/nodes/githubMystImport.js';
 import {
   show,
   draftUpdate,
@@ -89,7 +96,10 @@ import {
   ensureWriteNodeAccess,
   attachNode,
 } from '../../middleware/authorisation.js';
+import { ensureInternalSecret } from '../../middleware/internalSecret.js';
+import { ensureJobInfo } from '../../middleware/mystJobValidator.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
+import { wrappedHandler } from '../../middleware/uploadHandler.js';
 import { validate, validateInputs } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
@@ -186,11 +196,35 @@ router.post(
   asyncHandler(automateManuscriptDoi),
 );
 
-// doi automation
+// myst github import
 router.post(
   '/:uuid/github-myst-import',
   [ensureUser, ensureNodeAccess, validateInputs(githubMystImportSchema)],
   asyncHandler(githubMystImport),
+);
+
+router.get(
+  '/:uuid/github-myst-import/:jobId',
+  [ensureUser, ensureNodeAccess],
+  asyncHandler(getMystImportJobStatusByJobId),
+);
+
+router.post(
+  '/:uuid/github-myst-import/:jobId/cancel',
+  [ensureUser, ensureNodeAccess],
+  asyncHandler(cancelMystImportJob),
+);
+
+router.post(
+  '/:uuid/github-myst-import/:jobId/updateStatus',
+  [ensureInternalSecret],
+  asyncHandler(updateMystImportJobStatus),
+);
+
+router.post(
+  '/:uuid/finalize-myst-import/:jobId/receiveFiles',
+  [ensureInternalSecret, ensureJobInfo, wrappedHandler],
+  asyncHandler(processMystImportFiles),
 );
 
 router.delete('/:uuid', [ensureGuestOrUser], deleteNode);

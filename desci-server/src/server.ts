@@ -139,7 +139,7 @@ class AppServer {
     });
 
     this.app.use(helmet());
-    
+
     // Skip JSON parsing for Stripe webhook endpoint to preserve raw body for signature verification
     this.app.use((req, res, next) => {
       if (req.path === '/v1/stripe/webhook') {
@@ -148,7 +148,7 @@ class AppServer {
         bodyParser.json({ limit: '100mb' })(req, res, next);
       }
     });
-    
+
     this.app.use(bodyParser.urlencoded({ extended: false }));
 
     this.app.use(cookieParser());

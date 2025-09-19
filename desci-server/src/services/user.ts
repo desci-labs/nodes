@@ -275,6 +275,17 @@ export async function getUserByOrcId(orcid: string): Promise<User | null> {
   return user;
 }
 
+export async function getUserById(id: number): Promise<User | null> {
+  logger.trace({ fn: 'getUserById' }, 'user::getUserById');
+  if (!id) {
+    logger.error({ fn: 'getUserById' }, 'user::getUserById No id');
+    return null;
+  }
+  const user = await client.user.findUnique({ where: { id } });
+
+  return user;
+}
+
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
     logger.trace({ fn: 'getUserByEmail' }, `user::getUserByEmail ${hideEmail(email)}`);
