@@ -32,10 +32,10 @@ spec:
           export DATABASE_URL={{ .Data.url }}
           export IPFS_NODE_URL="http://ipfs-gateway-staging-internal.default.svc.cluster.local:5001"
           export NODE_ENV=production
-          echo "dbset"; 
+          echo "dbset";
           {{- end -}}
           {{- with secret "secrets/desci-server/production/app" -}}
-          echo "appstart"; 
+          echo "appstart";
           export JWT_SECRET={{ .Data.JWT_SECRET }}
           export JWT_EXPIRATION=15m
           export SESSION_KEY={{ .Data.SESSION_KEY }}

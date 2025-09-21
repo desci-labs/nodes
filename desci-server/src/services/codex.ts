@@ -8,11 +8,11 @@ const logger = parentLogger.child({
   module: 'Service::Codex',
 });
 
-const RESOLVER_URL = process.env.DPID_URL_OVERRIDE ?? 'https://beta.dpid.org';
+const DPID_RESOLVER_URL = process.env.DPID_URL_OVERRIDE ?? 'https://beta.dpid.org';
 
-const getStreamResolutionUrl = (streamId: string) => `${RESOLVER_URL}/api/v2/resolve/codex/${streamId}`;
+const getStreamResolutionUrl = (streamId: string) => `${DPID_RESOLVER_URL}/api/v2/resolve/codex/${streamId}`;
 
-const getDpidResolutionUrl = (dpid: number) => `${RESOLVER_URL}/api/v2/resolve/dpid/${dpid}`;
+const getDpidResolutionUrl = (dpid: number) => `${DPID_RESOLVER_URL}/api/v2/resolve/dpid/${dpid}`;
 
 export const streamLookup = async (streamId: string): Promise<ResearchObjectHistory> => {
   try {
@@ -50,7 +50,7 @@ export const getCommitTimestamps = async (commitIds: string[]): Promise<Record<s
 
   let histories: ResearchObjectHistory[];
   try {
-    const result = await axios.post<ResearchObjectHistory[]>(`${RESOLVER_URL}/api/v2/query/history`, {
+    const result = await axios.post<ResearchObjectHistory[]>(`${DPID_RESOLVER_URL}/api/v2/query/history`, {
       ids: uniqueStreamIds,
     });
     histories = result.data;

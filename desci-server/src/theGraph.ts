@@ -11,7 +11,7 @@ const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
 });
 
-const RESOLVER_URL = process.env.RESOLVER_URL || getTargetDpidUrl();
+const DPID_RESOLVER_URL = process.env.DPID_URL_OVERRIDE || getTargetDpidUrl();
 
 export type IndexedResearchObject = {
   /** Hex: Node UUID */
@@ -129,7 +129,7 @@ const getHistoryFromDpids = async (dpidsToUuidsMap: Record<number, string>): Pro
     return [];
   }
 
-  const historyRes = await axios.post<ResolverIndexResult[]>(`${RESOLVER_URL}/api/v2/query/history`, {
+  const historyRes = await axios.post<ResolverIndexResult[]>(`${DPID_RESOLVER_URL}/api/v2/query/history`, {
     ids: Object.keys(dpidsToUuidsMap),
   });
 

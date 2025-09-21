@@ -28,7 +28,6 @@ services:
     environment:
       # Conditionally start the server instead of invoking the integration test suite
       RUN_SERVER: ${RUN_SERVER:-0}
-      RESOLVER_URL: http://dpid_resolver_test:5460
       DPID_URL_OVERRIDE: http://dpid_resolver_test:5460
       # This is set in CI but not automatically passed to the container
       GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
