@@ -7,6 +7,8 @@ import {
 
 export type NodesEnv = "local" | "dev" | "staging" | "prod";
 
+export { CHAIN_CONFIGS, ChainConfig, LEGACY_CHAIN_CONFIGS, LegacyChainConfig };
+
 export type NodesLibConfig = {
   apiUrl: string;
   apiKey?: string;

@@ -3,7 +3,7 @@
  * These functions require native binaries and are only available in Node.js environments
  */
 import { getNodesLibInternalConfig } from "../shared/config/index.js";
-import { newFlightSqlClient } from "@desci-labs/desci-codex-lib/c1/clients";
+import { newFlightSqlClient } from "@desci-labs/desci-codex-lib/c1/flightclient";
 import { getStreamHistory } from "@desci-labs/desci-codex-lib/c1/resolve";
 import { errWithCause } from "pino-std-serializers";
 import {

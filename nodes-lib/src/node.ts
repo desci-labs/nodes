@@ -7,14 +7,14 @@
 export * from "./browser.js";
 
 // Add Node.js-specific file upload functionality
-export { uploadFiles } from "../node-only/file-uploads.js";
+export { uploadFiles } from "./node-only/file-uploads.js";
 
 // Add FlightSQL-dependent Codex query functions
 export {
   getFullState,
   getCurrentState,
   getCodexHistory,
-} from "../node-only/flight-sql.js";
+} from "./node-only/flight-sql.js";
 
 // Add history functions that depend on FlightSQL
-export { getPublishHistory } from "../node-only/history.js";
+export { getPublishHistory } from "./node-only/history.js";

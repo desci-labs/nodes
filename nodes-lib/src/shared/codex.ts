@@ -19,7 +19,7 @@ import { type DID } from "dids";
 import { CID } from "multiformats";
 import { PublishError } from "./errors.js";
 import { errWithCause } from "pino-std-serializers";
-import { newStreamClient } from "@desci-labs/desci-codex-lib/c1/clients";
+import { newStreamClient } from "@desci-labs/desci-codex-lib/c1/streamclient";
 import {
   updateResearchObject as updateResearchObjectC1,
   createResearchObject as createResearchObjectC1,
