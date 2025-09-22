@@ -69,6 +69,7 @@ const updateJobStatus = async ({
     logger.error({ error }, 'MYST::updateJobStatusError');
   }
 };
+
 export const buildAndExportMystRepo = async (req: Request, res: Response) => {
   const { url, jobId, uuid, parsedDocument } = req.body as {
     url: string;
@@ -88,7 +89,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     return sendError(res, parseImportUrlResult.error.message, 400);
   }
 
-  sendSuccess(res, { status: 'processing', jobId, uuid });
+  sendSuccess(res, { jobId, uuid });
 
   await updateJobStatus({
     jobId,

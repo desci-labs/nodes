@@ -11,9 +11,10 @@ import { errWithCause } from 'pino-std-serializers';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
+import { INTERNAL_SERVICE_SECRET } from '../../config.js';
 import { sendError, sendSuccess } from '../../core/api.js';
 import { UnProcessableRequestError } from '../../core/ApiError.js';
-import { AuthenticatedRequestWithNode, ValidatedRequest } from '../../core/types.js';
+import { AuthenticatedRequestWithNode, RequestWithJob, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { DEFAULT_TTL, getFromCache, setToCache } from '../../redisClient.js';
@@ -212,6 +213,7 @@ export type MystImportJob = {
   url: string;
   userId: number;
   status: MystImportJobStatus;
+  message: string;
   parsedDocument: z.infer<typeof projectFrontmatterSchema>;
 };
 
@@ -296,6 +298,10 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
       actions,
     });
 
+    if (!response) {
+      return sendError(res, 'Could not update research object with yaml metadata', 500);
+    }
+
     const jobId = `myst-import-${uuidv4()}`;
     const job = {
       uuid,
@@ -309,11 +315,6 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     await setToCache(jobId, job);
     logger.trace({ jobId, uuid, url, userId: req.user.id }, 'MYST::JobCreated');
 
-    sendSuccess(res, {
-      jobId,
-      // debug: isDesciUser ? { actions, parsedDocument, response } : undefined,
-    });
-
     try {
       const scheduleJobResponse = await axios.post(
         `${process.env.NODES_MEDIA_SERVER_URL}/v1/services/process-journal-submission`,
@@ -323,10 +324,18 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
           jobId,
           parsedDocument: parsedDocument.value,
         },
+        {
+          headers: {
+            'X-Internal-Secret': `${INTERNAL_SERVICE_SECRET}`,
+          },
+        },
       );
 
       logger.trace({ scheduleJobResponse: scheduleJobResponse.data }, '[githubMystImport]::JobScheduled');
-      return void 0;
+      return sendSuccess(res, {
+        jobId,
+        debug: isDesciUser ? { actions, parsedDocument, response } : undefined,
+      });
     } catch (error) {
       logger.error({ error }, 'MYST::JobScheduleError');
       await setToCache(
@@ -342,44 +351,39 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
   }
 };
 
-export const getMystImportJobStatusByJobId = async (req: Request, res: Response, _next: NextFunction) => {
-  const { jobId } = req.params as { jobId: string };
-  const job = await getFromCache(jobId);
-  if (!job) {
-    return sendError(res, 'Job not found', 404);
-  }
+type ImportRequestWithJob = RequestWithJob<
+  ValidatedRequest<typeof githubMystImportSchema, AuthenticatedRequestWithNode>
+>;
+
+export const getMystImportJobStatusByJobId = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
+  const job = req.job;
+
   return sendSuccess(res, job);
 };
 
-export const cancelMystImportJob = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
+export const cancelMystImportJob = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
   const { jobId } = req.params as { jobId: string };
-  const job = await getFromCache<MystImportJob>(jobId);
-  if (!job) {
-    return sendError(res, 'Job not found', 404);
-  }
+  const job = req.job;
+
   await setToCache(jobId, { ...job, status: 'cancelled', message: 'Job cancelled' }, DEFAULT_TTL);
   return sendSuccess(res, job);
 };
 
-export const updateMystImportJobStatus = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
+export const updateMystImportJobStatus = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
   const { jobId } = req.params as { jobId: string };
   const { status, message } = req.body as { status: MystImportJobStatus; message: string };
-  const job = await getFromCache<MystImportJob>(jobId);
-  if (!job) {
-    return sendError(res, 'Job not found', 404);
-  }
+  const job = req.job;
+
   logger.trace({ jobId, status, message }, 'MYST::updateJobStatus');
-  await setToCache(jobId, { ...job, status, message }, DEFAULT_TTL);
-  return sendSuccess(res, job);
+  const updated = { ...job, status, message };
+  await setToCache(jobId, updated, DEFAULT_TTL);
+  return sendSuccess(res, updated);
 };
 
-export const processMystImportFiles = async (req: Request, res: Response, _next: NextFunction) => {
+export const processMystImportFiles = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
   try {
     const { jobId } = req.params as { jobId: string };
-    const job = await getFromCache<MystImportJob>(jobId);
-    if (!job) {
-      return sendError(res, 'Job not found', 404);
-    }
+    const job = req.job;
 
     const files = req.files as any[];
     logger.trace({ jobId }, 'MYST::FilesReceived');

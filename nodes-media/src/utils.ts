@@ -70,7 +70,7 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
   let extractedPath = '';
   return new Promise((resolve, reject) => {
     yauzl.open(zipFilePath, { lazyEntries: true }, (err, zipfile) => {
-      if (err) return reject(err);
+      if (err || !zipfile) return reject(err ?? new Error('Failed to open zip file'));
 
       zipfile.readEntry();
 
@@ -86,6 +86,11 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
 
           // Ensure parent directory exists.
           const filePath = path.join(outputDirectory, entry.fileName);
+          const normalizedFilePath = path.normalize(filePath);
+          const ourtDireNormalized = path.normalize(outputDirectory + path.sep);
+          if (normalizedFilePath.startsWith(ourtDireNormalized)) {
+            return reject(new Error('Zip file contains files outside the output directory'));
+          }
 
           const directoryName = path.dirname(filePath);
           fs.mkdirSync(directoryName, { recursive: true });
@@ -101,6 +106,9 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
 
           writeStream.on('error', (err) => {
             writeStream.close(); // Ensure the file is closed
+            fs.promises.unlink(zipFilePath).catch((e) => {
+              logger.error({ e, zipFilePath }, 'Failed to delete zip file');
+            });
             reject(err);
           });
           writeStream.on('finish', () => zipfile.readEntry());
@@ -119,7 +127,12 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
         }
       });
 
-      zipfile.on('error', reject);
+      zipfile.on('error', (e) => {
+        fs.promises.unlink(zipFilePath).catch((e) => {
+          logger.error({ e, zipFilePath }, 'Failed to delete zip file');
+        });
+        reject(e);
+      });
     });
   });
 }

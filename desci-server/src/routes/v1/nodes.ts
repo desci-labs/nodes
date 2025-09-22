@@ -205,19 +205,19 @@ router.post(
 
 router.get(
   '/:uuid/github-myst-import/:jobId',
-  [ensureUser, ensureNodeAccess],
+  [ensureUser, ensureNodeAccess, ensureJobInfo],
   asyncHandler(getMystImportJobStatusByJobId),
 );
 
 router.post(
   '/:uuid/github-myst-import/:jobId/cancel',
-  [ensureUser, ensureNodeAccess],
+  [ensureUser, ensureNodeAccess, ensureJobInfo],
   asyncHandler(cancelMystImportJob),
 );
 
 router.post(
   '/:uuid/github-myst-import/:jobId/updateStatus',
-  [ensureInternalSecret],
+  [ensureInternalSecret, ensureJobInfo],
   asyncHandler(updateMystImportJobStatus),
 );
 
