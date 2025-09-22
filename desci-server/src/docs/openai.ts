@@ -20,6 +20,7 @@ import { communityPaths } from './communities.js';
 import { doiPaths } from './doi.js';
 import { dpidPaths } from './dpid.js';
 import { journalPaths } from './journals.js';
+import { mystImportPaths } from './mystImport.js';
 import { openAlexPaths } from './openalex.js';
 import { searchPaths } from './search.js';
 import {
@@ -138,6 +139,7 @@ export const openaiDocumentation = createDocument({
     ...dpidPaths,
     ...openAlexPaths,
     ...journalPaths,
+    ...mystImportPaths,
     ...adminNodesPaths,
     ...metricsPaths,
   },

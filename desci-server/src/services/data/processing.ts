@@ -463,9 +463,10 @@ export async function pinNewFiles(
     }),
   );
   let uploaded: IpfsPinnedResult[];
+  logger.info({ structuredFilesForPinning: structuredFilesForPinning.map((f) => f.path) }, 'FILES TO UPLOAD');
   if (structuredFilesForPinning.length) {
-    if (structuredFilesForPinning.length)
-      uploaded = await pinDirectory(structuredFilesForPinning, { wrapWithDirectory, node: ipfsNode });
+    // if (structuredFilesForPinning.length)
+    uploaded = await pinDirectory(structuredFilesForPinning, { wrapWithDirectory, node: ipfsNode });
     if (!uploaded.length) throw createIpfsUploadFailureError();
     logger.info({ uploaded }, '[UPDATE DATASET] Pinned files: ');
   }

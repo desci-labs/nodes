@@ -1,26 +1,27 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { projectFrontmatterSchema } from '@awesome-myst/myst-zod';
-import {
-  ManifestActions,
-  ResearchObjectComponentDocumentSubtype,
-  ResearchObjectComponentType,
-} from '@desci-labs/desci-models';
-import { UpdateResponse } from '@elastic/elasticsearch/lib/api/types.js';
+import { ManifestActions, ResearchObjectComponentType, ResearchObjectV1Component } from '@desci-labs/desci-models';
 import axios from 'axios';
 import { NextFunction, Response } from 'express';
+import { Request } from 'express';
 import { load } from 'js-yaml';
 import _ from 'lodash';
 import { err, ok, Result } from 'neverthrow';
+import { errWithCause } from 'pino-std-serializers';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
+import { INTERNAL_SERVICE_SECRET } from '../../config.js';
 import { sendError, sendSuccess } from '../../core/api.js';
 import { UnProcessableRequestError } from '../../core/ApiError.js';
-import { AuthenticatedRequestWithNode, ValidatedRequest } from '../../core/types.js';
+import { AuthenticatedRequestWithNode, RequestWithJob, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { processExternalUrlDataToIpfs } from '../../services/data/externalUrlProcessing.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
+import { DEFAULT_TTL, getFromCache, setToCache } from '../../redisClient.js';
+import { processS3DataToIpfs } from '../../services/data/processing.js';
 import { getNodeByUuid } from '../../services/node.js';
 import repoService from '../../services/repoService.js';
+import { getUserById } from '../../services/user.js';
 
 const logger = parentLogger.child({
   module: 'NODE::githubMystImport',
@@ -39,7 +40,6 @@ export const githubMystImportSchema = z.object({
     dryRun: z.boolean().optional().default(false),
   }),
 });
-type GithubMystImportRequest = ValidatedRequest<typeof githubMystImportSchema, AuthenticatedRequestWithNode>;
 
 const mystYamlSchema = z.object({
   version: z.number(),
@@ -208,6 +208,19 @@ const parseMystDocument = async (
   }
 };
 
+export type MystImportJob = {
+  uuid: string;
+  url: string;
+  userId: number;
+  status: MystImportJobStatus;
+  message: string;
+  parsedDocument: z.infer<typeof projectFrontmatterSchema>;
+};
+
+export type MystImportJobStatus = 'processing' | 'completed' | 'failed' | 'cancelled';
+
+type GithubMystImportRequest = ValidatedRequest<typeof githubMystImportSchema, AuthenticatedRequestWithNode>;
+
 export const githubMystImport = async (req: GithubMystImportRequest, res: Response, _next: NextFunction) => {
   const { uuid } = req.validatedData.params;
   const { url, dryRun } = req.validatedData.body;
@@ -224,7 +237,7 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     return err(parseUrlResult.error);
   }
 
-  const { rawDownloadUrl, baseDownloadUrl } = parseUrlResult.value;
+  const { rawDownloadUrl } = parseUrlResult.value;
 
   const downloadFileResult = await downloadFileFromUrl(rawDownloadUrl);
   if (downloadFileResult.isErr()) {
@@ -276,7 +289,7 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     });
   }
 
-  let manuscriptImport: { ok: boolean; value: UpdateResponse } | undefined;
+  // let manuscriptImport: { ok: boolean; value: UpdateResponse } | undefined;
   if (actions.length > 0) {
     logger.trace({ actions }, 'Populate Node with myst metadata');
     const response = await repoService.dispatchAction({
@@ -285,37 +298,159 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
       actions,
     });
 
-    // logger.trace({ response: response.manifest }, 'myst metadata updated');
+    if (!response) {
+      return sendError(res, 'Could not update research object with yaml metadata', 500);
+    }
 
-    const exportRef = parsedDocument.value.exports.find((entry) => entry.format === 'typst' || entry.format === 'pdf');
-    if (exportRef) {
-      const externalUrl = { path: 'manuscript.pdf', url: `${baseDownloadUrl}${exportRef.output}` };
-      logger.trace({ exportRef, exports: parsedDocument.value.exports, externalUrl }, 'myst exportRef');
-      const { ok, value } = await processExternalUrlDataToIpfs({
-        user: req.user,
-        node: req.node,
-        externalUrl,
+    const jobId = `myst-import-${uuidv4()}`;
+    const job = {
+      uuid,
+      url,
+      userId: req.user.id,
+      status: 'processing',
+      message: 'Processing repo link...',
+      parsedDocument: parsedDocument.value,
+    };
+
+    await setToCache(jobId, job);
+    logger.trace({ jobId, uuid, url, userId: req.user.id }, 'MYST::JobCreated');
+
+    try {
+      const scheduleJobResponse = await axios.post(
+        `${process.env.NODES_MEDIA_SERVER_URL}/v1/services/process-journal-submission`,
+        {
+          url,
+          uuid,
+          jobId,
+          parsedDocument: parsedDocument.value,
+        },
+        {
+          headers: {
+            'X-Internal-Secret': `${INTERNAL_SERVICE_SECRET}`,
+          },
+        },
+      );
+
+      logger.trace({ scheduleJobResponse: scheduleJobResponse.data }, '[githubMystImport]::JobScheduled');
+      return sendSuccess(res, {
+        jobId,
+        debug: isDesciUser ? { actions, parsedDocument, response } : undefined,
+      });
+    } catch (error) {
+      logger.error({ error }, 'MYST::JobScheduleError');
+      await setToCache(
+        jobId,
+        { ...job, status: 'failed', message: error.message || 'Failed to schedule job' },
+        DEFAULT_TTL,
+      );
+      return sendError(res, error.message || 'Failed to schedule job', 500);
+    }
+  } else {
+    logger.error('NO DATA EXTRACTED');
+    return sendError(res, 'Unable to extract metadata from manuscript', 422);
+  }
+};
+
+type ImportRequestWithJob = RequestWithJob<
+  ValidatedRequest<typeof githubMystImportSchema, AuthenticatedRequestWithNode>
+>;
+
+export const getMystImportJobStatusByJobId = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
+  const job = req.job;
+
+  return sendSuccess(res, job);
+};
+
+export const cancelMystImportJob = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
+  const { jobId } = req.params as { jobId: string };
+  const job = req.job;
+
+  await setToCache(jobId, { ...job, status: 'cancelled', message: 'Job cancelled' }, DEFAULT_TTL);
+  return sendSuccess(res, job);
+};
+
+export const updateMystImportJobStatus = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
+  const { jobId } = req.params as { jobId: string };
+  const { status, message } = req.body as { status: MystImportJobStatus; message: string };
+  const job = req.job;
+
+  logger.trace({ jobId, status, message }, 'MYST::updateJobStatus');
+  const updated = { ...job, status, message };
+  await setToCache(jobId, updated, DEFAULT_TTL);
+  return sendSuccess(res, updated);
+};
+
+export const processMystImportFiles = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
+  try {
+    const { jobId } = req.params as { jobId: string };
+    const job = req.job;
+
+    const files = req.files as any[];
+    logger.trace({ jobId }, 'MYST::FilesReceived');
+
+    if (files.length) {
+      const user = await getUserById(job.userId);
+      const node = await getNodeByUuid(job.uuid);
+      // send files to reuseable update drive file upload service
+      const { ok, value } = await processS3DataToIpfs({
+        files,
+        user: user,
+        node: node,
         contextPath: 'root',
-        componentType: ResearchObjectComponentType.PDF,
-        componentSubtype:
-          exportRef.format === 'pdf'
-            ? ResearchObjectComponentDocumentSubtype.MANUSCRIPT
-            : ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
-        autoStar: true,
       });
 
       if (ok) {
-        logger.trace({ manuscriptImport: ok, value: value }, 'MYST::manuscriptImport');
-        manuscriptImport = { ok, value };
+        await setToCache(
+          jobId,
+          { ...job, status: 'completed', message: 'Import finished successfully', value },
+          DEFAULT_TTL,
+        );
+      } else {
+        await setToCache(
+          jobId,
+          { ...job, status: 'failed', message: 'Failed to import files to drive.', value },
+          DEFAULT_TTL,
+        );
       }
-    }
 
-    return sendSuccess(res, {
-      ok: response.manifest !== null,
-      debug: isDesciUser ? { actions, parsedDocument, response, manuscriptImport } : undefined,
-    });
-  } else {
-    logger.error('NO DATA EXTRACTED');
-    return sendError(res, 'Unable to extract metadata from manuscript', 400);
+      sendSuccess(res, { ok: true });
+
+      if (ok) {
+        const manuscriptsFiles = value.tree[0].contains?.filter(
+          (drive) => drive.componentType === ResearchObjectComponentType.PDF || drive.name.endsWith('.pdf'),
+        );
+        logger.info({ manuscriptsFiles }, '[MANUSCRIPT FILES]');
+        if (!manuscriptsFiles || manuscriptsFiles.length === 0) return void 0;
+
+        const componentsToPin = manuscriptsFiles?.map((drive) => {
+          const newComponent: ResearchObjectV1Component = {
+            id: uuidv4(),
+            name: drive.name,
+            type: drive.componentType as ResearchObjectComponentType,
+            ...(drive.componentSubtype ? { subtype: drive.componentSubtype } : {}),
+            payload: {
+              path: drive.path,
+              cid: drive.cid,
+            },
+            starred: true,
+          };
+          return newComponent;
+        });
+        logger.info({ componentsToPin }, '[COMPONENTS TO PIN]');
+
+        await repoService.dispatchAction({
+          uuid: job.uuid,
+          documentId: node.manifestDocumentId as DocumentId,
+          actions: [{ type: 'Add Components', components: componentsToPin }] as ManifestActions[],
+        });
+      }
+      return void 0;
+    } else {
+      await setToCache(jobId, { ...job, status: 'failed', message: 'No files received' }, DEFAULT_TTL);
+      return sendError(res, 'No files received', 400);
+    }
+  } catch (err) {
+    logger.error({ error: errWithCause(err) }, '[PROCESS FILES ERROR]');
+    return sendError(res, err.message || 'Could not process files', 422);
   }
 };

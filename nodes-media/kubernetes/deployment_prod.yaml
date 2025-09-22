@@ -31,6 +31,8 @@ spec:
           export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
           export SUPABASE_URL={{ .Data.SUPABASE_URL }}
           export SUPABASE_ANON_KEY={{ .Data.SUPABASE_ANON_KEY }}
+          export INTERNAL_SERVICE_SECRET={{ .Data.INTERNAL_SERVICE_SECRET }}
+          export DESCI_SERVER_URL={{ .Data.SERVER_URL }}
           {{- end -}}
       labels:
         App: NodesMediaServer
