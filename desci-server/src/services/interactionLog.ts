@@ -87,12 +87,19 @@ export const getUserConsent = async (userId: number, appType: AppType) => {
   });
 };
 
-export const getUserQuestionnaireSubmitted = async (userId?: number) => {
-  logger.info({ fn: 'getUserQuestionnaireSubmitted', userId }, 'interactionLog::getUserQuestionnaireSubmitted');
+export const getUserQuestionnaireSubmitted = async (userId?: number, appType?: AppType) => {
+  logger.info(
+    { fn: 'getUserQuestionnaireSubmitted', userId, appType },
+    'interactionLog::getUserQuestionnaireSubmitted',
+  );
+
+  const action =
+    appType === AppType.SCIWEAVE ? ActionType.SUBMIT_SCIWEAVE_QUESTIONNAIRE : ActionType.SUBMIT_QUESTIONNAIRE;
+
   return await prisma.interactionLog.findFirst({
     where: {
       userId,
-      action: ActionType.SUBMIT_QUESTIONNAIRE,
+      action,
     },
   });
 };
