@@ -88,7 +88,8 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
           const filePath = path.join(outputDirectory, entry.fileName);
           const normalizedFilePath = path.normalize(filePath);
           const ourtDireNormalized = path.normalize(outputDirectory + path.sep);
-          if (normalizedFilePath.startsWith(ourtDireNormalized)) {
+
+          if (!normalizedFilePath.startsWith(ourtDireNormalized)) {
             return reject(new Error('Zip file contains files outside the output directory'));
           }
 
@@ -101,11 +102,13 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
           // Pipe readStream to writeStream.
           readStream.on('error', (err) => {
             readStream.destroy(); // Ensure the stream is closed
+            logger.error({ err, zipFilePath }, 'Failed to extract zip file');
             reject(err);
           });
 
           writeStream.on('error', (err) => {
             writeStream.close(); // Ensure the file is closed
+            logger.error({ err, zipFilePath }, 'Failed to write stream');
             fs.promises.unlink(zipFilePath).catch((e) => {
               logger.error({ e, zipFilePath }, 'Failed to delete zip file');
             });
@@ -121,8 +124,10 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
         try {
           // Delete the original zip file.
           await fs.promises.unlink(zipFilePath);
+          logger.info({ zipFilePath }, 'Done extracting zip file');
           resolve(extractedPath);
         } catch (error) {
+          logger.error({ error, zipFilePath }, 'Failed to extract zip file');
           reject(error);
         }
       });
@@ -131,6 +136,7 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
         fs.promises.unlink(zipFilePath).catch((e) => {
           logger.error({ e, zipFilePath }, 'Failed to delete zip file');
         });
+        logger.error({ e, zipFilePath }, 'Failed to extract zip file');
         reject(e);
       });
     });

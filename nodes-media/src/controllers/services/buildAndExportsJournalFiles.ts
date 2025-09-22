@@ -70,6 +70,10 @@ const updateJobStatus = async ({
   }
 };
 
+const cleanup = async (path: string) => {
+  await rimraf(path);
+};
+
 export const buildAndExportMystRepo = async (req: Request, res: Response) => {
   const { url, jobId, uuid, parsedDocument } = req.body as {
     url: string;
@@ -103,12 +107,30 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
   const zipStream = await zipUrlToStream(archiveDownloadUrl);
   const zipPath = TEMP_REPO_ZIP_PATH + '/' + repo + '-' + branch + '-' + Date.now() + '.zip';
 
-  await fs.mkdir(zipPath.replace('.zip', ''), { recursive: true });
-  await saveZipStreamToDisk(zipStream, zipPath);
-  const totalSize = await calculateTotalZipUncompressedSize(zipPath);
-  const externalUrlTotalSizeBytes = totalSize;
-  await extractZipFileAndCleanup(zipPath, TEMP_REPO_ZIP_PATH);
-  const savedFolderPath = `${TEMP_REPO_ZIP_PATH}/${repo}${branch ? '-' + branch : ''}`;
+  let savedFolderPath = '';
+  let totalSize = 0;
+  let externalUrlTotalSizeBytes = 0;
+  try {
+    await fs.mkdir(zipPath.replace('.zip', ''), { recursive: true });
+    await saveZipStreamToDisk(zipStream, zipPath);
+    totalSize = await calculateTotalZipUncompressedSize(zipPath);
+    externalUrlTotalSizeBytes = totalSize;
+    await extractZipFileAndCleanup(zipPath, TEMP_REPO_ZIP_PATH);
+    savedFolderPath = `${TEMP_REPO_ZIP_PATH}/${repo}${branch ? '-' + branch : ''}`;
+  } catch (error) {
+    logger.error({ error }, 'MYST::saveAndExtractZipFileError');
+    updateJobStatus({
+      jobId,
+      uuid,
+      status: 'failed',
+      message: error.message || 'Failed to save and extract zip file',
+    });
+
+    // Cleanup unzipped repo folder
+    await cleanup(savedFolderPath);
+    await cleanup(zipPath.replace('.zip', ''));
+    return void 0;
+  }
 
   let buildProcessResult = null;
   try {
@@ -119,6 +141,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
       message: 'Building the repo files...',
     });
 
+    logger.info({ savedFolderPath }, 'Building the repo files');
     // Setup monitored subprocess to run pixi build command
     const buildProcess = spawn('pixi', ['run', 'build-meca'], {
       cwd: savedFolderPath,
@@ -127,7 +150,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
 
     // Monitor process output
     buildProcess.stdout.on('data', (data) => {
-      logger.debug(`build-meca stdout: ${data}`);
+      logger.info(`build-meca stdout: ${data}`);
     });
 
     buildProcess.stderr.on('data', (data) => {
@@ -151,9 +174,8 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     buildProcessResult = error;
   }
 
-  logger.info({ totalSize, externalUrlTotalSizeBytes, buildProcessResult }, 'MYST::totalSize');
-
   if (buildProcessResult !== 0) {
+    logger.info({ buildProcessResult }, 'MYST::buildProcessResult');
     await updateJobStatus({
       jobId,
       uuid,
@@ -161,11 +183,16 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
       message: 'Failed to build the repo files',
     });
 
+    await cleanup(savedFolderPath);
+    await cleanup(zipPath.replace('.zip', ''));
+
     return void 0;
   }
 
+  logger.info({ savedFolderPath }, 'Building the repo files completed');
+
   // Cleanup
-  await rimraf(zipPath.replace('.zip', ''));
+  await cleanup(zipPath.replace('.zip', ''));
 
   try {
     // extract manuscript.meca.zip folder
@@ -240,7 +267,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     });
   } finally {
     // Cleanup unzipped repo folder
-    await rimraf(savedFolderPath);
+    await cleanup(savedFolderPath);
     return void 0;
   }
 };
