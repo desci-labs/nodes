@@ -16,7 +16,7 @@ class Logger {
     const timestamp = new Date().toISOString();
     const contextStr = Object.keys(this.context).length > 0 ? ` [${JSON.stringify(this.context)}]` : '';
     const dataStr = data ? ` ${JSON.stringify(data)}` : '';
-    return `[${timestamp}] [${level}]${contextStr} ${message}${dataStr}`;
+    return `[${timestamp}] [${level}]${contextStr} ${message}${dataStr} \n\n`;
   }
 
   info(data: any, message?: string): void {

@@ -18,14 +18,14 @@ const logger = parentLogger.child({ module: 'ExternalPublications' });
 export const externalPublicationsSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10),
+    uuid: z.string(),
   }),
 });
 
 export const addExternalPublicationsSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10),
+    uuid: z.string(),
   }),
   body: z.object({
     // uuid: z.string(),
@@ -40,7 +40,7 @@ export const addExternalPublicationsSchema = z.object({
 export const verifyExternalPublicationSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
-    uuid: z.string().min(10),
+    uuid: z.string(),
   }),
   body: z.object({
     verify: z.boolean(),
@@ -51,7 +51,7 @@ export const verifyExternalPublicationSchema = z.object({
 export const externalPublications = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const { uuid } = req.params as z.infer<typeof externalPublicationsSchema>['params'];
   const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
-  if (!node) throw new NotFoundError(`Node ${uuid} not found`);
+  if (!node) return new SuccessResponse([]).send(res); //throw new NotFoundError(`Node ${uuid} not found`);
 
   const userIsOwner = node.ownerId === req?.user?.id;
   const externalPublications = await prisma.externalPublications.findMany({

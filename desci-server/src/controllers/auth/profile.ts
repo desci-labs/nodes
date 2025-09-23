@@ -13,16 +13,18 @@ import {
 export const profile = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
 
-  const [wallets, userOrganizations, consent, sciweaveConsent, questionnaireSubmitted] = await Promise.all([
-    prisma.wallet.findMany({ where: { userId: user.id } }),
-    prisma.userOrganizations.findMany({
-      where: { userId: user.id },
-      include: { organization: true },
-    }),
-    getUserConsent(user.id, AppType.PUBLISH),
-    getUserConsent(user.id, AppType.SCIWEAVE),
-    getUserQuestionnaireSubmitted(user.id),
-  ]);
+  const [wallets, userOrganizations, consent, sciweaveConsent, questionnaireSubmitted, sciweaveQuestionnaireSubmitted] =
+    await Promise.all([
+      prisma.wallet.findMany({ where: { userId: user.id } }),
+      prisma.userOrganizations.findMany({
+        where: { userId: user.id },
+        include: { organization: true },
+      }),
+      getUserConsent(user.id, AppType.PUBLISH),
+      getUserConsent(user.id, AppType.SCIWEAVE),
+      getUserQuestionnaireSubmitted(user.id),
+      getUserQuestionnaireSubmitted(user.id, AppType.SCIWEAVE),
+    ]);
 
   type QuestionnaireExtra = { role?: string; discoverySource?: string };
 
@@ -47,7 +49,9 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
       consent: !!consent,
       sciweaveConsent: !!sciweaveConsent,
       receiveMarketingEmails: user.receiveMarketingEmails,
+      receiveSciweaveMarketingEmails: user.receiveSciweaveMarketingEmails,
       questionnaireSubmitted: !!questionnaireSubmitted,
+      sciweaveQuestionnaireSubmitted: !!sciweaveQuestionnaireSubmitted,
       role: questionnaireExtra.role ?? null,
       discoverySource: questionnaireExtra.discoverySource ?? null,
       notificationSettings: user.notificationSettings || {},

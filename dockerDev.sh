@@ -78,6 +78,7 @@ COMPOSE_HTTP_TIMEOUT=320 docker compose \
   --file docker-compose.yml \
   --file docker-compose.dev.yml \
   --file docker-compose.sync.yml \
+  --file docker-compose.media.yml \
   $ADDITIONAL_FLAGS \
   --compatibility \
   up \

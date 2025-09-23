@@ -4,18 +4,19 @@ import { sendError, sendSuccess } from '../../core/api.js';
 import { AuthenticatedRequest } from '../../core/types.js';
 import { updateUserProperties, AmplitudeAppType } from '../../lib/Amplitude.js';
 import { logger as parentLogger } from '../../logger.js';
+import { AppType } from '../../services/interactionLog.js';
 import { MarketingConsentService } from '../../services/user/Marketing.js';
 
 const logger = parentLogger.child({
-  module: 'Auth::MarketingConsentController',
+  module: 'Users::SciweaveMarketingConsentController',
 });
 
-export const updateMarketingConsentController = async (req: AuthenticatedRequest, res: Response) => {
+export const updateSciweaveMarketingConsentController = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user.id;
     const { receiveMarketingEmails } = req.body;
 
-    logger.info({ userId, receiveMarketingEmails }, 'Updating marketing consent preference');
+    logger.info({ userId, receiveMarketingEmails }, 'Updating Sciweave marketing consent preference');
 
     // Validate input
     if (typeof receiveMarketingEmails !== 'boolean') {
@@ -25,37 +26,38 @@ export const updateMarketingConsentController = async (req: AuthenticatedRequest
     const result = await MarketingConsentService.updateMarketingConsent({
       userId,
       receiveMarketingEmails,
+      appType: AppType.SCIWEAVE,
     });
 
     if (result.isErr()) {
       const error = result.error;
-      logger.error({ error, userId }, 'Failed to update marketing consent preference');
+      logger.error({ error, userId }, 'Failed to update Sciweave marketing consent preference');
 
       if (error.message.includes('User not found')) {
         return sendError(res, error.message, 404);
       }
 
-      return sendError(res, 'Failed to update marketing consent preference', 500);
+      return sendError(res, 'Failed to update Sciweave marketing consent preference', 500);
     }
 
     const consentData = result.value;
 
-    // Update Amplitude user properties for publish app marketing consent
+    // Update Amplitude user properties for sciweave app marketing consent
     const amplitudeResult = await updateUserProperties(
       userId,
       {
-        receivePublishMarketingEmails: receiveMarketingEmails,
+        receiveSciweaveMarketingEmails: receiveMarketingEmails,
       },
-      AmplitudeAppType.PUBLISH,
+      AmplitudeAppType.SCIWEAVE,
     );
 
     if (amplitudeResult.isErr()) {
       logger.warn({ error: amplitudeResult.error }, 'Failed to update Amplitude properties');
     }
 
-    return sendSuccess(res, consentData, 'Marketing consent preference updated successfully');
+    return sendSuccess(res, consentData, 'Sciweave marketing consent preference updated successfully');
   } catch (error: any) {
-    logger.error({ error, userId: req.user.id }, 'Unhandled error in updateMarketingConsentController');
+    logger.error({ error, userId: req.user.id }, 'Unhandled error in updateSciweaveMarketingConsentController');
     return sendError(res, 'An unexpected error occurred', 500);
   }
 };
