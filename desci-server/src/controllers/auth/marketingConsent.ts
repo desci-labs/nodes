@@ -2,7 +2,7 @@ import { Response } from 'express';
 
 import { sendError, sendSuccess } from '../../core/api.js';
 import { AuthenticatedRequest } from '../../core/types.js';
-import { updateUserProperties } from '../../lib/Amplitude.js';
+import { updateUserProperties, AmplitudeAppType } from '../../lib/Amplitude.js';
 import { logger as parentLogger } from '../../logger.js';
 import { MarketingConsentService } from '../../services/user/Marketing.js';
 
@@ -41,9 +41,13 @@ export const updateMarketingConsentController = async (req: AuthenticatedRequest
     const consentData = result.value;
 
     // Update Amplitude user properties for publish app marketing consent
-    const amplitudeResult = await updateUserProperties(userId, {
-      receivePublishMarketingEmails: receiveMarketingEmails,
-    });
+    const amplitudeResult = await updateUserProperties(
+      userId,
+      {
+        receivePublishMarketingEmails: receiveMarketingEmails,
+      },
+      AmplitudeAppType.PUBLISH,
+    );
 
     if (amplitudeResult.isErr()) {
       logger.warn({ error: amplitudeResult.error }, 'Failed to update Amplitude properties');

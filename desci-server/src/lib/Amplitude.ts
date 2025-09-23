@@ -3,28 +3,57 @@ import { Result, ok, err } from 'neverthrow';
 
 import { logger } from '../logger.js';
 
-// Initialize Amplitude client - will be null if env not present
-let amplitudeClient: any = null;
+export enum AmplitudeAppType {
+  PUBLISH = 'publish',
+  SCIWEAVE = 'sciweave',
+}
+
+// Initialize Amplitude clients - will be null if env not present
+let publishAmplitudeClient: any = null;
+let sciweaveAmplitudeClient: any = null;
 
 const initAmplitude = (): void => {
-  const apiKey = process.env.AMPLITUDE_API_KEY;
+  const publishApiKey = process.env.AMPLITUDE_API_KEY_PUBLISH;
+  const sciweaveApiKey = process.env.AMPLITUDE_API_KEY_SCIWEAVE;
 
-  if (!apiKey) {
-    logger.warn('[Amplitude] AMPLITUDE_API_KEY not found in environment, analytics disabled');
-    return;
+  if (publishApiKey) {
+    try {
+      publishAmplitudeClient = amplitude.init(publishApiKey);
+      logger.info('[Amplitude] Publish client initialized successfully');
+    } catch (error) {
+      logger.error('[Amplitude] Failed to initialize publish client:', error);
+      publishAmplitudeClient = null;
+    }
+  } else {
+    logger.warn('[Amplitude] AMPLITUDE_API_KEY_PUBLISH not found in environment, publish analytics disabled');
   }
 
-  try {
-    amplitudeClient = amplitude.init(apiKey);
-    logger.info('[Amplitude] Client initialized successfully');
-  } catch (error) {
-    logger.error('[Amplitude] Failed to initialize client:', error);
-    amplitudeClient = null;
+  if (sciweaveApiKey) {
+    try {
+      sciweaveAmplitudeClient = amplitude.init(sciweaveApiKey);
+      logger.info('[Amplitude] Sciweave client initialized successfully');
+    } catch (error) {
+      logger.error('[Amplitude] Failed to initialize sciweave client:', error);
+      sciweaveAmplitudeClient = null;
+    }
+  } else {
+    logger.warn('[Amplitude] AMPLITUDE_API_KEY_SCIWEAVE not found in environment, sciweave analytics disabled');
   }
 };
 
 // Initialize on module load
 initAmplitude();
+
+const getAmplitudeClient = (appType: AmplitudeAppType): any => {
+  switch (appType) {
+    case AmplitudeAppType.PUBLISH:
+      return publishAmplitudeClient;
+    case AmplitudeAppType.SCIWEAVE:
+      return sciweaveAmplitudeClient;
+    default:
+      return null;
+  }
+};
 
 export interface UserProperties {
   sciweaveRole?: string;
@@ -40,9 +69,12 @@ export interface UserProperties {
 export const updateUserProperties = async (
   userId: string | number,
   properties: UserProperties,
+  appType: AmplitudeAppType,
 ): Promise<Result<void, string>> => {
+  const amplitudeClient = getAmplitudeClient(appType);
+
   if (!amplitudeClient) {
-    // Silently succeed when Amplitude is not configured
+    // Silently succeed when Amplitude is not configured for this app
     return ok(undefined);
   }
 
@@ -52,10 +84,10 @@ export const updateUserProperties = async (
       user_properties: properties,
     });
 
-    logger.debug(`[Amplitude] Updated properties for user ${userId}`);
+    logger.debug(`[Amplitude] Updated properties for user ${userId} in ${appType} app`);
     return ok(undefined);
   } catch (error) {
-    const errorMessage = `Failed to update user properties: ${error}`;
+    const errorMessage = `Failed to update user properties for ${appType} app: ${error}`;
     logger.error(`[Amplitude] ${errorMessage}`);
     return err(errorMessage);
   }
@@ -64,10 +96,13 @@ export const updateUserProperties = async (
 export const trackEvent = async (
   userId: string | number,
   eventType: string,
+  appType: AmplitudeAppType,
   eventProperties: Record<string, unknown> = {},
 ): Promise<Result<void, string>> => {
+  const amplitudeClient = getAmplitudeClient(appType);
+
   if (!amplitudeClient) {
-    // Silently succeed when Amplitude is not configured
+    // Silently succeed when Amplitude is not configured for this app
     return ok(undefined);
   }
 
@@ -78,15 +113,15 @@ export const trackEvent = async (
       event_properties: eventProperties,
     });
 
-    logger.debug(`[Amplitude] Tracked event "${eventType}" for user ${userId}`);
+    logger.debug(`[Amplitude] Tracked event "${eventType}" for user ${userId} in ${appType} app`);
     return ok(undefined);
   } catch (error) {
-    const errorMessage = `Failed to track event: ${error}`;
+    const errorMessage = `Failed to track event for ${appType} app: ${error}`;
     logger.error(`[Amplitude] ${errorMessage}`);
     return err(errorMessage);
   }
 };
 
-export const isAmplitudeEnabled = (): boolean => {
-  return amplitudeClient !== null;
+export const isAmplitudeEnabled = (appType: AmplitudeAppType): boolean => {
+  return getAmplitudeClient(appType) !== null;
 };
