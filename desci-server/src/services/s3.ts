@@ -7,7 +7,6 @@ const logger = parentLogger.child({
 });
 
 export const isS3Configured = process.env.AWS_S3_BUCKET_NAME && process.env.AWS_S3_BUCKET_REGION;
-
 export const s3Client = isS3Configured
   ? new S3Client({
       region: process.env.AWS_S3_BUCKET_REGION,

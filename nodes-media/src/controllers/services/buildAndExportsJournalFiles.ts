@@ -252,7 +252,8 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     }
 
     formData.append('uuid', uuid);
-    formData.append('contextPath', '');
+    formData.append('contextPath', 'root');
+
     await axios.post(`${DESCI_SERVER_URL}/v1/nodes/${uuid}/finalize-myst-import/${jobId}/receiveFiles`, formData, {
       headers: {
         ...formData.getHeaders(),
@@ -269,7 +270,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     });
   } finally {
     // Cleanup unzipped repo folder
-    await cleanup(savedFolderPath);
+    await fs.rmdir(savedFolderPath, { recursive: true });
     return void 0;
   }
 };
