@@ -1,4 +1,4 @@
-import * as amplitude from '@amplitude/node';
+import { init, Identify } from '@amplitude/analytics-node';
 import { Result, ok, err } from 'neverthrow';
 
 import { logger } from '../logger.js';
@@ -18,7 +18,7 @@ const initAmplitude = (): void => {
 
   if (publishApiKey) {
     try {
-      publishAmplitudeClient = amplitude.init(publishApiKey);
+      publishAmplitudeClient = init(publishApiKey);
       logger.info('[Amplitude] Publish client initialized successfully');
     } catch (error) {
       logger.error('[Amplitude] Failed to initialize publish client:', error);
@@ -30,7 +30,7 @@ const initAmplitude = (): void => {
 
   if (sciweaveApiKey) {
     try {
-      sciweaveAmplitudeClient = amplitude.init(sciweaveApiKey);
+      sciweaveAmplitudeClient = init(sciweaveApiKey);
       logger.info('[Amplitude] Sciweave client initialized successfully');
     } catch (error) {
       logger.error('[Amplitude] Failed to initialize sciweave client:', error);
@@ -79,9 +79,13 @@ export const updateUserProperties = async (
   }
 
   try {
-    await amplitudeClient.identify({
+    const identify = new Identify();
+    for (const [k, v] of Object.entries(properties)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      identify.set(k, v as any);
+    }
+    amplitudeClient.identify(identify, {
       user_id: String(userId),
-      user_properties: properties,
     });
 
     logger.debug(`[Amplitude] Updated properties for user ${userId} in ${appType} app`);
@@ -107,7 +111,7 @@ export const trackEvent = async (
   }
 
   try {
-    await amplitudeClient.track({
+    amplitudeClient.track({
       user_id: String(userId),
       event_type: eventType,
       event_properties: eventProperties,
