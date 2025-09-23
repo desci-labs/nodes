@@ -124,6 +124,8 @@ spec:
           export STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID }}"
           export STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID }}"
           export SCIWEAVE_FREE_LIMIT="{{ .Data.SCIWEAVE_FREE_LIMIT }}"
+          export AMPLITUDE_API_KEY="{{ .Data.AMPLITUDE_API_KEY_PUBLISH }}"
+          export AMPLITUDE_API_KEY="{{ .Data.AMPLITUDE_API_KEY_SCIWEAVE }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";

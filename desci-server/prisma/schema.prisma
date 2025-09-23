@@ -172,86 +172,87 @@ model PublishedWallet {
 }
 
 model User {
-  id                          Int                           @id @default(autoincrement())
-  createdAt                   DateTime                      @default(now())
-  updatedAt                   DateTime                      @updatedAt
-  isGuest                     Boolean                       @default(false)
-  email                       String                        @unique
-  phoneNumber                 String?                       @unique
-  name                        String?
-  firstName                   String?
-  lastName                    String?
-  role                        String?
-  source                      String?
-  signupHost                  String?
-  profileImage                String?
-  website                     String?
-  googleScholarUrl            String?
-  researchInterests           String?
-  gitcoinPassport             String?                       @unique
-  walletAddress               String?                       @unique
-  isPatron                    Boolean                       @default(false)
-  isWarden                    Boolean                       @default(false)
-  isKeeper                    Boolean                       @default(false)
-  pseudonym                   String?                       @unique
-  orcid                       String?                       @unique
-  notificationSettings        Json?
-  unseenNotificationCount     Int                           @default(0)
-  convertedGuest              Boolean                       @default(false)
-  mergedIntoAt                DateTime[] // Timestamps for when a guest was merged into this existing user.
+  id                             Int                           @id @default(autoincrement())
+  createdAt                      DateTime                      @default(now())
+  updatedAt                      DateTime                      @updatedAt
+  isGuest                        Boolean                       @default(false)
+  email                          String                        @unique
+  phoneNumber                    String?                       @unique
+  name                           String?
+  firstName                      String?
+  lastName                       String?
+  role                           String?
+  source                         String?
+  signupHost                     String?
+  profileImage                   String?
+  website                        String?
+  googleScholarUrl               String?
+  researchInterests              String?
+  gitcoinPassport                String?                       @unique
+  walletAddress                  String?                       @unique
+  isPatron                       Boolean                       @default(false)
+  isWarden                       Boolean                       @default(false)
+  isKeeper                       Boolean                       @default(false)
+  pseudonym                      String?                       @unique
+  orcid                          String?                       @unique
+  notificationSettings           Json?
+  unseenNotificationCount        Int                           @default(0)
+  convertedGuest                 Boolean                       @default(false)
+  mergedIntoAt                   DateTime[] // Timestamps for when a guest was merged into this existing user.
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
-  receiveMarketingEmails      Boolean                       @default(false)
-  isAdmin                     Boolean                       @default(false)
-  isVerified                  Boolean                       @default(false)
-  verificationCode            String                        @default("")
-  siweNonce                   String                        @default("")
-  authTokens                  AuthToken[]
-  authorInvitesReceived       AuthorInvite[]                @relation("ReceivedAuthorInvites")
-  authorInvitesSent           AuthorInvite[]                @relation("SentAuthorInvites")
-  receivedTransactions        ChainTransaction[]            @relation("ReceivedTransactions")
-  sentTransactions            ChainTransaction[]            @relation("SentTransactions")
-  interactionLogs             InteractionLog[]
-  invitesReceived             Invite[]                      @relation("ReceivedInvites")
-  invitesSent                 Invite[]                      @relation("SentInvites")
-  ownedNodes                  Node[]
-  authoredNodes               NodeAuthor[]
-  nodeVotes                   NodeVote[]
-  accessGrants                OauthAccessGrant[]
-  accessTokens                OauthAccessToken[]
-  identities                  UserIdentity[]
-  Waitlist                    Waitlist[]
-  wallets                     Wallet[]
-  canRunCode                  Boolean?                      @default(false)
-  DataReference               DataReference[]
-  CidPruneList                CidPruneList[]
-  PublicDataReference         PublicDataReference[]
-  FriendReferral              FriendReferral[]
-  currentDriveStorageLimitGb  Int                           @default(100)
-  maxDriveStorageLimitGb      Int                           @default(500)
-  userOrganizations           UserOrganizations[]
-  UploadJobs                  UploadJobs[]
-  NodeFeedItemEndorsement     NodeFeedItemEndorsement[]
-  DesciCommunity              DesciCommunity?               @relation(fields: [desciCommunityId], references: [id])
-  desciCommunityId            Int?
-  CommunityMember             CommunityMember[]
-  NodeAttestation             NodeAttestation[]
-  Annotation                  Annotation[]
-  NodeAttestationVerification NodeAttestationVerification[]
-  NodeAttestationReaction     NodeAttestationReaction[]
-  ApiKey                      ApiKey[]
-  PublishTaskQueue            PublishTaskQueue[]
-  NodeContribution            NodeContribution[]
-  OrcidPutCodes               OrcidPutCodes[]
-  BookmarkedNode              BookmarkedNode[]
-  DeferredEmails              DeferredEmails[]
-  UserNotifications           UserNotifications[]
-  CommentVote                 CommentVote[]
-  NodeLike                    NodeLike[]
-  CommunitySubmission         CommunitySubmission[]
-  PublishedWallet             PublishedWallet[]
-  GuestDataReference          GuestDataReference[]
-  DataMigration               DataMigration[]
+  receiveMarketingEmails         Boolean                       @default(false)
+  receiveSciweaveMarketingEmails Boolean                       @default(false)
+  isAdmin                        Boolean                       @default(false)
+  isVerified                     Boolean                       @default(false)
+  verificationCode               String                        @default("")
+  siweNonce                      String                        @default("")
+  authTokens                     AuthToken[]
+  authorInvitesReceived          AuthorInvite[]                @relation("ReceivedAuthorInvites")
+  authorInvitesSent              AuthorInvite[]                @relation("SentAuthorInvites")
+  receivedTransactions           ChainTransaction[]            @relation("ReceivedTransactions")
+  sentTransactions               ChainTransaction[]            @relation("SentTransactions")
+  interactionLogs                InteractionLog[]
+  invitesReceived                Invite[]                      @relation("ReceivedInvites")
+  invitesSent                    Invite[]                      @relation("SentInvites")
+  ownedNodes                     Node[]
+  authoredNodes                  NodeAuthor[]
+  nodeVotes                      NodeVote[]
+  accessGrants                   OauthAccessGrant[]
+  accessTokens                   OauthAccessToken[]
+  identities                     UserIdentity[]
+  Waitlist                       Waitlist[]
+  wallets                        Wallet[]
+  canRunCode                     Boolean?                      @default(false)
+  DataReference                  DataReference[]
+  CidPruneList                   CidPruneList[]
+  PublicDataReference            PublicDataReference[]
+  FriendReferral                 FriendReferral[]
+  currentDriveStorageLimitGb     Int                           @default(100)
+  maxDriveStorageLimitGb         Int                           @default(500)
+  userOrganizations              UserOrganizations[]
+  UploadJobs                     UploadJobs[]
+  NodeFeedItemEndorsement        NodeFeedItemEndorsement[]
+  DesciCommunity                 DesciCommunity?               @relation(fields: [desciCommunityId], references: [id])
+  desciCommunityId               Int?
+  CommunityMember                CommunityMember[]
+  NodeAttestation                NodeAttestation[]
+  Annotation                     Annotation[]
+  NodeAttestationVerification    NodeAttestationVerification[]
+  NodeAttestationReaction        NodeAttestationReaction[]
+  ApiKey                         ApiKey[]
+  PublishTaskQueue               PublishTaskQueue[]
+  NodeContribution               NodeContribution[]
+  OrcidPutCodes                  OrcidPutCodes[]
+  BookmarkedNode                 BookmarkedNode[]
+  DeferredEmails                 DeferredEmails[]
+  UserNotifications              UserNotifications[]
+  CommentVote                    CommentVote[]
+  NodeLike                       NodeLike[]
+  CommunitySubmission            CommunitySubmission[]
+  PublishedWallet                PublishedWallet[]
+  GuestDataReference             GuestDataReference[]
+  DataMigration                  DataMigration[]
 
   // Relationships
   editorRoles            JournalEditor[] // User as editor
@@ -1689,6 +1690,7 @@ enum ActionType {
   MERGE_GUEST_INTO_EXISTING_USER_SUCCESS
   MERGE_GUEST_INTO_EXISTING_USER_FAIL
   SUBMIT_QUESTIONNAIRE
+  SUBMIT_SCIWEAVE_QUESTIONNAIRE
   RETRIEVE_DPID_METADATA
   MARKETING_EMAIL_OPT_IN
   MARKETING_EMAIL_OPT_OUT
@@ -1698,6 +1700,8 @@ enum ActionType {
   MYST_REPO_JOB_FAILED
   MYST_REPO_JOB_COMPLETED
   MYST_REPO_JOB_CANCELLED
+  SCIWEAVE_MARKETING_EMAIL_OPT_IN
+  SCIWEAVE_MARKETING_EMAIL_OPT_OUT
 }
 
 enum ChainTransactionType {
