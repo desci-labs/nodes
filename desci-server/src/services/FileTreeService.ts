@@ -2,6 +2,7 @@ import { DriveObject, findAndPruneNode, isNodeRoot } from '@desci-labs/desci-mod
 import { DataType } from '@prisma/client';
 import axios from 'axios';
 import { ok, err, Result } from 'neverthrow';
+import { errWithCause } from 'pino-std-serializers';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
@@ -163,7 +164,7 @@ async function getPublishedTree(data: GetPublishedTreeInput): Promise<Result<Pub
       date: manifestPDR.updatedAt.toString(),
     });
   } catch (error) {
-    logger.error({ fn: 'getPublishedTree', error, data }, 'Failed to get published tree');
+    logger.error({ fn: 'getPublishedTree', error: errWithCause(error), data }, 'Failed to get published tree');
     return err(
       error instanceof Error ? error : new Error('An unexpected error occurred while retrieving published tree'),
     );
