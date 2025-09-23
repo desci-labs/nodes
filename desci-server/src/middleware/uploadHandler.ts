@@ -30,7 +30,10 @@ const upload = isS3Configured
         s3: s3Client,
         bucket: process.env.AWS_S3_BUCKET_NAME,
         key: (req, file, cb) => {
-          logger.info({ body: (req as any).body }, '[UploadHandler]');
+          logger.info(
+            { uuid: (req as any).body.uuid, contextPath: (req as any).body.contextPath, userId: (req as any).user.id },
+            '[UploadHandler]',
+          );
           const userId = (req as any).user.id;
           const { uuid, contextPath } = (req as any).body;
           if (!uuid || !contextPath || !userId) {
