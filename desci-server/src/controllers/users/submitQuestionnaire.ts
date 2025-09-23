@@ -2,6 +2,7 @@ import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { sendError, sendSuccess } from '../../core/api.js';
+import { updateUserProperties } from '../../lib/Amplitude.js';
 import { logger as parentLogger } from '../../logger.js';
 import { UserRole } from '../../schemas/users.schema.js';
 import { saveInteraction, AppType } from '../../services/interactionLog.js';
@@ -27,6 +28,16 @@ export const submitQuestionnaire = async (req: Request, res: Response, next: Nex
       userId: user?.id,
       submitToMixpanel: true,
     });
+
+    // Update Amplitude user properties for publish app
+    const amplitudeResult = await updateUserProperties(user?.id, {
+      publishRole: role,
+      publishDiscoverySource: discoverySource,
+    });
+
+    if (amplitudeResult.isErr()) {
+      logger.warn({ error: amplitudeResult.error }, 'Failed to update Amplitude properties');
+    }
 
     return sendSuccess(res, { submitted: true }, 'Questionnaire submitted successfully.');
   } catch (error) {

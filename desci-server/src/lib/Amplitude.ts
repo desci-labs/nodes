@@ -33,6 +33,7 @@ export interface UserProperties {
   publishDiscoverySource?: string;
   firstName?: string;
   receiveSciweaveMarketingEmails?: boolean;
+  receivePublishMarketingEmails?: boolean;
   [key: string]: unknown;
 }
 

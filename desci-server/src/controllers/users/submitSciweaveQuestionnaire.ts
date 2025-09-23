@@ -2,6 +2,7 @@ import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { sendError, sendSuccess } from '../../core/api.js';
+import { updateUserProperties } from '../../lib/Amplitude.js';
 import { logger as parentLogger } from '../../logger.js';
 import { UserRole } from '../../schemas/users.schema.js';
 import { saveInteraction } from '../../services/interactionLog.js';
@@ -27,6 +28,16 @@ export const submitSciweaveQuestionnaire = async (req: Request, res: Response, n
       userId: user?.id,
       submitToMixpanel: true,
     });
+
+    // Update Amplitude user properties for sciweave app
+    const amplitudeResult = await updateUserProperties(user?.id, {
+      sciweaveRole: role,
+      sciweaveDiscoverySource: discoverySource,
+    });
+
+    if (amplitudeResult.isErr()) {
+      logger.warn({ error: amplitudeResult.error }, 'Failed to update Amplitude properties');
+    }
 
     return sendSuccess(res, { submitted: true }, 'Sciweave questionnaire submitted successfully.');
   } catch (error) {
