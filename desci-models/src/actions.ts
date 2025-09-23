@@ -154,4 +154,7 @@ export enum AvailableUserActionLogTypes {
   actionJournalAcceptSubmission = 'actionJournalAcceptSubmission',
   actionJournalRejectSubmission = 'actionJournalRejectSubmission',
   actionJournalRevisionRequest = 'actionJournalRevisionRequest',
+
+  // MyST Repo Actions
+  actionImportMystRepo = 'actionImportMystRepo',
 }
