@@ -2,6 +2,7 @@ import { Response } from 'express';
 
 import { sendError, sendSuccess } from '../../core/api.js';
 import { AuthenticatedRequest } from '../../core/types.js';
+import { updateUserProperties, AmplitudeAppType } from '../../lib/Amplitude.js';
 import { logger as parentLogger } from '../../logger.js';
 import { AppType } from '../../services/interactionLog.js';
 import { MarketingConsentService } from '../../services/user/Marketing.js';
@@ -40,6 +41,20 @@ export const updateSciweaveMarketingConsentController = async (req: Authenticate
     }
 
     const consentData = result.value;
+
+    // Update Amplitude user properties for sciweave app marketing consent
+    const amplitudeResult = await updateUserProperties(
+      userId,
+      {
+        receiveSciweaveMarketingEmails: receiveMarketingEmails,
+      },
+      AmplitudeAppType.SCIWEAVE,
+    );
+
+    if (amplitudeResult.isErr()) {
+      logger.warn({ error: amplitudeResult.error }, 'Failed to update Amplitude properties');
+    }
+
     return sendSuccess(res, consentData, 'Sciweave marketing consent preference updated successfully');
   } catch (error: any) {
     logger.error({ error, userId: req.user.id }, 'Unhandled error in updateSciweaveMarketingConsentController');
