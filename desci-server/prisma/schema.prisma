@@ -1394,7 +1394,7 @@ model JournalInvoice {
   id            Int           @id @default(autoincrement())
   billingId     Int
   invoiceNumber String
-  amount        Int           // Amount in cents
+  amount        Int // Amount in cents
   doisMinted    Int
   periodStart   DateTime
   periodEnd     DateTime
@@ -1533,7 +1533,7 @@ model Invoice {
   userId          Int
   subscriptionId  Int?
   stripeInvoiceId String              @unique
-  amount          Int                 // Amount in cents
+  amount          Int // Amount in cents
   currency        String              @default("usd")
   status          StripeInvoiceStatus
   description     String?
@@ -1692,6 +1692,12 @@ enum ActionType {
   RETRIEVE_DPID_METADATA
   MARKETING_EMAIL_OPT_IN
   MARKETING_EMAIL_OPT_OUT
+  MYST_REPO_METADATA_IMPORT
+  MYST_REPO_FILES_IMPORT
+  MYST_REPO_JOB_SCHEDULED
+  MYST_REPO_JOB_FAILED
+  MYST_REPO_JOB_COMPLETED
+  MYST_REPO_JOB_CANCELLED
 }
 
 enum ChainTransactionType {

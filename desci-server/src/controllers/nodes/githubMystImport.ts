@@ -1,6 +1,11 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { projectFrontmatterSchema } from '@awesome-myst/myst-zod';
-import { ManifestActions, ResearchObjectComponentType, ResearchObjectV1Component } from '@desci-labs/desci-models';
+import {
+  AvailableUserActionLogTypes,
+  ManifestActions,
+  ResearchObjectComponentType,
+  ResearchObjectV1Component,
+} from '@desci-labs/desci-models';
 import { ActionType } from '@prisma/client';
 import axios from 'axios';
 import { NextFunction, Response } from 'express';
@@ -20,6 +25,7 @@ import { processS3DataToIpfs } from '../../services/data/processing.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { getNodeByUuid } from '../../services/node.js';
 import repoService from '../../services/repoService.js';
+import { logUserAction } from '../log/userAction.js';
 
 const logger = parentLogger.child({
   module: 'NODE::githubMystImport',
@@ -177,8 +183,8 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
   await saveInteraction({
     req,
     userId: req.user.id,
-    action: ActionType.MYST_REPO_IMPORT,
-    data: { url, uuid, dryRun },
+    action: ActionType.USER_ACTION,
+    data: { action: AvailableUserActionLogTypes.actionImportMystRepo, url, uuid, dryRun },
   });
 
   const downloadFileResult = await downloadFileFromUrl(rawDownloadUrl);
@@ -242,6 +248,13 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
       return sendError(res, 'Could not update research object with yaml metadata', 500);
     }
 
+    await saveInteraction({
+      req,
+      userId: req.user.id,
+      action: ActionType.MYST_REPO_METADATA_IMPORT,
+      data: { url, uuid, dryRun },
+    });
+
     const jobId = `myst-import-${uuidv4()}`;
     const job = {
       uuid,
@@ -270,6 +283,13 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
           },
         },
       );
+
+      await saveInteraction({
+        req,
+        userId: req.user.id,
+        action: ActionType.MYST_REPO_JOB_SCHEDULED,
+        data: { jobId, url: job.url, uuid: req.node.uuid },
+      });
 
       logger.trace({ scheduleJobResponse: scheduleJobResponse.data }, '[githubMystImport]::JobScheduled');
       return sendSuccess(res, {
@@ -306,6 +326,12 @@ export const cancelMystImportJob = async (req: ImportRequestWithJob, res: Respon
   const job = req.job;
 
   await setToCache(jobId, { ...job, status: 'cancelled', message: 'Job cancelled' }, DEFAULT_TTL);
+  await saveInteraction({
+    req,
+    userId: req.user.id,
+    action: ActionType.MYST_REPO_JOB_CANCELLED,
+    data: { jobId, url: job.url, uuid: req.node.uuid },
+  });
   return sendSuccess(res, job);
 };
 
@@ -328,14 +354,26 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
     const files = req.files as any[];
     logger.trace({ jobId }, 'MYST::FilesReceived');
 
+    if (job.status === 'cancelled') {
+      return sendError(res, 'Job cancelled', 400);
+    }
+
     if (files.length) {
-      const user = req.user; // await getUserById(job.userId);
-      const node = req.node; // await getNodeByUuid(job.uuid);
+      const user = req.user;
+      const node = req.node;
+
+      await saveInteraction({
+        req,
+        userId: user.id,
+        action: ActionType.MYST_REPO_FILES_IMPORT,
+        data: { url: job.url, uuid: node.uuid },
+      });
+
       // send files to reuseable update drive file upload service
       const { ok, value } = await processS3DataToIpfs({
         files,
-        user: req.user,
-        node: req.node,
+        user: user,
+        node: node,
         contextPath: 'root',
       });
 
@@ -352,6 +390,13 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
           DEFAULT_TTL,
         );
       }
+
+      await saveInteraction({
+        req,
+        userId: user.id,
+        action: ActionType.MYST_REPO_JOB_COMPLETED,
+        data: { url: job.url, uuid: node.uuid },
+      });
 
       sendSuccess(res, { ok: true });
 
