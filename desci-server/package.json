@@ -64,6 +64,7 @@
     "madge": "tsc && npx --yes madge --circular --image circularDepGraph.svg dist/index.js && open circularDepGraph.svg 2>/dev/null || xdg-open circularDepGraph.svg"
   },
   "dependencies": {
+    "@amplitude/node": "^1.10.2",
     "@automerge/automerge-repo": "^1.0.19",
     "@automerge/automerge-repo-network-websocket": "^1.0.19",
     "@awesome-myst/myst-zod": "^0.6.1",
