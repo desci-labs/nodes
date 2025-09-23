@@ -302,6 +302,7 @@ services:
   dpid_resolver:
     image: descilabs/dpid-resolver:develop
     container_name: dpid_resolver
+    pull_policy: always
     # Uncomment and set to local repo path for tinkering
     # build:
     #   context: ~/dev/desci/dpid-resolver
