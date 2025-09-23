@@ -71,7 +71,7 @@ const updateJobStatus = async ({
 };
 
 const cleanup = async (path: string) => {
-  await rimraf(path);
+  await fs.rm(path, { recursive: true });
 };
 
 export const buildAndExportMystRepo = async (req: Request, res: Response) => {
@@ -221,7 +221,6 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
       try {
         for (const file of folder) {
           if (file.isDirectory()) {
-            logger.info({ path: path.join(folderPath, file.name) }, 'read dir');
             const folder = await fs.readdir(path.join(folderPath, file.name), { withFileTypes: true });
             sendFolderContent(folder, path.join(folderPath, file.name));
           } else {
@@ -270,7 +269,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     });
   } finally {
     // Cleanup unzipped repo folder
-    await fs.rmdir(savedFolderPath, { recursive: true });
+    await cleanup(savedFolderPath);
     return void 0;
   }
 };
