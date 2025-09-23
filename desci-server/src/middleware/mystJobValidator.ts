@@ -16,6 +16,10 @@ export const ensureJobInfo = async (req: Request, res: Response, next: NextFunct
   }
   const user = await getUserById(job.userId);
   const node = await getNodeByUuid(job.uuid);
+  logger.info({ user, node }, 'MYST::UserAndNodeFound');
+  if (!user || !node) {
+    return sendError(res, 'User or node not found', 401);
+  }
   (req as any).job = job;
   (req as any).user = user;
   (req as any).node = node;
