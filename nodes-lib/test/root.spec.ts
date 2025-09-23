@@ -56,12 +56,6 @@ import {
   authorizedSessionDidFromSigner,
   signerFromPkey,
 } from "../src/shared/util/signing.js";
-import {
-  NODESLIB_CONFIGS,
-  getNodesLibInternalConfig,
-  setApiKey,
-  setNodesLibConfig,
-} from "../src/index.js";
 import { getResources } from "@desci-labs/desci-codex-lib";
 import { Signer } from "ethers";
 import { DpidAliasRegistry } from "@desci-labs/desci-contracts/dist/typechain-types/index.js";
@@ -72,6 +66,12 @@ import {
   getCurrentState,
 } from "../src/node-only/flight-sql.js";
 import { uploadFiles } from "../src/node-only/file-uploads.js";
+import {
+  getNodesLibInternalConfig,
+  NODESLIB_CONFIGS,
+  setApiKey,
+  setNodesLibConfig,
+} from "../src/node.js";
 
 // Pre-funded ganache account
 const TEST_PKEY =
