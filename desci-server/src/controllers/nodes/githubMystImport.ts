@@ -354,86 +354,83 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
     const files = req.files as any[];
     logger.trace({ jobId }, 'MYST::FilesReceived');
 
-    if (job.status === 'cancelled') {
-      return sendError(res, 'Job cancelled', 400);
-    }
+    if (job.status === 'cancelled')
+      if (files.length) {
+        const user = req.user;
+        const node = req.node;
 
-    if (files.length) {
-      const user = req.user;
-      const node = req.node;
+        await saveInteraction({
+          req,
+          userId: user.id,
+          action: ActionType.MYST_REPO_FILES_IMPORT,
+          data: { url: job.url, uuid: node.uuid },
+        });
 
-      await saveInteraction({
-        req,
-        userId: user.id,
-        action: ActionType.MYST_REPO_FILES_IMPORT,
-        data: { url: job.url, uuid: node.uuid },
-      });
+        // send files to reuseable update drive file upload service
+        const { ok, value } = await processS3DataToIpfs({
+          files,
+          user: user,
+          node: node,
+          contextPath: 'root',
+        });
 
-      // send files to reuseable update drive file upload service
-      const { ok, value } = await processS3DataToIpfs({
-        files,
-        user: user,
-        node: node,
-        contextPath: 'root',
-      });
+        if (ok) {
+          await setToCache(
+            jobId,
+            { ...job, status: 'completed', message: 'Import finished successfully', value },
+            DEFAULT_TTL,
+          );
+        } else {
+          await setToCache(
+            jobId,
+            { ...job, status: 'failed', message: 'Failed to import files to drive.', value },
+            DEFAULT_TTL,
+          );
+        }
 
-      if (ok) {
-        await setToCache(
-          jobId,
-          { ...job, status: 'completed', message: 'Import finished successfully', value },
-          DEFAULT_TTL,
-        );
+        await saveInteraction({
+          req,
+          userId: user.id,
+          action: ActionType.MYST_REPO_JOB_COMPLETED,
+          data: { url: job.url, uuid: node.uuid },
+        });
+
+        sendSuccess(res, { ok: true });
+
+        if (ok) {
+          const manuscriptsFiles = value.tree[0].contains?.filter(
+            (drive) => drive.componentType === ResearchObjectComponentType.PDF || drive.name.endsWith('.pdf'),
+          );
+          logger.info({ manuscriptsFiles }, '[MANUSCRIPT FILES]');
+          if (!manuscriptsFiles || manuscriptsFiles.length === 0) return void 0;
+
+          const componentsToPin = manuscriptsFiles?.map((drive) => {
+            const newComponent: ResearchObjectV1Component = {
+              id: uuidv4(),
+              name: drive.name,
+              type: drive.componentType as ResearchObjectComponentType,
+              ...(drive.componentSubtype ? { subtype: drive.componentSubtype } : {}),
+              payload: {
+                path: drive.path,
+                cid: drive.cid,
+              },
+              starred: true,
+            };
+            return newComponent;
+          });
+          logger.info({ componentsToPin }, '[COMPONENTS TO PIN]');
+
+          await repoService.dispatchAction({
+            uuid: node.uuid,
+            documentId: node.manifestDocumentId as DocumentId,
+            actions: [{ type: 'Add Components', components: componentsToPin }] as ManifestActions[],
+          });
+        }
+        return void 0;
       } else {
-        await setToCache(
-          jobId,
-          { ...job, status: 'failed', message: 'Failed to import files to drive.', value },
-          DEFAULT_TTL,
-        );
+        await setToCache(jobId, { ...job, status: 'failed', message: 'No files received' }, DEFAULT_TTL);
+        return sendError(res, 'No files received', 400);
       }
-
-      await saveInteraction({
-        req,
-        userId: user.id,
-        action: ActionType.MYST_REPO_JOB_COMPLETED,
-        data: { url: job.url, uuid: node.uuid },
-      });
-
-      sendSuccess(res, { ok: true });
-
-      if (ok) {
-        const manuscriptsFiles = value.tree[0].contains?.filter(
-          (drive) => drive.componentType === ResearchObjectComponentType.PDF || drive.name.endsWith('.pdf'),
-        );
-        logger.info({ manuscriptsFiles }, '[MANUSCRIPT FILES]');
-        if (!manuscriptsFiles || manuscriptsFiles.length === 0) return void 0;
-
-        const componentsToPin = manuscriptsFiles?.map((drive) => {
-          const newComponent: ResearchObjectV1Component = {
-            id: uuidv4(),
-            name: drive.name,
-            type: drive.componentType as ResearchObjectComponentType,
-            ...(drive.componentSubtype ? { subtype: drive.componentSubtype } : {}),
-            payload: {
-              path: drive.path,
-              cid: drive.cid,
-            },
-            starred: true,
-          };
-          return newComponent;
-        });
-        logger.info({ componentsToPin }, '[COMPONENTS TO PIN]');
-
-        await repoService.dispatchAction({
-          uuid: node.uuid,
-          documentId: node.manifestDocumentId as DocumentId,
-          actions: [{ type: 'Add Components', components: componentsToPin }] as ManifestActions[],
-        });
-      }
-      return void 0;
-    } else {
-      await setToCache(jobId, { ...job, status: 'failed', message: 'No files received' }, DEFAULT_TTL);
-      return sendError(res, 'No files received', 400);
-    }
   } catch (err) {
     logger.error({ error: errWithCause(err) }, '[PROCESS FILES ERROR]');
     // return sendError(res, err.message || 'Could not process files', 422);
