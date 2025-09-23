@@ -251,6 +251,8 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
       formData.append('files', fsSync.readFileSync(pageContentPath), pageContentPath.split('/').pop());
     }
 
+    formData.append('uuid', uuid);
+    formData.append('contextPath', '');
     await axios.post(`${DESCI_SERVER_URL}/v1/nodes/${uuid}/finalize-myst-import/${jobId}/receiveFiles`, formData, {
       headers: {
         ...formData.getHeaders(),
