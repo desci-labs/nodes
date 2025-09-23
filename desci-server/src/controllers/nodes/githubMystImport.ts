@@ -389,13 +389,13 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
     logger.trace({ jobId }, 'MYST::FilesReceived');
 
     if (files.length) {
-      const user = await getUserById(job.userId);
-      const node = await getNodeByUuid(job.uuid);
+      const user = req.user; // await getUserById(job.userId);
+      const node = req.node; // await getNodeByUuid(job.uuid);
       // send files to reuseable update drive file upload service
       const { ok, value } = await processS3DataToIpfs({
         files,
-        user: user,
-        node: node,
+        user: req.user,
+        node: req.node,
         contextPath: 'root',
       });
 
@@ -439,7 +439,7 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
         logger.info({ componentsToPin }, '[COMPONENTS TO PIN]');
 
         await repoService.dispatchAction({
-          uuid: job.uuid,
+          uuid: node.uuid,
           documentId: node.manifestDocumentId as DocumentId,
           actions: [{ type: 'Add Components', components: componentsToPin }] as ManifestActions[],
         });
@@ -451,6 +451,7 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
     }
   } catch (err) {
     logger.error({ error: errWithCause(err) }, '[PROCESS FILES ERROR]');
-    return sendError(res, err.message || 'Could not process files', 422);
+    // return sendError(res, err.message || 'Could not process files', 422);
+    return void 0;
   }
 };
