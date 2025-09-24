@@ -1,17 +1,7 @@
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: retained-standard
-provisioner: kubernetes.io/aws-ebs
-reclaimPolicy: Retain
-parameters:
-  type: gp3
----
-
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ceramic-one-env
+  name: ceramic-one-env-dev
 data:
   CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
   CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
@@ -28,7 +18,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ceramic-init
+  name: ceramic-init-dev
 data:
   get-external-multiaddr.sh: |
     #!/bin/bash
@@ -90,7 +80,8 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
+          # https://github.com/ceramicnetwork/rust-ceramic/pull/739
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:08eada97d67d654049adb03ff0c42fa262023f87
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null
@@ -101,7 +92,7 @@ spec:
               value: /vault/secrets/config
           envFrom:
             - configMapRef:
-                name: ceramic-one-env
+                name: ceramic-one-env-dev
           ports:
             - containerPort: 5102
               name: flight-sql
@@ -155,7 +146,7 @@ spec:
             - mountPath: /config
               name: config-volume
             - mountPath: /ceramic-init
-              name: ceramic-init
+              name: ceramic-init-dev
 
       volumes:
           # holds the config file during the lifetime of the pod
@@ -164,11 +155,11 @@ spec:
           # set 755 on files to allow executing init script
         - configMap:
             defaultMode: 493
-            name: ceramic-init
-          name: ceramic-init
+            name: ceramic-init-dev
+          name: ceramic-init-dev
         - configMap:
-            name: ceramic-one-env
-          name: ceramic-one-env
+            name: ceramic-one-env-dev
+          name: ceramic-one-env-dev
 
   volumeClaimTemplates:
     - metadata:
@@ -178,7 +169,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: retained-standard
+        storageClassName: retained-standard-csi
         resources:
           requests:
             storage: 100Gi
@@ -257,7 +248,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: preserve_client_ip.enabled=true
 spec:
   type: LoadBalancer
-  # externalTrafficPolicy: Local
+  externalTrafficPolicy: Local
   selector:
     App: CeramicReconDev
   ports:

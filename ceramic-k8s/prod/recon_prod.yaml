@@ -80,7 +80,8 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
+          # https://github.com/ceramicnetwork/rust-ceramic/pull/739
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:08eada97d67d654049adb03ff0c42fa262023f87
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null
@@ -247,7 +248,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: preserve_client_ip.enabled=true
 spec:
   type: LoadBalancer
-  # externalTrafficPolicy: Local
+  externalTrafficPolicy: Local
   selector:
     App: CeramicReconProd
   ports:
