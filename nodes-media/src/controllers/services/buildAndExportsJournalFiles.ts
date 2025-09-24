@@ -71,7 +71,12 @@ const updateJobStatus = async ({
 };
 
 const cleanup = async (path: string) => {
-  await fs.rm(path, { recursive: true });
+  if (!path) return;
+  try {
+    await fs.rm(path, { recursive: true, force: true });
+  } catch (error) {
+    logger.error({ error }, 'MYST::cleanupError');
+  }
 };
 
 export const buildAndExportMystRepo = async (req: Request, res: Response) => {
@@ -175,7 +180,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
   }
 
   if (buildProcessResult !== 0) {
-    logger.info({ buildProcessResult }, 'MYST::buildProcessResult');
+    logger.error({ buildProcessResult }, 'MYST::buildProcessResult');
     await updateJobStatus({
       jobId,
       uuid,

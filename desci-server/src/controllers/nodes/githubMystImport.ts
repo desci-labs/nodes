@@ -350,7 +350,7 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
   const { jobId } = req.params as { jobId: string };
   const job = req.job;
   try {
-    const files = req.files as any[];
+    const files = (req.files as any[]) ?? [];
     logger.trace({ jobId }, 'MYST::FilesReceived');
 
     if (job.status === 'cancelled') {
@@ -390,14 +390,14 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
         );
       }
 
+      sendSuccess(res, { ok: true });
+
       await saveInteraction({
         req,
         userId: user.id,
         action: ActionType.MYST_REPO_JOB_COMPLETED,
         data: { url: job.url, uuid: node.uuid },
       });
-
-      sendSuccess(res, { ok: true });
 
       if (ok) {
         const manuscriptsFiles = value.tree[0].contains?.filter(
