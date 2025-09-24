@@ -71,7 +71,12 @@ const updateJobStatus = async ({
 };
 
 const cleanup = async (path: string) => {
-  await rimraf(path);
+  if (!path) return;
+  try {
+    await fs.rm(path, { recursive: true, force: true });
+  } catch (error) {
+    logger.error({ error }, 'MYST::cleanupError');
+  }
 };
 
 export const buildAndExportMystRepo = async (req: Request, res: Response) => {
@@ -175,7 +180,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
   }
 
   if (buildProcessResult !== 0) {
-    logger.info({ buildProcessResult }, 'MYST::buildProcessResult');
+    logger.error({ buildProcessResult }, 'MYST::buildProcessResult');
     await updateJobStatus({
       jobId,
       uuid,
@@ -221,7 +226,6 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
       try {
         for (const file of folder) {
           if (file.isDirectory()) {
-            logger.info({ path: path.join(folderPath, file.name) }, 'read dir');
             const folder = await fs.readdir(path.join(folderPath, file.name), { withFileTypes: true });
             sendFolderContent(folder, path.join(folderPath, file.name));
           } else {
@@ -270,7 +274,7 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     });
   } finally {
     // Cleanup unzipped repo folder
-    await fs.rmdir(savedFolderPath, { recursive: true });
+    await cleanup(savedFolderPath);
     return void 0;
   }
 };

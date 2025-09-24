@@ -1,9 +1,7 @@
-import { Request } from 'express';
 import multer = require('multer');
 import multerS3 from 'multer-s3';
 import { v4 } from 'uuid';
 
-import { logger } from '../logger.js';
 import { isS3Configured, s3Client } from '../services/s3.js';
 
 import { ensureWriteAccessCheck } from './authorisation.js';
