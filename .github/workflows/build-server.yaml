@@ -48,6 +48,10 @@ jobs:
       # Enable blacksmith docker layer caching
       #- uses: useblacksmith/setup-docker-builder@v1
 
+      - name: Install dependencies (desci-server)
+        working-directory: desci-server
+        run: yarn install --frozen-lockfile
+
       - name: Set up Sentry CLI
         run: |
           npm install -g @sentry/cli
