@@ -1,7 +1,9 @@
 services:
   desci_nodes_backend:
     container_name: "desci_nodes_backend"
-    build: .
+    build:
+      context: desci-server
+      dockerfile: Dockerfile
     restart: on-failure
     volumes:
       - .:/app/

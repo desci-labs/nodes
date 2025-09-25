@@ -21,7 +21,8 @@ services:
 
   desci_blockchain_ganache:
     container_name: "desci_blockchain_ganache"
-    build: ./desci-contracts
+    build:
+      context: desci-contracts
     restart: on-failure
     healthcheck:
       test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' localhost:8545
@@ -32,6 +33,8 @@ services:
       - "8545:8545"
     env_file:
       - .env
+    environment:
+      PG_PORT: 5433
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
@@ -65,8 +68,6 @@ services:
       redis:
         condition: service_healthy
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
-    links:
-      - db_postgres
     volumes:
       - ./local-data/yarn_cache:/root/.yarn
     # mem_limit: 2g #uncomment to test large data with limited memory
@@ -242,6 +243,39 @@ services:
       db_postgres:
         condition: service_healthy
 
+  ceramic-one:
+    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
+    container_name: ceramic-one
+    restart: on-failure
+    ports:
+      - 5101:5101 # RPC
+      - 5102:5102 # flight SQL (> v0.53.0)
+    environment:
+      CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
+      CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
+      CERAMIC_ONE_BIND_ADDRESS: "0.0.0.0:5101"
+      CERAMIC_ONE_SWARM_ADDRESSES: "/ip4/0.0.0.0/tcp/4101,/ip4/0.0.0.0/udp/4102/quic-v1"
+      CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
+      CERAMIC_ONE_FLIGHT_SQL_BIND_ADDRESS: "0.0.0.0:5102"
+      CERAMIC_ONE_NETWORK: "inmemory"
+      RUST_LOG: "warn"
+      CERAMIC_ONE_LOG_FORMAT: "multi-line"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./local-data/ceramic-one:/data/ceramic-one
+    healthcheck:
+      test: [
+          "CMD",
+          "ceramic-one",
+          "query",
+          "statement-query",
+          "select null from event_states limit 1"
+        ]
+      interval: 1s
+      timeout: 1s
+      retries: 5
+
   desci-media-isolated:
     build:
       context: ./desci-media-isolated
@@ -268,6 +302,7 @@ services:
   dpid_resolver:
     image: descilabs/dpid-resolver:develop
     container_name: dpid_resolver
+    pull_policy: always
     # Uncomment and set to local repo path for tinkering
     # build:
     #   context: ~/dev/desci/dpid-resolver
@@ -275,6 +310,7 @@ services:
       DPID_ENV: local
       OPTIMISM_RPC_URL: http://host.docker.internal:8545
       CERAMIC_URL: http://host.docker.internal:7007
+      CERAMIC_FLIGHT_URL: http://host.docker.internal:5102
       IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
       REDIS_HOST: host.docker.internal
       REDIS_PORT: 6379
@@ -298,6 +334,8 @@ services:
       desci_blockchain_ganache:
         condition: service_healthy
       ceramic:
+        condition: service_healthy
+      ceramic-one:
         condition: service_healthy
       redis:
         condition: service_healthy

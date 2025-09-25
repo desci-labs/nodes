@@ -59,66 +59,69 @@ export async function searchExternalPublications(manifest: ResearchObjectV1) {
 
 export const dispatchExternalPublicationsCheck = async (node: Node) => {
   const logger = parentLogger.child({ module: '[dispatchExternalPublicationsCheck]' });
+  try {
+    const manifest = await repoService.getDraftManifest({
+      uuid: node.uuid as NodeUuid,
+      documentId: node.manifestDocumentId,
+    });
 
-  const manifest = await repoService.getDraftManifest({
-    uuid: node.uuid as NodeUuid,
-    documentId: node.manifestDocumentId,
-  });
+    const { publications, matchFromArticleRecommender, commonPublicationsAcrossSources } =
+      await searchExternalPublications(manifest);
 
-  const { publications, matchFromArticleRecommender, commonPublicationsAcrossSources } =
-    await searchExternalPublications(manifest);
+    const dataSource =
+      publications.length > 0
+        ? publications
+        : commonPublicationsAcrossSources?.length > 0
+          ? commonPublicationsAcrossSources
+          : undefined;
 
-  const dataSource =
-    publications.length > 0
-      ? publications
-      : commonPublicationsAcrossSources?.length > 0
-        ? commonPublicationsAcrossSources
-        : undefined;
-
-  if (dataSource) {
-    await asyncMap(dataSource, async (pub) => {
-      const exists = await prisma.externalPublications.findFirst({
-        where: { AND: { uuid: node.uuid, doi: pub.doi } },
+    if (dataSource) {
+      await asyncMap(dataSource, async (pub) => {
+        const exists = await prisma.externalPublications.findFirst({
+          where: { AND: { uuid: node.uuid, doi: pub.doi } },
+        });
+        //   logger.trace({ pub: { publisher: pub.publisher, doi: pub.doi }, exists }, '[pub exists]');
+        if (exists) return exists;
+        return prisma.externalPublications.create({
+          data: {
+            doi: pub.doi,
+            score: pub.score,
+            sourceUrl: pub.sourceUrl,
+            publisher: pub.publisher,
+            publishYear: pub.publishYear,
+            uuid: ensureUuidEndsWithDot(node.uuid),
+            isVerified: false,
+          },
+        });
       });
-      //   logger.trace({ pub: { publisher: pub.publisher, doi: pub.doi }, exists }, '[pub exists]');
-      if (exists) return exists;
-      return prisma.externalPublications.create({
+    } else if (matchFromArticleRecommender) {
+      // const pub = matchFromArticleRecommender;
+      const exists = await prisma.externalPublications.findFirst({
+        where: { AND: { uuid: node.uuid, doi: matchFromArticleRecommender.doi } },
+      });
+      logger.trace(
+        { pub: { publisher: matchFromArticleRecommender.publisher, doi: matchFromArticleRecommender.doi }, exists },
+        '[pub exists]',
+      );
+      if (exists) return;
+
+      await prisma.externalPublications.create({
         data: {
-          doi: pub.doi,
-          score: pub.score,
-          sourceUrl: pub.sourceUrl,
-          publisher: pub.publisher,
-          publishYear: pub.publishYear,
+          doi: matchFromArticleRecommender.doi,
+          score: matchFromArticleRecommender.score,
+          sourceUrl: matchFromArticleRecommender.sourceUrl,
+          publisher: matchFromArticleRecommender.publisher,
+          publishYear: matchFromArticleRecommender.publishYear.toString(),
           uuid: ensureUuidEndsWithDot(node.uuid),
           isVerified: false,
         },
       });
-    });
-  } else if (matchFromArticleRecommender) {
-    // const pub = matchFromArticleRecommender;
-    const exists = await prisma.externalPublications.findFirst({
-      where: { AND: { uuid: node.uuid, doi: matchFromArticleRecommender.doi } },
-    });
-    logger.trace(
-      { pub: { publisher: matchFromArticleRecommender.publisher, doi: matchFromArticleRecommender.doi }, exists },
-      '[pub exists]',
-    );
-    if (exists) return;
+    }
 
-    await prisma.externalPublications.create({
-      data: {
-        doi: matchFromArticleRecommender.doi,
-        score: matchFromArticleRecommender.score,
-        sourceUrl: matchFromArticleRecommender.sourceUrl,
-        publisher: matchFromArticleRecommender.publisher,
-        publishYear: matchFromArticleRecommender.publishYear.toString(),
-        uuid: ensureUuidEndsWithDot(node.uuid),
-        isVerified: false,
-      },
-    });
+    sendExternalPublicationsNotification(node);
+  } catch (e) {
+    logger.error(e, 'External publications check failed');
   }
-
-  sendExternalPublicationsNotification(node);
 };
 
 export const sendExternalPublicationsNotification = async (node: Node) => {

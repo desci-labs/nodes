@@ -1,6 +1,5 @@
-import { expect } from 'chai';
 import { subDays } from 'date-fns';
-import { describe, it } from 'mocha';
+import { describe, it, expect } from 'vitest';
 
 import { getUtcDateXDaysAgo } from '../../src/utils/clock.js';
 
@@ -11,9 +10,9 @@ describe.skip('utils', async () => {
     const threeDaysEarlier = subDays(startDate, 3);
 
     // Should be Dec 29, 2022
-    expect(threeDaysEarlier.getFullYear()).to.equal(2022);
-    expect(threeDaysEarlier.getMonth()).to.equal(11); // December (0-based)
-    expect(threeDaysEarlier.getDate()).to.equal(29);
+    expect(threeDaysEarlier.getFullYear()).toBe(2022);
+    expect(threeDaysEarlier.getMonth()).toBe(11); // December (0-based)
+    expect(threeDaysEarlier.getDate()).toBe(29);
   });
 
   it('should get UTC midnight x days ago', async () => {
@@ -34,6 +33,6 @@ describe.skip('utils', async () => {
       ),
     );
 
-    expect(utcMidnightXDaysAgo.getTime()).to.equal(expectedDate.getTime());
+    expect(utcMidnightXDaysAgo.getTime()).toBe(expectedDate.getTime());
   });
 });

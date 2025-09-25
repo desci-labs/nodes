@@ -1,10 +1,12 @@
+import { ResearchObjectHistory } from '@desci-labs/desci-codex-lib';
 import { DataType, Node, NodeVersion, PublicDataReference, PublishStatus } from '@prisma/client';
 import { Request, Response } from 'express';
+import { SerializedError, errWithCause } from 'pino-std-serializers';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { directStreamLookup, RawStream } from '../../services/ceramic.js';
 import { getAliasRegistry, getHotWallet } from '../../services/chain.js';
+import { streamLookup } from '../../services/codex.js';
 import { PublishServices } from '../../services/PublishServices.js';
 import { _getIndexedResearchObjects, getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
 import { ensureUuidEndsWithDot, hexToCid } from '../../utils.js';
@@ -190,52 +192,28 @@ type DebugStreamResponse = {
   present: boolean;
   error: boolean;
   nVersions?: number;
-  anchoring?: {
-    isAnchored: boolean;
-    timeLeft: number;
-  };
-  raw?:
-    | RawStream
-    | {
-        err: string;
-        status: number;
-        body: unknown;
-        msg: string;
-        cause: Error;
-        stack: string;
-      };
+  isAnchored?: boolean;
+  raw?: ResearchObjectHistory | SerializedError;
 };
 
 /** Get stream state response, or an error object */
-const debugStream = async (stream?: string): Promise<DebugStreamResponse> => {
-  if (!stream) return { present: false, error: false };
-  const raw = await directStreamLookup(stream);
-
-  if ('err' in raw) {
-    return { present: true, error: true, raw };
+const debugStream = async (streamId?: string): Promise<DebugStreamResponse> => {
+  if (!streamId) return { present: false, error: false };
+  let stream: ResearchObjectHistory;
+  try {
+    stream = await streamLookup(streamId);
+  } catch (e) {
+    return { present: true, error: true, raw: errWithCause(e) };
   }
 
-  const isAnchored = raw.state.anchorStatus === 'ANCHORED';
-  const lastCommitIx = raw.state.log.findLastIndex((l) => l.expirationTime);
-  const lastCommit = raw.state.log[lastCommitIx];
-  const tailAnchor = raw.state.log.slice(lastCommitIx).findLast((l) => l.type === 2);
-  const timeNow = Math.floor(new Date().getTime() / 1000);
-  const timeLeft = isAnchored ? lastCommit.expirationTime - tailAnchor.timestamp : lastCommit.expirationTime - timeNow;
-
-  const anchoring = {
-    isAnchored,
-    timeLeft,
-  };
-
-  // Excluding anchor events
-  const versions = raw.state.log.filter((l) => l.type !== 2);
+  const isAnchored = stream.versions.find((v) => !!v.time) !== undefined;
 
   return {
     present: true,
     error: false,
-    nVersions: versions.length,
-    anchoring,
-    raw,
+    nVersions: stream.versions.length,
+    isAnchored,
+    raw: stream,
   };
 };
 

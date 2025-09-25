@@ -43,7 +43,8 @@ const DPID_ENV_MAPPING = {
   'https://nodes-api.desci.com': 'https://beta.dpid.org/',
 };
 
-const DPID_URL = DPID_ENV_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
+const DPID_RESOLVER_URL =
+  process.env.DPID_URL_OVERRIDE || DPID_ENV_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
 
 async function indexResearchObject(nodeUuid: string) {
   nodeUuid = unpadUuid(nodeUuid);
@@ -202,7 +203,7 @@ async function fillBestLocationsData(manifest: ResearchObjectV1, dpid: string | 
       publisher: 'Desci Labs',
       pdf_url: pdfUrl,
       is_oa: true,
-      source_id: DPID_URL + dpid,
+      source_id: DPID_RESOLVER_URL + dpid,
       display_name: 'Desci Labs',
       works_count,
       version: 'preprint',

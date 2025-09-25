@@ -1,6 +1,6 @@
 {
   "name": "@desci-labs/nodes-lib",
-  "version": "0.1.4",
+  "version": "0.2.0-rc10",
   "homepage": "https://github.com/desci-labs/nodes#readme",
   "description": "Stand-alone client library for interacting with desci-server",
   "repository": {
@@ -12,21 +12,42 @@
   "bugs": {
     "url": "https://github.com/desci-labs/nodes/issues"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "browser": [
+        "dist/browser.d.ts"
+      ],
+      "node": [
+        "dist/node.d.ts"
+      ]
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "rm -rf dist; tsc --project tsconfig.build.json",
     "doPublish": "npm run build && npm publish --access public",
+    "lint": "eslint . --fix",
     "test": "vitest --run --config vitest.config.ts",
     "test:debug": "npm run test -- --inspect-brk --no-file-parallelism --test-timeout 99999999",
     "docs": "typedoc src/index.ts"
   },
   "dependencies": {
-    "@desci-labs/desci-codex-lib": "^1.1.7",
+    "@desci-labs/desci-codex-lib": "^2.0.0-rc6",
+    "@desci-labs/desci-codex-models": "^1.0.0-rc3",
     "@desci-labs/desci-contracts": "^0.2.7",
     "@desci-labs/desci-models": "^0.2.19",
     "@didtools/cacao": "^3.0.1",
@@ -34,7 +55,7 @@
     "@stablelib/random": "^1.0.2",
     "axios": "^1.6.5",
     "caip": "^1.1.1",
-    "did-session": "^3.1.0",
+    "did-session": "^4.0.0",
     "ethers": "^5.7.2",
     "form-data": "^4.0.0",
     "mime-types": "^2.1.35",
@@ -43,8 +64,17 @@
     "url-safe-base64": "1.2.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.35.0",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-tsdoc": "^0.4.0",
+    "prettier": "^3.6.2",
     "typedoc": "^0.25.8",
     "typescript": "^5.3.3",
     "vitest": "^1.2.1",

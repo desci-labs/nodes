@@ -1,0 +1,24 @@
+on:
+  push:
+    paths:
+      - .github/workflows/**
+      - nodes-lib/**
+      - desci-server/**
+      - desci-contracts/**
+      - integrationTestRunner.sh
+      - docker-compose.test.yml
+env:
+  CERAMIC_ADMIN_SEED: ${{ secrets.CERAMIC_ADMIN_SEED }}
+jobs:
+  test-nodes-lib:
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
+
+      # Enable blacksmith docker layer caching
+      #- uses: useblacksmith/setup-docker-builder@v1
+
+      - name: Run tests
+        run: |
+          echo "CERAMIC_ADMIN_SEED=$CERAMIC_ADMIN_SEED" >> nodes-lib/.env.test
+          SKIP_SERVER=1 ./integrationTestRunner.sh

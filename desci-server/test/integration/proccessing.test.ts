@@ -1,7 +1,6 @@
 import { ResearchObjectV1, isNodeRoot } from '@desci-labs/desci-models';
 import { Node, User } from '@prisma/client';
-import { expect } from 'chai';
-import { describe, it } from 'mocha';
+import { describe, it, beforeAll, expect } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import {
@@ -23,7 +22,7 @@ describe('Data Processing Functions Tests', () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
 
-  before(async () => {
+  beforeAll(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
@@ -50,7 +49,7 @@ describe('Data Processing Functions Tests', () => {
   describe('ensureSpaceAvailable', () => {
     it('should return true if user has enough space, and not throw an error', async () => {
       const files = [{ size: 100 }, { size: 200 }]; // Mock files within limit
-      expect(await ensureSpaceAvailable(files, user)).to.be.true;
+      expect(await ensureSpaceAvailable(files, user)).toBe(true);
     });
 
     it('should throw NotEnoughSpaceError if user does not have enough space', async () => {
@@ -59,7 +58,7 @@ describe('Data Processing Functions Tests', () => {
         await ensureSpaceAvailable(files, user);
         expect.fail('Expected method to throw NotEnoughSpaceError');
       } catch (e) {
-        expect(e.type).to.equal('NotEnoughSpaceError');
+        expect(e.type).toBe('NotEnoughSpaceError');
       }
     });
   });
@@ -69,7 +68,7 @@ describe('Data Processing Functions Tests', () => {
       const expectedRootCid = baseManifest.components.find((c) => c.id === 'root')?.payload?.cid;
       const resultRootCid = extractRootDagCidFromManifest(baseManifest, baseManifestCid);
 
-      expect(resultRootCid).to.equal(expectedRootCid);
+      expect(resultRootCid).toBe(expectedRootCid);
     });
 
     it('should throw InvalidManifestError if the root CID is not in the manifest', () => {
@@ -80,7 +79,7 @@ describe('Data Processing Functions Tests', () => {
       };
 
       expect(() => extractRootDagCidFromManifest(malformedManifest, baseManifestCid))
-        .to.throw()
+        .toThrow()
         .with.property('type', 'InvalidManifestError');
     });
   });
@@ -88,7 +87,7 @@ describe('Data Processing Functions Tests', () => {
   describe('getManifestFromNode', () => {
     let node: Node;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create a node instance for testing
       node = await prisma.node.create({
         data: {
@@ -104,8 +103,8 @@ describe('Data Processing Functions Tests', () => {
     it('should fetch manifest for a given node', async () => {
       const { manifest, manifestCid } = await getManifestFromNode(node);
 
-      expect(manifest).to.deep.equal(baseManifest);
-      expect(manifestCid).to.equal(node.manifestUrl);
+      expect(manifest).toEqual(baseManifest);
+      expect(manifestCid).toBe(node.manifestUrl);
     });
 
     it('should throw IpfsUnresolvableError if the manifest cannot be fetched', async () => {
@@ -119,7 +118,7 @@ describe('Data Processing Functions Tests', () => {
         await getManifestFromNode(updatedNode!);
         expect.fail('Expected method to throw IpfsUnresolvableError');
       } catch (e) {
-        expect(e).to.have.property('type', 'IpfsUnresolvableError');
+        expect(e).toHaveProperty('type', 'IpfsUnresolvableError');
       }
     });
   });
@@ -136,13 +135,13 @@ describe('Data Processing Functions Tests', () => {
     it('should return false if path does not contain external CIDs', () => {
       const contextPath = 'root';
       const result = pathContainsExternalCids(flatTreeMap, contextPath);
-      expect(result).to.be.false;
+      expect(result).toBe(false);
     });
 
     it('should throw MixingExternalDataError if path contains external CIDs', () => {
       const contextPath = 'root/external';
       expect(() => pathContainsExternalCids(flatTreeMap, contextPath))
-        .to.throw()
+        .toThrow()
         .with.property('type', 'MixingExternalDataError');
     });
   });
@@ -175,7 +174,7 @@ describe('Data Processing Functions Tests', () => {
           contextPath,
           filesBeingAdded,
         }),
-      ).to.be.true;
+      ).toBe(true);
     });
 
     it('should throw DuplicateFileError if there are duplicate paths', () => {
@@ -192,7 +191,7 @@ describe('Data Processing Functions Tests', () => {
           filesBeingAdded,
         }),
       )
-        .to.throw()
+        .toThrow()
         .with.property('type', 'DuplicateFileError');
     });
 
@@ -207,7 +206,7 @@ describe('Data Processing Functions Tests', () => {
           externalUrlFilePaths,
         }),
       )
-        .to.throw()
+        .toThrow()
         .with.property('type', 'DuplicateFileError');
     });
   });
@@ -224,7 +223,7 @@ describe('Data Processing Functions Tests', () => {
       const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResults);
 
       // Ensure that only first-nesting files are in the filesToAddToDag
-      expect(filesToAddToDag).to.deep.equal({
+      expect(filesToAddToDag).toEqual({
         'readme.md': { cid: 'cid1', size: 100 },
         'file2.txt': { cid: 'cid4', size: 400 },
         data: { cid: 'cid2', size: 200 },
@@ -251,7 +250,7 @@ describe('Data Processing Functions Tests', () => {
 
       const updatedRoot = updatedManifest.components.find((c) => isNodeRoot(c))!;
 
-      expect(updatedRoot.payload.cid).to.equal(newRootCid);
+      expect(updatedRoot.payload.cid).toBe(newRootCid);
     });
   });
 });

@@ -30,11 +30,7 @@ import routes from './routes/index.js';
 import { dataMigrationWorker } from './services/DataMigration/DataMigrationWorker.js';
 import { refereeRecommenderSqsHandler } from './services/externalApi/RefereeRecommenderSqsHandler.js';
 import { initializeWebSockets, getIO } from './services/websocketService.js';
-// import swaggerFile from './swagger_output.json' with { type: 'json' };
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
-// import { runWorkerUntilStopped } from './workers/publish.js';
-
-// const __dirname = path.dirname(__filename);
 
 const logger = parentLogger.child({
   module: 'server.ts',
@@ -70,7 +66,7 @@ const allowlist = [
 
 const serverUuid = v4();
 
-class AppServer {
+export class AppServer {
   #readyResolvers: ((value: any) => void)[] = [];
 
   #isReady = false;
@@ -325,4 +321,7 @@ function getRemoteAddress(req) {
   }
 }
 
-export const server = new AppServer();
+// Factory function to create server instances
+export function createServer(): AppServer {
+  return new AppServer();
+}

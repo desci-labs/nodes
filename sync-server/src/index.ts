@@ -254,6 +254,14 @@ async function handleCreateDocument(request: Request, env: Env) {
 
 export default {
   fetch(request: Request, env) {
+    // Health check endpoint
+    if (request.url.includes('/health') && request.method.toLowerCase() === 'get') {
+      return new Response(JSON.stringify({ status: 'healthy', service: 'sync-server' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     console.log('Fetch handler: ', request.url);
     if (request.url.includes('/api/documents') && request.method.toLowerCase() === 'post')
       return handleCreateDocument(request, env);
