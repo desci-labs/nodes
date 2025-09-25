@@ -20,7 +20,10 @@ COPY --chown=node:node ./scripts ./scripts
 COPY --chown=node:node ./test ./test
 COPY --chown=node:node ./vitest.config.ts ./vitest.config.ts
 COPY --chown=node:node ./tsconfig.json ./tsconfig.json
-RUN yarn build
+
+# Mount the secret as an environment variable for the build command
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
+    yarn build
 
 # server api
 EXPOSE 5420 9227 5555

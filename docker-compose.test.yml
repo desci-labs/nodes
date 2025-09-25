@@ -21,7 +21,7 @@ services:
     build:
       context: ./desci-server
       dockerfile: Dockerfile.ci
-    entrypoint: /bin/sh './scripts/be-node-test.sh'
+    entrypoint: ["/bin/sh", "./scripts/be-node-test.sh"]
     restart: no
     env_file:
       - .env.test

@@ -52,15 +52,6 @@ jobs:
         working-directory: desci-server
         run: yarn install --frozen-lockfile
 
-      - name: Set up Sentry CLI
-        run: |
-          npm install -g @sentry/cli
-          sentry-cli --version
-          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
-          # append to .env
-          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> desci-server/.env
-          cd desci-server && yarn build
-
       - name: Run tests
         run: |
           SKIP_NODES_LIB=1 ./integrationTestRunner.sh
@@ -94,19 +85,11 @@ jobs:
       # Enable blacksmith docker layer caching
       #- uses: useblacksmith/setup-docker-builder@v1
 
-      - name: Set up Sentry CLI
-        run: |
-          npm install -g @sentry/cli
-          sentry-cli --version
-          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
-          # append to .env
-          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> desci-server/.env
-
       - name: Build and tag the image (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
-          # Build and tag the image
           docker build \
+            --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-dev:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
@@ -115,8 +98,8 @@ jobs:
       - name: Build and tag the image (DEMO)
         if: github.ref == 'refs/heads/demo'
         run: |
-          # Build and tag the image
           docker build \
+            --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-demo:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo \
@@ -125,8 +108,8 @@ jobs:
       - name: Build and tag the image (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
-          # Build and tag the image
           docker build \
+            --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
