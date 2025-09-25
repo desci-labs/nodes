@@ -50,9 +50,13 @@ export const getCommitTimestamps = async (commitIds: string[]): Promise<Record<s
 
   let histories: ResearchObjectHistory[];
   try {
-    const result = await axios.post<ResearchObjectHistory[]>(`${DPID_RESOLVER_URL}/api/v2/query/history`, {
-      ids: uniqueStreamIds,
-    });
+    const result = await axios.post<ResearchObjectHistory[]>(
+      `${DPID_RESOLVER_URL}/api/v2/query/history`,
+      {
+        ids: uniqueStreamIds,
+      },
+      { timeout: 5_000 },
+    );
     histories = result.data;
   } catch (e) {
     logger.error({ error: errWithCause(e) }, 'Timestamp lookup failed');
