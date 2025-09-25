@@ -58,7 +58,7 @@ jobs:
           sentry-cli --version
           sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
           # append to .env
-          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
+          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> desci-server/.env
           cd desci-server && yarn build
 
       - name: Run tests
@@ -100,7 +100,7 @@ jobs:
           sentry-cli --version
           sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
           # append to .env
-          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
+          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> desci-server/.env
 
       - name: Build and tag the image (DEV)
         if: github.ref == 'refs/heads/develop'
