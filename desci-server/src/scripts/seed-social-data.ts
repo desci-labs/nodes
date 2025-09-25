@@ -1,3 +1,6 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import { prisma } from '../client.js';
 import communitiesData from '../data/communities.json' assert { type: 'json' };
 import { asyncMap } from '../utils.js';
@@ -224,7 +227,9 @@ export const seedSocialData = async () => {
 };
 
 // Only run if executed directly, not when imported
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isDirectExecution = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+
+if (isDirectExecution) {
   if (process.env.ENABLE_SOCIAL_DATA_SEED_SCRIPTS) {
     seedSocialData()
       .then(() => console.log('Communities and Attestations created/updated'))

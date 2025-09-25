@@ -16,7 +16,7 @@ const getDpidResolutionUrl = (dpid: number) => `${DPID_RESOLVER_URL}/api/v2/reso
 
 export const streamLookup = async (streamId: string): Promise<ResearchObjectHistory> => {
   try {
-    const result = await axios.get<ResearchObjectHistory>(getStreamResolutionUrl(streamId));
+    const result = await axios.get<ResearchObjectHistory>(getStreamResolutionUrl(streamId), { timeout: 5_000 });
     logger.info(result.data, 'resolved stream');
     return result.data;
   } catch (e) {

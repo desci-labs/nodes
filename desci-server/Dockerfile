@@ -8,7 +8,7 @@ RUN mkdir /app && chown -R node:node /app && chown -R node:node /root && mkdir -
 
 WORKDIR /app
 
-COPY --chown=node:node ./package.json ./yarn.lock .
+COPY --chown=node:node ./package.json ./yarn.lock ./
 
 # Remove ignore-engines flag after bump to node 20, composedb CLI blocks installing meanwhile
 RUN --mount=type=cache,target=/root/.yarn YARN_CACHE_FOLDER=/root/.yarn yarn install --ignore-engines

@@ -57,7 +57,7 @@ describe('Journal Management Service', () => {
         where: { journalId: journal.id },
       });
 
-      expect(eventLog).to.not.be.null;
+      expect(eventLog).not.toBeNull();
       expect(eventLog?.action).toBe('JOURNAL_CREATED');
       expect(eventLog?.userId).toBe(user.id);
     });

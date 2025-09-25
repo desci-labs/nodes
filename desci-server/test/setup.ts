@@ -1,4 +1,4 @@
-import { beforeAll } from 'vitest';
+import { afterAll, beforeAll } from 'vitest';
 
 import { AppServer, createServer } from '../src/server.js';
 

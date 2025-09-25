@@ -196,7 +196,7 @@ describe('Journal Settings', () => {
           .set('authorization', `Bearer ${associateEditorAuthToken}`);
 
         expect(res.status).toBe(200);
-        expect(res.body.data.settings).to.exist;
+        expect(res.body.data.settings).toBeDefined();
       });
 
       it('should deny access to non-editors', async () => {
@@ -341,7 +341,7 @@ describe('Journal Settings', () => {
 
         expect(res.status).toBe(400);
         expect(res.body.message).toBe('Invalid inputs');
-        expect(res.body.errors).to.be.an('array');
+        expect(Array.isArray(res.body.errors)).toBe(true);
         expect(res.body.errors.some((err: any) => err.message === 'Max must be greater than min')).toBe(true);
       });
 
@@ -363,7 +363,7 @@ describe('Journal Settings', () => {
 
         expect(res.status).toBe(400);
         expect(res.body.message).toBe('Invalid inputs');
-        expect(res.body.errors).to.be.an('array');
+        expect(Array.isArray(res.body.errors)).toBe(true);
         expect(res.body.errors.some((err: any) => err.message === 'Default must be between min and max')).toBe(true);
       });
 

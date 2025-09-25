@@ -3,7 +3,7 @@
   "version": "0.3.4",
   "description": "Manage DeSci Nodes state: users, nodes orchestration, decentralized storage, blockchain resolvers",
   "engines": {
-    "node": ">=16.14"
+    "node": ">=18"
   },
   "type": "module",
   "scripts": {

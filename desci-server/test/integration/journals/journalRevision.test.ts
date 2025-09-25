@@ -12,7 +12,7 @@ import {
 } from '@prisma/client';
 import supertest from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
-import { describe, it, beforeEach, expect, chai, assert, afterEach } from 'vitest';
+import { describe, it, beforeEach, expect, assert, afterEach } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
