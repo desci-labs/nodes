@@ -37,7 +37,7 @@ export const NODESLIB_CONFIGS = {
     ceramicNodeUrl: "https://ceramic-dev.desci.com",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.dev,
     ceramicOneRpcUrl: "https://ceramic-one-dev-rpc.desci.com",
-    ceramicOneFlightUrl: "https://ceramic-one-dev.desci.com:5102",
+    ceramicOneFlightUrl: "http://ceramic-one-dev.desci.com:5102",
     chainConfig: CHAIN_CONFIGS.dev,
   },
   staging: {
@@ -46,7 +46,7 @@ export const NODESLIB_CONFIGS = {
     ceramicNodeUrl: "https://ceramic-prod.desci.com",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.prod, // also using the prod contracts
     ceramicOneRpcUrl: "https://ceramic-one-prod-rpc.desci.com",
-    ceramicOneFlightUrl: "https://ceramic-one-prod.desci.com:5102",
+    ceramicOneFlightUrl: "http://ceramic-one-prod.desci.com:5102",
     chainConfig: CHAIN_CONFIGS.prod, // also using prod contracts
   },
   prod: {
@@ -55,7 +55,7 @@ export const NODESLIB_CONFIGS = {
     ceramicNodeUrl: "https://ceramic-prod.desci.com",
     legacyChainConfig: LEGACY_CHAIN_CONFIGS.prod,
     ceramicOneRpcUrl: "https://ceramic-one-prod-rpc.desci.com",
-    ceramicOneFlightUrl: "https://ceramic-one-prod.desci.com:5102",
+    ceramicOneFlightUrl: "http://ceramic-one-prod.desci.com:5102",
     chainConfig: CHAIN_CONFIGS.prod,
   },
 } as const satisfies { [Env in NodesEnv]: NodesLibConfig };
