@@ -21,7 +21,7 @@ const LOG_CTX = "[nodes-lib::codex-queries]";
  */
 export const getFullState = async (streamID: string) => {
   const config = getNodesLibInternalConfig();
-  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
+  const useCeramicOne = !!config.ceramicOneRpcUrl;
   if (useCeramicOne) {
     const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
     let data;
@@ -58,7 +58,7 @@ export const getCurrentState = async (
   streamID: string,
 ): Promise<ResearchObjectHistory["versions"][number]> => {
   const config = getNodesLibInternalConfig();
-  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
+  const useCeramicOne = !!config.ceramicOneRpcUrl;
   if (useCeramicOne) {
     const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
     const resolved = await getStreamHistory(client, streamID);
@@ -85,7 +85,7 @@ export const getCodexHistory = async (
   streamID: string,
 ): Promise<ResearchObjectHistory> => {
   const config = getNodesLibInternalConfig();
-  const useCeramicOne = config.ceramicOneRpcUrl !== undefined;
+  const useCeramicOne = !!config.ceramicOneRpcUrl;
 
   if (useCeramicOne) {
     const client = await newFlightSqlClient(config.ceramicOneFlightUrl);
