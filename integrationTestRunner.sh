@@ -47,7 +47,8 @@ docker compose -f docker-compose.test.yml up \
   --wait-timeout 120 \
   nodes_test_db \
   nodes_test_sync_service \
-  nodes_test_ipfs
+  nodes_test_ipfs \
+  dpid_resolver_test
 
 if [ "$SKIP_SERVER" != "1" ]; then
   # 2. Run desci-server tests

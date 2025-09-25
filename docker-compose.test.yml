@@ -135,9 +135,8 @@ services:
     build:
       context: ./nodes-lib
       dockerfile: Dockerfile.test
-    entrypoint: /bin/sh -c
-    command:
-      - "sleep 5 && npm test"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep 5 && npm test"]
     restart: no
     environment:
       NODES_API_URL: http://nodes_backend_test:5421
@@ -204,6 +203,11 @@ services:
       CACHE_TTL_PENDING: 300
     ports:
       - "5460:5460"
+    healthcheck:
+      test: ["CMD", "curl", "--fail-with-body", "http://localhost:5460/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
