@@ -1,9 +1,8 @@
-import 'mocha';
 import fs from 'fs';
 
 import { ResearchObjectV1, recursiveFlattenTree } from '@desci-labs/desci-models';
 import { User, Node } from '@prisma/client';
-import { expect } from 'chai';
+import { describe, it, beforeAll, afterAll, beforeEach, expect, afterEach } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import * as ipfs from '../../src/services/ipfs.js';
@@ -13,9 +12,9 @@ import { randomUUID64 } from '../../src/utils.js';
 describe('IPFS', () => {
   let admin: User;
   let node: Node;
-  before(async () => {});
+  beforeAll(async () => {});
 
-  after(async () => {});
+  afterAll(async () => {});
 
   beforeEach(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
@@ -51,14 +50,14 @@ describe('IPFS', () => {
   describe('Service', () => {
     it('adds buffer to IPFS', async () => {
       const { cid } = await ipfs.addBufferToIpfs(Buffer.from('test'), 'DATA');
-      expect(cid.toString()).to.eq('bafkreie7q3iidccmpvszul7kudcvvuavuo7u6gzlbobczuk5nqk3b4akba');
+      expect(cid.toString()).toBe('bafkreie7q3iidccmpvszul7kudcvvuavuo7u6gzlbobczuk5nqk3b4akba');
     });
 
     it('adds a manifest and adds a data reference', async () => {
       const res = await ipfs.updateManifestAndAddToIpfs(EXAMPLE_MANIFEST, { user: admin, nodeId: node.id });
-      expect(res.cid).to.eq('bafkreidf26rt63gbrwz4inlosn74hgb245tmkj7tbazrkdrchfqdfbn3u4');
-      expect(res.ref).to.not.be.undefined;
-      expect(res.ref.size).to.eq(42);
+      expect(res.cid).toBe('bafkreidf26rt63gbrwz4inlosn74hgb245tmkj7tbazrkdrchfqdfbn3u4');
+      expect(res.ref).toBeDefined();
+      expect(res.ref.size).toBe(42);
       // console.log('RES', res);
     });
     it('supports directories', async () => {
@@ -86,7 +85,7 @@ describe('IPFS', () => {
       ];
 
       const uploaded: ipfs.IpfsPinnedResult[] = await ipfs.pinDirectory(structuredFiles);
-      expect(uploaded.length).to.be.greaterThan(0);
+      expect(uploaded.length).toBeGreaterThan(0);
 
       const rootCid = uploaded[uploaded.length - 1].cid;
 
@@ -95,10 +94,10 @@ describe('IPFS', () => {
 
       // const treeCids = await ipfs.getDirectoryTree(rootCid);
       // console.log('treeCids', JSON.stringify(treeCids));
-      // expect(treeCids.length).to.eq(uploaded.length);
+      // expect(treeCids.length).toBe(uploaded.length);
 
       // console.log('cids', cids, 'uploaded', uploaded, rootCid);
-      expect(cids.length).to.eq(uploaded.length);
+      expect(cids.length).toBe(uploaded.length);
     });
   });
 });

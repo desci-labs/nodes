@@ -272,14 +272,12 @@ async function transformDraftComments({
   dpidAlias?: number;
   publishStatusId: number;
 }) {
-  // Moved from controllers/nodes/publish.ts
-
   try {
     const root = await prisma.publicDataReference.findFirst({
       where: { nodeId: node.id, root: true, userId: owner.id },
       orderBy: { updatedAt: 'desc' },
     });
-    const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(node.uuid)]);
+    const result = await getIndexedResearchObjects([node.uuid]);
     // if node is being published for the first time default to 1
     const version = result ? result.researchObjects?.[0]?.versions.length : 1;
     logger.info({ root, result, version, publishStatusId }, 'publishDraftComments::Root');
@@ -344,9 +342,8 @@ async function updateAssociatedAttestations(nodeUuid: string, dpid: string, publ
 }
 
 async function createPublishStatusEntry(nodeUuid: string) {
-  // debugger; //////
   try {
-    const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(nodeUuid)]);
+    const result = await getIndexedResearchObjects([nodeUuid]);
 
     const version = result?.researchObjects?.length ? result.researchObjects?.[0]?.versions.length : 1;
     logger.info({

@@ -4,6 +4,7 @@ services:
       context: ./sync-server
       dockerfile: Dockerfile
     container_name: desci_sync
+    restart: on-failure
     image: desci_sync_worker
     env_file:
       - ./sync-server/.env
@@ -17,3 +18,9 @@ services:
     depends_on:
       db_postgres:
         condition: service_healthy
+    healthcheck:
+      test: curl -f http://localhost:5445/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 15s

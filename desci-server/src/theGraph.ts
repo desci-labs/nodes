@@ -3,7 +3,7 @@ import axios from 'axios';
 import { prisma } from './client.js';
 import { THEGRAPH_API_URL } from './config/index.js';
 import { logger as parentLogger } from './logger.js';
-import { getCommitTimestamps } from './services/ceramic.js';
+import { getCommitTimestamps } from './services/codex.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
 
@@ -11,7 +11,7 @@ const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
 });
 
-const RESOLVER_URL = getTargetDpidUrl();
+const DPID_RESOLVER_URL = process.env.DPID_URL_OVERRIDE || getTargetDpidUrl();
 
 export type IndexedResearchObject = {
   /** Hex: Node UUID */
@@ -129,7 +129,7 @@ const getHistoryFromDpids = async (dpidsToUuidsMap: Record<number, string>): Pro
     return [];
   }
 
-  const historyRes = await axios.post<ResolverIndexResult[]>(`${RESOLVER_URL}/api/v2/query/history`, {
+  const historyRes = await axios.post<ResolverIndexResult[]>(`${DPID_RESOLVER_URL}/api/v2/query/history`, {
     ids: Object.keys(dpidsToUuidsMap),
   });
 

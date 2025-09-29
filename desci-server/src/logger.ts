@@ -1,10 +1,6 @@
 import { AsyncLocalStorage } from 'async_hooks';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 import { pino } from 'pino';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export const als = new AsyncLocalStorage();
 
@@ -16,14 +12,6 @@ const devTransport = {
   options: {
     colorize: true,
   },
-};
-
-console.log('[DIR NAME]::', __dirname, __filename, logLevel);
-
-const fileTransport = {
-  target: 'pino/file',
-  options: { destination: `${__dirname}/../log/server.log` },
-  level: 'trace',
 };
 
 export const logger = pino({
@@ -98,7 +86,7 @@ export const logger = pino({
     process.env.NODE_ENV === 'production'
       ? undefined
       : {
-          targets: [devTransport, fileTransport],
+          targets: [devTransport],
         },
   redact: {
     paths: [

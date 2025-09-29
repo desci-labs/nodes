@@ -13,12 +13,6 @@ export const MEDIA_SERVER_API_KEY = process.env.MEDIA_SECRET_KEY;
 export const SERVER_URL = process.env.SERVER_URL ?? 'localhost';
 export const THEGRAPH_API_URL = process.env.THEGRAPH_API_URL;
 
-const CERAMIC_API_URLS = {
-  local: 'http://host.docker.internal:7007',
-  dev: 'https://ceramic-dev.desci.com',
-  prod: 'https://ceramic-prod.desci.com',
-} as const;
-
 const OPTIMISM_RPC_URLS = {
   local: 'http://host.docker.internal:8545',
   opSepolia: 'https://reverse-proxy-dev.desci.com/rpc_opt_sepolia',
@@ -31,7 +25,6 @@ export const GANACHE_PKEY = 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae7
 /** Manually set in this module since the envvar needs to support OG ethereum during migration */
 export let OPTIMISM_RPC_URL: string;
 export let ALIAS_REGISTRY_ADDRESS: string;
-export let CERAMIC_API_URL: string;
 
 export const serverIsLocal = SERVER_URL.includes('localhost') || SERVER_URL.includes('host.docker.internal');
 const serverIsDev = SERVER_URL.includes('dev');
@@ -46,7 +39,6 @@ export const SERVER_ENV = serverIsLocal
 
 if (serverIsLocal) {
   ALIAS_REGISTRY_ADDRESS = contracts.localDpidAliasInfo.proxies.at(0).address;
-  CERAMIC_API_URL = CERAMIC_API_URLS.local;
   OPTIMISM_RPC_URL = OPTIMISM_RPC_URLS.local;
   console.log('[Contract Addresses]', {
     libAddress: contracts.localDpidAliasInfo.proxies.at(0).address,
@@ -54,11 +46,9 @@ if (serverIsLocal) {
   });
 } else if (serverIsDev) {
   ALIAS_REGISTRY_ADDRESS = contracts.devDpidAliasInfo.proxies.at(0).address;
-  CERAMIC_API_URL = CERAMIC_API_URLS.dev;
   OPTIMISM_RPC_URL = OPTIMISM_RPC_URLS.opSepolia;
 } else if (serverIsProdOrStaging) {
   ALIAS_REGISTRY_ADDRESS = contracts.prodDpidAliasInfo.proxies.at(0).address;
-  CERAMIC_API_URL = CERAMIC_API_URLS.prod;
   OPTIMISM_RPC_URL = OPTIMISM_RPC_URLS.opSepolia;
 } else {
   console.error('Cannot derive configuration due to ambiguous environment');

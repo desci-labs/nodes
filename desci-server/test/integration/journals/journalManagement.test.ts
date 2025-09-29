@@ -1,17 +1,11 @@
-import 'mocha';
 import { EditorRole, Journal, User } from '@prisma/client';
-import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { describe, it, beforeEach, expect } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
-
-server.ready().then((_) => {
-  console.log('server is ready');
-});
-export const app = server.app;
+import { app } from '../../testApp.js';
 
 describe('Journal Management Service', () => {
   let user: User;
@@ -39,16 +33,16 @@ describe('Journal Management Service', () => {
         ownerId: user.id,
       });
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const journal = result._unsafeUnwrap();
-      expect(journal.name).to.equal('Test Journal');
-      expect(journal.description).to.equal('A test journal');
+      expect(journal.name).toBe('Test Journal');
+      expect(journal.description).toBe('A test journal');
 
       const editor = await prisma.journalEditor.findFirst({
         where: { journalId: journal.id },
       });
-      expect(editor?.userId).to.equal(user.id);
-      expect(editor?.role).to.equal(EditorRole.CHIEF_EDITOR);
+      expect(editor?.userId).toBe(user.id);
+      expect(editor?.role).toBe(EditorRole.CHIEF_EDITOR);
     });
 
     it('should create an event log entry when creating a journal', async () => {
@@ -63,9 +57,9 @@ describe('Journal Management Service', () => {
         where: { journalId: journal.id },
       });
 
-      expect(eventLog).to.not.be.null;
-      expect(eventLog?.action).to.equal('JOURNAL_CREATED');
-      expect(eventLog?.userId).to.equal(user.id);
+      expect(eventLog).not.toBeNull();
+      expect(eventLog?.action).toBe('JOURNAL_CREATED');
+      expect(eventLog?.userId).toBe(user.id);
     });
   });
 
@@ -85,10 +79,10 @@ describe('Journal Management Service', () => {
         description: 'Updated description',
       });
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const updatedJournal = result._unsafeUnwrap();
-      expect(updatedJournal.name).to.equal('Updated Journal');
-      expect(updatedJournal.description).to.equal('Updated description');
+      expect(updatedJournal.name).toBe('Updated Journal');
+      expect(updatedJournal.description).toBe('Updated description');
     });
 
     it('should create an event log entry when updating a journal', async () => {
@@ -101,7 +95,7 @@ describe('Journal Management Service', () => {
       });
 
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(user.id);
+      expect(eventLog?.userId).toBe(user.id);
       expect(eventLog?.details).to.deep.include({
         name: { old: 'Test Journal', new: 'Updated Journal' },
       });
@@ -112,8 +106,8 @@ describe('Journal Management Service', () => {
         name: 'Updated Journal',
       });
 
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Journal not found.');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Journal not found.');
     });
 
     it('should not update when no changes are provided', async () => {
@@ -121,10 +115,10 @@ describe('Journal Management Service', () => {
         name: 'Test Journal', // same as original
       });
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const updatedJournal = result._unsafeUnwrap();
-      expect(updatedJournal.name).to.equal('Test Journal');
-      expect(updatedJournal.description).to.equal('A test journal');
+      expect(updatedJournal.name).toBe('Test Journal');
+      expect(updatedJournal.description).toBe('A test journal');
     });
 
     it('should update only provided fields', async () => {
@@ -133,10 +127,10 @@ describe('Journal Management Service', () => {
         // description not provided
       });
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const updatedJournal = result._unsafeUnwrap();
-      expect(updatedJournal.name).to.equal('Updated Journal');
-      expect(updatedJournal.description).to.equal('A test journal'); // Should remain unchanged
+      expect(updatedJournal.name).toBe('Updated Journal');
+      expect(updatedJournal.description).toBe('A test journal'); // Should remain unchanged
     });
   });
 
@@ -153,25 +147,25 @@ describe('Journal Management Service', () => {
     it('should get journal details with editors', async () => {
       const result = await JournalManagementService.getJournalById(journal.id);
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const journalDetails = result._unsafeUnwrap();
-      expect(journalDetails.name).to.equal('Test Journal');
+      expect(journalDetails.name).toBe('Test Journal');
       expect(journalDetails.editors).to.have.lengthOf(1);
-      expect(journalDetails.editors[0].user.id).to.equal(user.id);
-      expect(journalDetails.editors[0].role).to.equal(EditorRole.CHIEF_EDITOR);
+      expect(journalDetails.editors[0].user.id).toBe(user.id);
+      expect(journalDetails.editors[0].role).toBe(EditorRole.CHIEF_EDITOR);
     });
 
     it('should return error when journal not found', async () => {
       const result = await JournalManagementService.getJournalById(999);
 
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Journal not found.');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Journal not found.');
     });
 
     it('should include editor details in response', async () => {
       const result = await JournalManagementService.getJournalById(journal.id);
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const journalDetails = result._unsafeUnwrap();
       expect(journalDetails.editors[0].user).to.deep.include({
         id: user.id,
@@ -198,17 +192,17 @@ describe('Journal Management Service', () => {
     it('should list all journals', async () => {
       const result = await JournalManagementService.listJournals();
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const journals = result._unsafeUnwrap();
       expect(journals).to.have.lengthOf(2);
-      expect(journals[0].name).to.equal('Journal 1');
-      expect(journals[1].name).to.equal('Journal 2');
+      expect(journals[0].name).toBe('Journal 1');
+      expect(journals[1].name).toBe('Journal 2');
     });
 
     it('should return journals in correct format', async () => {
       const result = await JournalManagementService.listJournals();
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const journals = result._unsafeUnwrap();
       expect(journals[0]).to.have.all.keys([
         'id',
@@ -257,25 +251,25 @@ describe('Journal Management Service', () => {
     it('should remove an editor from the journal', async () => {
       const result = await JournalManagementService.removeEditorFromJournal(journal.id, user.id, editor.id);
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const editorExists = await prisma.journalEditor.findFirst({
         where: { journalId: journal.id, userId: editor.id },
       });
-      expect(editorExists).to.be.null;
+      expect(editorExists).toBeNull();
     });
 
     it('should not allow chief editor to remove themselves', async () => {
       const result = await JournalManagementService.removeEditorFromJournal(journal.id, user.id, user.id);
 
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Cannot remove yourself as a CHIEF_EDITOR.');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Cannot remove yourself as a CHIEF_EDITOR.');
     });
 
     it('should return error when editor not found', async () => {
       const result = await JournalManagementService.removeEditorFromJournal(journal.id, user.id, 999);
 
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Editor not found.');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Editor not found.');
     });
 
     it('should create event log entry when removing editor', async () => {
@@ -286,7 +280,7 @@ describe('Journal Management Service', () => {
       });
 
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(user.id);
+      expect(eventLog?.userId).toBe(user.id);
       expect(eventLog?.details).to.deep.include({
         managerId: user.id,
         editorUserId: editor.id,
@@ -331,11 +325,11 @@ describe('Journal Management Service', () => {
         EditorRole.CHIEF_EDITOR,
       );
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const updatedEditor = await prisma.journalEditor.findFirst({
         where: { journalId: journal.id, userId: editor.id },
       });
-      expect(updatedEditor?.role).to.equal(EditorRole.CHIEF_EDITOR);
+      expect(updatedEditor?.role).toBe(EditorRole.CHIEF_EDITOR);
     });
 
     it('should create an event log entry when updating editor role', async () => {
@@ -346,7 +340,7 @@ describe('Journal Management Service', () => {
       });
 
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(user.id);
+      expect(eventLog?.userId).toBe(user.id);
       expect(eventLog?.details).to.deep.include({
         managerId: user.id,
         editorUserId: editor.id,
@@ -365,11 +359,11 @@ describe('Journal Management Service', () => {
         EditorRole.ASSOCIATE_EDITOR,
       );
 
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const updatedEditor = await prisma.journalEditor.findFirst({
         where: { journalId: journal.id, userId: editor.id },
       });
-      expect(updatedEditor?.role).to.equal(EditorRole.ASSOCIATE_EDITOR);
+      expect(updatedEditor?.role).toBe(EditorRole.ASSOCIATE_EDITOR);
     });
 
     it('should not allow editor to change their own role', async () => {
@@ -380,8 +374,8 @@ describe('Journal Management Service', () => {
         EditorRole.CHIEF_EDITOR,
       );
 
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Cannot demote yourself.');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Cannot demote yourself.');
     });
   });
 
@@ -428,7 +422,7 @@ describe('Journal Management Service', () => {
       it('should list all journals', async () => {
         const res = await request(app).get('/v1/journals');
 
-        expect(res.status).to.equal(200);
+        expect(res.status).toBe(200);
         expect(res.body.data.journals).to.be.an('array');
         expect(res.body.data.journals[0]).to.have.all.keys([
           'id',
@@ -449,7 +443,7 @@ describe('Journal Management Service', () => {
       it('should get journal details', async () => {
         const res = await request(app).get(`/v1/journals/${journal.id}`).set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(200);
+        expect(res.status).toBe(200);
         expect(res.body.data.journal).to.have.all.keys([
           'id',
           'name',
@@ -474,14 +468,14 @@ describe('Journal Management Service', () => {
         const newJournal = newJournalResult._unsafeUnwrap();
         const res = await request(app).get(`/v1/journals/${newJournal.id}`).set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
 
       it('should return 403 for a non existing journal', async () => {
         // 403 Because the user can't be a member of the journal
         const res = await request(app).get(`/v1/journals/999`).set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
     });
 
@@ -492,9 +486,9 @@ describe('Journal Management Service', () => {
           description: 'A new test journal',
         });
 
-        expect(res.status).to.equal(200);
+        expect(res.status).toBe(200);
         expect(res.body.data.journal).to.have.all.keys(['id', 'name', 'description', 'iconCid', 'createdAt']);
-        expect(res.body.data.journal.name).to.equal('New Journal');
+        expect(res.body.data.journal.name).toBe('New Journal');
       });
 
       it('should return 401 without auth token', async () => {
@@ -503,7 +497,7 @@ describe('Journal Management Service', () => {
           description: 'A new test journal',
         });
 
-        expect(res.status).to.equal(401);
+        expect(res.status).toBe(401);
       });
     });
 
@@ -517,9 +511,9 @@ describe('Journal Management Service', () => {
             description: 'Updated description',
           });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.journal.name).to.equal('Updated Journal');
-        expect(res.body.data.journal.description).to.equal('Updated description');
+        expect(res.status).toBe(200);
+        expect(res.body.data.journal.name).toBe('Updated Journal');
+        expect(res.body.data.journal.description).toBe('Updated description');
       });
 
       it('should return 403 for non-chief editor', async () => {
@@ -530,7 +524,7 @@ describe('Journal Management Service', () => {
             name: 'Updated Journal',
           });
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
     });
 
@@ -556,7 +550,7 @@ describe('Journal Management Service', () => {
             role: EditorRole.CHIEF_EDITOR,
           });
 
-        expect(res.status).to.equal(200);
+        expect(res.status).toBe(200);
       });
 
       it('should return 403 for non-chief editor', async () => {
@@ -567,7 +561,7 @@ describe('Journal Management Service', () => {
             role: EditorRole.CHIEF_EDITOR,
           });
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
     });
 
@@ -590,12 +584,12 @@ describe('Journal Management Service', () => {
           .delete(`/v1/journals/${journal.id}/editors/${editor.id}`)
           .set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(200);
+        expect(res.status).toBe(200);
 
         const editorExists = await prisma.journalEditor.findFirst({
           where: { journalId: journal.id, userId: editor.id },
         });
-        expect(editorExists).to.be.null;
+        expect(editorExists).toBeNull();
       });
 
       it('should return 403 for non-chief editor', async () => {
@@ -603,7 +597,7 @@ describe('Journal Management Service', () => {
           .delete(`/v1/journals/${journal.id}/editors/${editor.id}`)
           .set('authorization', `Bearer ${editorAuthToken}`);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
 
       it('should return 403 when trying to remove chief editor', async () => {
@@ -611,7 +605,7 @@ describe('Journal Management Service', () => {
           .delete(`/v1/journals/${journal.id}/editors/${user.id}`)
           .set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
     });
   });

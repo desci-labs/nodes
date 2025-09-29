@@ -3,7 +3,7 @@ services:
   nodes_test_db:
     container_name: "nodes_test_db"
     image: "postgres:12.6-alpine"
-    restart: on-failure
+    restart: no
     healthcheck:
       test: "pg_isready -U walter -d postgres"
       interval: 5s
@@ -11,42 +11,76 @@ services:
       retries: 5
     env_file:
       - .env.test
+    extra_hosts:
+      - host.docker.internal:host-gateway
     ports:
       - "5434:5432"
-    # volumes:
-    #   - ./database/test:/var/lib/postgresql/data/
 
   nodes_backend_test:
-    build: .
-    entrypoint: /bin/sh './desci-server/scripts/be-node-test.sh'
+    container_name: "nodes_backend_test"
+    build:
+      context: ./desci-server
+      dockerfile: Dockerfile.ci
+    entrypoint: ["/bin/sh", "./scripts/be-node-test.sh"]
+    restart: no
     env_file:
       - .env.test
+    environment:
+      # Conditionally start the server instead of invoking the integration test suite
+      RUN_SERVER: ${RUN_SERVER:-0}
+      DPID_URL_OVERRIDE: http://dpid_resolver_test:5460
+      # This is set in CI but not automatically passed to the container
+      GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
     ports:
-      - "5421:5420"
+      - "5421:5421"
       - "9227:9227"
       - "5557:5555"
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
       nodes_test_sync_service:
-        condition: service_started
+        condition: service_healthy
       nodes_test_db:
         condition: service_healthy
       nodes_test_ipfs:
+        condition: service_healthy
+      test_blockchain:
+        condition: service_healthy
+      dpid_resolver_test:
         condition: service_started
-      # nodes_test_repo_service:
-      #   condition: service_healthy
-    links:
-      - nodes_test_db
-    container_name: "nodes_backend_test"
-    volumes:
-      - .:/app/
-    #   - /app/node_modules
-    # volumes:
-    #   - ./tmp/nebulus:/tmp/nebulus
+    healthcheck:
+      test: curl -f http://localhost:5421/readyz || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  test_blockchain:
+    container_name: "test_blockchain"
+    build:
+      context: desci-contracts
+    restart: no
+    healthcheck:
+      test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' localhost:8545
+      interval: 10s
+      timeout: 15s
+      retries: 10
+    ports:
+      - "8545:8545"
+    env_file:
+      - desci-contracts/.env.test
+    environment:
+      PG_PORT: 5434
+      SKIP_SUBGRAPH: 1
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      nodes_test_db:
+        condition: service_healthy
 
   nodes_test_ipfs:
     image: ipfs/kubo:v0.26.0
+    restart: no
     environment:
       IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
     ports:
@@ -70,36 +104,13 @@ services:
       start_period: 10s
       timeout: 2s
 
-  # nodes_test_repo_service:
-  #   container_name: "nodes_test_repo_service"
-  #   entrypoint: /bin/sh './desci-repo/scripts/be-node-test.sh'
-  #   build: ./desci-repo
-  #   env_file:
-  #     - ./desci-repo/.env.test
-  #   ports:
-  #     - "5485:5484"
-  #     # - "5446:5445"
-  #   extra_hosts:
-  #     - host.docker.internal:host-gateway
-  #   healthcheck:
-  #     test: curl -f http://localhost:5484/readyz || exit 1
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #   depends_on:
-  #     - nodes_test_db
-  #   links:
-  #     - nodes_test_db
-  #   volumes:
-  #     - .:/app/
-  #     - ./local-data/yarn_cache:/root/.yarn
-
   nodes_test_sync_service:
+    container_name: nodes_sync_test_worker
     build:
       context: ./sync-server
       dockerfile: Dockerfile
-    container_name: nodes_sync_test_worker
     image: worker_test
+    restart: no
     ports:
       - "5446:5445"
     extra_hosts:
@@ -108,6 +119,101 @@ services:
       - ./sync-server:/usr/src/app
       - /usr/src/app/node_modules
     depends_on:
-      - nodes_test_db
+      nodes_test_db:
+        condition: service_healthy
     env_file:
       - ./sync-server/.env.test
+    healthcheck:
+      test: curl -f http://localhost:5445/health || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  nodes_lib_test:
+    container_name: nodes_lib_test
+    build:
+      context: ./nodes-lib
+      dockerfile: Dockerfile.test
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep 5 && npm test"]
+    restart: no
+    environment:
+      NODES_API_URL: http://nodes_backend_test:5421
+      CHAIN_RPC_URL: http://test_blockchain:8545
+      CERAMIC_ONE_RPC_URL: http://ceramic_one_test:5101
+      CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5102
+      # This is set in CI but not automatically passed to the container
+      GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
+    depends_on:
+      nodes_backend_test:
+        condition: service_healthy
+      test_blockchain:
+        condition: service_healthy
+      ceramic_one_test:
+        condition: service_healthy
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  ceramic_one_test:
+    container_name: ceramic_one_test
+    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
+    restart: no
+    ports:
+      - 5101:5101 # RPC
+      - 5102:5102 # flight SQL (> v0.53.0)
+    environment:
+      CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
+      CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
+      CERAMIC_ONE_BIND_ADDRESS: "0.0.0.0:5101"
+      CERAMIC_ONE_SWARM_ADDRESSES: "/ip4/0.0.0.0/tcp/4101,/ip4/0.0.0.0/udp/4102/quic-v1"
+      CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
+      CERAMIC_ONE_FLIGHT_SQL_BIND_ADDRESS: "0.0.0.0:5102"
+      CERAMIC_ONE_NETWORK: "inmemory"
+      RUST_LOG: "warn"
+      CERAMIC_ONE_LOG_FORMAT: "multi-line"
+    volumes:
+      - ./local-data/test/ceramic-one:/data/ceramic-one
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "ceramic-one",
+          "query",
+          "statement-query",
+          "select null from event_states limit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dpid_resolver_test:
+    image: descilabs/dpid-resolver:develop
+    container_name: dpid_resolver_test
+    restart: no
+    # Uncomment and set to local repo path for tinkering
+    # build:
+    #   context: ~/dev/desci/dpid-resolver
+    environment:
+      DPID_ENV: local
+      OPTIMISM_RPC_URL: http://test_blockchain:8545
+      CERAMIC_FLIGHT_URL: http://ceramic_one_test:5102
+      IPFS_GATEWAY: http://nodes_test_ipfs:8080/ipfs
+      CACHE_TTL_ANCHORED: 86400
+      CACHE_TTL_PENDING: 300
+    ports:
+      - "5460:5460"
+    healthcheck:
+      test: ["CMD", "curl", "--fail-with-body", "http://localhost:5460/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      nodes_test_ipfs:
+        condition: service_healthy
+      test_blockchain:
+        condition: service_healthy
+      ceramic_one_test:
+        condition: service_healthy

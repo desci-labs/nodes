@@ -1,4 +1,3 @@
-import 'mocha';
 import {
   Journal,
   User,
@@ -9,21 +8,14 @@ import {
   JournalEventLogAction,
   Node,
 } from '@prisma/client';
-import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
-import request from 'supertest';
+import { describe, it, beforeEach, expect } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
 import { JournalRefereeManagementService } from '../../../src/services/journals/JournalRefereeManagementService.js';
 import { journalSubmissionService } from '../../../src/services/journals/JournalSubmissionService.js';
 import { publishMockNode } from '../../util.js';
-
-server.ready().then((_) => {
-  console.log('Referee Management Test Server is ready');
-});
-export const app = server.app;
 
 describe('Journal Referee Management Service', () => {
   let chiefEditor: User;
@@ -133,8 +125,6 @@ describe('Journal Referee Management Service', () => {
     submission = { ...submission, ...updatedSubmission };
   });
 
-  afterEach(async () => {});
-
   describe('inviteReferee', () => {
     it('should successfully invite a referee', async () => {
       const inviteInput = {
@@ -144,13 +134,13 @@ describe('Journal Referee Management Service', () => {
         relativeDueDateHrs: 7 * 24, // 7 days
       };
       const result = await JournalRefereeManagementService.inviteReferee(inviteInput);
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const invite = result._unsafeUnwrap();
-      expect(invite.submissionId).to.equal(submission.id);
-      expect(invite.userId).to.equal(refereeUser.id);
-      expect(invite.invitedById).to.equal(associateEditor.id);
-      expect(invite.email).to.equal(refereeUser.email);
-      expect(invite.token).to.be.a('string');
+      expect(invite.submissionId).toBe(submission.id);
+      expect(invite.userId).toBe(refereeUser.id);
+      expect(invite.invitedById).toBe(associateEditor.id);
+      expect(invite.email).toBe(refereeUser.email);
+      expect(invite.token).toBeTypeOf('string');
 
       const eventLog = await prisma.journalEventLog.findFirst({
         where: {
@@ -159,7 +149,7 @@ describe('Journal Referee Management Service', () => {
         },
       });
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(associateEditor.id);
+      expect(eventLog?.userId).toBe(associateEditor.id);
     });
 
     it('should return error if referee user not found and no email is provided for external referee', async () => {
@@ -170,8 +160,8 @@ describe('Journal Referee Management Service', () => {
       };
 
       const result = await JournalRefereeManagementService.inviteReferee(inviteInput);
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee email is required');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee email is required');
     });
 
     it('should return error if submission not found', async () => {
@@ -182,8 +172,8 @@ describe('Journal Referee Management Service', () => {
       };
 
       const result = await JournalRefereeManagementService.inviteReferee(inviteInput);
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Submission not found');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Submission not found');
     });
   });
 
@@ -208,16 +198,16 @@ describe('Journal Referee Management Service', () => {
         inviteToken: invite.token,
         userId: refereeUser.id,
       });
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const acceptedInvite = result._unsafeUnwrap();
-      expect(acceptedInvite.accepted).to.be.true;
+      expect(acceptedInvite.accepted).toBe(true);
       expect(acceptedInvite.acceptedAt).to.be.instanceOf(Date);
 
       const assignment = await prisma.refereeAssignment.findFirst({
         where: { submissionId: submission.id, userId: refereeUser.id },
       });
       expect(assignment).to.not.be.null;
-      expect(assignment?.assignedById).to.equal(associateEditor.id);
+      expect(assignment?.assignedById).toBe(associateEditor.id);
 
       const eventLog = await prisma.journalEventLog.findFirst({
         where: {
@@ -226,7 +216,7 @@ describe('Journal Referee Management Service', () => {
         },
       });
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(refereeUser.id);
+      expect(eventLog?.userId).toBe(refereeUser.id);
     });
 
     it('should return error if invite token is invalid', async () => {
@@ -234,8 +224,8 @@ describe('Journal Referee Management Service', () => {
         inviteToken: 'invalid-token',
         userId: refereeUser.id,
       });
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee invite not found');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee invite not found');
     });
 
     it('should return error if invite is expired', async () => {
@@ -247,8 +237,8 @@ describe('Journal Referee Management Service', () => {
         inviteToken: invite.token,
         userId: refereeUser.id,
       });
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee invite not valid');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee invite not valid');
     });
 
     it('should return error if invite already accepted', async () => {
@@ -262,8 +252,8 @@ describe('Journal Referee Management Service', () => {
         inviteToken: invite.token,
         userId: refereeUser.id,
       });
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee invite not valid');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee invite not valid');
     });
 
     it('should return error if invite already declined', async () => {
@@ -272,8 +262,8 @@ describe('Journal Referee Management Service', () => {
         inviteToken: invite.token,
         userId: refereeUser.id,
       });
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee invite not valid');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee invite not valid');
     });
 
     it('should return error if max referees already assigned', async () => {
@@ -298,10 +288,10 @@ describe('Journal Referee Management Service', () => {
         inviteToken: invite.token, // Current referee's invite
         userId: refereeUser.id,
       });
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Maximum number of referees (3) already assigned');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Maximum number of referees (3) already assigned');
       const updatedInvite = await prisma.refereeInvite.findUnique({ where: { id: invite.id } });
-      expect(updatedInvite?.declined).to.be.true; // Invite should be marked as declined
+      expect(updatedInvite?.declined).toBe(true); // Invite should be marked as declined
     });
   });
 
@@ -315,12 +305,12 @@ describe('Journal Referee Management Service', () => {
         journalId: journal.id,
       };
       const result = await JournalRefereeManagementService.assignReferee(assignInput);
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const assignment = result._unsafeUnwrap();
-      expect(assignment.submissionId).to.equal(submission.id);
-      expect(assignment.userId).to.equal(refereeUser.id);
-      expect(assignment.assignedById).to.equal(associateEditor.id);
-      expect(assignment.journalId).to.equal(journal.id);
+      expect(assignment.submissionId).toBe(submission.id);
+      expect(assignment.userId).toBe(refereeUser.id);
+      expect(assignment.assignedById).toBe(associateEditor.id);
+      expect(assignment.journalId).toBe(journal.id);
       expect(assignment.dueDate).to.be.instanceOf(Date);
 
       const eventLog = await prisma.journalEventLog.findFirst({
@@ -330,7 +320,7 @@ describe('Journal Referee Management Service', () => {
         },
       });
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(refereeUser.id);
+      expect(eventLog?.userId).toBe(refereeUser.id);
     });
 
     it('should return error if submission not found for assignment', async () => {
@@ -342,8 +332,8 @@ describe('Journal Referee Management Service', () => {
         journalId: journal.id,
       };
       const result = await JournalRefereeManagementService.assignReferee(assignInput);
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Submission not found');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Submission not found');
     });
 
     it('should return error if referee user not found for assignment', async () => {
@@ -356,8 +346,8 @@ describe('Journal Referee Management Service', () => {
       };
 
       const result = await JournalRefereeManagementService.assignReferee(assignInput);
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee not found');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee not found');
     });
   });
 
@@ -380,11 +370,11 @@ describe('Journal Referee Management Service', () => {
         inviteToken: invite.token,
         userId: refereeUser.id,
       });
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const declinedInvite = result._unsafeUnwrap();
-      expect(declinedInvite.declined).to.be.true;
+      expect(declinedInvite.declined).toBe(true);
       expect(declinedInvite.declinedAt).to.be.instanceOf(Date);
-      expect(declinedInvite.userId).to.equal(refereeUser.id);
+      expect(declinedInvite.userId).toBe(refereeUser.id);
     });
 
     it('should successfully decline a valid referee invite (unauthed/token only)', async () => {
@@ -392,19 +382,19 @@ describe('Journal Referee Management Service', () => {
         inviteToken: invite.token,
         // No userId provided
       });
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const declinedInvite = result._unsafeUnwrap();
-      expect(declinedInvite.declined).to.be.true;
+      expect(declinedInvite.declined).toBe(true);
       expect(declinedInvite.declinedAt).to.be.instanceOf(Date);
-      expect(declinedInvite.userId).to.equal(refereeUser.id); // Should pick up from invite
+      expect(declinedInvite.userId).toBe(refereeUser.id); // Should pick up from invite
     });
 
     it('should return error if invite token is invalid for decline', async () => {
       const result = await JournalRefereeManagementService.declineRefereeInvite({
         inviteToken: 'invalid-token',
       });
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee invite not found');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee invite not found');
     });
 
     it('should return error if invite is expired for decline', async () => {
@@ -415,8 +405,8 @@ describe('Journal Referee Management Service', () => {
       const result = await JournalRefereeManagementService.declineRefereeInvite({
         inviteToken: invite.token,
       });
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee invite not valid');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee invite not valid');
     });
   });
 
@@ -468,10 +458,10 @@ describe('Journal Referee Management Service', () => {
 
     it('should get all active assignments for a specific referee', async () => {
       const result = await JournalRefereeManagementService.getRefereeAssignments(refereeUser.id);
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const assignments = result._unsafeUnwrap();
       expect(assignments).to.be.an('array').with.lengthOf(1);
-      expect(assignments[0].id).to.equal(assignment1.id);
+      expect(assignments[0].id).toBe(assignment1.id);
       // Ensure no dropped assignments are fetched for this specific referee if they had one
     });
 
@@ -531,12 +521,12 @@ describe('Journal Referee Management Service', () => {
         inviteToken: extraInviteRes.value.token,
         userId: extraReferee.id,
       });
-      expect(finalAcceptResult.isErr()).to.be.true;
-      expect(finalAcceptResult._unsafeUnwrapErr().message).to.equal('Maximum number of referees (3) already assigned');
+      expect(finalAcceptResult.isErr()).toBe(true);
+      expect(finalAcceptResult._unsafeUnwrapErr().message).toBe('Maximum number of referees (3) already assigned');
 
       // Verify the invite for extraReferee was marked as declined
       const declinedInvite = await prisma.refereeInvite.findUnique({ where: { token: extraInviteRes.value.token } });
-      expect(declinedInvite?.declined).to.be.true;
+      expect(declinedInvite?.declined).toBe(true);
     });
   });
 
@@ -557,8 +547,8 @@ describe('Journal Referee Management Service', () => {
         refereeUser.id,
         journal.id,
       );
-      expect(result.isOk()).to.be.true;
-      expect(result._unsafeUnwrap()).to.be.true;
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()).toBe(true);
     });
 
     it('should return false if referee is not assigned', async () => {
@@ -568,8 +558,8 @@ describe('Journal Referee Management Service', () => {
         anotherReferee.id,
         journal.id,
       );
-      expect(result.isOk()).to.be.true;
-      expect(result._unsafeUnwrap()).to.be.false;
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()).toBe(false);
     });
 
     it('should return false if submission does not exist for the check', async () => {
@@ -578,8 +568,8 @@ describe('Journal Referee Management Service', () => {
         refereeUser.id,
         journal.id,
       );
-      expect(result.isOk()).to.be.true; // The function itself doesn't error on non-existent submission, just returns false
-      expect(result._unsafeUnwrap()).to.be.false;
+      expect(result.isOk()).toBe(true); // The function itself doesn't error on non-existent submission, just returns false
+      expect(result._unsafeUnwrap()).toBe(false);
     });
   });
 
@@ -600,9 +590,9 @@ describe('Journal Referee Management Service', () => {
 
     it('should allow referee to invalidate their own assignment (drop out)', async () => {
       const result = await JournalRefereeManagementService.invalidateRefereeAssignment(assignment.id, refereeUser.id);
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const invalidatedAssignment = result._unsafeUnwrap();
-      expect(invalidatedAssignment.completedAssignment).to.be.false;
+      expect(invalidatedAssignment.completedAssignment).toBe(false);
 
       const eventLog = await prisma.journalEventLog.findFirst({
         where: {
@@ -611,8 +601,8 @@ describe('Journal Referee Management Service', () => {
         },
       });
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(refereeUser.id);
-      expect((eventLog?.details as any)?.authMethod).to.equal('referee');
+      expect(eventLog?.userId).toBe(refereeUser.id);
+      expect((eventLog?.details as any)?.authMethod).toBe('referee');
     });
 
     it('should allow assigned editor to invalidate an assignment', async () => {
@@ -620,9 +610,9 @@ describe('Journal Referee Management Service', () => {
         assignment.id,
         associateEditor.id,
       ); // associateEditor is assigned to submission
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const invalidatedAssignment = result._unsafeUnwrap();
-      expect(invalidatedAssignment.completedAssignment).to.be.false;
+      expect(invalidatedAssignment.completedAssignment).toBe(false);
       const eventLog = await prisma.journalEventLog.findFirst({
         where: {
           action: JournalEventLogAction.REFEREE_ASSIGNMENT_DROPPED,
@@ -630,14 +620,14 @@ describe('Journal Referee Management Service', () => {
         },
       });
       expect(eventLog).to.not.be.null;
-      expect((eventLog?.details as any)?.authMethod).to.equal('editor');
+      expect((eventLog?.details as any)?.authMethod).toBe('editor');
     });
 
     it('should allow chief editor to invalidate an assignment', async () => {
       const result = await JournalRefereeManagementService.invalidateRefereeAssignment(assignment.id, chiefEditor.id);
-      expect(result.isOk()).to.be.true;
+      expect(result.isOk()).toBe(true);
       const invalidatedAssignment = result._unsafeUnwrap();
-      expect(invalidatedAssignment.completedAssignment).to.be.false;
+      expect(invalidatedAssignment.completedAssignment).toBe(false);
       const eventLog = await prisma.journalEventLog.findFirst({
         where: {
           action: JournalEventLogAction.REFEREE_ASSIGNMENT_DROPPED,
@@ -645,13 +635,13 @@ describe('Journal Referee Management Service', () => {
         },
       });
       expect(eventLog).to.not.be.null;
-      expect((eventLog?.details as any)?.authMethod).to.equal('chiefEditor');
+      expect((eventLog?.details as any)?.authMethod).toBe('chiefEditor');
     });
 
     it('should return error if assignment not found', async () => {
       const result = await JournalRefereeManagementService.invalidateRefereeAssignment(9999, chiefEditor.id);
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee assignment not found');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Referee assignment not found');
     });
 
     it('should return error if user is not authorized to invalidate', async () => {
@@ -660,8 +650,8 @@ describe('Journal Referee Management Service', () => {
         assignment.id,
         unauthorizedUser.id,
       );
-      expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Unauthorized');
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toBe('Unauthorized');
     });
   });
 });

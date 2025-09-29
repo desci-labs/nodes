@@ -8,7 +8,8 @@ on:
       - .github/workflows/**
       - desci-server/**
       - desci-contracts/**
-      - Dockerfile
+      - integrationTestRunner.sh
+      - docker-compose.test.yml
     branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
       - main # triggers on pushes that contain changes
       - develop
@@ -30,55 +31,30 @@ env:
 jobs:
   build-and-test:
     runs-on: blacksmith-4vcpu-ubuntu-2204
-    # container:
-    #   image: ubuntu:latest
-    #   options: --user 1001
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Delete huge unnecessary tools folder
-        run: |
-          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
-          rm -rf /opt/hostedtoolcache
-          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
-
-      - name: Set up the environment
-        # Replace this line with the appropriate setup for your project
-        # Examples:
+      - name: Set up node
         uses: useblacksmith/setup-node@v5
         with:
           node-version-file: ".nvmrc"
           check-latest: false
           cache: "yarn"
           cache-dependency-path: |
-            desci-models/yarn.lock
             desci-server/yarn.lock
 
-      - name: Install dependencies
-        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn --ignore-engines
+      # Enable blacksmith docker layer caching
+      #- uses: useblacksmith/setup-docker-builder@v1
 
-      - name: Stub contract
-        run: |
-          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
-          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
-
-      - name: Set up Sentry CLI
-        run: |
-          npm install -g @sentry/cli
-          sentry-cli --version
-          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
-          # append to .env
-          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
+      - name: Install dependencies (desci-server)
+        working-directory: desci-server
+        run: yarn install --ignore-engines --frozen-lockfile
 
       - name: Run tests
         run: |
-          cd desci-server && export DOCKER_BUILDKIT=1 && yarn --ignore-engines && yarn test
-          echo "exit code $?"
-          if [ $? -ne 0 ]; then
-            exit 1
-          fi
+          SKIP_NODES_LIB=1 ./integrationTestRunner.sh
 
   build-and-push-images:
     # we build and push for every commit, even if tests pass, that way when tests pass deployment is short (run test + build in parallel)
@@ -106,56 +82,38 @@ jobs:
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
 
-      # - name: Check Docker Version
-      #   run: docker --version
-      # - name: Install Latest Docker
-      #   run: |
-      #     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-      #     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
-      #     sudo apt-get update
-      #     sudo apt-get install docker-ce
-      # - name: Check Docker Version
-      #   run: docker --version
-
-      - name: Stub contract
-        run: |
-          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
-          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
-
-      - name: Set up Sentry CLI
-        run: |
-          npm install -g @sentry/cli
-          sentry-cli --version
-          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
-          # append to .env
-          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
+      # Enable blacksmith docker layer caching
+      #- uses: useblacksmith/setup-docker-builder@v1
 
       - name: Build and tag the image (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
-          # Build and tag the image
           docker build \
+            --secret id=SENTRY_AUTH_TOKEN \
+            -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-dev:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
-             .
+             ./desci-server
 
       - name: Build and tag the image (DEMO)
         if: github.ref == 'refs/heads/demo'
         run: |
-          # Build and tag the image
           docker build \
+            --secret id=SENTRY_AUTH_TOKEN \
+            -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-demo:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo \
-             .
+             ./desci-server
 
       - name: Build and tag the image (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
-          # Build and tag the image
           docker build \
+            --secret id=SENTRY_AUTH_TOKEN \
+            -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
-             .
+             ./desci-server
 
       - name: Push (DEV)
         if: github.ref == 'refs/heads/develop'

@@ -6,8 +6,7 @@ import { stdSerializers } from 'pino';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { delFromCache } from '../../redisClient.js';
-import { directStreamLookup } from '../../services/ceramic.js';
-import { getManifestByCid } from '../../services/data/processing.js';
+import { dpidLookup, streamLookup } from '../../services/codex.js';
 import { ElasticNodesService } from '../../services/ElasticNodesService.js';
 import { dispatchExternalPublicationsCheck } from '../../services/externalPublications.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
@@ -22,7 +21,6 @@ import {
 } from '../../services/nodeManager.js';
 import { NotificationService } from '../../services/Notifications/NotificationService.js';
 import { PublishServices } from '../../services/PublishServices.js';
-import { _getIndexedResearchObjects } from '../../theGraph.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -185,20 +183,19 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     }
 
     // trigger external publications email if any
-    dispatchExternalPublicationsCheck(node);
+    void dispatchExternalPublicationsCheck(node).catch((err) =>
+      logger.warn(err, 'Error: Dispatching external publications check failed'),
+    );
 
-    res.status(200).send({
+    // Index on ES
+    void ElasticNodesService.indexResearchObject(node.uuid).catch((err) =>
+      logger.warn(err, 'Error: Indexing published node in ElasticSearch failed'),
+    );
+
+    return res.status(200).send({
       ok: true,
       dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
     });
-
-    // Index on ES
-    try {
-      ElasticNodesService.indexResearchObject(node.uuid);
-    } catch (err) {
-      logger.error({ err }, 'Error: Indexing published node in ElasticSearch failed');
-    }
-    return null;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
     saveInteraction({
@@ -301,22 +298,27 @@ const syncPublish = async (
   logger.trace('[publish promises fulfilled]');
 
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
+
   // Intentionally above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  await PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId);
+  void PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId).catch((err) =>
+    logger.warn(err, 'Error: Handling deferred emails failed'),
+  );
 
   /*
    * Emit notification on publish
    */
-  await NotificationService.emitOnPublish(node, owner, dpid, publishStatusId);
+  void NotificationService.emitOnPublish(node, owner, dpid, publishStatusId).catch((err) =>
+    logger.warn(err, 'Error: Emitting on publish failed'),
+  );
 
   const targetDpidUrl = getTargetDpidUrl();
-  discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
+  void discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
 
   /**
    * Save the cover art for this Node for later sharing: PDF -> JPG for this version
    */
-  cacheNodeMetadata(node.uuid, cid);
+  void cacheNodeMetadata(node.uuid, cid).catch((err) => logger.warn(err, 'Error: Caching node metadata failed'));
   return dpidAlias;
 };
 
@@ -340,26 +342,18 @@ export const createOrUpgradeDpidAlias = async (
 
   let dpidAlias: number;
   if (legacyDpid) {
-    // Use subgraph lookup to ensure we don't get the owner from the stream and compare with itself
-    const legacyHistory = await _getIndexedResearchObjects([uuid]);
+    const dpidInfo = await dpidLookup(legacyDpid);
 
-    // On the initial legacy publish, the subgraph hasn't had time to index the event at this point.
-    // If it returns successfully, but array is empty, we can assume this is the first publish.
-    // and OK the check as there isn't any older history to contend with.
-    // This likely only happens in the legacy publish tests in nodes-lib, as legacy publish is disabled in the app.
-    const legacyOwner = legacyHistory.researchObjects[0]?.owner;
-
-    const streamInfo = await directStreamLookup(ceramicStream);
-    if ('err' in streamInfo) {
-      logger.error(streamInfo, 'Failed to load stream when doing checks before upgrade');
-      throw new Error('Failed to load stream');
+    if (dpidInfo.id !== '') {
+      logger.warn(dpidInfo, 'Got unexpected stream ID on legacy dPID lookup!');
     }
-    const streamController = streamInfo.state.metadata.controllers[0].toLowerCase();
-    const differentOwner = legacyOwner?.toLowerCase() !== streamController.split(':').pop().toLowerCase();
 
-    // Caveat from above: if there was a legacyDpid, but no owner, we're likely in the middle of that process
-    // and nodes-lib has published both with the same key regardless
-    if (differentOwner && legacyOwner !== undefined) {
+    const legacyOwner = dpidInfo.owner.toLowerCase();
+
+    const streamInfo = await streamLookup(ceramicStream);
+    const streamController = streamInfo.owner.toLowerCase();
+
+    if (legacyOwner !== streamController) {
       logger.error({ streamController, legacyOwner }, 'Legacy owner and stream controller differs');
       throw new Error('Legacy owner and stream controller differs');
     }
@@ -460,142 +454,5 @@ export const handlePublicDataRefs = async (params: PublishData): Promise<void> =
       },
     });
     throw error;
-  }
-};
-
-export const publishHandler = async ({
-  transactionId,
-  userId,
-  ceramicStream,
-  commitId,
-  cid,
-  uuid,
-}: {
-  transactionId: string;
-  cid: string;
-  userId: number;
-  uuid: string;
-  ceramicStream: string;
-  commitId: string;
-}) => {
-  const logger = parentLogger.child({
-    // id: req.id,
-    module: 'NODE::publishTask',
-    uuid,
-    cid,
-    transactionId,
-  });
-  try {
-    /**TODO: MOVE TO MIDDLEWARE */
-    const owner = await prisma.user.findFirst({
-      where: {
-        id: userId,
-      },
-    });
-
-    if (!owner.id || owner.id < 1) {
-      throw Error('User ID mismatch');
-    }
-
-    const node = await prisma.node.findFirst({
-      where: {
-        ownerId: owner.id,
-        uuid: ensureUuidEndsWithDot(uuid),
-      },
-    });
-
-    if (!node) {
-      logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
-      // return res.status(400).json({ error: 'failed' });
-      throw new Error('Node not found');
-    }
-    /**TODO: END MOVE TO MIDDLEWARE */
-
-    /*
-     ** Add PublishStatus entry
-     */
-    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
-    await PublishServices.updatePublishStatusEntry({
-      publishStatusId: publishStatusEntry.id,
-      data: {
-        commitId: commitId,
-        ceramicCommit: true,
-      },
-    });
-
-    // update node version
-    const latestNodeVersion = await prisma.nodeVersion.findFirst({
-      where: {
-        nodeId: node.id,
-      },
-      orderBy: {
-        id: 'desc',
-      },
-    });
-
-    // Prevent duplicating the NodeVersion entry if the latest version is the same as the one we're trying to publish, as a draft save is triggered before publishing
-    const latestNodeVersionId = latestNodeVersion?.manifestUrl === cid ? latestNodeVersion.id : -1;
-
-    const nodeVersion = await prisma.nodeVersion.upsert({
-      where: {
-        id: latestNodeVersionId,
-      },
-      update: {
-        transactionId,
-        commitId,
-      },
-      create: {
-        nodeId: node.id,
-        manifestUrl: cid,
-        transactionId,
-        commitId,
-      },
-    });
-
-    // Prevent removing the stream info if subsequent publish request is missing it
-    if (ceramicStream) {
-      logger.trace(`[ceramic] setting streamID ${ceramicStream} on node ${uuid}`);
-      await setCeramicStream(uuid, ceramicStream);
-    } else {
-      // Likely feature toggle is active in backend, but not in frontend
-      logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`);
-    }
-
-    logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
-
-    await handlePublicDataRefs({
-      nodeId: node.id,
-      nodeUuid: node.uuid,
-      userId: owner.id,
-      manifestCid: cid,
-      nodeVersionId: nodeVersion.id,
-      publishStatusId: publishStatusEntry.id,
-    });
-
-    const manifest = await getManifestByCid(cid);
-    const targetDpidUrl = getTargetDpidUrl();
-    discordNotify({ message: `${targetDpidUrl}/${manifest.dpid?.id}` });
-
-    const dpid = node.dpidAlias?.toString() ?? manifest.dpid?.id;
-
-    /**
-     * Fire off any deferred emails awaiting publish
-     */
-    await PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusEntry.id);
-
-    /*
-     * Emit notification on publish
-     */
-    await NotificationService.emitOnPublish(node, owner, dpid, publishStatusEntry.id);
-
-    /**
-     * Save the cover art for this Node for later sharing: PDF -> JPG for this version
-     */
-    cacheNodeMetadata(node.uuid, cid);
-
-    return true;
-  } catch (err) {
-    logger.error({ err }, '[publish::publish] node-publish-err');
-    return false;
   }
 };

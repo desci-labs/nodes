@@ -1,22 +1,15 @@
-import 'mocha';
 import { Journal, User, JournalSubmission, EditorRole, Node } from '@prisma/client';
-import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
+import { describe, it, beforeEach, expect } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
 import { JournalRefereeManagementService } from '../../../src/services/journals/JournalRefereeManagementService.js';
 import { journalSubmissionService } from '../../../src/services/journals/JournalSubmissionService.js';
+import { app } from '../../testApp.js';
 import { createDraftNode, publishMockNode } from '../../util.js';
-
-server.ready().then((_) => {
-  console.log('Referee Management Validation Test Server is ready');
-});
-
-const app = server.server;
 
 describe('Journal Referee Management Validation', () => {
   let chiefEditor: User;
@@ -149,10 +142,10 @@ describe('Journal Referee Management Validation', () => {
             relativeDueDateHrs,
           });
 
-          expect(result.isOk()).to.be.true;
+          expect(result.isOk()).toBe(true);
           if (result.isOk()) {
             result.match(
-              (invite) => expect(invite.relativeDueDateHrs).to.equal(relativeDueDateHrs),
+              (invite) => expect(invite.relativeDueDateHrs).toBe(relativeDueDateHrs),
               () => {
                 throw new Error('Expected success');
               },
@@ -174,13 +167,13 @@ describe('Journal Referee Management Validation', () => {
           relativeDueDateHrs: 24, // Below min of 48
         });
 
-        expect(result.isErr()).to.be.true;
+        expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           result.match(
             () => {
               throw new Error('Expected error');
             },
-            (error) => expect(error.message).to.equal('Review due date must be between 48 and 240 hours'),
+            (error) => expect(error.message).toBe('Review due date must be between 48 and 240 hours'),
           );
         }
       });
@@ -193,13 +186,13 @@ describe('Journal Referee Management Validation', () => {
           relativeDueDateHrs: 300, // Above max of 240
         });
 
-        expect(result.isErr()).to.be.true;
+        expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           result.match(
             () => {
               throw new Error('Expected error');
             },
-            (error) => expect(error.message).to.equal('Review due date must be between 48 and 240 hours'),
+            (error) => expect(error.message).toBe('Review due date must be between 48 and 240 hours'),
           );
         }
       });
@@ -212,10 +205,10 @@ describe('Journal Referee Management Validation', () => {
           // relativeDueDateHrs not provided
         });
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           result.match(
-            (invite) => expect(invite.relativeDueDateHrs).to.equal(96), // default from settings
+            (invite) => expect(invite.relativeDueDateHrs).toBe(96), // default from settings
             () => {
               throw new Error('Expected success');
             },
@@ -236,7 +229,7 @@ describe('Journal Referee Management Validation', () => {
             inviteExpiryHours,
           });
 
-          expect(result.isOk()).to.be.true;
+          expect(result.isOk()).toBe(true);
 
           if (result.isOk()) {
             // Check that the invite expires at the correct time
@@ -270,9 +263,9 @@ describe('Journal Referee Management Validation', () => {
           inviteExpiryHours: 12, // Below min of 24
         });
 
-        expect(result.isErr()).to.be.true;
+        expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result._unsafeUnwrapErr().message).to.equal('Invite expiry must be between 24 and 120 hours');
+          expect(result._unsafeUnwrapErr().message).toBe('Invite expiry must be between 24 and 120 hours');
         }
       });
 
@@ -284,9 +277,9 @@ describe('Journal Referee Management Validation', () => {
           inviteExpiryHours: 200, // Above max of 120
         });
 
-        expect(result.isErr()).to.be.true;
+        expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result._unsafeUnwrapErr().message).to.equal('Invite expiry must be between 24 and 120 hours');
+          expect(result._unsafeUnwrapErr().message).toBe('Invite expiry must be between 24 and 120 hours');
         }
       });
 
@@ -298,7 +291,7 @@ describe('Journal Referee Management Validation', () => {
           // inviteExpiryHours not provided
         });
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
 
         if (result.isOk()) {
           // Check that the invite expires at the default time (72 hours)
@@ -322,9 +315,9 @@ describe('Journal Referee Management Validation', () => {
           inviteExpiryHours: 48, // 2 days - valid
         });
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         if (result.isOk()) {
-          expect(result._unsafeUnwrap().relativeDueDateHrs).to.equal(144);
+          expect(result._unsafeUnwrap().relativeDueDateHrs).toBe(144);
 
           const now = Date.now();
           const expectedExpiryTime = now + 48 * 60 * 60 * 1000;
@@ -342,9 +335,9 @@ describe('Journal Referee Management Validation', () => {
           inviteExpiryHours: 48, // Valid
         });
 
-        expect(result.isErr()).to.be.true;
+        expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result._unsafeUnwrapErr().message).to.equal('Review due date must be between 48 and 240 hours');
+          expect(result._unsafeUnwrapErr().message).toBe('Review due date must be between 48 and 240 hours');
         }
       });
 
@@ -357,9 +350,9 @@ describe('Journal Referee Management Validation', () => {
           inviteExpiryHours: 200, // Invalid - above max
         });
 
-        expect(result.isErr()).to.be.true;
+        expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result._unsafeUnwrapErr().message).to.equal('Invite expiry must be between 24 and 120 hours');
+          expect(result._unsafeUnwrapErr().message).toBe('Invite expiry must be between 24 and 120 hours');
         }
       });
     });
@@ -377,8 +370,8 @@ describe('Journal Referee Management Validation', () => {
             inviteExpiryHours: 48, // Valid - 2 days
           });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.invite.relativeDueDateHrs).to.equal(120);
+        expect(res.status).toBe(200);
+        expect(res.body.data.invite.relativeDueDateHrs).toBe(120);
       });
 
       it('should return 400 for invalid relativeDueDateHrs', async () => {
@@ -390,8 +383,8 @@ describe('Journal Referee Management Validation', () => {
             relativeDueDateHrs: 24, // Invalid - below min of 48
           });
 
-        expect(res.status).to.equal(400);
-        expect(res.body.message).to.equal('Review due date must be between 48 and 240 hours');
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe('Review due date must be between 48 and 240 hours');
       });
 
       it('should return 400 for invalid inviteExpiryHours', async () => {
@@ -403,8 +396,8 @@ describe('Journal Referee Management Validation', () => {
             inviteExpiryHours: 12, // Invalid - below min of 24
           });
 
-        expect(res.status).to.equal(400);
-        expect(res.body.message).to.equal('Invite expiry must be between 24 and 120 hours');
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe('Invite expiry must be between 24 and 120 hours');
       });
 
       it('should use defaults when relativeDueDateHrs and inviteExpiryHours not provided', async () => {
@@ -416,8 +409,8 @@ describe('Journal Referee Management Validation', () => {
             // No relativeDueDateHrs or inviteExpiryHours provided
           });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.invite.relativeDueDateHrs).to.equal(96); // default from settings
+        expect(res.status).toBe(200);
+        expect(res.body.data.invite.relativeDueDateHrs).toBe(96); // default from settings
       });
 
       it('should validate against journal-specific settings', async () => {
@@ -479,8 +472,8 @@ describe('Journal Referee Management Validation', () => {
             relativeDueDateHrs: 48, // Valid for first journal, but below min (72) for strict journal
           });
 
-        expect(res.status).to.equal(400);
-        expect(res.body.message).to.equal('Review due date must be between 72 and 168 hours');
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe('Review due date must be between 72 and 168 hours');
       });
     });
   });
@@ -493,14 +486,14 @@ describe('Journal Referee Management Validation', () => {
         refereeUserId: refereeUser.id,
         managerUserId: associateEditor.id,
       });
-      expect(firstInviteResult.isOk()).to.be.true;
+      expect(firstInviteResult.isOk()).toBe(true);
 
       // Accept first invite
       const acceptResult = await JournalRefereeManagementService.acceptRefereeInvite({
         inviteToken: firstInviteResult._unsafeUnwrap().token,
         userId: refereeUser.id,
       });
-      expect(acceptResult.isOk()).to.be.true;
+      expect(acceptResult.isOk()).toBe(true);
 
       // Create another referee user
       const secondReferee = await prisma.user.create({
@@ -513,14 +506,14 @@ describe('Journal Referee Management Validation', () => {
         refereeUserId: secondReferee.id,
         managerUserId: associateEditor.id,
       });
-      expect(secondInviteResult.isOk()).to.be.true;
+      expect(secondInviteResult.isOk()).toBe(true);
 
       // Accept second invite
       const secondAcceptResult = await JournalRefereeManagementService.acceptRefereeInvite({
         inviteToken: secondInviteResult._unsafeUnwrap().token,
         userId: secondReferee.id,
       });
-      expect(secondAcceptResult.isOk()).to.be.true;
+      expect(secondAcceptResult.isOk()).toBe(true);
 
       // Create third referee user
       const thirdReferee = await prisma.user.create({
@@ -533,18 +526,16 @@ describe('Journal Referee Management Validation', () => {
         refereeUserId: thirdReferee.id,
         managerUserId: associateEditor.id,
       });
-      expect(thirdInviteResult.isOk()).to.be.true;
+      expect(thirdInviteResult.isOk()).toBe(true);
 
       // But accepting third invite should fail (exceeds limit of 2)
       const thirdAcceptResult = await JournalRefereeManagementService.acceptRefereeInvite({
         inviteToken: thirdInviteResult._unsafeUnwrap().token,
         userId: thirdReferee.id,
       });
-      expect(thirdAcceptResult.isErr()).to.be.true;
+      expect(thirdAcceptResult.isErr()).toBe(true);
       if (thirdAcceptResult.isErr()) {
-        expect(thirdAcceptResult._unsafeUnwrapErr().message).to.equal(
-          'Maximum number of referees (2) already assigned',
-        );
+        expect(thirdAcceptResult._unsafeUnwrapErr().message).toBe('Maximum number of referees (2) already assigned');
       }
     });
   });

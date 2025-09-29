@@ -1,4 +1,3 @@
-import { newCeramicClient, resolveHistory } from '@desci-labs/desci-codex-lib';
 import {
   DpidAliasRegistry,
   type DpidMintedEvent,
@@ -7,10 +6,10 @@ import { ethers } from 'ethers';
 import { Response } from 'express';
 import { Logger } from 'pino';
 
-import { CERAMIC_API_URL } from '../../config/index.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { getAliasRegistry, getHotWallet, getRegistryOwnerWallet } from '../../services/chain.js';
+import { streamLookup } from '../../services/codex.js';
 import { setDpidAlias } from '../../services/nodeManager.js';
 
 type DpidResponse = DpidSuccessResponse | DpidErrorResponse;
@@ -128,27 +127,26 @@ export const upgradeDpid = async (dpid: number, ceramicStream: string): Promise<
  * the new stream accurately represents the publish history.
  */
 const validateHistory = async (dpid: number, ceramicStream: string, registry: DpidAliasRegistry, logger: Logger) => {
-  const client = newCeramicClient(CERAMIC_API_URL);
   const legacyEntry = await registry.legacyLookup(dpid);
-
-  const streamEvents = await resolveHistory(client, ceramicStream);
-  const streamStates = await Promise.all(
-    streamEvents.map((s) => s.commit).map((c) => client.loadStream(c).then((state) => state.content)),
-  );
-
   const [_owner, legacyVersions] = legacyEntry;
 
+  const stream = await streamLookup(ceramicStream);
+  const streamVersions = stream.versions;
+
   // Stream could have one or more additional entries
-  if (legacyVersions.length > streamStates.length) {
-    logger.error({ legacyVersions, streamStates }, 'Stream has shorter history than legacy dPID');
+  if (legacyVersions.length > streamVersions.length) {
+    logger.error({ legacyVersions, versions: streamVersions }, 'Stream has shorter history than legacy dPID');
     return false;
   }
 
   for (const [i, legacyVersion] of legacyVersions.entries()) {
     // Cant compare timestamp because anchor time WILL differ
     const expectedCid = legacyVersion[0];
-    if (expectedCid !== streamStates[i].manifest) {
-      logger.error({ legacyVersions, streamStates }, 'Manifest CID mismatch between legacy and stream history');
+    if (expectedCid !== streamVersions[i].manifest) {
+      logger.error(
+        { legacyVersions, versions: streamVersions },
+        'Manifest CID mismatch between legacy and stream history',
+      );
       return false;
     }
   }

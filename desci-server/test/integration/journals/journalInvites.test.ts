@@ -1,17 +1,11 @@
-import 'mocha';
 import { EditorRole, Journal, User } from '@prisma/client';
-import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { describe, it, beforeEach, expect } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import { JournalInviteService } from '../../../src/services/journals/JournalInviteService.js';
-
-server.ready().then((_) => {
-  console.log('server is ready');
-});
-export const app = server.app;
+import { app } from '../../testApp.js';
 
 describe('Journal Invite Service', () => {
   let user: User;
@@ -67,11 +61,11 @@ describe('Journal Invite Service', () => {
         role: EditorRole.ASSOCIATE_EDITOR,
       });
 
-      expect(invite.journalId).to.equal(journal.id);
-      expect(invite.email).to.equal('neweditor@example.com');
-      expect(invite.role).to.equal(EditorRole.ASSOCIATE_EDITOR);
-      expect(invite.token).to.be.a('string');
-      expect(invite.expiresAt).to.be.a('Date');
+      expect(invite.journalId).toBe(journal.id);
+      expect(invite.email).toBe('neweditor@example.com');
+      expect(invite.role).toBe(EditorRole.ASSOCIATE_EDITOR);
+      expect(invite.token).toBeTypeOf('string');
+      expect(invite.expiresAt).toBeInstanceOf(Date);
     });
 
     it('should create an event log entry when inviting an editor', async () => {
@@ -88,7 +82,7 @@ describe('Journal Invite Service', () => {
       });
 
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(user.id);
+      expect(eventLog?.userId).toBe(user.id);
       expect(eventLog?.details).to.deep.include({
         email: 'neweditor@example.com',
         role: EditorRole.ASSOCIATE_EDITOR,
@@ -106,7 +100,7 @@ describe('Journal Invite Service', () => {
         });
         expect.fail('Should have thrown error');
       } catch (error) {
-        expect(error.message).to.equal('Journal not found');
+        expect(error.message).toBe('Journal not found');
       }
     });
 
@@ -119,7 +113,7 @@ describe('Journal Invite Service', () => {
         } as any);
         expect.fail('Should have thrown error');
       } catch (error) {
-        expect(error.message).to.equal('Email required');
+        expect(error.message).toBe('Email required');
       }
     });
   });
@@ -143,15 +137,15 @@ describe('Journal Invite Service', () => {
         userId: editor.id,
       });
 
-      expect(result.accepted).to.be.true;
-      expect(result.decisionAt).to.be.a('Date');
+      expect(result.accepted).toBe(true);
+      expect(result.decisionAt).toBeInstanceOf(Date);
 
       const editorRecord = await prisma.journalEditor.findFirst({
         where: { journalId: journal.id, userId: editor.id },
       });
 
       expect(editorRecord).to.not.be.null;
-      expect(editorRecord?.role).to.equal(EditorRole.ASSOCIATE_EDITOR);
+      expect(editorRecord?.role).toBe(EditorRole.ASSOCIATE_EDITOR);
     });
 
     it('should create an event log entry when accepting invite', async () => {
@@ -165,7 +159,7 @@ describe('Journal Invite Service', () => {
       });
 
       expect(eventLog).to.not.be.null;
-      expect(eventLog?.userId).to.equal(editor.id);
+      expect(eventLog?.userId).toBe(editor.id);
       expect(eventLog?.details).to.deep.include({
         email: editor.email,
         role: EditorRole.ASSOCIATE_EDITOR,
@@ -180,7 +174,7 @@ describe('Journal Invite Service', () => {
         });
         expect.fail('Should have thrown error');
       } catch (error) {
-        expect(error.message).to.equal('Invite not found');
+        expect(error.message).toBe('Invite not found');
       }
     });
 
@@ -198,7 +192,7 @@ describe('Journal Invite Service', () => {
         });
         expect.fail('Should have thrown error');
       } catch (error) {
-        expect(error.message).to.equal('Invite expired');
+        expect(error.message).toBe('Invite expired');
       }
     });
   });
@@ -221,14 +215,14 @@ describe('Journal Invite Service', () => {
         token: invite.token,
       });
 
-      expect(result.accepted).to.be.false;
-      expect(result.decisionAt).to.be.a('Date');
+      expect(result.accepted).toBe(false);
+      expect(result.decisionAt).toBeInstanceOf(Date);
 
       const editorRecord = await prisma.journalEditor.findFirst({
         where: { journalId: journal.id, userId: editor.id },
       });
 
-      expect(editorRecord).to.be.null;
+      expect(editorRecord).toBeNull();
     });
 
     it('should create an event log entry when declining invite', async () => {
@@ -254,7 +248,7 @@ describe('Journal Invite Service', () => {
         });
         expect.fail('Should have thrown error');
       } catch (error) {
-        expect(error.message).to.equal('Invite not found');
+        expect(error.message).toBe('Invite not found');
       }
     });
 
@@ -271,7 +265,7 @@ describe('Journal Invite Service', () => {
         });
         expect.fail('Should have thrown error');
       } catch (error) {
-        expect(error.message).to.equal('Invite expired');
+        expect(error.message).toBe('Invite expired');
       }
     });
   });
@@ -298,7 +292,7 @@ describe('Journal Invite Service', () => {
             name: 'Test Editor',
           });
 
-        expect(res.status).to.equal(200);
+        expect(res.status).toBe(200);
         expect(res.body.data.invite).to.have.all.keys([
           'id',
           'email',
@@ -316,7 +310,7 @@ describe('Journal Invite Service', () => {
           role: EditorRole.ASSOCIATE_EDITOR,
         });
 
-        expect(res.status).to.equal(401);
+        expect(res.status).toBe(401);
       });
 
       it('should return 403 for non-chief editor', async () => {
@@ -329,7 +323,7 @@ describe('Journal Invite Service', () => {
             name: 'Test Editor',
           });
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
     });
 
@@ -355,8 +349,8 @@ describe('Journal Invite Service', () => {
             decision: 'accept',
           });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.invite.accepted).to.be.true;
+        expect(res.status).toBe(200);
+        expect(res.body.data.invite.accepted).toBe(true);
       });
 
       it('should decline an editor invite', async () => {
@@ -368,8 +362,8 @@ describe('Journal Invite Service', () => {
             decision: 'decline',
           });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.invite.accepted).to.be.false;
+        expect(res.status).toBe(200);
+        expect(res.body.data.invite.accepted).toBe(false);
       });
 
       it('should return 401 without auth token', async () => {
@@ -378,7 +372,7 @@ describe('Journal Invite Service', () => {
           decision: 'accept',
         });
 
-        expect(res.status).to.equal(401);
+        expect(res.status).toBe(401);
       });
 
       it('should return 400 for invalid token', async () => {
@@ -390,7 +384,7 @@ describe('Journal Invite Service', () => {
             decision: 'accept',
           });
 
-        expect(res.status).to.equal(400);
+        expect(res.status).toBe(400);
       });
     });
 
@@ -418,8 +412,8 @@ describe('Journal Invite Service', () => {
             inviteTtlDays: 14,
           });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.invite.id).to.equal(invite.id);
+        expect(res.status).toBe(200);
+        expect(res.body.data.invite.id).toBe(invite.id);
         expect(res.body.data.invite.token).to.not.equal(originalToken);
         expect(res.body.data.invite.expiresAt).to.not.equal(originalExpiresAt);
       });
@@ -432,7 +426,7 @@ describe('Journal Invite Service', () => {
             inviteTtlDays: 7,
           });
 
-        expect(res.status).to.equal(404);
+        expect(res.status).toBe(404);
       });
 
       it('should return 400 for already responded invite', async () => {
@@ -444,8 +438,7 @@ describe('Journal Invite Service', () => {
             token: invite.token,
             decision: 'accept',
           });
-        console.log('res', res.body);
-        expect(res.status).to.equal(200);
+        expect(res.status).toBe(200);
 
         // Then try to resend it
         res = await request(app)
@@ -454,8 +447,7 @@ describe('Journal Invite Service', () => {
           .send({
             inviteTtlDays: 7,
           });
-        console.log('res', res.body);
-        expect(res.status).to.equal(400);
+        expect(res.status).toBe(400);
         expect(res.body.message).to.include('Cannot resend invite that has already been responded to');
       });
 
@@ -467,7 +459,7 @@ describe('Journal Invite Service', () => {
             inviteTtlDays: 7,
           });
 
-        expect(res.status).to.equal(403);
+        expect(res.status).toBe(403);
       });
 
       it('should return 401 without auth token', async () => {
@@ -475,7 +467,7 @@ describe('Journal Invite Service', () => {
           inviteTtlDays: 7,
         });
 
-        expect(res.status).to.equal(401);
+        expect(res.status).toBe(401);
       });
 
       it('should create event log entry when resending invite', async () => {

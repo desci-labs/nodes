@@ -1,5 +1,5 @@
-import 'mocha';
 import { User } from '@prisma/client';
+import { describe, it, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import * as invites from '../../src/services/invites.js';
@@ -8,9 +8,9 @@ import { expectThrowsAsync } from '../util.js';
 describe('Invites', () => {
   let admin: User;
   let regular: User;
-  before(async () => {});
+  beforeAll(async () => {});
 
-  after(async () => {});
+  afterAll(async () => {});
 
   beforeEach(async () => {
     // console.log('TRUNCATE');
@@ -46,8 +46,6 @@ describe('Invites', () => {
     it('allows resending invite', async () => {
       const code1 = await invites.inviteUser(admin, 'philipp@desci.com');
       const code2 = await invites.inviteUser(admin, 'philipp@desci.com');
-
-      console.log('2 invite Codes', code1, code2);
 
       await expectThrowsAsync(() => invites.acceptInvite(code1, 'philipp@desci.com'), 'Invite code invalid');
 

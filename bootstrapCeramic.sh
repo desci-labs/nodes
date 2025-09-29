@@ -46,7 +46,7 @@ if ! grep -q ceramic <<<"$RUNNING_SERVICES"; then
     -f docker-compose.dev.yml \
     -f docker-compose.yml \
     --project-name desci \
-    up ceramic \
+    up ceramic ceramic-one \
     --detach
   sleep 5
 else
@@ -64,6 +64,11 @@ npx --yes @composedb/cli composite:deploy \
   --ceramic-url="http://localhost:7007" \
   --did-private-key="$CERAMIC_ADMIN_SEED"
 
+echo "$CTX Deploying ceramic-one models..."
+CERAMIC_ONE_RPC_URL="http://localhost:5101" PRIVATE_KEY="$CERAMIC_ADMIN_SEED" npx --yes @desci-labs/desci-codex-models deploy
+CERAMIC_ONE_RPC_URL="http://localhost:5101" npx --yes @desci-labs/desci-codex-models register
+
+
 sleep 5
 echo "$CTX Deployment all good, probably!"
 
@@ -72,6 +77,6 @@ if [ "$WAS_RUNNING" -eq "0" ]; then
   docker compose --project-name desci stop
 else
   echo "$CTX Leaving compose services up as they were already running when we started."
-fi 
+fi
 
 echo "$CTX Done! You need to run me again if local data is wiped."

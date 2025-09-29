@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
 import type {
   AddCodeComponentParams,
@@ -7,20 +6,17 @@ import type {
   CreateDraftParams,
   ExternalUrl,
   NodeResponse,
-  LegacyPublishResponse,
+  PublishResponse,
   RetrieveResponse,
   UploadFilesResponse,
-} from "../src/api.js";
+} from "../src/shared/api.js";
 import {
   createDraftNode,
   getDraftNode,
-  publishDraftNode,
   createNewFolder,
   retrieveDraftFileTree,
   moveData,
-  uploadFiles,
   deleteDraftNode,
-  getDpidHistory,
   deleteData,
   addPdfComponent,
   addCodeComponent,
@@ -41,12 +37,10 @@ import {
   updateCoverImage,
   publishNode,
   getLegacyHistory,
-} from "../src/api.js";
+} from "../src/shared/api.js";
 import axios from "axios";
-import { getCodexHistory, getCurrentState, getRawState } from "../src/codex.js";
-import { dpidPublish, findDpid } from "../src/chain.js";
+import { getStreamController } from "../src/shared/codex.js";
 import { sleep } from "./util.js";
-import { convert0xHexToCid } from "../src/util/converting.js";
 import {
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentCodeSubtype,
@@ -61,16 +55,23 @@ import {
 import {
   authorizedSessionDidFromSigner,
   signerFromPkey,
-} from "../src/util/signing.js";
+} from "../src/shared/util/signing.js";
+import { getResources } from "@desci-labs/desci-codex-lib";
+import { Signer } from "ethers";
+import { DpidAliasRegistry } from "@desci-labs/desci-contracts/dist/typechain-types/index.js";
+import { dpidAliasRegistryWriter, findDpid } from "../src/shared/chain.js";
+import { randomInt } from "crypto";
 import {
-  NODESLIB_CONFIGS,
+  getCodexHistory,
+  getCurrentState,
+} from "../src/node-only/flight-sql.js";
+import { uploadFiles } from "../src/node-only/file-uploads.js";
+import {
   getNodesLibInternalConfig,
+  NODESLIB_CONFIGS,
   setApiKey,
   setNodesLibConfig,
-} from "../src/index.js";
-import { getResources } from "@desci-labs/desci-codex-lib";
-import { contracts, typechain as tc } from "@desci-labs/desci-contracts";
-import { Wallet, providers } from "ethers";
+} from "../src/node.js";
 
 // Pre-funded ganache account
 const TEST_PKEY =
@@ -90,9 +91,9 @@ describe("nodes-lib", () => {
       console.log(`Checking server reachable at ${apiUrl}...`);
       await axios.get(apiUrl);
       console.log("Server is reachable");
-    } catch (e) {
+    } catch {
       console.error(
-        "Failed to connect to desci-server; is the service running?"
+        "Failed to connect to desci-server; is the service running?",
       );
       process.exit(1);
     }
@@ -326,258 +327,42 @@ describe("nodes-lib", () => {
       const updatedNode = await getDraftNode(uuid);
       const updatedComponent = updatedNode.manifestData.components[1];
       expect(updatedComponent.payload.url).toEqual(
-        expectedComponent.payload.url
+        expectedComponent.payload.url,
       );
-    });
-  });
-
-  describe("legacy publishing ", async () => {
-    let uuid: string;
-    let publishResult: LegacyPublishResponse;
-    const did = await authorizedSessionDidFromSigner(
-      testSigner,
-      getResources()
-    );
-
-    beforeAll(async () => {
-      const { node } = await createBoilerplateNode();
-      uuid = node.uuid;
-      publishResult = await publishDraftNode({ uuid, signer: testSigner, did });
-      // Wait for repo and subgraph changes to go through
-      // await sleep(2_500);
-    });
-
-    describe("new node", async () => {
-      test("adds it to the dpid registry", async () => {
-        const historyResult = await getDpidHistory(uuid);
-        const actualCid = convert0xHexToCid(historyResult.versions[0].cid);
-        expect(actualCid).toEqual(publishResult.updatedManifestCid);
-      });
-
-      test("sets dPID in manifest", async () => {
-        const node = await getDraftNode(uuid);
-        expect(node.manifestData.dpid).not.toBeUndefined();
-        expect(node.manifestData.dpid?.prefix).toEqual("beta");
-        expect(node.manifestData.dpid?.id).not.toBeNaN();
-      });
-
-      test("to codex", async () => {
-        expect(publishResult.ceramicIDs).not.toBeUndefined();
-        const ceramicObject = await getCurrentState(
-          publishResult.ceramicIDs!.streamID
-        );
-        expect(ceramicObject?.manifest).toEqual(
-          publishResult.updatedManifestCid
-        );
-      });
-
-      test("has a CACAO from the passed DID", async () => {
-        const streamState = await getRawState(
-          publishResult.ceramicIDs!.streamID
-        );
-        const controller = streamState.state.metadata.controllers.at(0);
-        const signerAddress = (await testSigner.getAddress()).toLowerCase();
-
-        expect(controller).toEqual(did.parent);
-        expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
-      });
-
-      test("can optionally derive DID from just a signer", async () => {
-        const { node } = await createBoilerplateNode();
-        const result = await publishDraftNode({
-          uuid: node.uuid,
-          signer: testSigner,
-        });
-        const streamState = await getRawState(result.ceramicIDs!.streamID);
-        const controller = streamState.state.metadata.controllers.at(0);
-        const signerAddress = (await testSigner.getAddress()).toLowerCase();
-        expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
-      });
-    });
-
-    describe("node with long legacy history", async () => {
-      let uuid: string;
-      let pubResult: LegacyPublishResponse;
-      let legacyDpid: number;
-
-      beforeAll(async () => {
-        const { node } = await createBoilerplateNode();
-        uuid = node.uuid;
-
-        let updatedManifestCids = [];
-        // make a dpid-only publish
-        for (let i = 0; i < 5; i++) {
-          await updateTitle(uuid, `Title ${i}`);
-          const dpidExists = i > 0;
-          const {
-            prepubResult: { updatedManifest, updatedManifestCid },
-          } = await dpidPublish(uuid, dpidExists, testSigner);
-          legacyDpid = parseInt(updatedManifest.dpid!.id!);
-          updatedManifestCids.push(updatedManifestCid);
-        }
-
-        // Allow graph node to index
-        await sleep(2_500);
-
-        // Import as legacy entry (i.e., fake migration step)
-        // Publish uses this to validate history before migrating dPID
-        const wallet = new Wallet(
-          TEST_PKEY,
-          new providers.JsonRpcProvider(
-            getNodesLibInternalConfig().chainConfig.rpcUrl
-          )
-        );
-        const aliasRegistry = tc.DpidAliasRegistry__factory.connect(
-          contracts.localDpidAliasInfo.proxies.at(0)!.address,
-          wallet
-        );
-        const tx = await aliasRegistry.importLegacyDpid(legacyDpid!, {
-          owner: await testSigner.getAddress(),
-          versions: updatedManifestCids.map((cid) => ({ cid, time: 1337 })),
-        });
-        await tx.wait();
-
-        // make a regular publish
-        try {
-          await publishDraftNode({ uuid, signer: testSigner });
-        } catch (e) {
-          // Expect this to fail
-          // To be able to test incorrect histories, we ignore the error thrown from the publish route
-          // and compare histories manually
-        }
-      }, 1333333337);
-
-      test("migrates history to new stream", async () => {
-        const { ceramicStream } = await getDraftNode(uuid);
-
-        // legacy registry only knows about the first update
-        const dpidHistory = await getLegacyHistory(legacyDpid);
-        expect(dpidHistory.versions.length).toEqual(5);
-
-        // codex history has the legacy and the new update
-        const codexHistory = await getCodexHistory(ceramicStream!);
-        expect(codexHistory.length).toEqual(6);
-
-        const codexVersionsDpidResolver = await (
-          await fetch(`http://localhost:5460/api/v2/resolve/dpid/${legacyDpid}`)
-        ).json();
-
-        const cidsInDpidHistory = dpidHistory.versions.map((v) => v.cid);
-        const cidsInCodex = codexVersionsDpidResolver.versions.map(
-          (v: any) => v.manifest
-        );
-
-        // debugger
-
-        expect(cidsInDpidHistory).toEqual(cidsInCodex);
-      });
-    });
-
-    describe("node update", async () => {
-      beforeAll(async () => {
-        // async publish errors on re-publish before it finishes
-        await sleep(5_000);
-        await publishDraftNode({ uuid, signer: testSigner, did });
-        // Allow graph node to index
-        await sleep(2_500);
-      });
-
-      test("updates entry in dpid registry", async () => {
-        const historyResult = await getDpidHistory(uuid);
-        const actualCid = convert0xHexToCid(historyResult.versions[0].cid);
-        expect(actualCid).toEqual(publishResult.updatedManifestCid);
-        expect(historyResult.versions.length).toEqual(2);
-      });
-
-      test("publishes to codex stream", async () => {
-        expect(publishResult.ceramicIDs).not.toBeUndefined();
-
-        const ceramicObject = await getCurrentState(
-          publishResult.ceramicIDs!.streamID
-        );
-        expect(ceramicObject?.manifest).toEqual(
-          publishResult.updatedManifestCid
-        );
-
-        const ceramicHistory = await getCodexHistory(
-          publishResult.ceramicIDs!.streamID
-        );
-        expect(ceramicHistory.length).toEqual(2);
-      });
-    });
-
-    test(
-      "with backfill ceramic migration",
-      async () => {
-        const {
-          node: { uuid },
-        } = await createBoilerplateNode();
-
-        // make a dpid-only publish
-        await dpidPublish(uuid, false, testSigner);
-
-        // Allow graph node to index
-        await sleep(2_500);
-
-        // make a regular publish
-        const pubResult = await publishDraftNode({
-          uuid,
-          signer: testSigner,
-          did,
-        });
-
-        // Allow graph node to index
-        await sleep(5_000);
-
-        // make sure codex history is of equal length
-        const dpidHistory = await getDpidHistory(uuid);
-        const codexHistory = await getCodexHistory(
-          pubResult.ceramicIDs!.streamID
-        );
-        expect(dpidHistory.versions.length).toEqual(2);
-        expect(codexHistory.length).toEqual(2);
-      },
-      { timeout: 10_000 }
-    );
-
-    /** This is not an user feature, but part of error handling during publish */
-    test("can remove dPID from manifest", async () => {
-      await changeManifest(uuid, [{ type: "Remove Dpid" }]);
-      const node = await getDraftNode(uuid);
-      expect(node.manifestData.dpid).toBeUndefined();
     });
   });
 
   describe("publishing ", async () => {
     let uuid: string;
-    let publishResult: LegacyPublishResponse;
+    let publishResult: PublishResponse;
     const did = await authorizedSessionDidFromSigner(
       testSigner,
-      getResources()
+      getResources(),
     );
 
     beforeAll(async () => {
       const { node } = await createBoilerplateNode();
       uuid = node.uuid;
       publishResult = await publishNode(uuid, did);
+      await sleep(1_000);
     });
 
     describe("new node", async () => {
       test("to codex", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
         const ceramicObject = await getCurrentState(
-          publishResult.ceramicIDs!.streamID
+          publishResult.ceramicIDs!.streamID,
         );
         expect(ceramicObject?.manifest).toEqual(
-          publishResult.updatedManifestCid
+          publishResult.updatedManifestCid,
         );
       });
 
       test("has a new version", async () => {
         const history = await getCodexHistory(
-          publishResult.ceramicIDs!.streamID
+          publishResult.ceramicIDs!.streamID,
         );
-        expect(history.length).toEqual(1);
+        expect(history.versions.length).toEqual(1);
       });
 
       test("does NOT set dPID in manifest", async () => {
@@ -586,11 +371,12 @@ describe("nodes-lib", () => {
       });
 
       test("has a CACAO from the passed DID", async () => {
-        const streamState = await getRawState(
-          publishResult.ceramicIDs!.streamID
+        const controller = await getStreamController(
+          publishResult.ceramicIDs!.streamID,
         );
-        const controller = streamState.state.metadata.controllers.at(0);
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
+        console.log("TEST DID:", JSON.stringify(did, undefined, 2));
+        console.log("CONTROLLER:", JSON.stringify(controller, undefined, 2));
 
         expect(controller).toEqual(did.parent);
         expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
@@ -599,8 +385,9 @@ describe("nodes-lib", () => {
       test("can optionally derive DID from just a signer", async () => {
         const { node } = await createBoilerplateNode();
         const result = await publishNode(node.uuid, testSigner);
-        const streamState = await getRawState(result.ceramicIDs!.streamID);
-        const controller = streamState.state.metadata.controllers.at(0);
+        const controller = await getStreamController(
+          result.ceramicIDs!.streamID,
+        );
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
         expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
       });
@@ -612,13 +399,12 @@ describe("nodes-lib", () => {
 
       test("tracks new dpid alias with node state", async () => {
         const node = await getDraftNode(uuid);
-        const dpidAlias = await findDpid(node.ceramicStream!);
-        expect(node.dpidAlias).toEqual(dpidAlias);
+        expect(node.dpidAlias).toEqual(publishResult.dpid);
       });
     });
 
     describe("node update", async () => {
-      let updateResult: LegacyPublishResponse;
+      let updateResult: PublishResponse;
       let nodeStateBefore: NodeResponse;
 
       beforeAll(async () => {
@@ -629,18 +415,18 @@ describe("nodes-lib", () => {
 
       test("updates most recent state", async () => {
         const ceramicObject = await getCurrentState(
-          updateResult.ceramicIDs!.streamID
+          updateResult.ceramicIDs!.streamID,
         );
         expect(ceramicObject?.manifest).toEqual(
-          updateResult.updatedManifestCid
+          updateResult.updatedManifestCid,
         );
       });
 
       test("adds a new version", async () => {
         const ceramicHistory = await getCodexHistory(
-          updateResult.ceramicIDs!.streamID
+          updateResult.ceramicIDs!.streamID,
         );
-        expect(ceramicHistory.length).toEqual(2);
+        expect(ceramicHistory.versions.length).toEqual(2);
       });
 
       test("does not change the tracked streamID", async () => {
@@ -656,114 +442,83 @@ describe("nodes-lib", () => {
 
     describe("node with long legacy history", async () => {
       let uuid: string;
-      let pubResult: LegacyPublishResponse;
-      let legacyDpid: number;
+      let pubResult: PublishResponse;
+      const legacyDpid: number = randomInt(1, 1000);
 
       beforeAll(async () => {
         const { node } = await createBoilerplateNode();
         uuid = node.uuid;
-
-        let updatedManifestCids = [];
-        // make a dpid-only publish
-        for (let i = 0; i < 5; i++) {
-          await updateTitle(uuid, `Title ${i}`);
-          const dpidExists = i > 0;
-          const {
-            prepubResult: { updatedManifest, updatedManifestCid },
-          } = await dpidPublish(uuid, dpidExists, testSigner);
-          legacyDpid = parseInt(updatedManifest.dpid!.id!);
-          updatedManifestCids.push(updatedManifestCid);
-        }
-
-        // Allow graph node to index
-        await sleep(2_500);
-
-        // Import as legacy entry (i.e., fake migration step)
-        // Publish uses this to validate history before migrating dPID
-        const wallet = new Wallet(
-          TEST_PKEY,
-          new providers.JsonRpcProvider(
-            getNodesLibInternalConfig().chainConfig.rpcUrl
-          )
+        await setManifestDpid(uuid, legacyDpid);
+        await addLegacyDpid(
+          testSigner,
+          legacyDpid,
+          await testSigner.getAddress(),
+          [
+            {
+              cid: "bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i",
+              time: 1,
+            },
+            {
+              cid: "bafkreig6lp6265u42llqh6hkzxc54hmyfea7ax7gewg7tdyvthieotmwpy",
+              time: 2,
+            },
+            {
+              cid: "bafkreici3wzz7njqigyo7ebzwn3kibxgwjr43ihowwebl4exmfy75tkpjm",
+              time: 3,
+            },
+            {
+              cid: "bafkreicgxdcypaq5tmmrrva3tl7k2un47pfolg3mox72j5k65zitsukfii",
+              time: 4,
+            },
+            {
+              cid: "bafkreie7j6ji7ynh5d5yoldoxfevak55nkmcx5h7v3c6h4xy7le25sbgke",
+              time: 5,
+            },
+          ],
         );
-        const aliasRegistry = tc.DpidAliasRegistry__factory.connect(
-          contracts.localDpidAliasInfo.proxies.at(0)!.address,
-          wallet
-        );
-        const tx = await aliasRegistry.importLegacyDpid(legacyDpid!, {
-          owner: await testSigner.getAddress(),
-          versions: updatedManifestCids.map((cid) => ({ cid, time: 1337 })),
-        });
-        await tx.wait();
 
         // make a regular publish
         pubResult = await publishNode(uuid, did);
-      }, 1333333337);
+      }, 1000000);
 
       test("migrates history to new stream", async () => {
         // legacy registry only knows about the first update
         const dpidHistory = await getLegacyHistory(legacyDpid);
         expect(dpidHistory.versions.length).toEqual(5);
 
-        // codex history has the legacy and the new update
+        // codex history has the legacy history, plus the new update
         const codexHistory = await getCodexHistory(
-          pubResult.ceramicIDs!.streamID
+          pubResult.ceramicIDs!.streamID,
         );
-        expect(codexHistory.length).toEqual(6);
-
-        const codexVersionsDpidResolver = await (
-          await fetch(`http://localhost:5460/api/v2/resolve/dpid/${legacyDpid}`)
-        ).json();
+        expect(codexHistory.versions.length).toEqual(6);
 
         const cidsInDpidHistory = dpidHistory.versions.map((v) => v.cid);
-        const cidsInCodex = codexVersionsDpidResolver.versions
-          .map((v: any) => v.manifest)
-          .slice(0, -1);
+        const cidsInCodex = codexHistory.versions.map((v) => v.manifest);
 
-        expect(cidsInDpidHistory).toEqual(cidsInCodex);
+        expect(cidsInDpidHistory).toEqual(cidsInCodex.slice(0, -1));
       });
     });
+
     describe("node with legacy history", async () => {
       let uuid: string;
-      let pubResult: LegacyPublishResponse;
-      let legacyDpid: number;
+      let pubResult: PublishResponse;
+      const legacyDpid: number = randomInt(1, 1000);
 
       beforeAll(async () => {
         const { node } = await createBoilerplateNode();
         uuid = node.uuid;
-
-        // make a dpid-only publish
-        const {
-          prepubResult: { updatedManifest, updatedManifestCid },
-        } = await dpidPublish(uuid, false, testSigner);
-
-        // Allow graph node to index
-        await sleep(2_500);
-
-        legacyDpid = parseInt(updatedManifest.dpid!.id);
-
-        // Import as legacy entry (i.e., fake migration step)
-        // Publish uses this to validate history before migrating dPID
-        const wallet = new Wallet(
-          TEST_PKEY,
-          new providers.JsonRpcProvider(
-            getNodesLibInternalConfig().chainConfig.rpcUrl
-          )
-        );
-        const aliasRegistry = tc.DpidAliasRegistry__factory.connect(
-          contracts.localDpidAliasInfo.proxies.at(0)!.address,
-          wallet
-        );
-        const tx = await aliasRegistry.importLegacyDpid(legacyDpid, {
-          owner: await testSigner.getAddress(),
-          versions: [
+        await setManifestDpid(uuid, legacyDpid);
+        await addLegacyDpid(
+          testSigner,
+          legacyDpid,
+          await testSigner.getAddress(),
+          [
             {
-              cid: updatedManifestCid,
-              time: 1337, // Import fn can't validate this anyway
+              cid: "bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i",
+              time: 1337,
             },
           ],
-        });
-        await tx.wait();
+        );
 
         // make a regular publish
         pubResult = await publishNode(uuid, did);
@@ -776,9 +531,9 @@ describe("nodes-lib", () => {
 
         // codex history has the legacy and the new update
         const codexHistory = await getCodexHistory(
-          pubResult.ceramicIDs!.streamID
+          pubResult.ceramicIDs!.streamID,
         );
-        expect(codexHistory.length).toEqual(2);
+        expect(codexHistory.versions.length).toEqual(2);
       });
 
       test("tracks streamID with node state", async () => {
@@ -795,65 +550,44 @@ describe("nodes-lib", () => {
 
     describe("node with legacy history but mismatched stream owner", async () => {
       let uuid: string;
-      let legacyDpid: number;
+      const legacyDpid: number = randomInt(1, 1000);
 
       beforeAll(async () => {
         const { node } = await createBoilerplateNode();
         uuid = node.uuid;
-
-        // make a dpid-only publish
-        const {
-          prepubResult: { updatedManifest, updatedManifestCid },
-        } = await dpidPublish(uuid, false, testSigner);
-
-        // Allow graph node to index
-        await sleep(2_500);
-
-        legacyDpid = parseInt(updatedManifest.dpid!.id);
-
-        // Import as legacy entry (i.e., fake migration step)
-        // Publish uses this to validate history before migrating dPID
-        const wallet = new Wallet(
-          TEST_PKEY,
-          new providers.JsonRpcProvider(
-            getNodesLibInternalConfig().chainConfig.rpcUrl
-          )
-        );
-        const aliasRegistry = tc.DpidAliasRegistry__factory.connect(
-          contracts.localDpidAliasInfo.proxies.at(0)!.address,
-          wallet
-        );
-        const tx = await aliasRegistry.importLegacyDpid(legacyDpid, {
-          owner: await testSigner.getAddress(),
-          versions: [
+        await setManifestDpid(uuid, legacyDpid);
+        await addLegacyDpid(
+          testSigner,
+          legacyDpid,
+          await testSigner.getAddress(),
+          [
             {
-              cid: updatedManifestCid,
-              time: 1337, // Import fn can't validate this anyway
+              cid: "bafkreigcc2l7aay34i5zeot5wjvpspdpwp6ipfzffs3cnnpbpt7c2gqu6i",
+              time: 1337,
             },
           ],
-        });
-        await tx.wait();
+        );
       });
 
       test("refuses to upgrade with an unmatching DID", async () => {
         const differentDid = await authorizedSessionDidFromSigner(
           signerFromPkey(
             // Different last 4 chars
-            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa"
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa",
           ),
-          getResources()
+          getResources(),
         );
         await expect(publishNode(uuid, differentDid)).rejects.toThrowError(
-          "Refusing to migrate history"
+          "Refusing to migrate history",
         );
       });
 
       test("refuses to upgrade with an unmatching signer", async () => {
         const differentDid = await authorizedSessionDidFromSigner(
           signerFromPkey(
-            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa"
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa",
           ),
-          getResources()
+          getResources(),
         );
         await expect(publishNode(uuid, differentDid)).rejects.toThrow();
       });
@@ -951,7 +685,7 @@ describe("nodes-lib", () => {
         const driveContent = treeResult.tree[0].contains!;
 
         expect(driveContent.map((driveObject) => driveObject.name)).toEqual(
-          expect.arrayContaining(files)
+          expect.arrayContaining(files),
         );
         driveContent.forEach((driveObject) => {
           expect(driveObject.size).toBeGreaterThan(0);
@@ -969,7 +703,7 @@ describe("nodes-lib", () => {
           files,
         });
         expect(uploadResult.tree[0].contains![0].path).toEqual(
-          "root/package.json"
+          "root/package.json",
         );
 
         await moveData({
@@ -980,7 +714,7 @@ describe("nodes-lib", () => {
 
         const treeResult = await retrieveDraftFileTree(uuid);
         expect(treeResult.tree[0].contains![0].path).toEqual(
-          "root/json.package"
+          "root/json.package",
         );
       });
 
@@ -1055,7 +789,7 @@ describe("nodes-lib", () => {
           });
 
           expect(components).toEqual(
-            expect.arrayContaining([expectedComponent])
+            expect.arrayContaining([expectedComponent]),
           );
         });
       });
@@ -1125,7 +859,7 @@ describe("nodes-lib", () => {
             path: "root/catpics/cat.jpg",
             name: "cat.jpg",
             external: true,
-          })
+          }),
         );
       });
     });
@@ -1140,4 +874,28 @@ const createBoilerplateNode = async () => {
   };
 
   return await createDraftNode(node);
+};
+
+/**
+ * Add a legacy dPID to the alias registry (for testing only)
+ *
+ * Note: only callable as the contract owner
+ */
+const addLegacyDpid = async (
+  signer: Signer,
+  dpid: number,
+  owner: string,
+  versions: DpidAliasRegistry.LegacyVersionStruct[],
+) => {
+  const tx = await dpidAliasRegistryWriter(signer).importLegacyDpid(dpid, {
+    owner,
+    versions,
+  });
+  await tx.wait();
+};
+
+const setManifestDpid = async (uuid: string, dpid: number) => {
+  return await changeManifest(uuid, [
+    { type: "Publish Dpid", dpid: { prefix: "beta", id: dpid.toString() } },
+  ]);
 };

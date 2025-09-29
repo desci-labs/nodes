@@ -1,11 +1,15 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { projectFrontmatterSchema } from '@awesome-myst/myst-zod';
-import { ManifestActions, ResearchObjectComponentType, ResearchObjectV1Component } from '@desci-labs/desci-models';
+import {
+  AvailableUserActionLogTypes,
+  ManifestActions,
+  ResearchObjectComponentType,
+  ResearchObjectV1Component,
+} from '@desci-labs/desci-models';
+import { ActionType } from '@prisma/client';
 import axios from 'axios';
 import { NextFunction, Response } from 'express';
-import { Request } from 'express';
 import { load } from 'js-yaml';
-import _ from 'lodash';
 import { err, ok, Result } from 'neverthrow';
 import { errWithCause } from 'pino-std-serializers';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,12 +20,12 @@ import { sendError, sendSuccess } from '../../core/api.js';
 import { UnProcessableRequestError } from '../../core/ApiError.js';
 import { AuthenticatedRequestWithNode, RequestWithJob, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { RequestWithNode } from '../../middleware/authorisation.js';
-import { DEFAULT_TTL, getFromCache, setToCache } from '../../redisClient.js';
+import { DEFAULT_TTL, setToCache } from '../../redisClient.js';
 import { processS3DataToIpfs } from '../../services/data/processing.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import { getNodeByUuid } from '../../services/node.js';
 import repoService from '../../services/repoService.js';
-import { getUserById } from '../../services/user.js';
+import { logUserAction } from '../log/userAction.js';
 
 const logger = parentLogger.child({
   module: 'NODE::githubMystImport',
@@ -57,73 +61,20 @@ const mystYamlSchema = z.object({
         }),
       )
       .optional(),
-    // license: z
-    //   .object({
-    //     content: z.string().optional().describe('License for the content'),
-    //     code: z.string().optional().describe('License for the code'),
-    //   })
-    //   .describe('Licenses for the notebook'),
-    // open_access: z.boolean().optional(),
-    // github: z.string().optional(),
-    // keywords: z.array(z.string()).optional(),
-    // venue: z
-    //   .object({
-    //     title: z.string().optional(),
-    //     url: z.string().optional(),
-    //   })
-    //   .optional(),
-    // bibliography: z.array(z.string()).optional(),
-    // exports: z
-    //   .array(
-    //     z.object({
-    //       format: z.string().optional(),
-    //       template: z.string().optional(),
-    //       article_type: z.string().optional(),
-    //       output: z.string().optional(),
-    //     }),
-    //   )
-    //   .optional(),
-    // resources: z.array(z.string()).optional(),
-    // requirements: z.array(z.string()).optional(),
   }),
-  // site: z
-  //   .object({
-  //     title: z.string().optional(),
-  //     logo: z.string().optional(),
-  //     favicon: z.string().optional(),
-  //     nav: z
-  //       .array(
-  //         z.object({
-  //           title: z.string().optional(),
-  //           url: z.string().optional(),
-  //         }),
-  //       )
-  //       .optional(),
-  //     options: z.object({
-  //       logo_text: z.string().optional(),
-  //       hide_title_on_index: z.boolean().optional(),
-  //     }),
-  //     domains: z.array(z.string()).optional(),
-  //   })
-  //   .optional(),
 });
 
 const parseImportUrl = (url: string) => {
   try {
     const matchList = url.match(/github.com[\/:]([^\/]+)\/([^\/^.]+)\/blob\/([^\/^.]+)\/(.+)/);
-    logger.trace({ matchList }, 'MYST::matchList');
     if (!matchList) {
       return err(new UnProcessableRequestError('Invalid github URL'));
     }
 
     const [, author, repo, branch, contentPath] = matchList as RegExpMatchArray;
-    logger.trace({ author, repo, branch, contentPath }, 'MYST::Regex');
 
     const baseDownloadUrl = `https://raw.githubusercontent.com/${author}/${repo}/${branch ? branch + '/' : ''}`;
     const rawDownloadUrl = `${baseDownloadUrl}${contentPath}`;
-    // const contentDownloadUrl = `https://api.github.com/repos/${author}/${repo}/contents/${contentPath}?ref=${branch}`;
-
-    logger.trace({ rawDownloadUrl }, 'MYST::apiUrl');
 
     return ok({ baseDownloadUrl, rawDownloadUrl });
   } catch (error) {
@@ -141,8 +92,6 @@ const downloadFileFromUrl = async (rawDownloadUrl: string) => {
     if (apiResponse.status !== 200) {
       return err(new UnProcessableRequestError('File not found'));
     }
-
-    logger.trace({ data: apiResponse.data, contentType: apiResponse.headers['content-type'] }, 'MYST::apiResponse');
 
     const rawFile = await apiResponse.data;
 
@@ -165,8 +114,6 @@ const downloadManuscriptFromUrl = async (
       return err(new UnProcessableRequestError('File not found'));
     }
 
-    logger.trace({ data: apiResponse.data, contentType: apiResponse.headers['content-type'] }, 'MYST::apiResponse');
-
     const rawFile = Buffer.from(apiResponse.data);
 
     return ok(rawFile);
@@ -180,27 +127,21 @@ const parseMystDocument = async (
 ): Promise<Result<z.infer<typeof projectFrontmatterSchema>, UnProcessableRequestError>> => {
   try {
     const parsedYaml = load(yamlText, { json: true }) as Record<string, unknown>;
-    logger.trace({ parsedYaml }, 'MYST::parsedYaml');
 
     const parsedProject = projectFrontmatterSchema.safeParse(parsedYaml['project']);
     if (parsedProject.error) {
-      logger.trace({ error: parsedProject.error }, 'MYST::yamlValidationFailed');
       return err(new UnProcessableRequestError('yaml file validation failed!'));
     }
     // logger.trace({ parsedProject: parsedProject.data }, 'MYST::parsedProject');
 
     const parsed = mystYamlSchema.safeParse(parsedYaml);
     if (parsed.error) {
-      logger.trace({ error: parsed.error }, 'MYST::yamlValidationFailed');
       return err(new UnProcessableRequestError('yaml file validation failed!'));
     }
 
     if (!parsedYaml['project']) {
-      logger.trace({ parsedYaml }, 'MYST::missingProjectMetadata');
       return err(new UnProcessableRequestError('Missing project metadata!'));
     }
-
-    logger.trace({ document: parsed.data }, 'MYST::doc');
 
     return ok({ ...parsedProject.data, authors: parsed.data.project.authors });
   } catch (error) {
@@ -239,6 +180,13 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
 
   const { rawDownloadUrl } = parseUrlResult.value;
 
+  await saveInteraction({
+    req,
+    userId: req.user.id,
+    action: ActionType.USER_ACTION,
+    data: { action: AvailableUserActionLogTypes.actionImportMystRepo, url, uuid, dryRun },
+  });
+
   const downloadFileResult = await downloadFileFromUrl(rawDownloadUrl);
   if (downloadFileResult.isErr()) {
     return err(downloadFileResult.error);
@@ -271,7 +219,6 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
           email: author.email,
           ...(author?.orcid && { orcid: author.orcid }),
           ...(organization && { organizations: [{ id: author.email ?? '', name: organization.name }] }),
-          // ...(author?.affiliation && { organizations: [{ id: author.email ?? '', name: author.affiliation }] }),
         };
       }),
     });
@@ -291,7 +238,6 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
 
   // let manuscriptImport: { ok: boolean; value: UpdateResponse } | undefined;
   if (actions.length > 0) {
-    logger.trace({ actions }, 'Populate Node with myst metadata');
     const response = await repoService.dispatchAction({
       uuid,
       documentId: node.manifestDocumentId as DocumentId,
@@ -301,6 +247,13 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     if (!response) {
       return sendError(res, 'Could not update research object with yaml metadata', 500);
     }
+
+    await saveInteraction({
+      req,
+      userId: req.user.id,
+      action: ActionType.MYST_REPO_METADATA_IMPORT,
+      data: { url, uuid, dryRun },
+    });
 
     const jobId = `myst-import-${uuidv4()}`;
     const job = {
@@ -331,6 +284,13 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
         },
       );
 
+      await saveInteraction({
+        req,
+        userId: req.user.id,
+        action: ActionType.MYST_REPO_JOB_SCHEDULED,
+        data: { jobId, url: job.url, uuid: req.node.uuid },
+      });
+
       logger.trace({ scheduleJobResponse: scheduleJobResponse.data }, '[githubMystImport]::JobScheduled');
       return sendSuccess(res, {
         jobId,
@@ -347,7 +307,7 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     }
   } else {
     logger.error('NO DATA EXTRACTED');
-    return sendError(res, 'Unable to extract metadata from manuscript', 422);
+    return sendError(res, 'Unable to extract metadata from myst YAML file', 422);
   }
 };
 
@@ -366,6 +326,12 @@ export const cancelMystImportJob = async (req: ImportRequestWithJob, res: Respon
   const job = req.job;
 
   await setToCache(jobId, { ...job, status: 'cancelled', message: 'Job cancelled' }, DEFAULT_TTL);
+  await saveInteraction({
+    req,
+    userId: req.user.id,
+    action: ActionType.MYST_REPO_JOB_CANCELLED,
+    data: { jobId, url: job.url, uuid: req.node.uuid },
+  });
   return sendSuccess(res, job);
 };
 
@@ -381,21 +347,32 @@ export const updateMystImportJobStatus = async (req: ImportRequestWithJob, res: 
 };
 
 export const processMystImportFiles = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
+  const { jobId } = req.params as { jobId: string };
+  const job = req.job;
   try {
-    const { jobId } = req.params as { jobId: string };
-    const job = req.job;
-
-    const files = req.files as any[];
+    const files = (req.files as any[]) ?? [];
     logger.trace({ jobId }, 'MYST::FilesReceived');
 
+    if (job.status === 'cancelled') {
+      return sendError(res, 'Job cancelled', 400);
+    }
+
     if (files.length) {
-      const user = req.user; // await getUserById(job.userId);
-      const node = req.node; // await getNodeByUuid(job.uuid);
+      const user = req.user;
+      const node = req.node;
+
+      await saveInteraction({
+        req,
+        userId: user.id,
+        action: ActionType.MYST_REPO_FILES_IMPORT,
+        data: { url: job.url, uuid: node.uuid },
+      });
+
       // send files to reuseable update drive file upload service
       const { ok, value } = await processS3DataToIpfs({
         files,
-        user: req.user,
-        node: req.node,
+        user: user,
+        node: node,
         contextPath: 'root',
       });
 
@@ -414,6 +391,13 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
       }
 
       sendSuccess(res, { ok: true });
+
+      await saveInteraction({
+        req,
+        userId: user.id,
+        action: ActionType.MYST_REPO_JOB_COMPLETED,
+        data: { url: job.url, uuid: node.uuid },
+      });
 
       if (ok) {
         const manuscriptsFiles = value.tree[0].contains?.filter(
@@ -451,7 +435,17 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
     }
   } catch (err) {
     logger.error({ error: errWithCause(err) }, '[PROCESS FILES ERROR]');
-    // return sendError(res, err.message || 'Could not process files', 422);
+    await setToCache(
+      jobId,
+      { ...job, status: 'failed', message: err.message || 'Could not process files' },
+      DEFAULT_TTL,
+    );
+    await saveInteraction({
+      req,
+      userId: req.user.id,
+      action: ActionType.MYST_REPO_JOB_FAILED,
+      data: { jobId: jobId, uuid: req.node.uuid, message: err.message || 'Could not process files' },
+    });
     return void 0;
   }
 };
