@@ -84,11 +84,19 @@ export const updateUserProperties = async (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       identify.set(k, v as any);
     }
-    amplitudeClient.identify(identify, {
+
+    const identifyResult = await amplitudeClient.identify(identify, {
       user_id: String(userId),
     });
 
-    logger.debug(`[Amplitude] Updated properties for user ${userId} in ${appType} app`);
+    // Force immediate sending
+    const flushResult = await amplitudeClient.flush();
+
+    logger.info(`[Amplitude] Updated properties for user ${userId} in ${appType} app`, {
+      identifyResult,
+      flushResult: flushResult?.length || 0,
+    });
+
     return ok(undefined);
   } catch (error) {
     const errorMessage = `Failed to update user properties for ${appType} app: ${error}`;
@@ -111,13 +119,20 @@ export const trackEvent = async (
   }
 
   try {
-    amplitudeClient.track({
+    const trackResult = await amplitudeClient.track({
       user_id: String(userId),
       event_type: eventType,
       event_properties: eventProperties,
     });
 
-    logger.debug(`[Amplitude] Tracked event "${eventType}" for user ${userId} in ${appType} app`);
+    // Force immediate send
+    const flushResult = await amplitudeClient.flush();
+
+    logger.info(`[Amplitude] Tracked event "${eventType}" for user ${userId} in ${appType} app`, {
+      trackResult,
+      flushResult: flushResult?.length || 0,
+    });
+
     return ok(undefined);
   } catch (error) {
     const errorMessage = `Failed to track event for ${appType} app: ${error}`;
