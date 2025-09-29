@@ -1,11 +1,11 @@
 import axios from 'axios';
 
 import { prisma } from './client.js';
-import { THEGRAPH_API_URL } from './config/index.js';
 import { logger as parentLogger } from './logger.js';
 import { getCommitTimestamps } from './services/codex.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
+import { getTransactionTimestamps } from './services/chain.js';
 
 const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
@@ -162,47 +162,6 @@ const getHistoryFromDpids = async (dpidsToUuidsMap: Record<number, string>): Pro
   return indexedHistory;
 };
 
-/** @deprecated but used as fallback for resolver-based index lookup */
-export const _getIndexedResearchObjects = async (
-  urlSafe64s: string[],
-): Promise<{ researchObjects: IndexedResearchObject[] }> => {
-  try {
-    const hex = urlSafe64s.map(decodeBase64UrlSafeToHex).map((h) => `0x${h}`);
-    logger.info({ hex, urlSafe64s }, 'getIndexedResearchObjects');
-    const q = `{
-      researchObjects(where: { id_in: ["${hex.join('","')}"]}) {
-        id, id10, recentCid, owner, versions(orderBy: time, orderDirection: desc) {
-          cid, id, time
-        }
-      }
-    }`;
-
-    const results = await query<{ researchObjects: IndexedResearchObject[] }>(q);
-    if (THEGRAPH_API_URL.includes('sepolia-dev')) {
-      // In-place deduplication on the graph results
-      results.researchObjects.forEach((ro) => {
-        ro.versions = ro.versions.reduce((deduped, next) => {
-          if (deduped.length === 0 || !isLegacyDupe(next, deduped.at(-1))) {
-            deduped.push(next);
-          }
-          return deduped;
-        }, [] as IndexedResearchObjectVersion[]);
-      });
-    }
-
-    return results;
-  } catch (error) {
-    logger.error({ error }, '[_getIndexedResearchObjects]::Error');
-    return { researchObjects: [] };
-  }
-};
-
-/** Makes semi-certain that two entries are dupes, by requiring that
- * both timestamp and cid are equal
- */
-const isLegacyDupe = (a: IndexedResearchObjectVersion, b: IndexedResearchObjectVersion) =>
-  a.cid === b.cid && a.time === b.time;
-
 /**
  * For a bunch of publish hashes, get the corresponding timestamps as strings.
  */
@@ -233,43 +192,9 @@ const getTxTimestamps = async (txIds: string[]): Promise<Record<string, string>>
   }
 
   try {
-    const graphTxTimestamps = await getTxTimeFromGraph(txIds);
-    const timeMap = graphTxTimestamps.reduce(
-      (acc, { id, time }) => ({ ...acc, [id]: time }),
-      {} as Record<string, string>,
-    );
-    return timeMap;
+    return await getTransactionTimestamps(txIds);
   } catch (err) {
     logger.error({ txIds, err }, 'failed to get tx timestamps from graph, returning empty map');
     return {};
   }
-};
-
-type TransactionsWithTimestamp = {
-  researchObjectVersions: { id: string; time: string }[];
-};
-
-const getTxTimeFromGraph = async (txIds: string[]): Promise<TransactionsWithTimestamp['researchObjectVersions']> => {
-  const q = `
-  {
-    researchObjectVersions(where: {id_in: ["${txIds.join('","')}"]}) {
-      id
-      time
-    }
-  }`;
-  const response = await query<TransactionsWithTimestamp>(q);
-  return response.researchObjectVersions;
-};
-
-export const query = async <T>(query: string, overrideUrl?: string): Promise<T> => {
-  const payload = JSON.stringify({
-    query,
-  });
-  const url = overrideUrl ?? THEGRAPH_API_URL;
-  const { data } = await axios.post(url, payload);
-  if (data.errors) {
-    logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
-    throw Error(JSON.stringify(data.errors));
-  }
-  return data.data as T;
 };

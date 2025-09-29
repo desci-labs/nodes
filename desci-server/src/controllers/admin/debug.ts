@@ -5,11 +5,12 @@ import { SerializedError, errWithCause } from 'pino-std-serializers';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getAliasRegistry, getHotWallet } from '../../services/chain.js';
+import { getAliasRegistry, getHotWallet, getOptimismProvider } from '../../services/chain.js';
 import { streamLookup } from '../../services/codex.js';
 import { PublishServices } from '../../services/PublishServices.js';
-import { _getIndexedResearchObjects, getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
+import { getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
 import { ensureUuidEndsWithDot, hexToCid } from '../../utils.js';
+import { DpidAliasRegistry } from '@desci-labs/desci-contracts/dist/typechain-types/DpidAliasRegistry.js';
 
 const logger = parentLogger.child({ module: 'ADMIN::DebugController' });
 
@@ -161,7 +162,10 @@ const debugNode = async (uuid: string): Promise<NodeDebugReport> => {
   const database = await debugDb(node);
   const shouldBeIndexed = database.nVersions > 0 || stream.nVersions > 0;
   const indexer = await debugIndexer(uuid, shouldBeIndexed);
-  const migration = await debugMigration(uuid, stream);
+
+  const provider = await getOptimismProvider();
+  const dpidAliasRegistry = getAliasRegistry(provider);
+  const migration = await debugMigration(dpidAliasRegistry, node.dpidAlias || node.legacyDpid, uuid, stream);
   const publishStatus = await debugPublishStatus(uuid);
 
   const nVersionsAgree = new Set([database.nVersions ?? 0, stream.nVersions ?? 0, indexer.nVersions ?? 0]).size === 1;
@@ -284,25 +288,29 @@ type DebugMigrationReponse =
 /*
  * Checks if the theres a signature signer mismatch between the legacy contract RO and the stream
  */
-const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Promise<DebugMigrationReponse> => {
-  // Establish if there is a token history
-  let legacyHistoryResponse;
+const debugMigration = async (
+  aliasRegistry: DpidAliasRegistry,
+  dpid?: number,
+  uuid?: string,
+  stream?: DebugStreamResponse,
+): Promise<DebugMigrationReponse> => {
+  // Establish if there is a legacy history
+  let legacyHistoryResponse: DpidAliasRegistry.LegacyDpidEntryStructOutput;
   try {
-    legacyHistoryResponse = await _getIndexedResearchObjects([uuid]);
+    legacyHistoryResponse = await aliasRegistry.legacyLookup(dpid);
   } catch (err) {
     logger.error({ uuid, err }, 'Failed to query legacy history');
     return { error: true, name: err.name, message: err.message, stack: err.stack };
   }
 
-  const hasLegacyHistory = !!legacyHistoryResponse?.researchObjects?.length;
+  const [legacyOwner, legacyHistory] = legacyHistoryResponse;
+  const hasLegacyHistory = legacyHistory.length > 0;
 
   if (!hasLegacyHistory || !stream.present) {
     return { error: false, hasLegacyHistory, hasStreamHistory: stream.present };
   }
 
-  const legacyHistory = legacyHistoryResponse.researchObjects[0];
-
-  let streamHistoryResponse;
+  let streamHistoryResponse: { researchObjects: IndexedResearchObject[] };
   try {
     streamHistoryResponse = await getIndexedResearchObjects([uuid]);
   } catch (err) {
@@ -313,14 +321,13 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Prom
   const streamResearchObject = streamHistoryResponse.researchObjects[0];
   const streamController =
     stream.present && 'state' in stream.raw ? stream.raw.state.metadata.controllers[0].split(':').pop() : undefined;
-  const legacyOwner = legacyHistory.owner;
 
   // Stream Controller === Legacy Contract RO Owner Check
   const ownerMatches = streamController?.toLowerCase() === legacyOwner?.toLowerCase();
 
   // All Versions Migrated check
   const streamManifestCids = streamResearchObject.versions.map((v) => hexToCid(v.cid)).reverse();
-  const legacyManifestCids = legacyHistory.versions.map((v) => hexToCid(v.cid)).reverse();
+  const legacyManifestCids = legacyHistory.map((v) => v[0]).reverse();
 
   const zipped = Array.from(
     Array(Math.max(streamManifestCids.length, legacyManifestCids.length)),
