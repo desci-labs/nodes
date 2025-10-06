@@ -23,16 +23,6 @@ const OLD_COOKIE_DOMAINS = process.env.OLD_COOKIE_DOMAINS || '';
 const REMOVE_COOKIE_DOMAINS = [COOKIE_DOMAIN.split(','), OLD_COOKIE_DOMAINS.split(',')].flat().filter(Boolean);
 
 export const sendCookie = (res: Response, token: string, isDevMode: boolean, cookieName = AUTH_COOKIE_FIELDNAME) => {
-  if (isDevMode && process.env.SERVER_URL === 'https://nodes-api-dev.desci.com') {
-    // insecure cookie for local dev, should only be used for testing
-    logger.info({ fn: 'sendCookie' }, `insecure dev cookie set`);
-    res.cookie(cookieName, token, {
-      maxAge: cookieName === AUTH_COOKIE_FIELDNAME ? oneDay : oneMinute,
-      httpOnly: true,
-      sameSite: 'none',
-    });
-  }
-
   (COOKIE_DOMAIN.split(',') || [undefined]).map((domain) => {
     logger.info(
       { fn: 'sendCookie', domain, env: process.env.NODE_ENV, cookieName, AUTH_COOKIE_FIELDNAME },
