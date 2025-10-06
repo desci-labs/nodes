@@ -33,7 +33,7 @@ export const sendCookie = (res: Response, token: string, isDevMode: boolean, coo
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? domain || '.desci.com' : 'localhost',
-      sameSite: 'lax',
+      sameSite: 'none',
     });
   });
 };
