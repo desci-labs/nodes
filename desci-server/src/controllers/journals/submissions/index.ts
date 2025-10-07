@@ -73,7 +73,7 @@ type ListJournalSubmissionsRequest = ValidatedRequest<typeof listJournalSubmissi
 
 const statusMap: Record<string, SubmissionStatus[]> = {
   new: [SubmissionStatus.SUBMITTED],
-  assigned: [SubmissionStatus.UNDER_REVIEW, SubmissionStatus.REVISION_REQUESTED],
+  assigned: [SubmissionStatus.SUBMITTED],
   under_review: [SubmissionStatus.UNDER_REVIEW],
   reviewed: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
   under_revision: [SubmissionStatus.REVISION_REQUESTED],
@@ -90,14 +90,17 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     const filter: Prisma.JournalSubmissionWhereInput = {
       journalId,
-      // status: { in: statusMap[status] },
     };
 
     if (status) {
       filter.status = { in: statusMap[status] };
 
+      if (status === 'new') {
+        filter.assignedEditorId = null;
+      }
+
       if (status === 'assigned') {
-        filter.status = undefined;
+        filter.status = SubmissionStatus.SUBMITTED;
         filter.assignedEditorId = { not: null };
       }
     }
