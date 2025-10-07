@@ -2,11 +2,9 @@ import { Router } from 'express';
 
 import {
   createCsv,
-  getActiveOrcidUserAnalytics,
   getActiveUserAnalytics,
   getAnalytics,
   getAggregatedAnalytics,
-  getNewOrcidUserAnalytics,
   getNewUserAnalytics,
   userAnalyticsSchema,
   getAggregatedAnalyticsCsv,
@@ -17,11 +15,9 @@ import { debugAllNodesHandler, debugNodeHandler } from '../../../controllers/adm
 import { listDoiRecords, mintDoi } from '../../../controllers/admin/doi/index.js';
 import { resumePublish } from '../../../controllers/admin/publish/resumePublish.js';
 import { analyticsChartSchema } from '../../../controllers/admin/schema.js';
-import { getMarketingConsentUsersCsv, searchUserProfiles } from '../../../controllers/admin/users.js';
 import { ensureAdmin, ensureUserIsAdmin } from '../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../middleware/permissions.js';
-import { validate, validateInputs } from '../../../middleware/validator.js';
-import { exportMarketingConsentSchema } from '../../../schemas/users.schema.js';
+import { validate } from '../../../middleware/validator.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 import communities from './communities/index.js';

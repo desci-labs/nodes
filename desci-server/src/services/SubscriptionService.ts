@@ -18,6 +18,8 @@ import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
 import { sendEmail } from './email/email.js';
 import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
+import { SCIWEAVE_FREE_LIMIT } from '../config.js';
+import { FEATURE_LIMIT_DEFAULTS } from './FeatureLimits/constants.js';
 
 const logger = parentLogger.child({
   module: 'SUBSCRIPTION_SERVICE',
@@ -720,18 +722,8 @@ export class SubscriptionService {
       default:
         // FREE = No subscription, default free tier limits
         return [
-          {
-            feature: Feature.RESEARCH_ASSISTANT,
-            planCodename: PlanCodename.FREE,
-            period: Period.MONTH,
-            useLimit: 10,
-          },
-          {
-            feature: Feature.REFEREE_FINDER,
-            planCodename: PlanCodename.FREE,
-            period: Period.MONTH,
-            useLimit: 2,
-          },
+          FEATURE_LIMIT_DEFAULTS[Feature.RESEARCH_ASSISTANT][PlanCodename.FREE]!,
+          FEATURE_LIMIT_DEFAULTS[Feature.REFEREE_FINDER][PlanCodename.FREE]!,
         ];
     }
   }

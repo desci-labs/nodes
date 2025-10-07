@@ -125,6 +125,7 @@ spec:
           export STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID }}"
           export STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID }}"
           export SCIWEAVE_FREE_LIMIT="{{ .Data.SCIWEAVE_FREE_LIMIT }}"
+          export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP="{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
