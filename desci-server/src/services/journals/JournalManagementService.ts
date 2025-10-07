@@ -543,7 +543,7 @@ async function getJournalEditorialBoardById(journalId: number): Promise<Result<J
       id: e.id,
       invitedAt: e.createdAt,
       acceptedAt: null,
-      user: { id: 0, email: e.email, name: e.email, orcid: '' },
+      user: { id: 0, email: e.email, name: e.name || e.email, orcid: '' },
       currentWorkload: 0,
       maxWorkload: 0,
       role: e.role,

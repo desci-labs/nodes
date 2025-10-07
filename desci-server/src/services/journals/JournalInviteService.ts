@@ -74,6 +74,7 @@ async function inviteJournalEditor({
       data: {
         journalId,
         email,
+        name,
         role,
         inviterId,
         expiresAt: new Date(Date.now() + inviteTtlDays * 24 * 60 * 60 * 1000),
