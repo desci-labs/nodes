@@ -126,6 +126,7 @@ spec:
           export SCIWEAVE_FREE_LIMIT="{{ .Data.SCIWEAVE_FREE_LIMIT }}"
           export AMPLITUDE_API_KEY="{{ .Data.AMPLITUDE_API_KEY_PUBLISH }}"
           export AMPLITUDE_API_KEY="{{ .Data.AMPLITUDE_API_KEY_SCIWEAVE }}"
+          export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP={{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";
