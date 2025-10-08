@@ -1,3 +1,6 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import { prisma } from '../client.js';
 import communitiesData from '../data/communities.json' assert { type: 'json' };
 import { asyncMap } from '../utils.js';
@@ -223,11 +226,16 @@ export const seedSocialData = async () => {
   return 'done';
 };
 
-if (process.env.ENABLE_SOCIAL_DATA_SEED_SCRIPTS) {
-  seedSocialData()
-    .then(() => console.log('Communities and Attestations created/updated'))
-    .catch((err) => console.log('Error running script ', err));
-} else {
-  console.log('Must set ENABLE_SOCIAL_DATA_SEED_SCRIPTS=1 to activate seeding of social data, skipping...');
-  process.exit(0);
+// Only run if executed directly, not when imported
+const isDirectExecution = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+
+if (isDirectExecution) {
+  if (process.env.ENABLE_SOCIAL_DATA_SEED_SCRIPTS) {
+    seedSocialData()
+      .then(() => console.log('Communities and Attestations created/updated'))
+      .catch((err) => console.log('Error running script ', err));
+  } else {
+    console.log('Must set ENABLE_SOCIAL_DATA_SEED_SCRIPTS=1 to activate seeding of social data, skipping...');
+    process.exit(0);
+  }
 }

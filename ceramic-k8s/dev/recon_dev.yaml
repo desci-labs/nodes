@@ -1,17 +1,7 @@
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: retained-standard
-provisioner: kubernetes.io/aws-ebs
-reclaimPolicy: Retain
-parameters:
-  type: gp3
----
-
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ceramic-one-env
+  name: ceramic-one-env-dev
 data:
   CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
   CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
@@ -21,13 +11,14 @@ data:
   CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
   CERAMIC_ONE_LOCAL_NETWORK_ID: "0"
   CERAMIC_ONE_NETWORK: "testnet-clay"
+  CERAMIC_ONE_EXTRA_INTERESTS: "kh4q0ozorrgaq2mezktnrmdwleo1d,kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0"
   RUST_LOG: "info,ceramic_one=debug,multipart=error"
   CERAMIC_ONE_LOG_FORMAT: "json"
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ceramic-init
+  name: ceramic-init-dev
 data:
   get-external-multiaddr.sh: |
     #!/bin/bash
@@ -37,7 +28,7 @@ data:
     MY_POD_INDEX=$(echo $HOSTNAME | grep -o '[0-9]\+$')
     TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
     NAMESPACE=default
-    
+
     LB_DOMAIN=$(curl -s --header "Authorization: Bearer $TOKEN" \
         --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
         https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/services/ceramic-recon-dev-$MY_POD_INDEX-swarm\
@@ -89,7 +80,8 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.55.0
+          # https://github.com/ceramicnetwork/rust-ceramic/pull/739
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:08eada97d67d654049adb03ff0c42fa262023f87
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null
@@ -100,7 +92,7 @@ spec:
               value: /vault/secrets/config
           envFrom:
             - configMapRef:
-                name: ceramic-one-env
+                name: ceramic-one-env-dev
           ports:
             - containerPort: 5102
               name: flight-sql
@@ -154,7 +146,7 @@ spec:
             - mountPath: /config
               name: config-volume
             - mountPath: /ceramic-init
-              name: ceramic-init
+              name: ceramic-init-dev
 
       volumes:
           # holds the config file during the lifetime of the pod
@@ -163,11 +155,11 @@ spec:
           # set 755 on files to allow executing init script
         - configMap:
             defaultMode: 493
-            name: ceramic-init
-          name: ceramic-init
+            name: ceramic-init-dev
+          name: ceramic-init-dev
         - configMap:
-            name: ceramic-one-env
-          name: ceramic-one-env
+            name: ceramic-one-env-dev
+          name: ceramic-one-env-dev
 
   volumeClaimTemplates:
     - metadata:
@@ -177,7 +169,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: retained-standard
+        storageClassName: retained-standard-csi
         resources:
           requests:
             storage: 100Gi
@@ -223,14 +215,6 @@ spec:
     App: CeramicReconDev
     statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
   ports:
-    # - port: 4101
-    #   name: swarm-tcp
-    #   protocol: TCP
-    #   targetPort: swarm-tcp
-    # - port: 4102
-    #   name: swarm-udp
-    #   protocol: UDP
-    #   targetPort: swarm-udp
     - port: 5102
       name: flight-sql
       targetPort: flight-sql
@@ -240,25 +224,6 @@ spec:
     - port: 9465
       name: one-metrics
       targetPort: one-metrics
-# ---
-# apiVersion: v1
-# kind: Service
-# metadata:
-#   name: ceramic-recon-dev-0-public
-# spec:
-#   type: LoadBalancer
-#   selector:
-#     App: CeramicReconDev
-#     statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
-#   ports:
-#     - port: 4101
-#       name: swarm-tcp
-#       protocol: TCP
-#       targetPort: swarm-tcp
-#     - port: 4102
-#       name: swarm-udp
-#       protocol: UDP
-#       targetPort: swarm-udp
 ---
 apiVersion: v1
 kind: Service
@@ -299,3 +264,30 @@ spec:
       protocol: TCP
       port: 5102
       targetPort: 5102
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ceramic-recon-dev-rpc-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: 'ip'
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /ceramic/events
+        pathType: Prefix
+        backend:
+          service:
+            name: ceramic-recon-dev-0-internal
+            port:
+              number: 5101
+      - path: /ceramic/streams
+        pathType: Prefix
+        backend:
+          service:
+            name: ceramic-recon-dev-0-internal
+            port:
+              number: 5101

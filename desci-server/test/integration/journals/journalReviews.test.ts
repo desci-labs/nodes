@@ -1,6 +1,3 @@
-import 'dotenv/config';
-import 'mocha';
-
 import {
   EditorRole,
   Journal,
@@ -11,26 +8,16 @@ import {
   ReviewDecision,
   SubmissionStatus,
 } from '@prisma/client';
-import chai, { assert } from 'chai';
-import chaiAsPromised from 'chai-as-promised';
 import supertest from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
+import { describe, it, beforeEach, expect, assert, afterEach } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
-import { server } from '../../../src/server.js';
 import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
 import { JournalRefereeManagementService } from '../../../src/services/journals/JournalRefereeManagementService.js';
 import { journalSubmissionService } from '../../../src/services/journals/JournalSubmissionService.js';
-import { createDraftNode, createMockUsers, MockUser, publishMockNode, sanitizeBigInts } from '../../util.js';
-
-// use async chai assertions
-chai.use(chaiAsPromised);
-const expect = chai.expect;
-
-server.ready().then((_) => {
-  console.log('server is ready');
-});
-export const app = server.app;
+import { app } from '../../testApp.js';
+import { createDraftNode, createMockUsers, MockUser, publishMockNode } from '../../util.js';
 
 describe('Journal Reviews', () => {
   let author: MockUser;
@@ -245,8 +232,8 @@ describe('Journal Reviews', () => {
           review: reviewTemplate,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Review already exists');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Review already exists');
     });
 
     it('should prevent unAuthorised user from creating a review', async () => {
@@ -257,8 +244,8 @@ describe('Journal Reviews', () => {
           review: reviewTemplate,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('User is not an assigned referee to this submission');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('User is not an assigned referee to this submission');
     });
   });
 
@@ -293,8 +280,8 @@ describe('Journal Reviews', () => {
           recommendation: ReviewDecision.ACCEPT,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('User is not an assigned referee to this submission');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('User is not an assigned referee to this submission');
     });
 
     it('should prevent associate editor from updating a review', async () => {
@@ -306,8 +293,8 @@ describe('Journal Reviews', () => {
           recommendation: ReviewDecision.ACCEPT,
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('User is not an assigned referee to this submission');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('User is not an assigned referee to this submission');
     });
   });
 
@@ -334,7 +321,7 @@ describe('Journal Reviews', () => {
     it('should prevent empty review from being submitted', async () => {
       const response = await submitReview(review, { review: '' });
 
-      expect(response.status).to.equal(400);
+      expect(response.status).toBe(400);
     });
 
     it('should submit a review', async () => {
@@ -345,8 +332,8 @@ describe('Journal Reviews', () => {
         authorFeedback: 'Author feedback',
       });
 
-      expect(response.status).to.equal(200);
-      expect(response.body.ok).to.be.true;
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
       expect(response.body.data.submittedAt).to.not.be.null;
       expect(response.body.data.recommendation).to.be.equal(ReviewDecision.ACCEPT);
       expect(response.body.data.editorFeedback).to.be.equal('Editor feedback');
@@ -365,8 +352,8 @@ describe('Journal Reviews', () => {
           authorFeedback: 'Author feedback',
         });
 
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('User is not an assigned referee to this submission');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('User is not an assigned referee to this submission');
     });
   });
 
@@ -452,55 +439,55 @@ describe('Journal Reviews', () => {
       ]);
 
       // author cannot view reviews for submissions that are not under review
-      expect(responses[0].status).to.equal(200);
+      expect(responses[0].status).toBe(200);
       expect(responses[0].body.data).to.be.an('array').of.length(0);
 
       // author can view reviews for submissions that are accepted
-      expect(responses[1].status).to.equal(200);
+      expect(responses[1].status).toBe(200);
       expect(responses[1].body.data).to.be.an('array').of.length(1);
 
       // author can view reviews for submissions that are revised
-      expect(responses[2].status).to.equal(200);
+      expect(responses[2].status).toBe(200);
       expect(responses[2].body.data).to.be.an('array').of.length(1);
 
       // author can view reviews for submissions that are rejected
-      expect(responses[3].status).to.equal(200);
+      expect(responses[3].status).toBe(200);
       expect(responses[3].body.data).to.be.an('array').of.length(1);
     });
 
     it('should restrict author from viewing details of unsubmitted reviews and allowing them to view submitted reviews', async () => {
       // assert author cannot view details of unsubmitted reviews
       let response = await getReviewById(review.id, author);
-      expect(response.status).to.equal(200);
-      expect(response.body.data).to.be.null;
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeNull();
 
       // assert author can view details of submitted reviews
       response = await getReviewById(acceptedSubmissionReview.id, author);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(acceptedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
 
       // assert author can view details of submitted reviews
       response = await getReviewById(revisedSubmissionReview.id, author);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(revisedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
 
       // assert author can view details of submitted reviews
       response = await getReviewById(rejectedSubmissionReview.id, author);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(rejectedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
     });
 
     it('should prevent unauthorised user from viewing reviews', async () => {
       let response = await getSubmissionReviews(acceptedSubmissionReview.submissionId, unAuthorisedUser);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data).to.be.an('array').that.is.empty;
 
       response = await getReviewById(acceptedSubmissionReview.id, unAuthorisedUser);
-      expect(response.status).to.equal(200);
-      expect(response.body.data).to.be.null;
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeNull();
     });
 
     it('should allow associate editors to view all reviews', async () => {
@@ -512,22 +499,22 @@ describe('Journal Reviews', () => {
       ]);
 
       // associate editor can view reviews for submissions that are not under review
-      expect(responses[0].status).to.equal(200);
+      expect(responses[0].status).toBe(200);
       expect(responses[0].body.data).to.be.an('array').of.length(1);
       expect(responses[0].body.data[0].id).to.be.equal(review.id);
 
       // associate editor can view reviews for submissions that are accepted
-      expect(responses[1].status).to.equal(200);
+      expect(responses[1].status).toBe(200);
       expect(responses[1].body.data).to.be.an('array').of.length(1);
       expect(responses[1].body.data[0].id).to.be.equal(acceptedSubmissionReview.id);
 
       // associate editor can view reviews for submissions that are revised
-      expect(responses[2].status).to.equal(200);
+      expect(responses[2].status).toBe(200);
       expect(responses[2].body.data).to.be.an('array').of.length(1);
       expect(responses[2].body.data[0].id).to.be.equal(revisedSubmissionReview.id);
 
       // associate editor can view reviews for submissions that are rejected
-      expect(responses[3].status).to.equal(200);
+      expect(responses[3].status).toBe(200);
       expect(responses[3].body.data).to.be.an('array').of.length(1);
       expect(responses[3].body.data[0].id).to.be.equal(rejectedSubmissionReview.id);
     });
@@ -535,25 +522,25 @@ describe('Journal Reviews', () => {
     it('should allow associate editors to view details of submitted reviews', async () => {
       // assert associate editor cannot view details of unsubmitted reviews
       let response = await getReviewById(review.id, associateEditor);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(review.id);
-      expect(response.body.data.submittedAt).to.be.null;
+      expect(response.body.data.submittedAt).toBeNull();
 
       // assert associate editor can view details of submitted reviews
       response = await getReviewById(acceptedSubmissionReview.id, associateEditor);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(acceptedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
 
       // assert associate editor can view details of submitted reviews
       response = await getReviewById(revisedSubmissionReview.id, associateEditor);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(revisedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
 
       // assert associate editor can view details of submitted reviews
       response = await getReviewById(rejectedSubmissionReview.id, associateEditor);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(rejectedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
     });
@@ -567,22 +554,22 @@ describe('Journal Reviews', () => {
       ]);
 
       // associate editor can view reviews for submissions that are not under review
-      expect(responses[0].status).to.equal(200);
+      expect(responses[0].status).toBe(200);
       expect(responses[0].body.data).to.be.an('array').of.length(1);
       expect(responses[0].body.data[0].id).to.be.equal(review.id);
 
       // associate editor can view reviews for submissions that are accepted
-      expect(responses[1].status).to.equal(200);
+      expect(responses[1].status).toBe(200);
       expect(responses[1].body.data).to.be.an('array').of.length(1);
       expect(responses[1].body.data[0].id).to.be.equal(acceptedSubmissionReview.id);
 
       // associate editor can view reviews for submissions that are revised
-      expect(responses[2].status).to.equal(200);
+      expect(responses[2].status).toBe(200);
       expect(responses[2].body.data).to.be.an('array').of.length(1);
       expect(responses[2].body.data[0].id).to.be.equal(revisedSubmissionReview.id);
 
       // associate editor can view reviews for submissions that are rejected
-      expect(responses[3].status).to.equal(200);
+      expect(responses[3].status).toBe(200);
       expect(responses[3].body.data).to.be.an('array').of.length(1);
       expect(responses[3].body.data[0].id).to.be.equal(rejectedSubmissionReview.id);
     });
@@ -590,25 +577,25 @@ describe('Journal Reviews', () => {
     it('should allow chief editors to view details of submitted reviews', async () => {
       // assert chief editor cannot view details of unsubmitted reviews
       let response = await getReviewById(review.id, chiefEditor);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(review.id);
-      expect(response.body.data.submittedAt).to.be.null;
+      expect(response.body.data.submittedAt).toBeNull();
 
       // assert chief editor can view details of submitted reviews
       response = await getReviewById(acceptedSubmissionReview.id, chiefEditor);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(acceptedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
 
       // assert chief editor can view details of submitted reviews
       response = await getReviewById(revisedSubmissionReview.id, chiefEditor);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(revisedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
 
       // assert chief editor can view details of submitted reviews
       response = await getReviewById(rejectedSubmissionReview.id, chiefEditor);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(rejectedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
     });
@@ -622,22 +609,22 @@ describe('Journal Reviews', () => {
       ]);
 
       // associate editor can view reviews for submissions that are not under review
-      expect(responses[0].status).to.equal(200);
+      expect(responses[0].status).toBe(200);
       expect(responses[0].body.data).to.be.an('array').of.length(1);
       expect(responses[0].body.data[0].id).to.be.equal(review.id);
 
       // associate editor can view reviews for submissions that are accepted
-      expect(responses[1].status).to.equal(200);
+      expect(responses[1].status).toBe(200);
       expect(responses[1].body.data).to.be.an('array').of.length(1);
       expect(responses[1].body.data[0].id).to.be.equal(acceptedSubmissionReview.id);
 
       // associate editor can view reviews for submissions that are revised
-      expect(responses[2].status).to.equal(200);
+      expect(responses[2].status).toBe(200);
       expect(responses[2].body.data).to.be.an('array').of.length(1);
       expect(responses[2].body.data[0].id).to.be.equal(revisedSubmissionReview.id);
 
       // associate editor can view reviews for submissions that are rejected
-      expect(responses[3].status).to.equal(200);
+      expect(responses[3].status).toBe(200);
       expect(responses[3].body.data).to.be.an('array').of.length(1);
       expect(responses[3].body.data[0].id).to.be.equal(rejectedSubmissionReview.id);
     });
@@ -645,25 +632,25 @@ describe('Journal Reviews', () => {
     it('should allow referees to view details of submitted reviews', async () => {
       // assert referee cannot view details of unsubmitted reviews
       let response = await getReviewById(review.id, referee);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(review.id);
-      expect(response.body.data.submittedAt).to.be.null;
+      expect(response.body.data.submittedAt).toBeNull();
 
       // assert referee can view details of submitted reviews
       response = await getReviewById(acceptedSubmissionReview.id, referee);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(acceptedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
 
       // assert referee can view details of submitted reviews
       response = await getReviewById(revisedSubmissionReview.id, referee);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(revisedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
 
       // assert referee can view details of submitted reviews
       response = await getReviewById(rejectedSubmissionReview.id, referee);
-      expect(response.status).to.equal(200);
+      expect(response.status).toBe(200);
       expect(response.body.data.id).to.be.equal(rejectedSubmissionReview.id);
       expect(response.body.data.submittedAt).to.not.be.null;
     });

@@ -7,20 +7,13 @@ import {
   Node,
   User,
 } from '@prisma/client';
-import chai, { assert } from 'chai';
-import chaiAsPromised from 'chai-as-promised';
-import 'dotenv/config';
-import 'mocha';
+import { describe, it, beforeAll, afterAll, expect, assert } from 'vitest';
 
 import { prisma } from '../../src/client.js';
 import { DuplicateDataError } from '../../src/core/communities/error.js';
 import { attestationService } from '../../src/services/Attestation.js';
 import { communityService } from '../../src/services/Communities.js';
 import { createUsers } from '../util.js';
-
-// use async chai assertions
-chai.use(chaiAsPromised);
-const expect = chai.expect;
 
 const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
@@ -51,7 +44,7 @@ describe('Desci Communities', () => {
     await prisma.$queryRaw`TRUNCATE TABLE "DesciCommunity" CASCADE;`;
   };
 
-  before(async () => {
+  beforeAll(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
     admin = await prisma.user.create({
       data: {
@@ -69,7 +62,7 @@ describe('Desci Communities', () => {
     await setupCommunity();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await clearDatabase();
     await tearDownCommunity();
   });
@@ -84,23 +77,23 @@ describe('Desci Communities', () => {
     it('should create a community', async () => {
       // const [daoCommunity, moonDaoAdmin] =
       assert(daoCommunity, 'Community not created');
-      expect(daoCommunity?.name).to.be.equal(moonDao.name);
-      expect(daoCommunity?.image_url).to.be.equal(moonDao.image_url);
-      expect(daoCommunity?.description).to.be.equal(moonDao.description);
+      expect(daoCommunity?.name).toBe(moonDao.name);
+      expect(daoCommunity?.image_url).toBe(moonDao.image_url);
+      expect(daoCommunity?.description).toBe(moonDao.description);
     });
 
     it.skip('should assign creator as admin', async () => {
       assert(daoCommunity, 'daoCommunity is null');
       const moonDaoAdmin = await communityService.getCommunityAdmin(daoCommunity.id);
-      expect(moonDaoAdmin?.userId).to.be.equal(admin.id);
-      expect(moonDaoAdmin?.user.name).to.be.equal(admin.name);
+      expect(moonDaoAdmin?.userId).toBe(admin.id);
+      expect(moonDaoAdmin?.user.name).toBe(admin.name);
     });
   });
 
   describe('Updating a community', () => {
     let updatedCommunity: DesciCommunity;
 
-    before(async () => {
+    beforeAll(async () => {
       assert(daoCommunity);
       updatedCommunity = await communityService.updateCommunity(daoCommunity.name, {
         description: 'No description',
@@ -111,25 +104,25 @@ describe('Desci Communities', () => {
     });
 
     it('should update community', () => {
-      expect(updatedCommunity.name).to.be.equal('Dao community');
-      expect(updatedCommunity.image_url).to.be.equal('');
-      expect(updatedCommunity.description).to.be.equal('No description');
+      expect(updatedCommunity.name).toBe('Dao community');
+      expect(updatedCommunity.image_url).toBe('');
+      expect(updatedCommunity.description).toBe('No description');
     });
   });
 
   describe.skip('Community Membership', () => {
     // before()
     it('should add a member', () => {
-      expect(true).to.be.true;
+      expect(true).toBe(true);
     });
     it('should remove a member', () => {
-      expect(true).to.be.true;
+      expect(true).toBe(true);
     });
     it('should restrict updates to admin', async () => {
-      expect(true).to.be.true;
+      expect(true).toBe(true);
     });
     it('should prevent removal of admin', () => {
-      expect(true).to.be.true;
+      expect(true).toBe(true);
     });
   });
 
@@ -157,14 +150,14 @@ describe('Desci Communities', () => {
     let attestation: Attestation;
     let attestation2: Attestation;
 
-    before(async () => {
+    beforeAll(async () => {
       assert(daoCommunity);
       [attestation, attestation2] = await Promise.all(
         attestationData.map((data) => attestationService.create({ communityId: daoCommunity?.id as number, ...data })),
       );
     });
 
-    after(async () => {
+    afterAll(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Attestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "AttestationVersion" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "AttestationTemplate" CASCADE;`;
@@ -174,21 +167,21 @@ describe('Desci Communities', () => {
     describe('Create Community Attestation', () => {
       it('should create attestation', async () => {
         assert(attestation);
-        expect(attestation.name).to.be.equal(attestationData[0].name);
-        expect(attestation.description).to.be.equal(attestationData[0].description);
-        expect(attestation.image_url).to.be.equal(attestationData[0].image_url);
-        expect(attestation.templateId).to.be.null;
+        expect(attestation.name).toBe(attestationData[0].name);
+        expect(attestation.description).toBe(attestationData[0].description);
+        expect(attestation.image_url).toBe(attestationData[0].image_url);
+        expect(attestation.templateId).toBeNull();
       });
 
       it('should create attestation version', async () => {
         assert(attestation);
         const versions = await attestationService.getAttestationVersions(attestation.id);
-        expect(versions.length).to.be.equal(1);
+        expect(versions.length).toBe(1);
         const attestationVersion = versions[0];
         assert(attestationVersion);
-        expect(attestationVersion.name).to.be.equal(attestationData[0].name);
-        expect(attestationVersion.description).to.be.equal(attestationData[0].description);
-        expect(attestationVersion.image_url).to.be.equal(attestationData[0].image_url);
+        expect(attestationVersion.name).toBe(attestationData[0].name);
+        expect(attestationVersion.description).toBe(attestationData[0].description);
+        expect(attestationVersion.image_url).toBe(attestationData[0].image_url);
       });
 
       it('should prevent duplicate attestation', async () => {
@@ -196,7 +189,7 @@ describe('Desci Communities', () => {
           assert(daoCommunity);
           await attestationService.create({ ...attestation });
         } catch (err) {
-          expect(err).to.be.instanceOf(DuplicateDataError);
+          expect(err).toBeInstanceOf(DuplicateDataError);
         }
       });
     });
@@ -221,23 +214,23 @@ describe('Desci Communities', () => {
 
         assert(attestationFromTemplate);
         assert(template);
-        expect(attestationFromTemplate.name).to.be.equal('Custom attestation');
-        expect(attestationFromTemplate.description).to.be.equal(template.description);
-        expect(attestationFromTemplate.image_url).to.be.equal(template.image_url);
-        expect(attestationFromTemplate.templateId).to.be.equal(template.id);
+        expect(attestationFromTemplate.name).toBe('Custom attestation');
+        expect(attestationFromTemplate.description).toBe(template.description);
+        expect(attestationFromTemplate.image_url).toBe(template.image_url);
+        expect(attestationFromTemplate.templateId).toBe(template.id);
       });
 
       it('should prevent duplicate attestation template', async () => {
         try {
           await attestationService.createTemplate(templateData);
         } catch (err) {
-          expect(err).to.be.instanceOf(DuplicateDataError);
+          expect(err).toBeInstanceOf(DuplicateDataError);
         }
       });
     });
 
     describe('Update Community Attestation', async () => {
-      before(async () => {
+      beforeAll(async () => {
         await attestationService.updateAttestation(attestation.id, { ...attestation, name: 'Update 1' });
       });
 
@@ -245,11 +238,11 @@ describe('Desci Communities', () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         assert(versions);
         // console.log('version 2', versions);
-        expect(versions.length).to.be.equal(2);
-        expect(versions[1].name).be.equal('Update 1');
-        expect(versions[1].description).be.equal(attestation.description);
-        expect(versions[1].image_url).be.equal(attestation.image_url);
-        expect(versions[1].attestationId).be.equal(attestation.id);
+        expect(versions.length).toBe(2);
+        expect(versions[1].name).toBe('Update 1');
+        expect(versions[1].description).toBe(attestation.description);
+        expect(versions[1].image_url).toBe(attestation.image_url);
+        expect(versions[1].attestationId).toBe(attestation.id);
       });
 
       it.skip('should publish attestation version 3', async () => {
@@ -261,11 +254,11 @@ describe('Desci Communities', () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         assert(versions);
         // console.log('version 3', versions);
-        expect(versions.length).to.be.equal(3);
-        expect(versions[2].name).be.equal('Update 2');
-        expect(versions[2].description).be.equal(attestation.description);
-        expect(versions[2].image_url).be.equal('http://version3');
-        expect(versions[2].attestationId).be.equal(attestation.id);
+        expect(versions.length).toBe(3);
+        expect(versions[2].name).toBe('Update 2');
+        expect(versions[2].description).toBe(attestation.description);
+        expect(versions[2].image_url).toBe('http://version3');
+        expect(versions[2].attestationId).toBe(attestation.id);
       });
 
       it.skip('should publish attestation version 4', async () => {
@@ -276,11 +269,11 @@ describe('Desci Communities', () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         // console.log('version 4', versions);
         assert(versions);
-        expect(versions.length).to.be.equal(4);
-        expect(versions[3].name).be.equal(attestation.name);
-        expect(versions[3].description).be.equal('Version 4 Description');
-        expect(versions[3].image_url).be.equal(attestation.image_url);
-        expect(versions[3].attestationId).be.equal(attestation.id);
+        expect(versions.length).toBe(4);
+        expect(versions[3].name).toBe(attestation.name);
+        expect(versions[3].description).toBe('Version 4 Description');
+        expect(versions[3].image_url).toBe(attestation.image_url);
+        expect(versions[3].attestationId).toBe(attestation.id);
       });
     });
 
@@ -290,7 +283,7 @@ describe('Desci Communities', () => {
       let selectedVersion: AttestationVersion;
       let selectedAttestation2: CommunityEntryAttestation;
 
-      before(async () => {
+      beforeAll(async () => {
         assert(daoCommunity);
         assert(attestation);
         const versions = await attestationService.getAttestationVersions(attestation.id);
@@ -314,10 +307,10 @@ describe('Desci Communities', () => {
 
       it('should add attestation to community', () => {
         assert(daoCommunity);
-        expect(selectedAttestation.attestationId).to.be.equal(attestation.id);
-        expect(selectedAttestation.desciCommunityId).to.be.equal(daoCommunity.id);
-        expect(selectedAttestation.required).to.be.equal(true);
-        expect(selectedAttestation.attestationVersionId).to.be.equal(version.id);
+        expect(selectedAttestation.attestationId).toBe(attestation.id);
+        expect(selectedAttestation.desciCommunityId).toBe(daoCommunity.id);
+        expect(selectedAttestation.required).toBe(true);
+        expect(selectedAttestation.attestationVersionId).toBe(version.id);
       });
 
       it('should prevent duplicate community selected attestation', async () => {
@@ -330,28 +323,28 @@ describe('Desci Communities', () => {
             attestationVersion: version.id,
           });
         } catch (err) {
-          expect(err).to.be.instanceOf(DuplicateDataError);
+          expect(err).toBeInstanceOf(DuplicateDataError);
         }
       });
 
       it('should list all community selected attestations', async () => {
         assert(daoCommunity);
         const entryAttestations = await attestationService.getCommunityEntryAttestations(daoCommunity.id);
-        expect(entryAttestations.length).to.be.equal(2);
+        expect(entryAttestations.length).toBe(2);
 
         // check for first attestation properties
-        expect(entryAttestations[0].id).to.be.equal(selectedAttestation.id);
-        expect(entryAttestations[0].attestationId).to.be.equal(attestation.id);
-        expect(entryAttestations[0].attestationVersionId).to.be.equal(version.id);
+        expect(entryAttestations[0].id).toBe(selectedAttestation.id);
+        expect(entryAttestations[0].attestationId).toBe(attestation.id);
+        expect(entryAttestations[0].attestationVersionId).toBe(version.id);
 
         // check for first attestation properties
-        expect(entryAttestations[1].id).to.be.equal(selectedAttestation2.id);
-        expect(entryAttestations[1].attestationId).to.be.equal(attestation2.id);
-        expect(entryAttestations[1].attestationVersionId).to.be.equal(selectedVersion.id);
+        expect(entryAttestations[1].id).toBe(selectedAttestation2.id);
+        expect(entryAttestations[1].attestationId).toBe(attestation2.id);
+        expect(entryAttestations[1].attestationVersionId).toBe(selectedVersion.id);
       });
 
       // it('should only curate nodes who claim entry requirement attestation(s)', () => {
-      //   expect(true).to.be.false;
+      //   expect(true).toBe(false);
       // });
 
       // it('should allow member to claim all selected attestation(s)', () => {});
@@ -369,7 +362,7 @@ describe('Desci Communities', () => {
     let testNode: Node;
     let testNode2: Node;
 
-    before(async () => {
+    beforeAll(async () => {
       // Create a test node for submissions
       testNode = await prisma.node.create({
         data: {
@@ -385,7 +378,7 @@ describe('Desci Communities', () => {
       });
     });
 
-    after(async () => {
+    afterAll(async () => {
       // Clean up test data
       await prisma.$queryRaw`TRUNCATE TABLE "CommunitySubmission" CASCADE;`;
       await prisma.node.delete({ where: { id: testNode.id } });
@@ -409,10 +402,10 @@ describe('Desci Communities', () => {
           userId: unauthedUser.id,
         });
 
-        expect(submission).to.not.be.null;
-        expect(submission.nodeId).to.equal(testNode.uuid);
-        expect(submission.communityId).to.equal(daoCommunity.id);
-        expect(submission.status).to.equal('PENDING');
+        expect(submission).not.toBeNull();
+        expect(submission.nodeId).toBe(testNode.uuid);
+        expect(submission.communityId).toBe(daoCommunity.id);
+        expect(submission.status).toBe('PENDING');
 
         submissionId = submission.id;
       });
@@ -429,8 +422,8 @@ describe('Desci Communities', () => {
           });
           expect.fail('Should have thrown error');
         } catch (error) {
-          expect(error).to.be.instanceOf(Error);
-          expect((error as Error).message).to.include('not a member');
+          expect(error).toBeInstanceOf(Error);
+          expect((error as Error).message).toContain('not a member');
         }
       });
 
@@ -444,8 +437,8 @@ describe('Desci Communities', () => {
           });
           expect.fail('Should have thrown error');
         } catch (error) {
-          expect(error).to.be.instanceOf(Error);
-          expect((error as Error).message).to.include('Unique constraint failed');
+          expect(error).toBeInstanceOf(Error);
+          expect((error as Error).message).toContain('Unique constraint failed');
         }
       });
     });
@@ -455,9 +448,9 @@ describe('Desci Communities', () => {
         assert(daoCommunity);
         const submissions = await communityService.getCommunitySubmissions({ communityId: daoCommunity.id });
 
-        expect(submissions).to.be.an('array');
-        expect(submissions.length).to.be.greaterThan(0);
-        expect(submissions[0].nodeId).to.equal(testNode.uuid);
+        expect(submissions).toBeInstanceOf(Array);
+        expect(submissions.length).toBeGreaterThan(0);
+        expect(submissions[0].nodeId).toBe(testNode.uuid);
       });
 
       it.skip('should filter submissions by status', async () => {
@@ -467,9 +460,9 @@ describe('Desci Communities', () => {
           status: 'PENDING',
         });
 
-        expect(pendingSubmissions).to.be.an('array');
-        expect(pendingSubmissions.length).to.be.greaterThan(0);
-        expect(pendingSubmissions[0].status).to.equal('PENDING');
+        expect(pendingSubmissions).toBeInstanceOf(Array);
+        expect(pendingSubmissions.length).toBeGreaterThan(0);
+        expect(pendingSubmissions[0].status).toBe('PENDING');
       });
 
       it.skip('should prevent non-members from viewing submissions', async () => {
@@ -480,8 +473,8 @@ describe('Desci Communities', () => {
           await communityService.getCommunitySubmissions({ communityId: daoCommunity.id });
           expect.fail('Should have thrown error');
         } catch (error) {
-          expect(error).to.be.instanceOf(Error);
-          expect((error as Error).message).to.include('not a member');
+          expect(error).toBeInstanceOf(Error);
+          expect((error as Error).message).toContain('not a member');
         }
       });
     });
@@ -490,9 +483,9 @@ describe('Desci Communities', () => {
       it.skip("should list user's own submissions", async () => {
         const submissions = await communityService.getUserSubmissions(unauthedUser.id);
 
-        expect(submissions).to.be.an('array');
-        expect(submissions.length).to.be.greaterThan(0);
-        expect(submissions[0].node.ownerId).to.equal(unauthedUser.id);
+        expect(submissions).toBeInstanceOf(Array);
+        expect(submissions.length).toBeGreaterThan(0);
+        expect(submissions[0].node.ownerId).toBe(unauthedUser.id);
       });
 
       it.skip("should prevent viewing other users' submissions", async () => {
@@ -500,8 +493,8 @@ describe('Desci Communities', () => {
           await communityService.getUserSubmissions(admin.id);
           expect.fail('Should have thrown error');
         } catch (error) {
-          expect(error).to.be.instanceOf(Error);
-          expect((error as Error).message).to.include('Unauthorized');
+          expect(error).toBeInstanceOf(Error);
+          expect((error as Error).message).toContain('Unauthorized');
         }
       });
     });
@@ -520,8 +513,8 @@ describe('Desci Communities', () => {
 
         const updatedSubmission = await communityService.updateSubmissionStatus(submissionId, 'ACCEPTED');
 
-        expect(updatedSubmission.status).to.equal('ACCEPTED');
-        expect(updatedSubmission.acceptedAt).to.not.be.null;
+        expect(updatedSubmission.status).toBe('ACCEPTED');
+        expect(updatedSubmission.acceptedAt).not.toBeNull();
       });
 
       it.skip('should allow admin/member to reject submission', async () => {
@@ -533,8 +526,8 @@ describe('Desci Communities', () => {
 
         const updatedSubmission = await communityService.updateSubmissionStatus(newSubmission.id, 'REJECTED');
 
-        expect(updatedSubmission.status).to.equal('REJECTED');
-        expect(updatedSubmission.rejectedAt).to.not.be.null;
+        expect(updatedSubmission.status).toBe('REJECTED');
+        expect(updatedSubmission.rejectedAt).not.toBeNull();
       });
 
       it.skip('should prevent non-admin from updating status', async () => {
@@ -542,8 +535,8 @@ describe('Desci Communities', () => {
           await communityService.updateSubmissionStatus(submissionId, 'ACCEPTED');
           expect.fail('Should have thrown error');
         } catch (error) {
-          expect(error).to.be.instanceOf(Error);
-          expect((error as Error).message).to.include('admin');
+          expect(error).toBeInstanceOf(Error);
+          expect((error as Error).message).toContain('admin');
         }
       });
     });
@@ -552,16 +545,16 @@ describe('Desci Communities', () => {
       it.skip('should allow submitter to view submission', async () => {
         const submission = await communityService.getSubmission(submissionId);
 
-        expect(submission).to.not.be.null;
-        expect(submission?.id).to.equal(submissionId);
-        expect(submission?.nodeId).to.equal(testNode.uuid);
+        expect(submission).not.toBeNull();
+        expect(submission?.id).toBe(submissionId);
+        expect(submission?.nodeId).toBe(testNode.uuid);
       });
 
       it.skip('should allow community member to view submission', async () => {
         const submission = await communityService.getSubmission(submissionId);
 
-        expect(submission).to.not.be.null;
-        expect(submission?.id).to.equal(submissionId);
+        expect(submission).not.toBeNull();
+        expect(submission?.id).toBe(submissionId);
       });
 
       it.skip('should prevent non-members from viewing submission', async () => {
@@ -571,18 +564,18 @@ describe('Desci Communities', () => {
           await communityService.getSubmission(submissionId);
           expect.fail('Should have thrown error');
         } catch (error) {
-          expect(error).to.be.instanceOf(Error);
-          expect((error as Error).message).to.include('Unauthorized');
+          expect(error).toBeInstanceOf(Error);
+          expect((error as Error).message).toContain('Unauthorized');
         }
       });
 
       it('should return 404 for non-existent submission', async () => {
         try {
           const submission = await communityService.getSubmission(99999);
-          expect(submission).to.be.null;
+          expect(submission).toBeNull();
         } catch (error) {
-          expect(error).to.be.instanceOf(Error);
-          expect((error as Error).message).to.include('not found');
+          expect(error).toBeInstanceOf(Error);
+          expect((error as Error).message).toContain('not found');
         }
       });
     });

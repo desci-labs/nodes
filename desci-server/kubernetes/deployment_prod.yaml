@@ -32,10 +32,10 @@ spec:
           export DATABASE_URL={{ .Data.url }}
           export IPFS_NODE_URL="http://ipfs-gateway-staging-internal.default.svc.cluster.local:5001"
           export NODE_ENV=production
-          echo "dbset"; 
+          echo "dbset";
           {{- end -}}
           {{- with secret "secrets/desci-server/production/app" -}}
-          echo "appstart"; 
+          echo "appstart";
           export JWT_SECRET={{ .Data.JWT_SECRET }}
           export JWT_EXPIRATION=15m
           export SESSION_KEY={{ .Data.SESSION_KEY }}
@@ -57,7 +57,7 @@ spec:
           export SERVER_URL={{ .Data.SERVER_URL }}
           export DAPP_URL={{ .Data.DAPP_URL }}
           export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}
-          export SENDGRID_TEMPLATE_ID_MAP={{ .Data.SENDGRID_TEMPLATE_ID_MAP }}
+          export SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SENDGRID_TEMPLATE_ID_MAP }}'
           export SHOULD_SEND_EMAIL=true
           export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
           export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
@@ -126,6 +126,7 @@ spec:
           export SCIWEAVE_FREE_LIMIT="{{ .Data.SCIWEAVE_FREE_LIMIT }}"
           export AMPLITUDE_API_KEY="{{ .Data.AMPLITUDE_API_KEY_PUBLISH }}"
           export AMPLITUDE_API_KEY="{{ .Data.AMPLITUDE_API_KEY_SCIWEAVE }}"
+          export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}'
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";

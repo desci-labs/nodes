@@ -1,20 +1,14 @@
-import 'mocha';
 import { Feature, Period, PlanCodename, User, ExternalApi } from '@prisma/client';
-import { expect } from 'chai';
-import { addMonths, subMonths } from 'date-fns';
+import { subMonths } from 'date-fns';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { describe, it, beforeEach, expect } from 'vitest';
 
 import { prisma } from '../../../src/client.js';
 import { SCIWEAVE_FREE_LIMIT } from '../../../src/config.js';
-import { server } from '../../../src/server.js';
 import { FeatureLimitsService } from '../../../src/services/FeatureLimits/FeatureLimitsService.js';
 import { FeatureUsageService, LimitExceededError } from '../../../src/services/FeatureLimits/FeatureUsageService.js';
-
-server.ready().then((_) => {
-  console.log('server is ready');
-});
-export const app = server.app;
+import { app } from '../../testApp.js';
 
 describe('Research Assistant Metering', () => {
   let user: User;
@@ -43,13 +37,13 @@ describe('Research Assistant Metering', () => {
       it('should create default FREE plan limits for new user', async () => {
         const result = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         const status = result._unsafeUnwrap();
-        expect(status.useLimit).to.equal(SCIWEAVE_FREE_LIMIT); // FREE plan default
-        expect(status.currentUsage).to.equal(0);
-        expect(status.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT);
-        expect(status.planCodename).to.equal(PlanCodename.FREE);
-        expect(status.isWithinLimit).to.be.true;
+        expect(status.useLimit).toBe(SCIWEAVE_FREE_LIMIT); // FREE plan default
+        expect(status.currentUsage).toBe(0);
+        expect(status.remainingUses).toBe(SCIWEAVE_FREE_LIMIT);
+        expect(status.planCodename).toBe(PlanCodename.FREE);
+        expect(status.isWithinLimit).toBe(true);
       });
 
       it('should return current usage when user has consumed some uses', async () => {
@@ -74,11 +68,11 @@ describe('Research Assistant Metering', () => {
 
         const result = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         const status = result._unsafeUnwrap();
-        expect(status.currentUsage).to.equal(2);
-        expect(status.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT - 2);
-        expect(status.isWithinLimit).to.be.true;
+        expect(status.currentUsage).toBe(2);
+        expect(status.remainingUses).toBe(SCIWEAVE_FREE_LIMIT - 2);
+        expect(status.isWithinLimit).toBe(true);
       });
 
       it('should show limit exceeded when usage equals limit', async () => {
@@ -95,11 +89,11 @@ describe('Research Assistant Metering', () => {
 
         const result = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         const status = result._unsafeUnwrap();
-        expect(status.currentUsage).to.equal(SCIWEAVE_FREE_LIMIT);
-        expect(status.remainingUses).to.equal(0);
-        expect(status.isWithinLimit).to.be.false; // SCIWEAVE_FREE_LIMIT >= SCIWEAVE_FREE_LIMIT, so not within limit
+        expect(status.currentUsage).toBe(SCIWEAVE_FREE_LIMIT);
+        expect(status.remainingUses).toBe(0);
+        expect(status.isWithinLimit).toBe(false); // SCIWEAVE_FREE_LIMIT >= SCIWEAVE_FREE_LIMIT, so not within limit
       });
 
       it('should handle unlimited plans (null limit)', async () => {
@@ -123,12 +117,12 @@ describe('Research Assistant Metering', () => {
 
         const result = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         const status = result._unsafeUnwrap();
-        expect(status.useLimit).to.be.null;
-        expect(status.currentUsage).to.equal(100);
-        expect(status.remainingUses).to.be.null;
-        expect(status.isWithinLimit).to.be.true;
+        expect(status.useLimit).toBeNull();
+        expect(status.currentUsage).toBe(100);
+        expect(status.remainingUses).toBeNull();
+        expect(status.isWithinLimit).toBe(true);
       });
 
       it('should reset usage for new period (month rollover)', async () => {
@@ -167,17 +161,17 @@ describe('Research Assistant Metering', () => {
 
         const result = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         const status = result._unsafeUnwrap();
-        expect(status.currentUsage).to.equal(1); // Only current month usage counts
-        expect(status.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT - 1);
-        expect(status.isWithinLimit).to.be.true;
+        expect(status.currentUsage).toBe(1); // Only current month usage counts
+        expect(status.remainingUses).toBe(SCIWEAVE_FREE_LIMIT - 1);
+        expect(status.isWithinLimit).toBe(true);
 
         // Verify the period was reset
         const updatedLimit = await prisma.userFeatureLimit.findFirst({
           where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
         });
-        expect(updatedLimit!.currentPeriodStart.getTime()).to.be.greaterThan(lastMonth.getTime());
+        expect(updatedLimit!.currentPeriodStart.getTime()).toBeGreaterThan(lastMonth.getTime());
       });
 
       it('should only count RESEARCH_ASSISTANT usage, not other API types', async () => {
@@ -202,10 +196,10 @@ describe('Research Assistant Metering', () => {
 
         const result = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         const status = result._unsafeUnwrap();
-        expect(status.currentUsage).to.equal(1); // Only RESEARCH_ASSISTANT counts
-        expect(status.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT - 1);
+        expect(status.currentUsage).toBe(1); // Only RESEARCH_ASSISTANT counts
+        expect(status.remainingUses).toBe(SCIWEAVE_FREE_LIMIT - 1);
       });
     });
 
@@ -219,13 +213,13 @@ describe('Research Assistant Metering', () => {
           useLimit: 25,
         });
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
 
         const limit = await prisma.userFeatureLimit.findFirst({
           where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
         });
-        expect(limit!.planCodename).to.equal(PlanCodename.STARTER);
-        expect(limit!.useLimit).to.equal(25);
+        expect(limit!.planCodename).toBe(PlanCodename.STARTER);
+        expect(limit!.useLimit).toBe(25);
       });
 
       it('should deactivate old limits and create new one', async () => {
@@ -247,19 +241,19 @@ describe('Research Assistant Metering', () => {
           useLimit: null,
         });
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
 
         const activeLimits = await prisma.userFeatureLimit.findMany({
           where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
         });
-        expect(activeLimits).to.have.length(1);
-        expect(activeLimits[0].planCodename).to.equal(PlanCodename.PRO);
-        expect(activeLimits[0].useLimit).to.be.null;
+        expect(activeLimits).toHaveLength(1);
+        expect(activeLimits[0].planCodename).toBe(PlanCodename.PRO);
+        expect(activeLimits[0].useLimit).toBeNull();
 
         const inactiveLimits = await prisma.userFeatureLimit.findMany({
           where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: false },
         });
-        expect(inactiveLimits).to.have.length(1);
+        expect(inactiveLimits).toHaveLength(1);
       });
     });
   });
@@ -273,16 +267,16 @@ describe('Research Assistant Metering', () => {
           data: { query: 'test query' },
         });
 
-        expect(result.isOk()).to.be.true;
+        expect(result.isOk()).toBe(true);
         const response = result._unsafeUnwrap();
-        expect(response.usageId).to.be.a('number');
+        expect(typeof response.usageId).toBe('number');
 
         // Verify usage was recorded
         const usage = await prisma.externalApiUsage.findUnique({
           where: { id: response.usageId },
         });
-        expect(usage!.userId).to.equal(user.id);
-        expect(usage!.apiType).to.equal(ExternalApi.RESEARCH_ASSISTANT);
+        expect(usage!.userId).toBe(user.id);
+        expect(usage!.apiType).toBe(ExternalApi.RESEARCH_ASSISTANT);
       });
 
       it('should reject consumption when limit is exceeded', async () => {
@@ -303,11 +297,11 @@ describe('Research Assistant Metering', () => {
           data: { query: 'should fail' },
         });
 
-        expect(result.isErr()).to.be.true;
+        expect(result.isErr()).toBe(true);
         const error = result._unsafeUnwrapErr();
-        expect(error).to.be.instanceOf(LimitExceededError);
-        expect((error as LimitExceededError).currentUsage).to.equal(SCIWEAVE_FREE_LIMIT);
-        expect((error as LimitExceededError).useLimit).to.equal(SCIWEAVE_FREE_LIMIT);
+        expect(error).toBeInstanceOf(LimitExceededError);
+        expect((error as LimitExceededError).currentUsage).toBe(SCIWEAVE_FREE_LIMIT);
+        expect((error as LimitExceededError).useLimit).toBe(SCIWEAVE_FREE_LIMIT);
       });
 
       it('should allow consumption for unlimited plans', async () => {
@@ -327,14 +321,14 @@ describe('Research Assistant Metering', () => {
             feature: Feature.RESEARCH_ASSISTANT,
             data: { query: `test query ${i + 1}` },
           });
-          expect(result.isOk()).to.be.true;
+          expect(result.isOk()).toBe(true);
         }
 
         // Verify all were recorded
         const totalUsage = await prisma.externalApiUsage.count({
           where: { userId: user.id, apiType: ExternalApi.RESEARCH_ASSISTANT },
         });
-        expect(totalUsage).to.equal(SCIWEAVE_FREE_LIMIT);
+        expect(totalUsage).toBe(SCIWEAVE_FREE_LIMIT);
       });
 
       it('should reject unsupported features', async () => {
@@ -344,8 +338,8 @@ describe('Research Assistant Metering', () => {
           data: { query: 'test query' },
         });
 
-        expect(result.isErr()).to.be.true;
-        expect(result._unsafeUnwrapErr().message).to.include('Unsupported feature');
+        expect(result.isErr()).toBe(true);
+        expect(result._unsafeUnwrapErr().message).toContain('Unsupported feature');
       });
     });
 
@@ -366,13 +360,13 @@ describe('Research Assistant Metering', () => {
           usageId,
         });
 
-        expect(refundResult.isOk()).to.be.true;
+        expect(refundResult.isOk()).toBe(true);
 
         // Verify usage was deleted
         const usage = await prisma.externalApiUsage.findUnique({
           where: { id: usageId },
         });
-        expect(usage).to.be.null;
+        expect(usage).toBeNull();
       });
 
       it('should fail to refund non-existent usage', async () => {
@@ -382,8 +376,8 @@ describe('Research Assistant Metering', () => {
           usageId: 99999,
         });
 
-        expect(result.isErr()).to.be.true;
-        expect(result._unsafeUnwrapErr().message).to.include('Usage entry not found for user/feature');
+        expect(result.isErr()).toBe(true);
+        expect(result._unsafeUnwrapErr().message).toContain('Usage entry not found for user/feature');
       });
 
       it('should fail to refund usage from different user', async () => {
@@ -408,8 +402,8 @@ describe('Research Assistant Metering', () => {
           usageId: usage.id,
         });
 
-        expect(result.isErr()).to.be.true;
-        expect(result._unsafeUnwrapErr().message).to.include('Usage entry not found for user/feature');
+        expect(result.isErr()).toBe(true);
+        expect(result._unsafeUnwrapErr().message).toContain('Usage entry not found for user/feature');
       });
 
       it('should reject unsupported features', async () => {
@@ -419,8 +413,8 @@ describe('Research Assistant Metering', () => {
           usageId: 1,
         });
 
-        expect(result.isErr()).to.be.true;
-        expect(result._unsafeUnwrapErr().message).to.include('Unsupported feature');
+        expect(result.isErr()).toBe(true);
+        expect(result._unsafeUnwrapErr().message).toContain('Unsupported feature');
       });
     });
   });
@@ -441,18 +435,14 @@ describe('Research Assistant Metering', () => {
             feature: Feature.RESEARCH_ASSISTANT,
           });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.ok).to.be.true;
-        expect(res.body.data).to.have.all.keys([
-          'useLimit',
-          'currentUsage',
-          'remainingUses',
-          'planCodename',
-          'isWithinLimit',
-        ]);
-        expect(res.body.data.useLimit).to.equal(SCIWEAVE_FREE_LIMIT);
-        expect(res.body.data.currentUsage).to.equal(0);
-        expect(res.body.data.isWithinLimit).to.be.true;
+        expect(res.status).toBe(200);
+        expect(res.body.ok).toBe(true);
+        expect(Object.keys(res.body.data).sort()).toEqual(
+          ['useLimit', 'currentUsage', 'remainingUses', 'planCodename', 'isWithinLimit'].sort(),
+        );
+        expect(res.body.data.useLimit).toBe(SCIWEAVE_FREE_LIMIT);
+        expect(res.body.data.currentUsage).toBe(0);
+        expect(res.body.data.isWithinLimit).toBe(true);
       });
 
       it('should reject requests without internal secret', async () => {
@@ -461,8 +451,8 @@ describe('Research Assistant Metering', () => {
           feature: Feature.RESEARCH_ASSISTANT,
         });
 
-        expect(res.status).to.equal(401);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(401);
+        expect(res.body.ok).toBe(false);
       });
 
       it('should reject requests with invalid secret', async () => {
@@ -474,8 +464,8 @@ describe('Research Assistant Metering', () => {
             feature: Feature.RESEARCH_ASSISTANT,
           });
 
-        expect(res.status).to.equal(401);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(401);
+        expect(res.body.ok).toBe(false);
       });
 
       it('should validate required parameters', async () => {
@@ -486,8 +476,8 @@ describe('Research Assistant Metering', () => {
             // Missing userId and feature
           });
 
-        expect(res.status).to.equal(400);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(400);
+        expect(res.body.ok).toBe(false);
       });
     });
 
@@ -503,15 +493,15 @@ describe('Research Assistant Metering', () => {
             data: { query: 'test query' },
           });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.ok).to.be.true;
-        expect(res.body.data.usageId).to.be.a('number');
+        expect(res.status).toBe(200);
+        expect(res.body.ok).toBe(true);
+        expect(typeof res.body.data.usageId).toBe('number');
 
         // Verify usage was recorded
         const usage = await prisma.externalApiUsage.findUnique({
           where: { id: res.body.data.usageId },
         });
-        expect(usage!.userId).to.equal(user.id);
+        expect(usage!.userId).toBe(user.id);
       });
 
       it('should refund usage successfully', async () => {
@@ -539,14 +529,14 @@ describe('Research Assistant Metering', () => {
             usageId,
           });
 
-        expect(refundRes.status).to.equal(200);
-        expect(refundRes.body.ok).to.be.true;
+        expect(refundRes.status).toBe(200);
+        expect(refundRes.body.ok).toBe(true);
 
         // Verify usage was deleted
         const usage = await prisma.externalApiUsage.findUnique({
           where: { id: usageId },
         });
-        expect(usage).to.be.null;
+        expect(usage).toBeNull();
       });
 
       it('should return 409 when limit exceeded', async () => {
@@ -557,7 +547,7 @@ describe('Research Assistant Metering', () => {
             feature: Feature.RESEARCH_ASSISTANT,
             data: { query: `test query ${i + 1}` },
           });
-          expect(result.isOk()).to.be.true;
+          expect(result.isOk()).toBe(true);
         }
 
         const res = await request(app)
@@ -570,10 +560,10 @@ describe('Research Assistant Metering', () => {
             data: { query: 'should fail' },
           });
 
-        expect(res.status).to.equal(409);
-        expect(res.body.ok).to.be.false;
-        expect(res.body.message).to.be.a('string');
-        expect(res.body.message).to.include('Feature limit exceeded');
+        expect(res.status).toBe(409);
+        expect(res.body.ok).toBe(false);
+        expect(typeof res.body.message).toBe('string');
+        expect(res.body.message).toContain('Feature limit exceeded');
       });
 
       it('should validate decrement requires usageId', async () => {
@@ -587,8 +577,8 @@ describe('Research Assistant Metering', () => {
             // Missing usageId
           });
 
-        expect(res.status).to.equal(400);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(400);
+        expect(res.body.ok).toBe(false);
       });
 
       it('should reject invalid direction', async () => {
@@ -601,8 +591,8 @@ describe('Research Assistant Metering', () => {
             feature: Feature.RESEARCH_ASSISTANT,
           });
 
-        expect(res.status).to.equal(400);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(400);
+        expect(res.body.ok).toBe(false);
       });
     });
   });
@@ -614,19 +604,15 @@ describe('Research Assistant Metering', () => {
           .get('/v1/services/ai/research-assistant/usage')
           .set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(200);
-        expect(res.body.ok).to.be.true;
-        expect(res.body.data).to.have.all.keys([
-          'totalLimit',
-          'totalUsed',
-          'totalRemaining',
-          'planCodename',
-          'isWithinLimit',
-        ]);
-        expect(res.body.data.totalLimit).to.equal(SCIWEAVE_FREE_LIMIT);
-        expect(res.body.data.totalUsed).to.equal(0);
-        expect(res.body.data.totalRemaining).to.equal(SCIWEAVE_FREE_LIMIT);
-        expect(res.body.data.isWithinLimit).to.be.true;
+        expect(res.status).toBe(200);
+        expect(res.body.ok).toBe(true);
+        expect(Object.keys(res.body.data).sort()).toEqual(
+          ['totalLimit', 'totalUsed', 'totalRemaining', 'planCodename', 'isWithinLimit'].sort(),
+        );
+        expect(res.body.data.totalLimit).toBe(SCIWEAVE_FREE_LIMIT);
+        expect(res.body.data.totalUsed).toBe(0);
+        expect(res.body.data.totalRemaining).toBe(SCIWEAVE_FREE_LIMIT);
+        expect(res.body.data.isWithinLimit).toBe(true);
       });
 
       it('should return current usage when user has consumed some', async () => {
@@ -653,17 +639,17 @@ describe('Research Assistant Metering', () => {
           .get('/v1/services/ai/research-assistant/usage')
           .set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.totalUsed).to.equal(2);
-        expect(res.body.data.totalRemaining).to.equal(SCIWEAVE_FREE_LIMIT - 2);
-        expect(res.body.data.isWithinLimit).to.be.true;
+        expect(res.status).toBe(200);
+        expect(res.body.data.totalUsed).toBe(2);
+        expect(res.body.data.totalRemaining).toBe(SCIWEAVE_FREE_LIMIT - 2);
+        expect(res.body.data.isWithinLimit).toBe(true);
       });
 
       it('should return 401 for unauthenticated requests', async () => {
         const res = await request(app).get('/v1/services/ai/research-assistant/usage');
 
-        expect(res.status).to.equal(401);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(401);
+        expect(res.body.ok).toBe(false);
       });
 
       it('should handle unlimited plans correctly', async () => {
@@ -689,11 +675,11 @@ describe('Research Assistant Metering', () => {
           .get('/v1/services/ai/research-assistant/usage')
           .set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(200);
-        expect(res.body.data.totalLimit).to.be.null;
-        expect(res.body.data.totalUsed).to.equal(1);
-        expect(res.body.data.totalRemaining).to.be.null;
-        expect(res.body.data.isWithinLimit).to.be.true;
+        expect(res.status).toBe(200);
+        expect(res.body.data.totalLimit).toBeNull();
+        expect(res.body.data.totalUsed).toBe(1);
+        expect(res.body.data.totalRemaining).toBeNull();
+        expect(res.body.data.isWithinLimit).toBe(true);
       });
     });
   });
@@ -706,11 +692,11 @@ describe('Research Assistant Metering', () => {
           .set('authorization', `Bearer ${authToken}`)
           .send({ guestUsageCount: 3 });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.ok).to.be.true;
-        expect(res.body.data.currentStatus.totalUsed).to.equal(3);
-        expect(res.body.data.currentStatus.totalRemaining).to.equal(SCIWEAVE_FREE_LIMIT - 3);
-        expect(res.body.data.currentStatus.isWithinLimit).to.be.true;
+        expect(res.status).toBe(200);
+        expect(res.body.ok).toBe(true);
+        expect(res.body.data.currentStatus.totalUsed).toBe(3);
+        expect(res.body.data.currentStatus.totalRemaining).toBe(SCIWEAVE_FREE_LIMIT - 3);
+        expect(res.body.data.currentStatus.isWithinLimit).toBe(true);
 
         // Verify the usage entries were created in the database
         const usageCount = await prisma.externalApiUsage.count({
@@ -719,7 +705,7 @@ describe('Research Assistant Metering', () => {
             apiType: ExternalApi.RESEARCH_ASSISTANT,
           },
         });
-        expect(usageCount).to.equal(3);
+        expect(usageCount).toBe(3);
       });
 
       it('should handle zero guest usage', async () => {
@@ -728,9 +714,9 @@ describe('Research Assistant Metering', () => {
           .set('authorization', `Bearer ${authToken}`)
           .send({ guestUsageCount: 0 });
 
-        expect(res.status).to.equal(200);
-        expect(res.body.ok).to.be.true;
-        expect(res.body.data.createdEntries).to.equal(0);
+        expect(res.status).toBe(200);
+        expect(res.body.ok).toBe(true);
+        expect(res.body.data.createdEntries).toBe(0);
 
         // Verify no usage entries were created
         const usageCount = await prisma.externalApiUsage.count({
@@ -739,7 +725,7 @@ describe('Research Assistant Metering', () => {
             apiType: ExternalApi.RESEARCH_ASSISTANT,
           },
         });
-        expect(usageCount).to.equal(0);
+        expect(usageCount).toBe(0);
       });
 
       it('should validate input parameters', async () => {
@@ -749,8 +735,8 @@ describe('Research Assistant Metering', () => {
           .set('authorization', `Bearer ${authToken}`)
           .send({ guestUsageCount: -1 });
 
-        expect(res.status).to.equal(400);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(400);
+        expect(res.body.ok).toBe(false);
 
         // Test number too high
         res = await request(app)
@@ -758,8 +744,8 @@ describe('Research Assistant Metering', () => {
           .set('authorization', `Bearer ${authToken}`)
           .send({ guestUsageCount: 1000 });
 
-        expect(res.status).to.equal(400);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(400);
+        expect(res.body.ok).toBe(false);
 
         // Test missing parameter
         res = await request(app)
@@ -767,8 +753,8 @@ describe('Research Assistant Metering', () => {
           .set('authorization', `Bearer ${authToken}`)
           .send({});
 
-        expect(res.status).to.equal(400);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(400);
+        expect(res.body.ok).toBe(false);
       });
 
       it('should require authentication', async () => {
@@ -776,8 +762,8 @@ describe('Research Assistant Metering', () => {
           .post('/v1/services/ai/research-assistant/onboard-usage')
           .send({ guestUsageCount: 2 });
 
-        expect(res.status).to.equal(401);
-        expect(res.body.ok).to.be.false;
+        expect(res.status).toBe(401);
+        expect(res.body.ok).toBe(false);
       });
     });
   });
@@ -831,30 +817,30 @@ describe('Research Assistant Metering', () => {
 
       // Check status - should trigger period rollover
       const statusResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
-      expect(statusResult.isOk()).to.be.true;
+      expect(statusResult.isOk()).toBe(true);
       const status = statusResult._unsafeUnwrap();
 
       // Should only count current period usage
-      expect(status.currentUsage).to.equal(2);
-      expect(status.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT - 2);
-      expect(status.isWithinLimit).to.be.true;
+      expect(status.currentUsage).toBe(2);
+      expect(status.remainingUses).toBe(SCIWEAVE_FREE_LIMIT - 2);
+      expect(status.isWithinLimit).toBe(true);
 
       // Verify the period start was updated
       const updatedLimit = await prisma.userFeatureLimit.findFirst({
         where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
       });
-      expect(updatedLimit!.currentPeriodStart.getTime()).to.be.greaterThan(twoMonthsAgo.getTime());
-      expect(updatedLimit!.currentPeriodStart.getTime()).to.be.lessThan(new Date().getTime());
+      expect(updatedLimit!.currentPeriodStart.getTime()).toBeGreaterThan(twoMonthsAgo.getTime());
+      expect(updatedLimit!.currentPeriodStart.getTime()).toBeLessThan(new Date().getTime());
 
       // Test API endpoint shows the same
       const res = await request(app)
         .get('/v1/services/ai/research-assistant/usage')
         .set('authorization', `Bearer ${authToken}`);
 
-      expect(res.status).to.equal(200);
-      expect(res.body.data.totalUsed).to.equal(2);
-      expect(res.body.data.totalRemaining).to.equal(SCIWEAVE_FREE_LIMIT - 2);
-      expect(res.body.data.isWithinLimit).to.be.true;
+      expect(res.status).toBe(200);
+      expect(res.body.data.totalUsed).toBe(2);
+      expect(res.body.data.totalRemaining).toBe(SCIWEAVE_FREE_LIMIT - 2);
+      expect(res.body.data.isWithinLimit).toBe(true);
 
       // Should still be able to consume more usage
       const consumeResult = await FeatureUsageService.consumeUsage({
@@ -862,13 +848,13 @@ describe('Research Assistant Metering', () => {
         feature: Feature.RESEARCH_ASSISTANT,
         data: { query: 'new query after rollover' },
       });
-      expect(consumeResult.isOk()).to.be.true;
+      expect(consumeResult.isOk()).toBe(true);
 
       // Final check - should show 3 uses
       const finalStatusResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
       const finalStatus = finalStatusResult._unsafeUnwrap();
-      expect(finalStatus.currentUsage).to.equal(3);
-      expect(finalStatus.remainingUses).to.equal(SCIWEAVE_FREE_LIMIT - 3);
+      expect(finalStatus.currentUsage).toBe(3);
+      expect(finalStatus.remainingUses).toBe(SCIWEAVE_FREE_LIMIT - 3);
     });
   });
 });
