@@ -2,6 +2,7 @@ export enum SciweaveEmailTypes {
   SCIWEAVE_WELCOME_EMAIL = 'SCIWEAVE_WELCOME_EMAIL',
   SCIWEAVE_UPGRADE_EMAIL = 'SCIWEAVE_UPGRADE_EMAIL',
   SCIWEAVE_CANCELLATION_EMAIL = 'SCIWEAVE_CANCELLATION_EMAIL',
+  SCIWEAVE_14_DAY_INACTIVITY = 'SCIWEAVE_14_DAY_INACTIVITY',
 }
 
 export type WelcomeEmailPayload = {
@@ -31,4 +32,17 @@ export type CancellationEmailPayload = {
   };
 };
 
-export type SciweaveEmailProps = WelcomeEmailPayload | UpgradeEmailPayload | CancellationEmailPayload;
+export type InactivityEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY;
+  payload: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+};
+
+export type SciweaveEmailProps =
+  | WelcomeEmailPayload
+  | UpgradeEmailPayload
+  | CancellationEmailPayload
+  | InactivityEmailPayload;

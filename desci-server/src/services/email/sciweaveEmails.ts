@@ -9,6 +9,7 @@ import {
   WelcomeEmailPayload,
   UpgradeEmailPayload,
   CancellationEmailPayload,
+  InactivityEmailPayload,
 } from './sciweaveEmailTypes.js';
 
 /**
@@ -146,6 +147,31 @@ async function sendCancellationEmail({ email, firstName, lastName }: Cancellatio
   await sendSciweaveEmail(message, { templateId });
 }
 
+async function send14DayInactivityEmail({ email, firstName, lastName }: InactivityEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY];
+
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY}`);
+    return;
+  }
+
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email,
+      },
+    },
+  };
+
+  await sendSciweaveEmail(message, { templateId });
+}
+
 export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
   switch (props.type) {
     case SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL:
@@ -154,6 +180,8 @@ export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
       return sendUpgradeEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL:
       return sendCancellationEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY:
+      return send14DayInactivityEmail(props.payload);
     default:
       assertNever(props);
   }
