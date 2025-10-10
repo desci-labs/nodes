@@ -1,7 +1,9 @@
 import sgMail from '@sendgrid/mail';
 
-import { SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP, SHOULD_SEND_EMAIL } from '../../config.js';
+import { SENDGRID_API_KEY, SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP, SHOULD_SEND_EMAIL } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
+
+sgMail.setApiKey(SENDGRID_API_KEY);
 
 import {
   SciweaveEmailTypes,
@@ -163,7 +165,7 @@ async function send14DayInactivityEmail({ email, firstName, lastName }: Inactivi
 
   const message = {
     to: email,
-    from: 'no-reply@desci.com',
+    from: { email: 'no-reply@desci.com', name: 'SciWeave' },
     templateId,
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
@@ -174,7 +176,7 @@ async function send14DayInactivityEmail({ email, firstName, lastName }: Inactivi
       },
     },
   };
-
+  debugger;
   await sendSciweaveEmail(message, { templateId });
 }
 

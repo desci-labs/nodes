@@ -34,7 +34,11 @@ Checks for time-based conditions and sends email reminders:
 **Local Testing:**
 
 ```bash
+# Normal run
 npm run script:email-reminders
+
+# With test handler enabled (set TEST_EMAIL_ADDRESS)
+TEST_EMAIL_ADDRESS=your@email.com npm run script:email-reminders
 ```
 
 **Adding New Reminder Types:**
@@ -101,6 +105,10 @@ kubectl get jobs
 
 # Trigger manually (for testing)
 kubectl create job --from=cronjob/email-reminder-cronjob-dev test-run-$(date +%s)
+
+# Test with custom email (easiest method - shell into running pod)
+POD=$(kubectl get pods -l App=DesciServerDev -o jsonpath='{.items[0].metadata.name}')
+kubectl exec $POD -- bash -c "TEST_EMAIL_ADDRESS=your@email.com npm run script:email-reminders"
 ```
 
 ## Troubleshooting

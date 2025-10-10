@@ -34,7 +34,7 @@
     "script:prune-auth-tokens": "tsx ./src/scripts/prune-auth-tokens.ts",
     "script:backfill-radar": "tsx ./src/scripts/backfill-radar.ts",
     "script:pruneExternalPublications": "tsx ./src/scripts/pruneExternalPublications.ts",
-    "script:email-reminders": "tsx ./src/workers/emailReminderRunner.ts",
+    "script:email-reminders": "tsx --inspect=0.0.0.0:9277 ./src/workers/emailReminderRunner.ts",
     "build": "rimraf dist && tsc && yarn copy-files; if [ \"$SENTRY_AUTH_TOKEN\" ]; then yarn sentry:sourcemaps; else echo 'SENTRY_AUTH_TOKEN not set, sourcemaps will not upload'; fi",
     "copy-files": "copyfiles -u 1 src/**/*.cjs dist/",
     "generate": "npx prisma generate",

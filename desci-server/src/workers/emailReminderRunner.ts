@@ -11,10 +11,11 @@
  *   npm run script:email-reminders
  */
 
-import { logger as parentLogger } from '../logger.js';
-import { EMAIL_REMINDER_HANDLERS } from './emailReminderConfig.js';
 import { prisma } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
 import { discordNotify, DiscordChannel, DiscordNotifyType } from '../utils/discordUtils.js';
+
+import { EMAIL_REMINDER_HANDLERS } from './emailReminderConfig.js';
 
 const logger = parentLogger.child({ module: 'EmailReminderRunner' });
 

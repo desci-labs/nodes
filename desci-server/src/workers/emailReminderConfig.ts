@@ -189,20 +189,160 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
 };
 
 /**
- * TEST HANDLER - Send a test email to verify the system works
- * Set enabled: true and update the email address to test
+ * Send chat refresh notification to PRO/PREMIUM users when:
+ * - Their currentPeriodStart is >30 days old (period expired but not refreshed yet), OR
+ * - Their currentPeriodStart is 0-1 days old (just refreshed/rolled over)
+ * - We haven't sent this email in the last 30 days
  */
-const testEmailHandler: EmailReminderHandler = {
-  name: 'Test Email Handler',
-  description: 'Send a test email to verify the cron job works',
-  enabled: true, // Set to true to test
+const checkProChatRefresh: EmailReminderHandler = {
+  name: 'Pro Chat Refresh Notification',
+  description: 'Notify PRO users when their chat usage has been reset',
+  enabled: true,
   handler: async () => {
     let sent = 0;
     let skipped = 0;
     let errors = 0;
 
     try {
-      const TEST_EMAIL = 'your-email@example.com';
+      const now = new Date();
+      const thirtyDaysAgo = subDays(now, 30);
+      const oneDayAgo = subDays(now, 1);
+
+      // Find active PRO/PREMIUM/STARTER plans with RESEARCH_ASSISTANT feature
+      const proUsers = await prisma.userFeatureLimit.findMany({
+        where: {
+          planCodename: {
+            in: ['PRO', 'PREMIUM', 'STARTER'],
+          },
+          feature: 'RESEARCH_ASSISTANT',
+          isActive: true,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              receiveSciweaveMarketingEmails: true,
+            },
+          },
+        },
+      });
+
+      logger.info({ count: proUsers.length }, 'Found PRO/PREMIUM users with active plans');
+
+      for (const userLimit of proUsers) {
+        const user = userLimit.user;
+
+        try {
+          // Skip if user has opted out of marketing emails
+          if (!user.receiveSciweaveMarketingEmails) {
+            skipped++;
+            continue;
+          }
+
+          const currentPeriodStart = new Date(userLimit.currentPeriodStart);
+          const daysSinceStart = Math.floor((now.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
+
+          // Check if period is either >30 days old OR 0-1 days old (just refreshed)
+          const isPeriodExpired = daysSinceStart > 30;
+          const isJustRefreshed = daysSinceStart >= 0 && daysSinceStart <= 1;
+
+          if (!isPeriodExpired && !isJustRefreshed) {
+            logger.debug({ userId: user.id, daysSinceStart }, 'Period not expired and not just refreshed, skipping');
+            skipped++;
+            continue;
+          }
+
+          // Check if we've already sent this email in the last 30 days
+          const recentEmail = await prisma.sentEmail.findFirst({
+            where: {
+              userId: user.id,
+              emailType: SentEmailType.SCIWEAVE_PRO_CHAT_REFRESH,
+              createdAt: {
+                gte: thirtyDaysAgo,
+              },
+            },
+          });
+
+          if (recentEmail) {
+            logger.debug({ userId: user.id }, 'Already sent chat refresh email recently, skipping');
+            skipped++;
+            continue;
+          }
+
+          // Send the chat refresh notification
+          await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH,
+            payload: {
+              email: user.email,
+              firstName: user.firstName || undefined,
+              lastName: user.lastName || undefined,
+            },
+          });
+
+          // Record that we sent this email
+          await prisma.sentEmail.create({
+            data: {
+              userId: user.id,
+              emailType: 'SCIWEAVE_PRO_CHAT_REFRESH' as any, // Will be typed after prisma generate
+              details: {
+                planCodename: userLimit.planCodename,
+                feature: userLimit.feature,
+                currentPeriodStart: userLimit.currentPeriodStart.toISOString(),
+                daysSinceStart,
+                isPeriodExpired,
+                isJustRefreshed,
+              },
+            },
+          });
+
+          logger.info(
+            { userId: user.id, email: user.email, daysSinceStart, isPeriodExpired, isJustRefreshed },
+            'Sent chat refresh notification',
+          );
+          sent++;
+        } catch (err) {
+          logger.error({ err, userId: user.id }, 'Failed to process chat refresh notification for user');
+          errors++;
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, 'Failed to check pro chat refresh');
+      errors++;
+    }
+
+    return { sent, skipped, errors };
+  },
+};
+
+/**
+ * TEST HANDLER - Send a test email to verify the system works
+ *
+ * Usage:
+ *   Local: TEST_EMAIL_ADDRESS=your@email.com npm run script:email-reminders
+ *   K8s: See README.md for kubectl command with env override
+ *
+ * Automatically enabled when TEST_EMAIL_ADDRESS env var is set
+ */
+const testEmailHandler: EmailReminderHandler = {
+  name: 'Test Email Handler',
+  description: 'Send a test email to verify the cron job works',
+  enabled: true,
+  handler: async () => {
+    let sent = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    try {
+      const TEST_EMAIL = process.env.TEST_EMAIL_ADDRESS;
+
+      if (!TEST_EMAIL) {
+        logger.debug('TEST_EMAIL_ADDRESS not set, skipping test email handler');
+        skipped++;
+        return { sent, skipped, errors };
+      }
 
       logger.info({ testEmail: TEST_EMAIL }, 'Sending test email');
 
@@ -232,7 +372,8 @@ const testEmailHandler: EmailReminderHandler = {
  * Add your handlers to this array
  */
 export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
-  checkSciweave14DayInactivity,
-  testEmailHandler, // <-- Uncomment to test, but NEVER deploy to prod enabled
+  //   checkSciweave14DayInactivity,
+  //   checkProChatRefresh,
+  testEmailHandler, // Auto-skips unless TEST_EMAIL_ADDRESS is set
   // Add more handlers here
 ];
