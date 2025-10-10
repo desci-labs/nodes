@@ -1,7 +1,9 @@
 import sgMail from '@sendgrid/mail';
 
-import { SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP, SHOULD_SEND_EMAIL } from '../../config.js';
+import { SENDGRID_API_KEY, SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP, SHOULD_SEND_EMAIL } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
+
+sgMail.setApiKey(SENDGRID_API_KEY);
 
 import {
   SciweaveEmailTypes,
@@ -9,6 +11,13 @@ import {
   WelcomeEmailPayload,
   UpgradeEmailPayload,
   CancellationEmailPayload,
+  InactivityEmailPayload,
+  OutOfChatsInitialEmailPayload,
+  OutOfChatsCtaClickedEmailPayload,
+  OutOfChatsNoCtaEmailPayload,
+  ProChatRefreshEmailPayload,
+  StudentDiscountEmailPayload,
+  StudentDiscountLimitReachedEmailPayload,
 } from './sciweaveEmailTypes.js';
 
 /**
@@ -146,6 +155,147 @@ async function sendCancellationEmail({ email, firstName, lastName }: Cancellatio
   await sendSciweaveEmail(message, { templateId });
 }
 
+async function send14DayInactivityEmail({ email, firstName, lastName }: InactivityEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY];
+
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY}`);
+    return;
+  }
+
+  const message = {
+    to: email,
+    from: { email: 'no-reply@desci.com', name: 'SciWeave' },
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email,
+      },
+    },
+  };
+  debugger;
+  await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendOutOfChatsInitialEmail({ email, firstName, lastName }: OutOfChatsInitialEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL];
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL}`);
+    return;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || '', lastName: lastName || '', email },
+    },
+  };
+  await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendOutOfChatsCtaClickedEmail({
+  email,
+  firstName,
+  lastName,
+}: OutOfChatsCtaClickedEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED];
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED}`);
+    return;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || '', lastName: lastName || '', email },
+    },
+  };
+  await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendOutOfChatsNoCtaEmail({ email, firstName, lastName }: OutOfChatsNoCtaEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA];
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA}`);
+    return;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || '', lastName: lastName || '', email },
+    },
+  };
+  await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendProChatRefreshEmail({ email, firstName, lastName }: ProChatRefreshEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH];
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH}`);
+    return;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || '', lastName: lastName || '', email },
+    },
+  };
+  await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendStudentDiscountEmail({ email, firstName, lastName }: StudentDiscountEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT];
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT}`);
+    return;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || '', lastName: lastName || '', email },
+    },
+  };
+  await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendStudentDiscountLimitReachedEmail({
+  email,
+  firstName,
+  lastName,
+}: StudentDiscountLimitReachedEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED];
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED}`);
+    return;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || '', lastName: lastName || '', email },
+    },
+  };
+  await sendSciweaveEmail(message, { templateId });
+}
+
 export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
   switch (props.type) {
     case SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL:
@@ -154,6 +304,20 @@ export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
       return sendUpgradeEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL:
       return sendCancellationEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY:
+      return send14DayInactivityEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL:
+      return sendOutOfChatsInitialEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED:
+      return sendOutOfChatsCtaClickedEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA:
+      return sendOutOfChatsNoCtaEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH:
+      return sendProChatRefreshEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT:
+      return sendStudentDiscountEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED:
+      return sendStudentDiscountLimitReachedEmail(props.payload);
     default:
       assertNever(props);
   }

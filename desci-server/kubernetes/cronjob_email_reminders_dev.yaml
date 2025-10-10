@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: email-reminder-cronjob-dev
+  labels:
+    App: EmailReminderDev
+spec:
+  # TEMPORARILY SUSPENDED FOR TESTING - Manually trigger with kubectl create job
+  # Run every 4 hours (when enabled)
+  schedule: '0 */4 * * *'
+  suspend: true # Set to false to enable automatic scheduling
+  # Prevent overlapping jobs
+  concurrencyPolicy: Forbid
+  # Keep history for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # Clean up completed jobs after 1 hour
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          annotations:
+            vault.hashicorp.com/agent-inject: 'true'
+            vault.hashicorp.com/agent-inject-status: 'update'
+            vault.hashicorp.com/role: app-vault-reader
+            vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/db
+            vault.hashicorp.com/agent-inject-template-config: |
+              {{- with secret "secrets/desci-server/dev/db" -}}
+              export PG_HOST={{ .Data.host }}
+              export PG_PORT={{ .Data.port }}
+              export POSTGRES_USER={{ .Data.user }}
+              export POSTGRES_PASSWORD={{ .Data.password }}
+              export POSTGRES_DB={{ .Data.db }}
+              export DATABASE_URL={{ .Data.url }}
+              export NODE_ENV=production
+              echo "dbset"; 
+              {{- end -}}
+              {{- with secret "secrets/desci-server/dev/app" -}}
+              echo "appstart"; 
+              export PINO_LOG_LEVEL={{ .Data.PINO_LOG_LEVEL }}
+              export SERVER_URL={{ .Data.SERVER_URL }}
+              export DAPP_URL={{ .Data.DAPP_URL }}
+              export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}
+              export SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SENDGRID_TEMPLATE_ID_MAP }}'
+              export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}'
+              export SHOULD_SEND_EMAIL=true
+              export REDIS_HOST={{ .Data.REDIS_HOST }}
+              export REDIS_PORT={{ .Data.REDIS_PORT }}
+              export REDIS_URL={{ .Data.REDIS_URL }}
+              export TEST_EMAIL_ADDRESS={{ .Data.TEST_EMAIL_ADDRESS }}
+              export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
+              echo "appfinish";
+              {{- end -}}
+          labels:
+            App: EmailReminderDev
+        spec:
+          containers:
+            - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server-dev:latest
+              name: email-reminder-worker
+              command: ['/bin/bash', '-c']
+              args:
+                - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/workers/emailReminderRunner.js;
+              resources:
+                limits:
+                  cpu: '0.3'
+                  memory: 1Gi
+                requests:
+                  cpu: '0.2'
+                  memory: 512Mi
+          restartPolicy: OnFailure
+          serviceAccountName: 'vault-auth'

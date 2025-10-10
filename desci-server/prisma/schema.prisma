@@ -273,6 +273,7 @@ model User {
   ExternalApiUsage       ExternalApiUsage[]
   UserFeatureLimit       UserFeatureLimit[]
   Subscription           Subscription[]
+  SentEmail              SentEmail[]
   PaymentMethod          PaymentMethod[]
   Invoice                Invoice[]
 
@@ -1910,4 +1911,35 @@ enum StripeInvoiceStatus {
   PAID
   UNCOLLECTIBLE
   VOID
+}
+
+enum SentEmailType {
+  // Sciweave emails
+  SCIWEAVE_WELCOME_EMAIL
+  SCIWEAVE_UPGRADE_EMAIL
+  SCIWEAVE_CANCELLATION_EMAIL
+  SCIWEAVE_14_DAY_INACTIVITY
+  SCIWEAVE_OUT_OF_CHATS_INITIAL
+  SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED
+  SCIWEAVE_OUT_OF_CHATS_NO_CTA
+  SCIWEAVE_PRO_CHAT_REFRESH
+  SCIWEAVE_STUDENT_DISCOUNT
+  SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED
+  // Journal/Review emails
+  REFEREE_REVIEW_REMINDER
+  OVERDUE_REVIEW_ALERT
+}
+
+model SentEmail {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  emailType SentEmailType
+  details   Json? // Extra context like submissionId, reviewId, etc.
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, emailType])
+  @@index([userId, emailType, createdAt])
 }
