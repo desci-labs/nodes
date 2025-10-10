@@ -99,20 +99,21 @@ const runEmailReminders = async () => {
       .filter((h) => h.sent > 0 || h.errors > 0)
       .map((h) => `  • ${h.name}: ${h.sent} sent, ${h.errors} errors`)
       .join('\n');
+  }
 
-//     discordNotify({
-//       channel: DiscordChannel.General,
-//       title: `${emoji} Email Reminders Job`,
-//       type: results.errors > 0 ? DiscordNotifyType.ERROR : DiscordNotifyType.SUCCESS,
-//       message: `**Summary:**
-// Total Sent: ${results.sent}
-// Total Errors: ${results.errors}
-// Duration: ${(totalDuration / 1000).toFixed(2)}s
+  //     discordNotify({
+  //       channel: DiscordChannel.General,
+  //       title: `${emoji} Email Reminders Job`,
+  //       type: results.errors > 0 ? DiscordNotifyType.ERROR : DiscordNotifyType.SUCCESS,
+  //       message: `**Summary:**
+  // Total Sent: ${results.sent}
+  // Total Errors: ${results.errors}
+  // Duration: ${(totalDuration / 1000).toFixed(2)}s
 
-// **Handlers:**
-// ${handlerSummary || '  • No emails sent'}`,
-//     });
-//   }
+  // **Handlers:**
+  // ${handlerSummary || '  • No emails sent'}`,
+  //     });
+  //   }
 
   return results;
 };

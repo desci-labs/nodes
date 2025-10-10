@@ -149,7 +149,8 @@
     "yaml": "^2.7.0",
     "yauzl": "^2.10.0",
     "zod": "^3.24.2",
-    "zod-openapi": "^4.2.3"
+    "zod-openapi": "^4.2.3",
+    "tsx": "^4.20.5"
   },
   "devDependencies": {
     "@sentry/cli": "^2.55.0",
@@ -182,7 +183,6 @@
     "prettier": "^3.1.1",
     "pretty-quick": "^3.1.1",
     "supertest": "^6.3.3",
-    "tsx": "^4.20.5",
     "typescript": "^5.0.0",
     "vitest": "^3.2.4"
   },

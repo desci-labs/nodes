@@ -189,10 +189,50 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
 };
 
 /**
+ * TEST HANDLER - Send a test email to verify the system works
+ * Set enabled: true and update the email address to test
+ */
+const testEmailHandler: EmailReminderHandler = {
+  name: 'Test Email Handler',
+  description: 'Send a test email to verify the cron job works',
+  enabled: true, // Set to true to test
+  handler: async () => {
+    let sent = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    try {
+      const TEST_EMAIL = 'your-email@example.com';
+
+      logger.info({ testEmail: TEST_EMAIL }, 'Sending test email');
+
+      // Send test email using the Sciweave 14-day inactivity template as an example
+      await sendEmail({
+        type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
+        payload: {
+          email: TEST_EMAIL,
+          firstName: 'Test',
+          lastName: 'User',
+        },
+      });
+
+      logger.info({ testEmail: TEST_EMAIL }, 'Test email sent successfully');
+      sent++;
+    } catch (err) {
+      logger.error({ err }, 'Failed to send test email');
+      errors++;
+    }
+
+    return { sent, skipped, errors };
+  },
+};
+
+/**
  * All configured email reminder handlers
  * Add your handlers to this array
  */
 export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
   checkSciweave14DayInactivity,
+  testEmailHandler, // <-- Uncomment to test, but NEVER deploy to prod enabled
   // Add more handlers here
 ];
