@@ -16,8 +16,8 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      # Clean up completed jobs after 1 hour
-      ttlSecondsAfterFinished: 3600
+      # Clean up completed jobs after 30 minutes
+      ttlSecondsAfterFinished: 1800
       template:
         metadata:
           annotations:
