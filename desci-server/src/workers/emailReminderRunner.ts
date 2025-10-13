@@ -15,12 +15,18 @@ import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { discordNotify, DiscordChannel, DiscordNotifyType } from '../utils/discordUtils.js';
 
+import { isDryRunMode, displayDryRunTable } from './emailDryRun.js';
 import { EMAIL_REMINDER_HANDLERS } from './emailReminderConfig.js';
 
 const logger = parentLogger.child({ module: 'EmailReminderRunner' });
 
 const runEmailReminders = async () => {
   const startTime = Date.now();
+
+  if (isDryRunMode()) {
+    logger.info('🔍 DRY RUN MODE ENABLED - No emails will be sent');
+  }
+
   logger.info('🔔 Starting email reminder job');
 
   const results = {
@@ -81,6 +87,11 @@ const runEmailReminders = async () => {
 
   const totalDuration = Date.now() - startTime;
 
+  // Display dry run results if enabled
+  if (isDryRunMode()) {
+    displayDryRunTable();
+  }
+
   logger.info(
     {
       sent: results.sent,
@@ -89,6 +100,7 @@ const runEmailReminders = async () => {
       total: results.total,
       duration: `${totalDuration}ms`,
       handlers: results.handlers,
+      dryRun: isDryRunMode(),
     },
     '✅ Email reminder job completed',
   );

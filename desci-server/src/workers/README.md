@@ -37,8 +37,14 @@ Checks for time-based conditions and sends email reminders:
 # Normal run
 npm run script:email-reminders
 
+# Dry run mode (see what would be sent without sending)
+EMAIL_REMINDER_DRY_RUN=true npm run script:email-reminders
+
 # With test handler enabled (set TEST_EMAIL_ADDRESS)
 TEST_EMAIL_ADDRESS=your@email.com npm run script:email-reminders
+
+# Dry run + test email
+EMAIL_REMINDER_DRY_RUN=true TEST_EMAIL_ADDRESS=your@email.com npm run script:email-reminders
 ```
 
 **Adding New Reminder Types:**

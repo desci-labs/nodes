@@ -48,6 +48,7 @@ spec:
               export REDIS_PORT={{ .Data.REDIS_PORT }}
               export REDIS_URL={{ .Data.REDIS_URL }}
               export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
+              export EMAIL_REMINDER_DRY_RUN={{ .Data.EMAIL_REMINDER_DRY_RUN }}
               echo "appfinish";
               {{- end -}}
           labels:

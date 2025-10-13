@@ -13,6 +13,8 @@ import { logger as parentLogger } from '../logger.js';
 import { sendEmail } from '../services/email/email.js';
 import { SciweaveEmailTypes } from '../services/email/sciweaveEmailTypes.js';
 
+import { isDryRunMode, recordDryRunEmail } from './emailDryRun.js';
+
 const logger = parentLogger.child({ module: 'EmailReminderConfig' });
 
 export type EmailReminderHandler = {
@@ -149,30 +151,44 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
             continue;
           }
 
-          // Send the inactivity email
-          await sendEmail({
-            type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
-            payload: {
-              email: user.email,
-              firstName: user.firstName || undefined,
-              lastName: user.lastName || undefined,
-            },
-          });
-
-          // Record that we sent this email
-          await prisma.sentEmail.create({
-            data: {
+          // Send the inactivity email (or record for dry run)
+          if (isDryRunMode()) {
+            recordDryRunEmail({
               userId: user.id,
-              emailType: SentEmailType.SCIWEAVE_14_DAY_INACTIVITY,
+              email: user.email,
+              emailType: 'SCIWEAVE_14_DAY_INACTIVITY',
+              handlerName: 'Sciweave 14-Day Inactivity',
               details: {
                 planCodename: userLimit.planCodename,
                 feature: userLimit.feature,
                 useLimit: userLimit.useLimit,
               },
-            },
-          });
+            });
+          } else {
+            await sendEmail({
+              type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
+              payload: {
+                email: user.email,
+                firstName: user.firstName || undefined,
+                lastName: user.lastName || undefined,
+              },
+            });
 
-          logger.info({ userId: user.id, email: user.email }, 'Sent 14-day inactivity email');
+            // Record that we sent this email
+            await prisma.sentEmail.create({
+              data: {
+                userId: user.id,
+                emailType: SentEmailType.SCIWEAVE_14_DAY_INACTIVITY,
+                details: {
+                  planCodename: userLimit.planCodename,
+                  feature: userLimit.feature,
+                  useLimit: userLimit.useLimit,
+                },
+              },
+            });
+          }
+
+          logger.info({ userId: user.id, email: user.email, dryRun: isDryRunMode() }, 'Sent 14-day inactivity email');
           sent++;
         } catch (err) {
           logger.error({ err, userId: user.id }, 'Failed to process inactivity email for user');
@@ -272,34 +288,57 @@ const checkProChatRefresh: EmailReminderHandler = {
             continue;
           }
 
-          // Send the chat refresh notification
-          await sendEmail({
-            type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH,
-            payload: {
-              email: user.email,
-              firstName: user.firstName || undefined,
-              lastName: user.lastName || undefined,
-            },
-          });
-
-          // Record that we sent this email
-          await prisma.sentEmail.create({
-            data: {
+          // Send the chat refresh notification (or record for dry run)
+          if (isDryRunMode()) {
+            recordDryRunEmail({
               userId: user.id,
-              emailType: 'SCIWEAVE_PRO_CHAT_REFRESH' as any, // Will be typed after prisma generate
+              email: user.email,
+              emailType: 'SCIWEAVE_PRO_CHAT_REFRESH',
+              handlerName: 'Pro Chat Refresh Notification',
               details: {
                 planCodename: userLimit.planCodename,
                 feature: userLimit.feature,
-                currentPeriodStart: userLimit.currentPeriodStart.toISOString(),
                 daysSinceStart,
                 isPeriodExpired,
                 isJustRefreshed,
               },
-            },
-          });
+            });
+          } else {
+            await sendEmail({
+              type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH,
+              payload: {
+                email: user.email,
+                firstName: user.firstName || undefined,
+                lastName: user.lastName || undefined,
+              },
+            });
+
+            // Record that we sent this email
+            await prisma.sentEmail.create({
+              data: {
+                userId: user.id,
+                emailType: 'SCIWEAVE_PRO_CHAT_REFRESH' as any, // Will be typed after prisma generate
+                details: {
+                  planCodename: userLimit.planCodename,
+                  feature: userLimit.feature,
+                  currentPeriodStart: userLimit.currentPeriodStart.toISOString(),
+                  daysSinceStart,
+                  isPeriodExpired,
+                  isJustRefreshed,
+                },
+              },
+            });
+          }
 
           logger.info(
-            { userId: user.id, email: user.email, daysSinceStart, isPeriodExpired, isJustRefreshed },
+            {
+              userId: user.id,
+              email: user.email,
+              daysSinceStart,
+              isPeriodExpired,
+              isJustRefreshed,
+              dryRun: isDryRunMode(),
+            },
             'Sent chat refresh notification',
           );
           sent++;
@@ -346,17 +385,27 @@ const testEmailHandler: EmailReminderHandler = {
 
       logger.info({ testEmail: TEST_EMAIL }, 'Sending test email');
 
-      // Send test email using the Sciweave 14-day inactivity template as an example
-      await sendEmail({
-        type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
-        payload: {
+      // Send test email (or record for dry run)
+      if (isDryRunMode()) {
+        recordDryRunEmail({
+          userId: -1, // Test user doesn't have a real ID
           email: TEST_EMAIL,
-          firstName: 'Test',
-          lastName: 'User',
-        },
-      });
+          emailType: 'SCIWEAVE_14_DAY_INACTIVITY',
+          handlerName: 'Test Email Handler',
+          details: { test: true },
+        });
+      } else {
+        await sendEmail({
+          type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
+          payload: {
+            email: TEST_EMAIL,
+            firstName: 'Test',
+            lastName: 'User',
+          },
+        });
+      }
 
-      logger.info({ testEmail: TEST_EMAIL }, 'Test email sent successfully');
+      logger.info({ testEmail: TEST_EMAIL, dryRun: isDryRunMode() }, 'Test email sent successfully');
       sent++;
     } catch (err) {
       logger.error({ err }, 'Failed to send test email');
@@ -372,8 +421,8 @@ const testEmailHandler: EmailReminderHandler = {
  * Add your handlers to this array
  */
 export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
-  //   checkSciweave14DayInactivity,
-  //   checkProChatRefresh,
+  checkSciweave14DayInactivity,
+  checkProChatRefresh,
   testEmailHandler, // Auto-skips unless TEST_EMAIL_ADDRESS is set
   // Add more handlers here
 ];
