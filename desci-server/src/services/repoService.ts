@@ -26,8 +26,10 @@ class RepoService {
   timeoutErrorMessage = 'Timeout: Call to Repo service timed out';
 
   constructor() {
-    if (!process.env.REPO_SERVICE_SECRET_KEY || !process.env.REPO_SERVER_URL)
-      throw new Error('[REPO SERVICE]: env.REPO_SERVER_URL or env.REPO_SERVICE_SECRET_KEY missing');
+    console.log('CLOUDFLARE_WORKER_API_SECRET', cloudflareWorkerApiSecret);
+    console.log('CLOUDFLARE_WORKER_API', cloudflareWorkerApi);
+    if (!cloudflareWorkerApiSecret || !cloudflareWorkerApi)
+      throw new Error('[REPO SERVICE]: env.cloudflareWorkerApi or env.cloudflareWorkerApiSecret missing');
 
     this.#apiKey = process.env.REPO_SERVICE_SECRET_KEY;
     this.baseUrl = process.env.REPO_SERVER_URL;

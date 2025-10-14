@@ -272,6 +272,14 @@ describe('Journal Submission Service', () => {
           status: SubmissionStatus.ACCEPTED,
         },
       });
+
+      response = await request
+        .get(`/v1/journals/${journal.id}/submissions/status-count?assignedToMe=false`)
+        .set('authorization', `Bearer ${chiefEditor.token}`);
+
+      expect(response.status).toBe(200);
+      const submissions = response.body.data;
+      console.log('submissionsCount', submissions);
     });
 
     it('can view all submissions', async () => {
@@ -289,6 +297,23 @@ describe('Journal Submission Service', () => {
         SubmissionStatus.UNDER_REVIEW,
         SubmissionStatus.ACCEPTED,
       ]);
+    });
+
+    it('can view all submissions by status count', async () => {
+      // Get submissions as associate editor
+      response = await request
+        .get(`/v1/journals/${journal.id}/submissions/status-count?assignedToMe=false`)
+        .set('authorization', `Bearer ${chiefEditor.token}`);
+
+      expect(response.status).toBe(200);
+      const submissions = response.body.data;
+      console.log('submissionsCount', submissions);
+
+      expect(submissions.new).toBe(1);
+      expect(submissions.assigned).toBe(0);
+      expect(submissions.inReview).toBe(1);
+      expect(submissions.underRevision).toBe(0);
+      expect(submissions.reviewed).toBe(0);
     });
 
     it('can assign submissions to associate editors', async () => {
