@@ -16,6 +16,7 @@ import {
   submissionApiSchema,
   rejectSubmissionSchema,
   reviewsApiSchema,
+  listJournalSubmissionsByStatusCountSchema,
 } from '../../../schemas/journals.schema.js';
 import { EmailTypes, sendEmail } from '../../../services/email/email.js';
 import { FileTreeService } from '../../../services/FileTreeService.js';
@@ -70,6 +71,10 @@ export const createJournalSubmissionController = async (req: CreateSubmissionReq
 };
 
 type ListJournalSubmissionsRequest = ValidatedRequest<typeof listJournalSubmissionsSchema, AuthenticatedRequest>;
+type ListJournalSubmissionsByStatusCountRequest = ValidatedRequest<
+  typeof listJournalSubmissionsByStatusCountSchema,
+  AuthenticatedRequest
+>;
 
 const statusMap: Record<string, SubmissionStatus[]> = {
   new: [SubmissionStatus.SUBMITTED],
@@ -165,11 +170,190 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     const data: Partial<JournalSubmission>[] = submissions.map((submission) => ({
       ...submission,
+      assignedEditor: submission.assignedEditor?.name,
+      reviews: submission.refereeAssignments
+        .filter((review) => review.completedAssignment)
+        .map((review) => ({
+          completed: review.completedAssignment,
+          completedAt: review.completedAt,
+          referee: review.referee?.name,
+        })),
+      refereeAssignments: void 0,
       title: submission.node.title,
       node: undefined,
     }));
     logger.trace({ data }, 'listJournalSubmissionsController');
     return sendSuccess(res, { data, meta: { count: submissions.length, limit, offset } });
+  } catch (error) {
+    logger.error({ error });
+    return sendError(res, 'Failed to retrieve journal submissions', 500);
+  }
+};
+
+export const getJournalSubmissionsByStatusCountController = async (
+  req: ListJournalSubmissionsByStatusCountRequest,
+  res: Response,
+) => {
+  try {
+    const { journalId } = req.validatedData.params;
+    const { startDate, endDate, assignedToMe, sortBy, sortOrder } = req.validatedData.query;
+
+    const editor = await JournalManagementService.getUserJournalRole(journalId, req.user.id);
+    const role = editor.isOk() ? editor.value : undefined;
+    let submissions;
+
+    const filter: Prisma.JournalSubmissionWhereInput = {
+      journalId,
+    };
+
+    if (assignedToMe) {
+      filter.assignedEditorId = req.user.id;
+    }
+
+    if (startDate) {
+      filter.submittedAt = { gte: startDate };
+
+      if (endDate) {
+        filter.submittedAt = { lte: endDate };
+      }
+    }
+
+    let orderBy: Prisma.JournalSubmissionOrderByWithRelationInput;
+    if (sortBy) {
+      if (sortBy === 'newest') {
+        orderBy = {
+          submittedAt: sortOrder,
+        };
+      } else if (sortBy === 'oldest') {
+        orderBy = {
+          submittedAt: sortOrder,
+        };
+      } else if (sortBy === 'title') {
+        orderBy = {
+          node: {
+            title: sortOrder,
+          },
+        };
+      }
+      // TODO: order by impact
+    }
+
+    if (role === EditorRole.CHIEF_EDITOR) {
+      filter.assignedEditorId = { not: null };
+    } else if (role === EditorRole.ASSOCIATE_EDITOR) {
+      filter.assignedEditorId = req.user.id;
+    } else {
+      filter.status = SubmissionStatus.ACCEPTED;
+    }
+
+    logger.trace({ filter, orderBy }, 'listJournalSubmissionsByStatusCountController::filter');
+
+    if (role === EditorRole.CHIEF_EDITOR) {
+      // submissions = await journalSubmissionService.getJournalSubmissions(journalId, filter, orderBy, offset, limit);
+      const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.SUBMITTED, assignedEditorId: null },
+        orderBy,
+      );
+      const assignedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.SUBMITTED, assignedEditorId: { not: null } },
+        orderBy,
+      );
+      const inReviewSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.UNDER_REVIEW },
+        orderBy,
+      );
+      const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.REVISION_REQUESTED },
+        orderBy,
+      );
+      const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] } },
+        orderBy,
+      );
+
+      submissions = {
+        new: newSubmissions,
+        assigned: assignedSubmissions,
+        inReview: inReviewSubmissions,
+        underRevision: underRevisionSubmissions,
+        reviewed: reviewedSubmissions,
+      };
+    } else if (role === EditorRole.ASSOCIATE_EDITOR) {
+      const assignedEditorId = req.user.id;
+      // submissions = await journalSubmissionService.getAssociateEditorSubmissions(
+      //   journalId,
+      //   assignedEditorId,
+      //   filter,
+      //   orderBy,
+      //   offset,
+      //   limit,
+      // );
+      const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.SUBMITTED, assignedEditorId },
+        orderBy,
+      );
+      // const assignedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+      //   journalId,
+      //   { ...filter, status: SubmissionStatus.SUBMITTED, assignedEditorId },
+      //   orderBy,
+      // );
+      const inReviewSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.UNDER_REVIEW, assignedEditorId },
+        orderBy,
+      );
+      const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.REVISION_REQUESTED, assignedEditorId },
+        orderBy,
+      );
+      const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.REJECTED, assignedEditorId },
+        orderBy,
+      );
+
+      submissions = {
+        new: newSubmissions,
+        assigned: null,
+        inReview: inReviewSubmissions,
+        underRevision: underRevisionSubmissions,
+        reviewed: reviewedSubmissions,
+      };
+    } else {
+      // submissions = await journalSubmissionService.getJournalSubmissions(
+      //   journalId,
+      //   {
+      //     status: SubmissionStatus.ACCEPTED,
+      //   },
+      //   orderBy,
+      //   offset,
+      //   limit,
+      // );
+
+      const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(
+        journalId,
+        { ...filter, status: SubmissionStatus.SUBMITTED, assignedEditorId: null },
+        orderBy,
+      );
+
+      submissions = {
+        new: newSubmissions,
+        assigned: 0,
+        inReview: 0,
+        underRevision: 0,
+        reviewed: 0,
+      };
+    }
+
+    logger.trace({ submissions }, 'listJournalSubmissionsByStatusCountController');
+    return sendSuccess(res, submissions);
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve journal submissions', 500);
