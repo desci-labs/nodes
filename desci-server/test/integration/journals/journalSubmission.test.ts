@@ -296,8 +296,6 @@ describe('Journal Submission Service', () => {
       response = await request
         .get(`/v1/journals/${journal.id}/submissions/status-count`)
         .set('authorization', `Bearer ${chiefEditor.token}`);
-      console.error('response', response.error);
-      console.error('response', response.body);
       expect(response.status).toBe(200);
       const submissions = response.body.data;
 
