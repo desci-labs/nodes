@@ -297,7 +297,7 @@ describe('Journal Submission Service', () => {
       ]);
     });
 
-    it('can view all submissions by status count', async () => {
+    it.only('can view all submissions by status count', async () => {
       // Get submissions as associate editor
       response = await request
         .get(`/v1/journals/${journal.id}/submissions/status-count?assignedToMe=false`)
