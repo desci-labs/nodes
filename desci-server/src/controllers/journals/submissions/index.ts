@@ -234,15 +234,7 @@ export const getJournalSubmissionsByStatusCountController = async (
       // TODO: order by impact
     }
 
-    if (role === EditorRole.CHIEF_EDITOR) {
-      filter.assignedEditorId = { not: null };
-    } else if (role === EditorRole.ASSOCIATE_EDITOR) {
-      filter.assignedEditorId = req.user.id;
-    } else {
-      filter.status = SubmissionStatus.ACCEPTED;
-    }
-
-    logger.trace({ filter, orderBy }, 'listJournalSubmissionsByStatusCountController::filter');
+    logger.trace({ filter, orderBy, role }, 'listJournalSubmissionsByStatusCountController::filter');
 
     if (role === EditorRole.CHIEF_EDITOR) {
       const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
@@ -296,7 +288,7 @@ export const getJournalSubmissionsByStatusCountController = async (
       });
       const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
-        status: SubmissionStatus.REJECTED,
+        status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
         assignedEditorId,
       });
 
@@ -308,18 +300,18 @@ export const getJournalSubmissionsByStatusCountController = async (
         reviewed: reviewedSubmissions,
       };
     } else {
-      const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+      // For non-editors, only show accepted submissions count
+      const acceptedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
-        status: SubmissionStatus.SUBMITTED,
-        assignedEditorId: null,
+        status: SubmissionStatus.ACCEPTED,
       });
 
       submissions = {
-        new: newSubmissions,
+        new: 0,
         assigned: 0,
         inReview: 0,
         underRevision: 0,
-        reviewed: 0,
+        reviewed: acceptedSubmissions,
       };
     }
 
