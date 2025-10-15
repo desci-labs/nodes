@@ -71,10 +71,6 @@ export const createJournalSubmissionController = async (req: CreateSubmissionReq
 };
 
 type ListJournalSubmissionsRequest = ValidatedRequest<typeof listJournalSubmissionsSchema, AuthenticatedRequest>;
-type ListJournalSubmissionsByStatusCountRequest = ValidatedRequest<
-  typeof listJournalSubmissionsByStatusCountSchema,
-  AuthenticatedRequest
->;
 
 const statusMap: Record<string, SubmissionStatus[]> = {
   new: [SubmissionStatus.SUBMITTED],
@@ -190,6 +186,10 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
   }
 };
 
+type ListJournalSubmissionsByStatusCountRequest = ValidatedRequest<
+  typeof listJournalSubmissionsByStatusCountSchema,
+  AuthenticatedRequest
+>;
 export const getJournalSubmissionsByStatusCountController = async (
   req: ListJournalSubmissionsByStatusCountRequest,
   res: Response,
@@ -214,33 +214,29 @@ export const getJournalSubmissionsByStatusCountController = async (
       filter.submittedAt = { ...(startDate && { gte: startDate }), ...(endDate && { lte: endDate }) };
     }
 
-    logger.trace({ filter, role }, 'listJournalSubmissionsByStatusCountController::filter');
+    // logger.error({ filter, assignedToMe, role }, 'StatusCount::filter');
 
     if (role === EditorRole.CHIEF_EDITOR) {
       const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.SUBMITTED,
-        assignedEditorId: null,
       });
       const assignedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.SUBMITTED,
-        assignedEditorId: { not: null },
+        ...(assignedToMe ? { assignedEditorId: req.user.id } : { assignedEditorId: { not: null } }),
       });
       const inReviewSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.UNDER_REVIEW,
-        assignedEditorId: { not: null },
       });
       const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.REVISION_REQUESTED,
-        assignedEditorId: { not: null },
       });
       const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
-        assignedEditorId: { not: null },
       });
 
       submissions = {
@@ -296,6 +292,7 @@ export const getJournalSubmissionsByStatusCountController = async (
       };
     }
 
+    // logger.error({ assignedToMe, filter, role, submissions }, 'listJournalSubmissionsByStatusCountController');
     return sendSuccess(res, submissions);
   } catch (error) {
     logger.error({ error });

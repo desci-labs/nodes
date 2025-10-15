@@ -28,6 +28,7 @@ export const validateInputs = <S extends ZodTypeAny, R extends Request = Request
   asyncHandler(async (req: R, res: Response, next: NextFunction) => {
     try {
       const parsed = await schema.parseAsync(req);
+      logger.error({ parsed }, 'validateInputs');
       (req as R & { validatedData: z.infer<S> }).validatedData = parsed;
       next();
     } catch (err) {

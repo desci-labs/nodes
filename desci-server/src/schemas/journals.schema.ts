@@ -233,15 +233,8 @@ export const listJournalSubmissionsByStatusCountSchema = z.object({
     endDate: z.coerce.date().optional().describe('The end date of the submissions to return'),
     assignedToMe: z.coerce
       .boolean()
-      .optional()
-      .default(false)
+      .nullable()
       .describe('If true, only submissions assigned to the current user as an editor will be returned'),
-    sortBy: z
-      .enum(['newest', 'oldest', 'title', 'impact'])
-      .optional()
-      .default('newest')
-      .describe('The field to sort the submissions by'),
-    sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('The order to sort the submissions by'),
   }),
 });
 
