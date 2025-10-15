@@ -6,12 +6,15 @@
  */
 
 import { SentEmailType } from '@prisma/client';
-import { subDays } from 'date-fns';
+import { subDays, subHours } from 'date-fns';
 
 import { prisma } from '../client.js';
+import { SCIWEAVE_USER_DISCOUNT_PERCENT } from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { sendEmail } from '../services/email/email.js';
 import { SciweaveEmailTypes } from '../services/email/sciweaveEmailTypes.js';
+import { isUserStudentSciweave } from '../services/interactionLog.js';
+import { StripeCouponService } from '../services/StripeCouponService.js';
 
 import { isDryRunMode, recordDryRunEmail } from './emailDryRun.js';
 
@@ -420,9 +423,248 @@ const testEmailHandler: EmailReminderHandler = {
  * All configured email reminder handlers
  * Add your handlers to this array
  */
+// 24-hour follow-up: OUT_OF_CHATS_NO_CTA (non-students) with 48hr coupon
+const checkOutOfChatsFollowUp: EmailReminderHandler = {
+  name: 'Out of Chats Follow-Up (Non-Students)',
+  description: 'Send 48hr coupon to non-students 24hrs after hitting limit',
+  enabled: true,
+  handler: async () => {
+    let sent = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    try {
+      const twentyFourHoursAgo = subHours(new Date(), 24);
+      const twentyFiveHoursAgo = subHours(new Date(), 25);
+
+      // Find users who received OUT_OF_CHATS_INITIAL email exactly 24 hours ago (give or take 1 hour window)
+      const initialEmails = await prisma.sentEmail.findMany({
+        where: {
+          emailType: SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL,
+          createdAt: {
+            gte: twentyFiveHoursAgo,
+            lte: twentyFourHoursAgo,
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      logger.info({ count: initialEmails.length }, 'Found users for out-of-chats follow-up');
+
+      for (const initialEmail of initialEmails) {
+        const { user } = initialEmail;
+        if (!user) continue;
+
+        try {
+          // Check if we already sent the follow-up email
+          const existingFollowUp = await prisma.sentEmail.findFirst({
+            where: {
+              userId: user.id,
+              emailType: SentEmailType.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
+            },
+          });
+
+          if (existingFollowUp) {
+            logger.debug({ userId: user.id }, 'Already sent follow-up email, skipping');
+            skipped++;
+            continue;
+          }
+
+          if (isDryRunMode()) {
+            recordDryRunEmail({
+              userId: user.id,
+              email: user.email,
+              emailType: 'SCIWEAVE_OUT_OF_CHATS_NO_CTA',
+              handlerName: 'Out of Chats Follow-Up (Non-Students)',
+              details: { initialEmailId: initialEmail.id },
+            });
+            sent++;
+            continue;
+          }
+
+          // Create 48-hour limited coupon
+          const coupon = await StripeCouponService.create48HourCoupon({
+            percentOff: SCIWEAVE_USER_DISCOUNT_PERCENT,
+            userId: user.id,
+            emailType: 'SCIWEAVE_OUT_OF_CHATS_NO_CTA',
+          });
+
+          // Send follow-up email with coupon
+          await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
+            payload: {
+              email: user.email,
+              firstName: user.firstName || undefined,
+              lastName: user.lastName || undefined,
+              couponCode: coupon.code,
+              percentOff: coupon.percentOff || SCIWEAVE_USER_DISCOUNT_PERCENT,
+              expiresAt: coupon.expiresAt!,
+            },
+          });
+
+          // Record that we sent this email
+          await prisma.sentEmail.create({
+            data: {
+              userId: user.id,
+              emailType: SentEmailType.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
+              details: {
+                initialEmailId: initialEmail.id,
+                couponCode: coupon.code,
+                couponId: coupon.id,
+                expiresAt: coupon.expiresAt!.toISOString(),
+              },
+            },
+          });
+
+          logger.info({ userId: user.id, couponCode: coupon.code }, 'Sent out-of-chats follow-up email');
+          sent++;
+        } catch (err) {
+          logger.error({ err, userId: user.id }, 'Failed to process follow-up email for user');
+          errors++;
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, 'Failed to check out-of-chats follow-up');
+      errors++;
+    }
+
+    return { sent, skipped, errors };
+  },
+};
+
+// 24-hour follow-up: STUDENT_DISCOUNT (students) with student coupon
+const checkStudentDiscountFollowUp: EmailReminderHandler = {
+  name: 'Student Discount Follow-Up',
+  description: 'Send student discount to students 24hrs after hitting limit',
+  enabled: true,
+  handler: async () => {
+    let sent = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    try {
+      const twentyFourHoursAgo = subHours(new Date(), 24);
+      const twentyFiveHoursAgo = subHours(new Date(), 25);
+
+      // Find students who received STUDENT_DISCOUNT_LIMIT_REACHED email exactly 24 hours ago
+      const limitReachedEmails = await prisma.sentEmail.findMany({
+        where: {
+          emailType: SentEmailType.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED,
+          createdAt: {
+            gte: twentyFiveHoursAgo,
+            lte: twentyFourHoursAgo,
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      logger.info({ count: limitReachedEmails.length }, 'Found students for discount follow-up');
+
+      for (const limitEmail of limitReachedEmails) {
+        const { user } = limitEmail;
+        if (!user) continue;
+
+        try {
+          // Check if we already sent the follow-up email
+          const existingFollowUp = await prisma.sentEmail.findFirst({
+            where: {
+              userId: user.id,
+              emailType: SentEmailType.SCIWEAVE_STUDENT_DISCOUNT,
+            },
+          });
+
+          if (existingFollowUp) {
+            logger.debug({ userId: user.id }, 'Already sent student discount email, skipping');
+            skipped++;
+            continue;
+          }
+
+          // Verify they're still a student
+          const isStudent = await isUserStudentSciweave(user.id);
+          if (!isStudent) {
+            logger.warn({ userId: user.id }, 'User no longer identified as student, skipping');
+            skipped++;
+            continue;
+          }
+
+          if (isDryRunMode()) {
+            recordDryRunEmail({
+              userId: user.id,
+              email: user.email,
+              emailType: 'SCIWEAVE_STUDENT_DISCOUNT',
+              handlerName: 'Student Discount Follow-Up',
+              details: { limitEmailId: limitEmail.id },
+            });
+            sent++;
+            continue;
+          }
+
+          // Get the persistent student discount coupon
+          const coupon = await StripeCouponService.getStudentDiscountCoupon();
+
+          // Send student discount email
+          await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT,
+            payload: {
+              email: user.email,
+              firstName: user.firstName || undefined,
+              lastName: user.lastName || undefined,
+              couponCode: coupon.code,
+              percentOff: coupon.percentOff,
+            },
+          });
+
+          // Record that we sent this email
+          await prisma.sentEmail.create({
+            data: {
+              userId: user.id,
+              emailType: SentEmailType.SCIWEAVE_STUDENT_DISCOUNT,
+              details: {
+                limitEmailId: limitEmail.id,
+                couponCode: coupon.code,
+              },
+            },
+          });
+
+          logger.info({ userId: user.id, couponCode: coupon.code }, 'Sent student discount email');
+          sent++;
+        } catch (err) {
+          logger.error({ err, userId: user.id }, 'Failed to process student discount email for user');
+          errors++;
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, 'Failed to check student discount follow-up');
+      errors++;
+    }
+
+    return { sent, skipped, errors };
+  },
+};
+
 export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
   checkSciweave14DayInactivity,
   checkProChatRefresh,
+  checkOutOfChatsFollowUp,
+  checkStudentDiscountFollowUp,
   testEmailHandler, // Auto-skips unless TEST_EMAIL_ADDRESS is set
   // Add more handlers here
 ];
