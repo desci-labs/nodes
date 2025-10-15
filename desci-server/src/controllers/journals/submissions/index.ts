@@ -220,6 +220,7 @@ export const getJournalSubmissionsByStatusCountController = async (
       const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.SUBMITTED,
+        ...(assignedToMe ? { assignedEditorId: req.user.id } : { assignedEditorId: null }),
       });
       const assignedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
