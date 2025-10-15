@@ -43,6 +43,10 @@ spec:
               export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}
               export SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SENDGRID_TEMPLATE_ID_MAP }}'
               export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}'
+              export STRIPE_SECRET_KEY={{ .Data.STRIPE_SECRET_KEY }}
+              export STRIPE_STUDENT_DISCOUNT_COUPON_ID={{ .Data.STRIPE_STUDENT_DISCOUNT_COUPON_ID }}
+              export SCIWEAVE_USER_DISCOUNT_PC={{ .Data.SCIWEAVE_USER_DISCOUNT_PC }}
+              export SCIWEAVE_STUDENT_DISCOUNT_PC={{ .Data.SCIWEAVE_STUDENT_DISCOUNT_PC }}
               export SHOULD_SEND_EMAIL=true
               export REDIS_HOST={{ .Data.REDIS_HOST }}
               export REDIS_PORT={{ .Data.REDIS_PORT }}

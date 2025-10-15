@@ -127,6 +127,9 @@ spec:
           export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
           export SCIWEAVE_GOOGLE_CLIENT_ID="{{ .Data.SCIWEAVE_GOOGLE_CLIENT_ID }}"
           export SCIWEAVE_FREE_LIMIT="{{ .Data.SCIWEAVE_FREE_LIMIT }}"
+          export STRIPE_STUDENT_DISCOUNT_COUPON_ID="{{ .Data.STRIPE_STUDENT_DISCOUNT_COUPON_ID }}"
+          export SCIWEAVE_USER_DISCOUNT_PC="{{ .Data.SCIWEAVE_USER_DISCOUNT_PC }}"
+          export SCIWEAVE_STUDENT_DISCOUNT_PC="{{ .Data.SCIWEAVE_STUDENT_DISCOUNT_PC }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
