@@ -278,8 +278,6 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${chiefEditor.token}`);
 
       expect(response.status).toBe(200);
-      const submissions = response.body.data;
-      console.log('submissionsCount', submissions);
     });
 
     it('can view all submissions', async () => {
@@ -307,7 +305,6 @@ describe('Journal Submission Service', () => {
 
       expect(response.status).toBe(200);
       const submissions = response.body.data;
-      console.log('submissionsCount', submissions);
 
       expect(submissions.new).toBe(1);
       expect(submissions.assigned).toBe(0);

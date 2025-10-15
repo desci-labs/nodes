@@ -149,14 +149,9 @@ async function getJournalSubmissions(
   });
 }
 
-async function getJournalSubmissionsCount(
-  journalId: number,
-  filter: Prisma.JournalSubmissionWhereInput,
-  orderBy: Prisma.JournalSubmissionOrderByWithRelationInput,
-) {
+async function getJournalSubmissionsCount(journalId: number, filter: Prisma.JournalSubmissionWhereInput) {
   return await prisma.journalSubmission.count({
     where: { journalId, ...filter },
-    orderBy,
   });
 }
 
