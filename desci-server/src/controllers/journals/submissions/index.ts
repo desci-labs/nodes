@@ -296,7 +296,6 @@ export const getJournalSubmissionsByStatusCountController = async (
       };
     }
 
-    logger.error({ submissions }, 'listJournalSubmissionsByStatusCountController');
     return sendSuccess(res, submissions);
   } catch (error) {
     logger.error({ error });
