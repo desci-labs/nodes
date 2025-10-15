@@ -1,8 +1,11 @@
-import { ExternalApi, Feature } from '@prisma/client';
+import { ExternalApi, Feature, SentEmailType } from '@prisma/client';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { sendEmail } from '../email/email.js';
+import { SciweaveEmailTypes } from '../email/sciweaveEmailTypes.js';
+import { isUserStudentSciweave } from '../interactionLog.js';
 
 import { FeatureLimitsService } from './FeatureLimitsService.js';
 
@@ -64,6 +67,24 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
         return { type: 'limit', currentUsage, useLimit } as const;
       }
 
+      // Check if this usage will hit the limit exactly (send warning email)
+      const willHitLimit = useLimit !== null && currentUsage + 1 === useLimit;
+      let shouldSendLimitEmail = false;
+
+      if (willHitLimit) {
+        // Check if we've ever sent either limit-reached email to the user
+        const existingEmail = await tx.sentEmail.findFirst({
+          where: {
+            userId,
+            emailType: {
+              in: [SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL, SentEmailType.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED],
+            },
+          },
+        });
+
+        shouldSendLimitEmail = !existingEmail;
+      }
+
       const created = await tx.externalApiUsage.create({
         data: {
           userId,
@@ -72,11 +93,64 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
         },
       });
 
-      return { type: 'created', usageId: created.id } as const;
+      return { type: 'created', usageId: created.id, shouldSendLimitEmail } as const;
     });
 
     if (result.type === 'limit') {
       return err(new LimitExceededError(result.currentUsage, result.useLimit));
+    }
+
+    // Send out-of-chats email if user just hit their limit (do this after successful transaction)
+    if (result.shouldSendLimitEmail) {
+      try {
+        // Get user details for email
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true, firstName: true, lastName: true },
+        });
+
+        if (user) {
+          // Check if user identified as a student in the Sciweave questionnaire
+          const isStudent = await isUserStudentSciweave(userId);
+
+          // Choose the appropriate email type and template
+          const emailType = isStudent
+            ? SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED
+            : SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL;
+
+          const sentEmailType = isStudent
+            ? SentEmailType.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED
+            : SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL;
+
+          // Send the email
+          await sendEmail({
+            type: emailType,
+            payload: {
+              email: user.email,
+              firstName: user.firstName || undefined,
+              lastName: user.lastName || undefined,
+            },
+          });
+
+          // Record that we sent this email
+          await prisma.sentEmail.create({
+            data: {
+              userId,
+              emailType: sentEmailType,
+              details: {
+                feature: Feature.RESEARCH_ASSISTANT,
+                triggeredByUsageId: result.usageId,
+                isStudent,
+              },
+            },
+          });
+
+          logger.info({ userId, email: user.email, isStudent, emailType: sentEmailType }, 'Sent limit-reached email');
+        }
+      } catch (emailError) {
+        // Don't fail the whole request if email fails
+        logger.error({ emailError, userId }, 'Failed to send limit-reached email');
+      }
     }
 
     return ok({ usageId: result.usageId });
