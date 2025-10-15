@@ -14,6 +14,7 @@ export default defineConfig(() => ({
     //fileParallelism: false,
     // Only show console output for failed tests
     silent: 'passed-only',
+    // disableConsoleIntercept: false,
     pool: 'forks',
     poolOptions: {
       forks: {
