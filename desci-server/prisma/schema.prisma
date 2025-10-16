@@ -1313,6 +1313,7 @@ model JournalEventLog {
 model EditorInvite {
   id         Int        @id @default(autoincrement())
   email      String
+  name       String?
   journalId  Int
   role       EditorRole
   inviterId  Int

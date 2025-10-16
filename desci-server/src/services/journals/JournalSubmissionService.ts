@@ -79,6 +79,18 @@ async function getAuthorSubmissions(payload: { journalId: number; authorId: numb
           orcid: true,
         },
       },
+      refereeAssignments: {
+        select: {
+          completedAssignment: true,
+          dueDate: true,
+          referee: {
+            select: {
+              name: true,
+            },
+          },
+          completedAt: true,
+        },
+      },
     },
     skip: payload.offset,
     take: payload.limit,
@@ -111,13 +123,36 @@ async function getJournalSubmissions(
           title: true,
         },
       },
+      assignedEditor: {
+        select: {
+          name: true,
+        },
+      },
       author: {
         select: {
           name: true,
           orcid: true,
         },
       },
+      refereeAssignments: {
+        select: {
+          completedAssignment: true,
+          dueDate: true,
+          referee: {
+            select: {
+              name: true,
+            },
+          },
+          completedAt: true,
+        },
+      },
     },
+  });
+}
+
+async function getJournalSubmissionsCount(journalId: number, filter: Prisma.JournalSubmissionWhereInput) {
+  return await prisma.journalSubmission.count({
+    where: { journalId, ...filter },
   });
 }
 
@@ -167,7 +202,26 @@ async function getUrgentJournalSubmissions(
       },
       refereeAssignments: {
         select: {
+          completedAssignment: true,
           dueDate: true,
+          referee: {
+            select: {
+              name: true,
+            },
+          },
+          completedAt: true,
+        },
+      },
+      RefereeInvite: {
+        select: {
+          id: true,
+          accepted: true,
+          expiresAt: true,
+        },
+      },
+      assignedEditor: {
+        select: {
+          name: true,
         },
       },
     },
@@ -210,6 +264,23 @@ export async function getAssociateEditorSubmissions(
           name: true,
           email: true,
           orcid: true,
+        },
+      },
+      refereeAssignments: {
+        select: {
+          completedAssignment: true,
+          dueDate: true,
+          referee: {
+            select: {
+              name: true,
+            },
+          },
+          completedAt: true,
+        },
+      },
+      assignedEditor: {
+        select: {
+          name: true,
         },
       },
     },
@@ -862,6 +933,7 @@ export const journalSubmissionService = {
   createSubmission,
   getAuthorSubmissions,
   getJournalSubmissions,
+  getJournalSubmissionsCount,
   assignSubmissionToEditor,
   getAssociateEditorSubmissions,
   acceptSubmission,

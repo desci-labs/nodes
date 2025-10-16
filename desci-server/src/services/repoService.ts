@@ -26,11 +26,11 @@ class RepoService {
   timeoutErrorMessage = 'Timeout: Call to Repo service timed out';
 
   constructor() {
-    if (!process.env.REPO_SERVICE_SECRET_KEY || !process.env.REPO_SERVER_URL)
-      throw new Error('[REPO SERVICE]: env.REPO_SERVER_URL or env.REPO_SERVICE_SECRET_KEY missing');
+    if (!cloudflareWorkerApiSecret || !cloudflareWorkerApi)
+      throw new Error('[REPO SERVICE]: env.cloudflareWorkerApi or env.cloudflareWorkerApiSecret missing');
 
-    this.#apiKey = process.env.REPO_SERVICE_SECRET_KEY;
-    this.baseUrl = process.env.REPO_SERVER_URL;
+    this.#apiKey = cloudflareWorkerApiSecret;
+    this.baseUrl = cloudflareWorkerApi;
 
     logger.info({ url: this.baseUrl }, 'Init Repo Service');
 
@@ -44,7 +44,7 @@ class RepoService {
     logger.info({ arg, enableWorkersApi, cloudflareWorkerApi }, 'Disatch Changes');
     try {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-        `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`,
+        `/parties/automerge/${arg.documentId}`,
         arg,
         {
           headers: {
@@ -58,21 +58,18 @@ class RepoService {
         return response.data.document;
       } else {
         logger.trace({ response: response.data }, 'Disatch Actions Failed');
-        console.log({ response: response.data }, 'Disatch Actions Failed');
         return null;
       }
     } catch (err) {
       logger.info({ arg, err }, 'dispatchChanges Error');
-      console.log({ arg, err }, 'dispatchChanges Error');
       return null;
     }
   }
 
   async dispatchChanges(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
-    console.log('DISPATCH CHANGES', { arg });
     try {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-        `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`,
+        `/parties/automerge/${arg.documentId}`,
         arg,
         {
           headers: {
@@ -88,7 +85,7 @@ class RepoService {
         return { ok: false, status: response.status, message: response.data };
       }
     } catch (err) {
-      console.log('DISPATCH CHANGES ERROR', { arg, err });
+      logger.error({ arg, err }, 'dispatchChanges Error');
       return { ok: false, status: err.status, message: err?.response?.data };
     }
   }
@@ -97,7 +94,7 @@ class RepoService {
     try {
       const response = await this.#client.post<
         ApiResponse<{ documentId: DocumentId; document: ResearchObjectDocument }>
-      >(`${cloudflareWorkerApi}/api/documents`, arg, {
+      >(`/api/documents`, arg, {
         headers: {
           'x-api-remote-traceid': (als.getStore() as any)?.traceId,
           ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
@@ -126,7 +123,7 @@ class RepoService {
         '[getDraftDocument]',
       );
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
-        `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`,
+        `/parties/automerge/${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,

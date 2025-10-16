@@ -523,7 +523,7 @@ async function getJournalEditorialBoardById(journalId: number): Promise<Result<J
     }));
 
     const acceptedEditorEmails = editors.map((e) => e.user.email).filter(Boolean);
-    logger.info({ acceptedEditorEmails }, 'Accepted editor emails');
+
     const pendingEditorInvites = await prisma.editorInvite.findMany({
       where: {
         journalId,
@@ -536,14 +536,12 @@ async function getJournalEditorialBoardById(journalId: number): Promise<Result<J
         expiresAt: 'desc',
       },
     });
-    logger.info({ pendingEditorInvites }, 'Pending editor invites');
     const uniqueEditorInvites = _.uniqBy(pendingEditorInvites, 'email');
-    logger.info({ uniqueEditorInvites }, 'Unique editor invites');
     const pendingEditors = uniqueEditorInvites.map((e) => ({
       id: e.id,
       invitedAt: e.createdAt,
       acceptedAt: null,
-      user: { id: 0, email: e.email, name: e.email, orcid: '' },
+      user: { id: 0, email: e.email, name: e.name || e.email, orcid: '' },
       currentWorkload: 0,
       maxWorkload: 0,
       role: e.role,
@@ -552,10 +550,9 @@ async function getJournalEditorialBoardById(journalId: number): Promise<Result<J
       expired: e.expiresAt < new Date(),
       inviteId: e.id,
     }));
-    logger.info({ pendingEditors }, 'Pending editors');
 
     const journalWithWorkload = [...editorsWithWorkload, ...pendingEditors];
-    logger.info({ journalWithWorkload }, 'Journal editorial board');
+
     return ok(journalWithWorkload);
   } catch (error) {
     logger.error({ error, journalId }, 'Failed to get journal by ID');

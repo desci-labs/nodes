@@ -291,6 +291,21 @@ describe('Journal Submission Service', () => {
       ]);
     });
 
+    it('can view all submissions by status count', async () => {
+      // Get submissions as associate editor
+      response = await request
+        .get(`/v1/journals/${journal.id}/submissions/status-count`)
+        .set('authorization', `Bearer ${chiefEditor.token}`);
+      expect(response.status).toBe(200);
+      const submissions = response.body.data;
+
+      expect(submissions.new).toBe(1);
+      expect(submissions.assigned).toBe(0);
+      expect(submissions.inReview).toBe(1);
+      expect(submissions.underRevision).toBe(0);
+      expect(submissions.reviewed).toBe(1);
+    });
+
     it('can assign submissions to associate editors', async () => {
       response = await request
         .post(`/v1/journals/${journal.id}/submissions/${unAssignedSubmission.id}/assign`)

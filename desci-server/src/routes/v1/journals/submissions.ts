@@ -11,6 +11,7 @@ import {
   requestRevisionController,
   getJournalSubmissionController,
   getRefereeInvitationsBySubmissionController,
+  getJournalSubmissionsByStatusCountController,
 } from '../../../controllers/journals/submissions/index.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
 import { ensureUser } from '../../../middleware/permissions.js';
@@ -19,6 +20,7 @@ import {
   assignSubmissionToEditorSchema,
   createJournalSubmissionSchema,
   getAuthorJournalSubmissionsSchema,
+  listJournalSubmissionsByStatusCountSchema,
   listJournalSubmissionsSchema,
   rejectSubmissionSchema,
   requestRevisionSchema,
@@ -45,6 +47,12 @@ export default function submissionRoutes(router: Router) {
     '/:journalId/submissions',
     [ensureUser, validateInputs(listJournalSubmissionsSchema)],
     asyncHandler(listJournalSubmissionsController),
+  );
+
+  router.get(
+    '/:journalId/submissions/status-count',
+    [ensureUser, validateInputs(listJournalSubmissionsByStatusCountSchema)],
+    asyncHandler(getJournalSubmissionsByStatusCountController),
   );
 
   router.get(

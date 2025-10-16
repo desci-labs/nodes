@@ -296,7 +296,7 @@ export const getAuthorPublishedNodes = async (req: PublishedNodesRequest, res: P
       title,
       versionIx,
       publishedAt,
-      authors: cachedResult?.manifest?.authors,
+      authors: cachedResult?.manifest?.authors ?? [],
       createdAt: n.createdAt,
       uuid: n.uuid.replace('.', ''),
     };

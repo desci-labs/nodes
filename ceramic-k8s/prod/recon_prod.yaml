@@ -80,8 +80,7 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          # https://github.com/ceramicnetwork/rust-ceramic/pull/739
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:08eada97d67d654049adb03ff0c42fa262023f87
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.2
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null

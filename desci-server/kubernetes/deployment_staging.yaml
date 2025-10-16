@@ -69,8 +69,8 @@ spec:
           export SERVER_URL={{ .Data.SERVER_URL }}
           export DAPP_URL={{ .Data.DAPP_URL }}
           export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}
-          export SENDGRID_TEMPLATE_ID_MAP={{ .Data.SENDGRID_TEMPLATE_ID_MAP }}
-          export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP={{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}
+          export SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SENDGRID_TEMPLATE_ID_MAP }}'
+          export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}'
           export SHOULD_SEND_EMAIL=true
           export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
           export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}

@@ -16,6 +16,7 @@ import {
   submissionApiSchema,
   rejectSubmissionSchema,
   reviewsApiSchema,
+  listJournalSubmissionsByStatusCountSchema,
 } from '../../../schemas/journals.schema.js';
 import { EmailTypes, sendEmail } from '../../../services/email/email.js';
 import { FileTreeService } from '../../../services/FileTreeService.js';
@@ -73,7 +74,7 @@ type ListJournalSubmissionsRequest = ValidatedRequest<typeof listJournalSubmissi
 
 const statusMap: Record<string, SubmissionStatus[]> = {
   new: [SubmissionStatus.SUBMITTED],
-  assigned: [SubmissionStatus.UNDER_REVIEW, SubmissionStatus.REVISION_REQUESTED],
+  assigned: [SubmissionStatus.SUBMITTED],
   under_review: [SubmissionStatus.UNDER_REVIEW],
   reviewed: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
   under_revision: [SubmissionStatus.REVISION_REQUESTED],
@@ -90,14 +91,17 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     const filter: Prisma.JournalSubmissionWhereInput = {
       journalId,
-      // status: { in: statusMap[status] },
     };
 
     if (status) {
       filter.status = { in: statusMap[status] };
 
+      if (status === 'new') {
+        filter.assignedEditorId = null;
+      }
+
       if (status === 'assigned') {
-        filter.status = undefined;
+        filter.status = SubmissionStatus.SUBMITTED;
         filter.assignedEditorId = { not: null };
       }
     }
@@ -162,11 +166,136 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     const data: Partial<JournalSubmission>[] = submissions.map((submission) => ({
       ...submission,
+      assignedEditor: submission.assignedEditor?.name,
+      reviews: submission.refereeAssignments
+        .filter((review) => review.completedAssignment)
+        .map((review) => ({
+          completed: review.completedAssignment,
+          completedAt: review.completedAt,
+          referee: review.referee?.name,
+          dueDate: review.dueDate,
+        })),
+      refereeAssignments: void 0,
       title: submission.node.title,
       node: undefined,
     }));
     logger.trace({ data }, 'listJournalSubmissionsController');
     return sendSuccess(res, { data, meta: { count: submissions.length, limit, offset } });
+  } catch (error) {
+    logger.error({ error });
+    return sendError(res, 'Failed to retrieve journal submissions', 500);
+  }
+};
+
+type ListJournalSubmissionsByStatusCountRequest = ValidatedRequest<
+  typeof listJournalSubmissionsByStatusCountSchema,
+  AuthenticatedRequest
+>;
+export const getJournalSubmissionsByStatusCountController = async (
+  req: ListJournalSubmissionsByStatusCountRequest,
+  res: Response,
+) => {
+  try {
+    const { journalId } = req.validatedData.params;
+    const { startDate, endDate, assignedToMe } = req.validatedData.query;
+
+    const editor = await JournalManagementService.getUserJournalRole(journalId, req.user.id);
+    const role = editor.isOk() ? editor.value : undefined;
+    let submissions;
+
+    const filter: Prisma.JournalSubmissionWhereInput = {
+      journalId,
+    };
+
+    if (assignedToMe) {
+      filter.assignedEditorId = req.user.id;
+    }
+
+    if (startDate || endDate) {
+      filter.submittedAt = { ...(startDate && { gte: startDate }), ...(endDate && { lte: endDate }) };
+    }
+
+    // logger.error({ filter, assignedToMe, role }, 'StatusCount::filter');
+
+    if (role === EditorRole.CHIEF_EDITOR) {
+      const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.SUBMITTED,
+        ...(assignedToMe ? { assignedEditorId: req.user.id } : { assignedEditorId: null }),
+      });
+      const assignedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.SUBMITTED,
+        ...(assignedToMe ? { assignedEditorId: req.user.id } : { assignedEditorId: { not: null } }),
+      });
+      const inReviewSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.UNDER_REVIEW,
+      });
+      const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.REVISION_REQUESTED,
+      });
+      const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
+      });
+
+      submissions = {
+        new: newSubmissions,
+        assigned: assignedSubmissions,
+        inReview: inReviewSubmissions,
+        underRevision: underRevisionSubmissions,
+        reviewed: reviewedSubmissions,
+      };
+    } else if (role === EditorRole.ASSOCIATE_EDITOR) {
+      const assignedEditorId = req.user.id;
+      const newSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.SUBMITTED,
+        assignedEditorId,
+      });
+      const inReviewSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.UNDER_REVIEW,
+        assignedEditorId,
+      });
+      const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.REVISION_REQUESTED,
+        assignedEditorId,
+      });
+      const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
+        assignedEditorId,
+      });
+
+      submissions = {
+        new: newSubmissions,
+        assigned: 0,
+        inReview: inReviewSubmissions,
+        underRevision: underRevisionSubmissions,
+        reviewed: reviewedSubmissions,
+      };
+    } else {
+      // For non-editors, only show accepted submissions count
+      const acceptedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.ACCEPTED,
+      });
+
+      submissions = {
+        new: 0,
+        assigned: 0,
+        inReview: 0,
+        underRevision: 0,
+        reviewed: acceptedSubmissions,
+      };
+    }
+
+    // logger.error({ assignedToMe, filter, role, submissions }, 'listJournalSubmissionsByStatusCountController');
+    return sendSuccess(res, submissions);
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve journal submissions', 500);

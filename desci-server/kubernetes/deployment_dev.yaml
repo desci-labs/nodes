@@ -58,7 +58,7 @@ spec:
           export SERVER_URL={{ .Data.SERVER_URL }}
           export DAPP_URL={{ .Data.DAPP_URL }}
           export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}
-          export SENDGRID_TEMPLATE_ID_MAP={{ .Data.SENDGRID_TEMPLATE_ID_MAP }}
+          export SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SENDGRID_TEMPLATE_ID_MAP }}'
           export SHOULD_SEND_EMAIL=true
           export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
           export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
@@ -125,11 +125,15 @@ spec:
           export STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID }}"
           export STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID="{{ .Data.STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID }}"
           export SCIWEAVE_FREE_LIMIT="{{ .Data.SCIWEAVE_FREE_LIMIT }}"
+<<<<<<< HEAD
           export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP="{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}"
           export STRIPE_STUDENT_DISCOUNT_COUPON_ID="{{ .Data.STRIPE_STUDENT_DISCOUNT_COUPON_ID }}"
           export STRIPE_USER_DISCOUNT_COUPON_ID="{{ .Data.STRIPE_USER_DISCOUNT_COUPON_ID }}"
           export SCIWEAVE_USER_DISCOUNT_PC="{{ .Data.SCIWEAVE_USER_DISCOUNT_PC }}"
           export SCIWEAVE_STUDENT_DISCOUNT_PC="{{ .Data.SCIWEAVE_STUDENT_DISCOUNT_PC }}"
+=======
+          export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}'
+>>>>>>> 6b9ee408b70a7884858d9f9ee4ca3f965564c818
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}

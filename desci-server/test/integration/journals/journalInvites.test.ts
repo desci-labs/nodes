@@ -296,6 +296,7 @@ describe('Journal Invite Service', () => {
         expect(res.body.data.invite).to.have.all.keys([
           'id',
           'email',
+          'name',
           'role',
           'expiresAt',
           'createdAt',

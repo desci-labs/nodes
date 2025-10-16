@@ -224,6 +224,20 @@ export const listJournalSubmissionsSchema = z.object({
   }),
 });
 
+export const listJournalSubmissionsByStatusCountSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal'),
+  }),
+  query: z.object({
+    startDate: z.coerce.date().optional().describe('The start date of the submissions to return'),
+    endDate: z.coerce.date().optional().describe('The end date of the submissions to return'),
+    assignedToMe: z.coerce
+      .boolean()
+      .nullable()
+      .describe('If true, only submissions assigned to the current user as an editor will be returned'),
+  }),
+});
+
 export const listFeaturedPublicationsSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().optional().describe('The ID of the journal'),
