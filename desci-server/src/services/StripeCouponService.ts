@@ -1,4 +1,8 @@
-import { STRIPE_STUDENT_DISCOUNT_COUPON_ID, STRIPE_USER_DISCOUNT_COUPON_ID } from '../config.js';
+import {
+  SCIWEAVE_STUDENT_DISCOUNT_PERCENT,
+  STRIPE_STUDENT_DISCOUNT_COUPON_ID,
+  STRIPE_USER_DISCOUNT_COUPON_ID,
+} from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { getStripe } from '../utils/stripe.js';
 
@@ -9,6 +13,18 @@ const logger = parentLogger.child({ module: 'StripeCouponService' });
  *
  * Manages promotion code creation from base coupons for promotional offers.
  */
+
+/**
+ * Generate a random alphanumeric code
+ */
+function generateRandomCode(length: number = 5): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude similar looking chars (0/O, 1/I)
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
 export interface CouponInfo {
   id: string;
@@ -35,10 +51,14 @@ export const StripeCouponService = {
       const stripe = getStripe();
       const coupon = await stripe.coupons.retrieve(STRIPE_STUDENT_DISCOUNT_COUPON_ID);
 
-      // Create a promotion code scoped to this user's email
+      // Generate unique code with 8-character random suffix for security
+      const randomCode = generateRandomCode(8);
+      const promoCode = `STUDENT-${params.userId}-${randomCode}`;
+
+      // Create a promotion code with unique random suffix
       const promotionCode = await stripe.promotionCodes.create({
         coupon: coupon.id,
-        code: `STUDENT-${params.userId}-${Date.now().toString().slice(-6)}`.toUpperCase(),
+        code: promoCode,
         restrictions: {
           first_time_transaction: false, // Allow existing customers
         },
@@ -57,7 +77,7 @@ export const StripeCouponService = {
       return {
         id: coupon.id,
         code: promotionCode.code,
-        percentOff: coupon.percent_off ?? undefined,
+        percentOff: coupon.percent_off ?? SCIWEAVE_STUDENT_DISCOUNT_PERCENT,
         amountOff: coupon.amount_off ?? undefined,
         currency: coupon.currency ?? undefined,
       };
@@ -94,10 +114,23 @@ export const StripeCouponService = {
       // Retrieve the base coupon
       const coupon = await stripe.coupons.retrieve(STRIPE_USER_DISCOUNT_COUPON_ID);
 
-      // Create a promotion code with 48-hour expiration
+      // Verify coupon percent matches configured discount
+      if (coupon.percent_off != null && coupon.percent_off !== params.percentOff) {
+        logger.error(
+          { configuredPercent: params.percentOff, stripeCouponPercent: coupon.percent_off, couponId: coupon.id },
+          'Coupon percent mismatch',
+        );
+        throw new Error('Configured discount percent does not match Stripe coupon percent');
+      }
+
+      // Generate unique code with random suffix for security
+      const randomCode = generateRandomCode();
+      const promoCode = `HAPPY-${params.percentOff}-${params.userId}-${randomCode}`;
+
+      // Create a promotion code with 48-hour expiration and unique random suffix
       const promotionCode = await stripe.promotionCodes.create({
         coupon: coupon.id,
-        code: `HAPPY-${params.percentOff}-${params.userId}`.toUpperCase(),
+        code: promoCode,
         expires_at: Math.floor(expiresAt.getTime() / 1000),
         max_redemptions: 1,
         restrictions: {
