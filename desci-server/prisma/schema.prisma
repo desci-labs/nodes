@@ -1165,6 +1165,7 @@ model DataMigration {
 model Journal {
   id                    Int      @id @default(autoincrement())
   name                  String
+  slug                  String?
   description           String?
   iconCid               String? // URL to icon
   createdAt             DateTime @default(now())
