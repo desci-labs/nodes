@@ -2889,6 +2889,90 @@ export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = 
   security: [{ BearerAuth: [] }],
 };
 
+// Get Pending Submissions
+export const getPendingSubmissionsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getPendingSubmissions',
+  tags: ['Journals'],
+  summary: 'Get pending journal submissions',
+  description:
+    'Retrieve all pending submissions for a journal dashboard. Returns submissions that are not in ACCEPTED or REJECTED status, including urgent submissions that require immediate attention (unassigned submissions for chief editors, submissions without accepted referee invites, or referee assignments due within 7 days).',
+  requestParams: {
+    path: showUrgentSubmissionsSchema.shape.params,
+  },
+  responses: {
+    '200': {
+      description: 'Pending submissions retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.array(
+            z.object({
+              id: z.number().describe('Submission ID'),
+              dpid: z.number().describe('DPID of the submitted node'),
+              version: z.number().describe('Version of the submitted node'),
+              status: z
+                .enum(['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'PENDING'])
+                .describe('Current submission status'),
+              submittedAt: z.string().describe('Date when the submission was made'),
+              acceptedAt: z.string().nullable().describe('Date when the submission was accepted (if applicable)'),
+              rejectedAt: z.string().nullable().describe('Date when the submission was rejected (if applicable)'),
+              title: z.string().describe('Title of the submitted research object'),
+              assignedEditor: z.string().nullable().describe('Name of the assigned editor (if any)'),
+              author: z.object({
+                name: z.string().describe('Name of the submission author'),
+                orcid: z.string().nullable().describe('ORCID of the submission author'),
+              }),
+              reviews: z
+                .array(
+                  z.object({
+                    dueDate: z.string().describe('Due date for the review'),
+                    completed: z.boolean().describe('Whether the review has been completed'),
+                    completedAt: z.string().nullable().describe('Date when the review was completed'),
+                    referee: z.string().nullable().describe('Name of the referee'),
+                  }),
+                )
+                .describe('All reviews for this submission'),
+              activeReferees: z.number().describe('Number of active referee assignments'),
+              refereeInvites: z
+                .array(
+                  z.object({
+                    accepted: z.boolean().nullable().describe('Whether the referee invite was accepted'),
+                    isDue: z.boolean().describe('Whether the invite has expired'),
+                  }),
+                )
+                .describe('Referee invites for this submission'),
+            }),
+          ),
+        },
+      },
+    },
+    '404': {
+      description: 'Journal not found or journal profile not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to view pending submissions',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 // List Featured Publications
 export const listFeaturedPublicationsOperation: ZodOpenApiOperationObject = {
   operationId: 'listFeaturedPublications',
@@ -3533,6 +3617,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/urgentSubmissions': {
     get: showUrgentJournalSubmissionsOperation,
+  },
+  '/v1/journals/{journalId}/pendingSubmissions': {
+    get: getPendingSubmissionsOperation,
   },
   '/v1/journals/{journalId}/settings': {
     get: getJournalSettingsOperation,

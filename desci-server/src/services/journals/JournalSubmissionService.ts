@@ -137,6 +137,7 @@ async function getJournalSubmissions(
       refereeAssignments: {
         select: {
           completedAssignment: true,
+          dueDate: true,
           referee: {
             select: {
               name: true,
