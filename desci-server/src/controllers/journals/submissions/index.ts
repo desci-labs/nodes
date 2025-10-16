@@ -16,7 +16,7 @@ import {
   submissionApiSchema,
   rejectSubmissionSchema,
   reviewsApiSchema,
-  listJournalSubmissionsByStatusCountSchema,
+  submissionStatusCountSchema,
 } from '../../../schemas/journals.schema.js';
 import { EmailTypes, sendEmail } from '../../../services/email/email.js';
 import { FileTreeService } from '../../../services/FileTreeService.js';
@@ -188,7 +188,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 };
 
 type ListJournalSubmissionsByStatusCountRequest = ValidatedRequest<
-  typeof listJournalSubmissionsByStatusCountSchema,
+  typeof submissionStatusCountSchema,
   AuthenticatedRequest
 >;
 export const getJournalSubmissionsByStatusCountController = async (

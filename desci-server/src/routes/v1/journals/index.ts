@@ -5,10 +5,7 @@ import {
   getPublicJournalAnalyticsController,
   showJournalAnalyticsController,
 } from '../../../controllers/journals/dashboard/analytics.js';
-import {
-  getPendingSubmissionsController,
-  showUrgentJournalSubmissionsController,
-} from '../../../controllers/journals/dashboard/urgentSubmissions.js';
+import { getPendingSubmissionsController } from '../../../controllers/journals/dashboard/urgentSubmissions.js';
 import {
   listFeaturedJournalPublicationsController,
   listFeaturedPublicationsController,
@@ -24,9 +21,9 @@ import {
   getJournalSchema,
   listJournalsSchema,
   getJournalAnalyticsSchema,
-  showUrgentSubmissionsSchema,
   listFeaturedPublicationsSchema,
   listJournalEditorsSchema,
+  getSubmissionsSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -80,19 +77,9 @@ router.get(
 );
 
 router.get(
-  '/:journalId/urgentSubmissions',
-  [
-    ensureUser,
-    ensureJournalRole([EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR]),
-    validateInputs(showUrgentSubmissionsSchema),
-  ],
-  asyncHandler(showUrgentJournalSubmissionsController),
-);
-
-router.get(
   '/:journalId/pendingSubmissions',
   [ensureUser, ensureJournalRole([EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR])],
-  validateInputs(showUrgentSubmissionsSchema),
+  validateInputs(getSubmissionsSchema),
   asyncHandler(getPendingSubmissionsController),
 );
 

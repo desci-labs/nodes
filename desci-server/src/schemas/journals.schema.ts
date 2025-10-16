@@ -224,7 +224,7 @@ export const listJournalSubmissionsSchema = z.object({
   }),
 });
 
-export const listJournalSubmissionsByStatusCountSchema = z.object({
+export const submissionStatusCountSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal'),
   }),
@@ -693,7 +693,7 @@ export const getJournalAnalyticsSchema = z.object({
   }),
 });
 
-export const showUrgentSubmissionsSchema = z.object({
+export const getSubmissionsSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal to get urgent submissions for'),
   }),
