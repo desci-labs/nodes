@@ -435,14 +435,14 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
 
     try {
       const twentyFourHoursAgo = subHours(new Date(), 24);
-      const twentyFiveHoursAgo = subHours(new Date(), 25);
+      const seventyTwoHoursAgo = subHours(new Date(), 72);
 
-      // Find users who received OUT_OF_CHATS_INITIAL email exactly 24 hours ago (give or take 1 hour window)
+      // Find users who received OUT_OF_CHATS_INITIAL email 24-72 hours ago
       const initialEmails = await prisma.sentEmail.findMany({
         where: {
           emailType: SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL,
           createdAt: {
-            gte: twentyFiveHoursAgo,
+            gte: seventyTwoHoursAgo,
             lte: twentyFourHoursAgo,
           },
         },
@@ -554,14 +554,14 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
 
     try {
       const twentyFourHoursAgo = subHours(new Date(), 24);
-      const twentyFiveHoursAgo = subHours(new Date(), 25);
+      const seventyTwoHoursAgo = subHours(new Date(), 72);
 
-      // Find students who received STUDENT_DISCOUNT_LIMIT_REACHED email exactly 24 hours ago
+      // Find students who received STUDENT_DISCOUNT_LIMIT_REACHED email 24-72 hours ago
       const limitReachedEmails = await prisma.sentEmail.findMany({
         where: {
           emailType: SentEmailType.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED,
           createdAt: {
-            gte: twentyFiveHoursAgo,
+            gte: seventyTwoHoursAgo,
             lte: twentyFourHoursAgo,
           },
         },
