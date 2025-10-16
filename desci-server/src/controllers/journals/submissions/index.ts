@@ -173,6 +173,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
           completed: review.completedAssignment,
           completedAt: review.completedAt,
           referee: review.referee?.name,
+          dueDate: review.dueDate,
         })),
       refereeAssignments: void 0,
       title: submission.node.title,

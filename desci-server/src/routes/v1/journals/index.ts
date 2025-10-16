@@ -5,7 +5,10 @@ import {
   getPublicJournalAnalyticsController,
   showJournalAnalyticsController,
 } from '../../../controllers/journals/dashboard/analytics.js';
-import { showUrgentJournalSubmissionsController } from '../../../controllers/journals/dashboard/urgentSubmissions.js';
+import {
+  getPendingSubmissionsController,
+  showUrgentJournalSubmissionsController,
+} from '../../../controllers/journals/dashboard/urgentSubmissions.js';
 import {
   listFeaturedJournalPublicationsController,
   listFeaturedPublicationsController,
@@ -84,6 +87,13 @@ router.get(
     validateInputs(showUrgentSubmissionsSchema),
   ],
   asyncHandler(showUrgentJournalSubmissionsController),
+);
+
+router.get(
+  '/:journalId/pendingSubmissions',
+  [ensureUser, ensureJournalRole([EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR])],
+  validateInputs(showUrgentSubmissionsSchema),
+  asyncHandler(getPendingSubmissionsController),
 );
 
 router.get(
