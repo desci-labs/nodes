@@ -2910,7 +2910,7 @@ export const getPendingSubmissionsOperation: ZodOpenApiOperationObject = {
               dpid: z.number().describe('DPID of the submitted node'),
               version: z.number().describe('Version of the submitted node'),
               status: z
-                .enum(['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'PENDING'])
+                .enum(['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'ACCEPTED', 'REJECTED'])
                 .describe('Current submission status'),
               submittedAt: z.string().describe('Date when the submission was made'),
               acceptedAt: z.string().nullable().describe('Date when the submission was accepted (if applicable)'),

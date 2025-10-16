@@ -155,7 +155,7 @@ export const getPendingSubmissionsController = async (req: ShowUrgentJournalSubm
       activeReferees: submission.refereeAssignments.length,
       refereeInvites: submission.RefereeInvite.map((invite) => ({
         accepted: invite.accepted,
-        isDue: isBefore(invite.expiresAt, new Date()),
+        isDue: invite?.expiresAt ? isBefore(invite.expiresAt, new Date()) : false,
       })),
       RefereeInvite: void 0,
       refereeAssignments: void 0,
