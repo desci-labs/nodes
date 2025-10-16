@@ -320,11 +320,11 @@ const checkProChatRefresh: EmailReminderHandler = {
             await prisma.sentEmail.create({
               data: {
                 userId: user.id,
-                emailType: 'SCIWEAVE_PRO_CHAT_REFRESH' as any, // Will be typed after prisma generate
+                emailType: SentEmailType.SCIWEAVE_PRO_CHAT_REFRESH,
                 details: {
                   planCodename: userLimit.planCodename,
                   feature: userLimit.feature,
-                  currentPeriodStart: userLimit.currentPeriodStart.toISOString(),
+                  currentPeriodStart: userLimit.currentPeriodStart ? userLimit.currentPeriodStart.toISOString() : null,
                   daysSinceStart,
                   isPeriodExpired,
                   isJustRefreshed,
