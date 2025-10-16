@@ -26,11 +26,12 @@ import { JournalEventLogService } from '../../../services/journals/JournalEventL
 import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
 import { getRefereeInvitationsBySubmission } from '../../../services/journals/JournalReviewService.js';
 import { journalSubmissionService } from '../../../services/journals/JournalSubmissionService.js';
-import { getNodeByDpid } from '../../../services/node.js';
+import { getLastPublishDate, getNodeByDpid } from '../../../services/node.js';
 import { getPublishedNodeVersionCount } from '../../../services/nodeManager.js';
 import { NotificationService } from '../../../services/Notifications/NotificationService.js';
 import { DiscordChannel, DiscordNotifyType } from '../../../utils/discordUtils.js';
 import { discordNotify } from '../../../utils/discordUtils.js';
+import { asyncMap } from '../../../utils.js';
 
 const logger = parentLogger.child({
   module: 'Journals::SubmissionsController',
@@ -87,7 +88,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     const editor = await JournalManagementService.getUserJournalRole(journalId, req.user.id);
     const role = editor.isOk() ? editor.value : undefined;
-    let submissions;
+    let submissions: Awaited<ReturnType<typeof journalSubmissionService.getJournalSubmissions>>;
 
     const filter: Prisma.JournalSubmissionWhereInput = {
       journalId,
@@ -144,10 +145,12 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       submissions = await journalSubmissionService.getJournalSubmissions(journalId, filter, orderBy, offset, limit);
     } else if (role === EditorRole.ASSOCIATE_EDITOR) {
       const assignedEditorId = req.user.id;
-      submissions = await journalSubmissionService.getAssociateEditorSubmissions(
+      submissions = await journalSubmissionService.getJournalSubmissions(
         journalId,
-        assignedEditorId,
-        filter,
+        {
+          ...filter,
+          assignedEditorId,
+        },
         orderBy,
         offset,
         limit,
@@ -164,21 +167,26 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       );
     }
 
-    const data: Partial<JournalSubmission>[] = submissions.map((submission) => ({
-      ...submission,
-      assignedEditor: submission.assignedEditor?.name,
-      reviews: submission.refereeAssignments
-        .filter((review) => review.completedAssignment)
-        .map((review) => ({
-          completed: review.completedAssignment,
-          completedAt: review.completedAt,
-          referee: review.referee?.name,
-          dueDate: review.dueDate,
-        })),
-      refereeAssignments: void 0,
-      title: submission.node.title,
-      node: undefined,
-    }));
+    // getLastPublishDate
+    const data: Partial<JournalSubmission>[] = await asyncMap(submissions, async (submission) => {
+      const publishedAt = await getLastPublishDate(submission.node.uuid ?? '');
+      return {
+        ...submission,
+        publishedAt,
+        assignedEditor: submission.assignedEditor?.name,
+        reviews: submission.refereeAssignments
+          .filter((review) => review.completedAssignment)
+          .map((review) => ({
+            completed: review.completedAssignment,
+            completedAt: review.completedAt,
+            referee: review.referee?.name,
+            dueDate: review.dueDate,
+          })),
+        refereeAssignments: void 0,
+        title: submission.node.title,
+        node: undefined,
+      };
+    });
     logger.trace({ data }, 'listJournalSubmissionsController');
     return sendSuccess(res, { data, meta: { count: submissions.length, limit, offset } });
   } catch (error) {

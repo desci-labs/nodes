@@ -343,3 +343,15 @@ export async function updateNoveltyScoreConfig(
     },
   });
 }
+
+export const getLastPublishDate = async (uuid: string): Promise<Date | null> => {
+  const publishedVersion = await prisma.nodeVersion.findFirst({
+    where: {
+      node: { uuid },
+      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 1,
+  });
+  return publishedVersion?.createdAt ?? null;
+};

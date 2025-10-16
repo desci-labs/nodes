@@ -118,9 +118,11 @@ async function getJournalSubmissions(
       submittedAt: true,
       acceptedAt: true,
       rejectedAt: true,
+      revisionRequestedAt: true,
       node: {
         select: {
           title: true,
+          uuid: true,
         },
       },
       assignedEditor: {
@@ -420,6 +422,8 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
     data: {
       status: SubmissionStatus.ACCEPTED,
       acceptedAt: new Date(),
+      revisionRequestedAt: null,
+      rejectedAt: null,
     },
     select: {
       id: true,
@@ -491,7 +495,8 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
     data: {
       status: SubmissionStatus.REJECTED,
       rejectedAt: new Date(),
-      acceptedAt: null, // reset acceptedAt to null
+      acceptedAt: null,
+      revisionRequestedAt: null,
     },
     include: {
       journal: true,
@@ -531,10 +536,12 @@ async function requestRevision({
     where: { id: submissionId },
     data: {
       status: SubmissionStatus.REVISION_REQUESTED,
+      revisionRequestedAt: new Date(),
     },
     select: {
       id: true,
       status: true,
+      revisionRequestedAt: true,
     },
   });
 

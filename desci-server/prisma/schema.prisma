@@ -1209,18 +1209,19 @@ model JournalEditor {
 }
 
 model JournalSubmission {
-  id               Int              @id @default(autoincrement())
-  journalId        Int
-  authorId         Int
-  dpid             Int // Node dPID
-  version          Int // Node version
-  status           SubmissionStatus @default(SUBMITTED)
-  assignedEditorId Int?
-  submittedAt      DateTime         @default(now())
-  acceptedAt       DateTime?
-  rejectedAt       DateTime?
-  doiMintedAt      DateTime?
-  doi              String? // Minted DOI
+  id                  Int              @id @default(autoincrement())
+  journalId           Int
+  authorId            Int
+  dpid                Int // Node dPID
+  version             Int // Node version
+  status              SubmissionStatus @default(SUBMITTED)
+  assignedEditorId    Int?
+  submittedAt         DateTime         @default(now())
+  acceptedAt          DateTime?
+  rejectedAt          DateTime?
+  revisionRequestedAt DateTime?
+  doiMintedAt         DateTime?
+  doi                 String? // Minted DOI
 
   // Relationships
   journal             Journal                     @relation(fields: [journalId], references: [id])
