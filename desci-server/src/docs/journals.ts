@@ -691,6 +691,7 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
                 submittedAt: z.string().nullable(),
                 acceptedAt: z.string().nullable(),
                 rejectedAt: z.string().nullable(),
+                revisionRequestedAt: z.string().nullable(),
                 doiMintedAt: z.string().nullable(),
                 doi: z.string().nullable(),
                 author: z
