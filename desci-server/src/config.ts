@@ -47,7 +47,7 @@ export const SCIWEAVE_GOOGLE_CLIENT_ID = process.env.SCIWEAVE_GOOGLE_CLIENT_ID;
 export const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 export const SENDGRID_TEMPLATE_ID_MAP = process.env.SENDGRID_TEMPLATE_ID_MAP;
 export const SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP = process.env.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP;
-export const SHOULD_SEND_EMAIL = true || process.env.SHOULD_SEND_EMAIL;
+export const SHOULD_SEND_EMAIL = process.env.SHOULD_SEND_EMAIL;
 
 // URL Configuration
 export const SERVER_URL = process.env.SERVER_URL;
