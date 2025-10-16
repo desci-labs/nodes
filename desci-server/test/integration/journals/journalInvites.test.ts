@@ -37,6 +37,7 @@ describe('Journal Invite Service', () => {
       data: {
         name: 'Test Journal',
         description: 'A test journal',
+        slug: 'test-journal',
       },
     });
 

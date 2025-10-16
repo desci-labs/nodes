@@ -138,6 +138,7 @@ export const resendEditorInviteSchema = z.object({
 export const createJournalSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Journal name cannot be empty.'),
+    slug: z.string().optional().describe('The slug of the journal'),
     description: z.string().optional(),
     iconCid: z.string().optional(),
   }),
@@ -177,6 +178,7 @@ export const updateJournalSchema = z.object({
   }),
   body: z.object({
     name: z.string().min(1, 'Journal name cannot be empty.').optional(),
+    slug: z.string().optional().describe('The slug of the journal'),
     description: z.string().optional(),
     iconCid: z.string().optional(),
   }),
@@ -224,7 +226,7 @@ export const listJournalSubmissionsSchema = z.object({
   }),
 });
 
-export const listJournalSubmissionsByStatusCountSchema = z.object({
+export const submissionStatusCountSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal'),
   }),
@@ -693,7 +695,7 @@ export const getJournalAnalyticsSchema = z.object({
   }),
 });
 
-export const showUrgentSubmissionsSchema = z.object({
+export const getSubmissionsSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal to get urgent submissions for'),
   }),

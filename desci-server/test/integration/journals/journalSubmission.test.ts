@@ -49,6 +49,7 @@ describe('Journal Submission Service', () => {
       data: {
         name: 'Test Journal',
         description: 'Test Description',
+        slug: 'test-journal',
         iconCid: 'test-icon-cid',
         editors: {
           create: {
@@ -650,6 +651,7 @@ describe('Journal Submission Service', () => {
         throw new Error('Failed to create journal');
       }
       journal = result._unsafeUnwrap();
+      expect(journal.slug).toBe('test-journal');
 
       // add associate editor to journal
       await prisma.journalEditor.create({

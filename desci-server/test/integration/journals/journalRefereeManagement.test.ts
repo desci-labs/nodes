@@ -70,6 +70,8 @@ describe('Journal Referee Management Service', () => {
     if (journalResult.isErr()) throw journalResult.error;
     journal = journalResult.value;
 
+    expect(journal.slug).toBe('test-journal-for-referees');
+
     // Update journal settings to allow 3 referees for testing
     const updateResult = await JournalManagementService.updateJournalSettings(journal.id, chiefEditor.id, {
       settings: {
