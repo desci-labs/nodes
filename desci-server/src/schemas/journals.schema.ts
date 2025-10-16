@@ -138,6 +138,7 @@ export const resendEditorInviteSchema = z.object({
 export const createJournalSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Journal name cannot be empty.'),
+    slug: z.string().optional().describe('The slug of the journal'),
     description: z.string().optional(),
     iconCid: z.string().optional(),
   }),

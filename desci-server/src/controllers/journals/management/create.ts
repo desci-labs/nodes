@@ -15,13 +15,14 @@ type CreateJournalRequest = ValidatedRequest<typeof createJournalSchema, Authent
 
 export const createJournalController = async (req: CreateJournalRequest, res: Response) => {
   try {
-    const { name, description, iconCid } = req.validatedData.body;
+    const { name, slug, description, iconCid } = req.validatedData.body;
     const ownerId = req.user.id;
 
     logger.info({ name, ownerId, description, iconCid }, 'Attempting to create journal');
 
     const result = await JournalManagementService.createJournal({
       name,
+      slug,
       description,
       iconCid,
       ownerId,
