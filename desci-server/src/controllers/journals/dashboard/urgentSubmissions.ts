@@ -122,27 +122,6 @@ export const getPendingSubmissionsController = async (req: ShowUrgentJournalSubm
       20,
     );
 
-    const journalProfile = await JournalManagementService.getJournalProfile(req.user?.id);
-    if (journalProfile.isErr()) {
-      return sendError(res, 'Journal profile not found.', 404);
-    }
-
-    const journalProfileValue = journalProfile.value;
-
-    const isChiefEditor = journalProfileValue.some(
-      (profile) => profile.journalId === journalId && profile.role === EditorRole.CHIEF_EDITOR,
-    );
-
-    // // filter submissions that have referee assignments that are due in the next 7 days
-    // const urgentSubmissions = submissions.filter(
-    //   (submission) =>
-    //     (isChiefEditor && !submission.assignedEditor) ||
-    //     (submission.assignedEditor && !submission.RefereeInvite.some((invite) => invite.accepted)) ||
-    //     submission.refereeAssignments.some(
-    //       (assignment) =>
-    //         isBefore(new Date(), assignment.dueDate) && isAfter(new Date(Date.now() + SEVEN_DAYS), assignment.dueDate),
-    //     ),
-    // );
     const data = submissions.map((submission) => ({
       ...submission,
       assignedEditor: submission.assignedEditor?.name,

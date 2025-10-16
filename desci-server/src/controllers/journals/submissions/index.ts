@@ -240,6 +240,10 @@ export const getJournalSubmissionsByStatusCountController = async (
         ...filter,
         status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
       });
+      const publishedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.ACCEPTED,
+      });
 
       submissions = {
         new: newSubmissions,
@@ -247,6 +251,7 @@ export const getJournalSubmissionsByStatusCountController = async (
         inReview: inReviewSubmissions,
         underRevision: underRevisionSubmissions,
         reviewed: reviewedSubmissions,
+        published: publishedSubmissions,
       };
     } else if (role === EditorRole.ASSOCIATE_EDITOR) {
       const assignedEditorId = req.user.id;
@@ -270,6 +275,11 @@ export const getJournalSubmissionsByStatusCountController = async (
         status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
         assignedEditorId,
       });
+      const publishedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.ACCEPTED,
+        assignedEditorId,
+      });
 
       submissions = {
         new: newSubmissions,
@@ -277,6 +287,7 @@ export const getJournalSubmissionsByStatusCountController = async (
         inReview: inReviewSubmissions,
         underRevision: underRevisionSubmissions,
         reviewed: reviewedSubmissions,
+        published: publishedSubmissions,
       };
     } else {
       // For non-editors, only show accepted submissions count
