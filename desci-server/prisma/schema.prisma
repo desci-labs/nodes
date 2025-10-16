@@ -101,6 +101,8 @@ model InteractionLog {
   node       Node?       @relation(fields: [nodeId], references: [id])
   user       User?       @relation(fields: [userId], references: [id])
   waitlist   Waitlist?   @relation(fields: [waitlistId], references: [id])
+
+  @@index([userId, action])
 }
 
 model Session {

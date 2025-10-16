@@ -71,6 +71,9 @@ export type OutOfChatsNoCtaEmailPayload = {
     email: string;
     firstName?: string;
     lastName?: string;
+    couponCode: string; // 48-hour limited coupon
+    percentOff: number;
+    expiresAt: Date;
   };
 };
 
@@ -89,6 +92,8 @@ export type StudentDiscountEmailPayload = {
     email: string;
     firstName?: string;
     lastName?: string;
+    couponCode: string; // Student discount coupon
+    percentOff?: number;
   };
 };
 

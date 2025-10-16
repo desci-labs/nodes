@@ -220,7 +220,14 @@ async function sendOutOfChatsCtaClickedEmail({
   await sendSciweaveEmail(message, { templateId });
 }
 
-async function sendOutOfChatsNoCtaEmail({ email, firstName, lastName }: OutOfChatsNoCtaEmailPayload['payload']) {
+async function sendOutOfChatsNoCtaEmail({
+  email,
+  firstName,
+  lastName,
+  couponCode,
+  percentOff,
+  expiresAt,
+}: OutOfChatsNoCtaEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA];
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA}`);
@@ -233,6 +240,17 @@ async function sendOutOfChatsNoCtaEmail({ email, firstName, lastName }: OutOfCha
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
       user: { firstName: firstName || '', lastName: lastName || '', email },
+      couponCode,
+      percentOff,
+      expiresAt: expiresAt.toISOString(),
+      expiresAtFormatted: expiresAt.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      }),
     },
   };
   await sendSciweaveEmail(message, { templateId });
@@ -256,7 +274,13 @@ async function sendProChatRefreshEmail({ email, firstName, lastName }: ProChatRe
   await sendSciweaveEmail(message, { templateId });
 }
 
-async function sendStudentDiscountEmail({ email, firstName, lastName }: StudentDiscountEmailPayload['payload']) {
+async function sendStudentDiscountEmail({
+  email,
+  firstName,
+  lastName,
+  couponCode,
+  percentOff,
+}: StudentDiscountEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT];
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT}`);
@@ -269,6 +293,8 @@ async function sendStudentDiscountEmail({ email, firstName, lastName }: StudentD
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
       user: { firstName: firstName || '', lastName: lastName || '', email },
+      couponCode,
+      percentOff: percentOff || 0,
     },
   };
   await sendSciweaveEmail(message, { templateId });
