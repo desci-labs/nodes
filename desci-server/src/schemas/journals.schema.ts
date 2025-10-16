@@ -178,6 +178,7 @@ export const updateJournalSchema = z.object({
   }),
   body: z.object({
     name: z.string().min(1, 'Journal name cannot be empty.').optional(),
+    slug: z.string().optional().describe('The slug of the journal'),
     description: z.string().optional(),
     iconCid: z.string().optional(),
   }),

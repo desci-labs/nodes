@@ -280,6 +280,7 @@ interface UpdateJournalInput {
   name?: string;
   description?: string;
   iconCid?: string;
+  slug?: string;
 }
 
 async function updateJournal(
@@ -323,6 +324,7 @@ async function updateJournal(
           name: data.name,
           description: data.description,
           iconCid: data.iconCid,
+          slug: data.slug,
         },
       }),
       prisma.journalEventLog.create({
