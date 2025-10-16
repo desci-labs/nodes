@@ -495,6 +495,7 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
           const coupon = await StripeCouponService.create48HourCoupon({
             percentOff: SCIWEAVE_USER_DISCOUNT_PERCENT,
             userId: user.id,
+            email: user.email,
             emailType: 'SCIWEAVE_OUT_OF_CHATS_NO_CTA',
           });
 
@@ -618,7 +619,10 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
           }
 
           // Get the persistent student discount coupon
-          const coupon = await StripeCouponService.getStudentDiscountCoupon();
+          const coupon = await StripeCouponService.getStudentDiscountCoupon({
+            userId: user.id,
+            email: user.email,
+          });
 
           // Send student discount email
           await sendEmail({
