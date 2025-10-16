@@ -453,6 +453,7 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
               email: true,
               firstName: true,
               lastName: true,
+              receiveSciweaveMarketingEmails: true,
             },
           },
         },
@@ -465,6 +466,13 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
         if (!user) continue;
 
         try {
+          // Skip if user has opted out of marketing emails
+          if (!user.receiveSciweaveMarketingEmails) {
+            logger.debug({ userId: user.id }, 'User opted out of marketing emails, skipping');
+            skipped++;
+            continue;
+          }
+
           // Check if we already sent the follow-up email
           const existingFollowUp = await prisma.sentEmail.findFirst({
             where: {
@@ -572,6 +580,7 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
               email: true,
               firstName: true,
               lastName: true,
+              receiveSciweaveMarketingEmails: true,
             },
           },
         },
@@ -584,6 +593,13 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
         if (!user) continue;
 
         try {
+          // Skip if user has opted out of marketing emails
+          if (!user.receiveSciweaveMarketingEmails) {
+            logger.debug({ userId: user.id }, 'User opted out of marketing emails, skipping');
+            skipped++;
+            continue;
+          }
+
           // Check if we already sent the follow-up email
           const existingFollowUp = await prisma.sentEmail.findFirst({
             where: {

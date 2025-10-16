@@ -106,10 +106,16 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
         // Get user details for email
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { email: true, firstName: true, lastName: true },
+          select: { email: true, firstName: true, lastName: true, receiveSciweaveMarketingEmails: true },
         });
 
         if (user) {
+          // Skip if user has opted out of marketing emails
+          if (!user.receiveSciweaveMarketingEmails) {
+            logger.info({ userId }, 'User opted out of marketing emails, skipping limit-reached email');
+            return ok({ usageId: result.usageId });
+          }
+
           // Check if user identified as a student in the Sciweave questionnaire
           const isStudent = await isUserStudentSciweave(userId);
 
