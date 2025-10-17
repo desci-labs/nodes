@@ -5,7 +5,7 @@
  * based on various conditions (deadlines, overdue items, pending actions, etc.)
  */
 
-import { SentEmailType } from '@prisma/client';
+import { Feature, SentEmailType } from '@prisma/client';
 import { subDays, subHours } from 'date-fns';
 
 import { prisma } from '../client.js';
@@ -56,7 +56,7 @@ export type EmailReminderHandler = {
  * Send 14-day inactivity reminder to FREE tier users who:
  * - Have an active FREE plan with non-null useLimit (limited free chats)
  * - Haven't used RESEARCH_ASSISTANT in the last 14 days
- * - Haven't been sent this reminder in the last 30 days
+ * - Haven't been sent this reminder before (ever)
  */
 const checkSciweave14DayInactivity: EmailReminderHandler = {
   name: 'Sciweave 14-Day Inactivity',
@@ -69,13 +69,12 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
 
     try {
       const fourteenDaysAgo = subDays(new Date(), 14);
-      const thirtyDaysAgo = subDays(new Date(), 30);
 
       // Find users with active FREE tier and non-null useLimit
       const freeUsers = await prisma.userFeatureLimit.findMany({
         where: {
           planCodename: 'FREE',
-          feature: 'RESEARCH_ASSISTANT',
+          feature: Feature.RESEARCH_ASSISTANT,
           isActive: true,
           useLimit: {
             not: null, // Only users with limited free chats, not unlimited
@@ -106,19 +105,16 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
             continue;
           }
 
-          // Check if we've already sent this email in the last 30 days
-          const recentEmail = await prisma.sentEmail.findFirst({
+          // Check if we've ever sent this email before
+          const existingEmail = await prisma.sentEmail.findFirst({
             where: {
               userId: user.id,
               emailType: SentEmailType.SCIWEAVE_14_DAY_INACTIVITY,
-              createdAt: {
-                gte: thirtyDaysAgo,
-              },
             },
           });
 
-          if (recentEmail) {
-            logger.debug({ userId: user.id }, 'Already sent inactivity email recently, skipping');
+          if (existingEmail) {
+            logger.debug({ userId: user.id }, 'Already sent inactivity email before, skipping');
             skipped++;
             continue;
           }
