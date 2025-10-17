@@ -681,7 +681,8 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            submissions: z.array(
+            ok: z.boolean(),
+            data: z.array(
               z.object({
                 id: z.number(),
                 assignedEditorId: z.number().nullable(),
@@ -694,22 +695,26 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
                 revisionRequestedAt: z.string().nullable(),
                 doiMintedAt: z.string().nullable(),
                 doi: z.string().nullable(),
+                title: z.string().describe('Title of the research object'),
+                publishedAt: z.string().nullable().describe('Date when the research object was published'),
                 author: z
                   .object({
                     id: z.number(),
                     name: z.string().nullable(),
-                    email: z.string().nullable(),
                     orcid: z.string().nullable(),
                   })
                   .nullable(),
-                assignedEditor: z
-                  .object({
-                    id: z.number(),
-                    name: z.string().nullable(),
-                    email: z.string().nullable(),
-                    orcid: z.string().nullable(),
-                  })
-                  .nullable(),
+                assignedEditor: z.string().nullable().describe('Name of the assigned editor'),
+                reviews: z
+                  .array(
+                    z.object({
+                      completed: z.boolean(),
+                      completedAt: z.string().nullable(),
+                      referee: z.string().nullable().describe('Name of the referee'),
+                      dueDate: z.string().nullable(),
+                    }),
+                  )
+                  .describe('Array of completed reviews for this submission'),
               }),
             ),
             meta: z.object({ count: z.number(), limit: z.number(), offset: z.number() }),
@@ -719,6 +724,14 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
     },
     '404': {
       description: 'Editor not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Failed to retrieve journal submissions',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),

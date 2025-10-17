@@ -118,6 +118,7 @@ async function getJournalSubmissions(
       submittedAt: true,
       acceptedAt: true,
       rejectedAt: true,
+      assignedEditorId: true,
       revisionRequestedAt: true,
       node: {
         select: {
