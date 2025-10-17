@@ -393,16 +393,17 @@ const testEmailHandler: EmailReminderHandler = {
           handlerName: 'Test Email Handler',
           details: { test: true },
         });
-      } else {
-        await sendEmail({
-          type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
-          payload: {
-            email: TEST_EMAIL,
-            firstName: 'Test',
-            lastName: 'User',
-          },
-        });
       }
+      // else {
+      await sendEmail({
+        type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
+        payload: {
+          email: TEST_EMAIL,
+          firstName: 'Test',
+          lastName: 'User',
+        },
+      });
+      // }
 
       logger.info({ testEmail: TEST_EMAIL, dryRun: isDryRunMode() }, 'Test email sent successfully');
       sent++;
