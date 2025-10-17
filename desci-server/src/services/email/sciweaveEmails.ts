@@ -176,7 +176,7 @@ async function send14DayInactivityEmail({ email, firstName, lastName }: Inactivi
       },
     },
   };
-  debugger;
+
   await sendSciweaveEmail(message, { templateId });
 }
 

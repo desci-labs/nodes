@@ -55,6 +55,7 @@ export type EmailReminderHandler = {
 /**
  * Send 14-day inactivity reminder to FREE tier users who:
  * - Have an active FREE plan with non-null useLimit (limited free chats)
+ * - Have used RESEARCH_ASSISTANT at least once in the past
  * - Haven't used RESEARCH_ASSISTANT in the last 14 days
  * - Haven't been sent this reminder before (ever)
  */
