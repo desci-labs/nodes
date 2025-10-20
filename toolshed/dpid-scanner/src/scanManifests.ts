@@ -24,48 +24,87 @@ type ScanResult = {
   manifests: ManifestStatus[];
 }[];
 
+// Process a single dPID entry with all its manifests in parallel
+const processDpidEntry = async (entry: any) => {
+  console.error(`Scanning dPID ${entry.dpid}...`);
+  const { dpid, owner, source } = entry;
+
+  // Process all manifests for this dPID in parallel
+  const manifestPromises = entry.versions.map(async (version: any) => {
+    try {
+      const headRes = await fetch(IPFS_GW + version.cid, { method: "head" });
+      return {
+        cid: version.cid,
+        time: new Date(parseInt(version.time) * 1000).toISOString(),
+        status: headRes.status,
+      };
+    } catch (error) {
+      console.error(`Error fetching manifest ${version.cid}:`, error);
+      return {
+        cid: version.cid,
+        time: new Date(parseInt(version.time) * 1000).toISOString(),
+        status: -1, // Error status
+      };
+    }
+  });
+
+  const manifests = await Promise.all(manifestPromises);
+
+  return {
+    dpid,
+    owner,
+    source,
+    manifests,
+  };
+};
+
 const scanObjects = async (env: Env) => {
   const resolverBaseUrl = envToResolverApiUrl(env);
 
-  let shouldContinue = true;
-  let url = resolverBaseUrl + "/query/dpids?history=true&sort=asc";
-
+  let url = resolverBaseUrl + "/query/dpids?history=true&size=50&sort=asc";
   const result: ScanResult = [];
-  while (shouldContinue) {
-    const response = await fetch(url);
+
+  // Fetch and process first page
+  let response = await fetch(url);
+  if (!response.ok) {
+    console.error(`Failed to fetch ${url}, exiting...`);
+    process.exit(1);
+  }
+
+  let currentPageData = await response.json();
+  let nextPagePromise: Promise<Response> | null = null;
+
+  while (true) {
+    // Start fetching next page while processing current page
+    if (currentPageData.pagination.hasNext) {
+      // next URL drop the sort param
+      const nextUrl = currentPageData.pagination.links.next + "&sort=asc";
+      nextPagePromise = fetch(nextUrl);
+    } else {
+      nextPagePromise = null;
+    }
+
+    // Process all dPIDs on current page in parallel (max 20 per page)
+    const pagePromises = currentPageData.dpids.map((entry: any) =>
+      processDpidEntry(entry),
+    );
+    const pageResults = await Promise.all(pagePromises);
+    result.push(...pageResults);
+
+    // Check if there's a next page to process
+    if (!nextPagePromise) {
+      console.error("No next page; stopping scan...");
+      break;
+    }
+
+    // Wait for next page to be ready
+    response = await nextPagePromise;
     if (!response.ok) {
-      console.error(`Failed to fetch ${url}, exiting...`);
+      console.error(`Failed to fetch next page, exiting...`);
       process.exit(1);
     }
 
-    const data = await response.json();
-    for (const entry of data.dpids) {
-      console.error(`Scanning dPID ${entry.dpid}...`);
-      const { dpid, owner, source } = entry;
-      const manifests: ManifestStatus[] = [];
-      for (const version of entry.versions) {
-        const headRes = await fetch(IPFS_GW + version.cid, { method: "head" });
-        manifests.push({
-          cid: version.cid,
-          time: new Date(parseInt(version.time) * 1000).toISOString(),
-          status: headRes.status,
-        });
-      }
-      result.push({
-        dpid,
-        owner,
-        source,
-        manifests,
-      });
-    }
-
-    if (data.pagination.hasNext) {
-      // sort param not kept in pagination url
-      url = data.pagination.links.next + "&sort=asc";
-    } else {
-      console.error("No next page; stopping scan...");
-      shouldContinue = false;
-    }
+    currentPageData = await response.json();
   }
 
   return result;
@@ -77,6 +116,11 @@ if (!envArg || !(envArg === "dev" || envArg === "prod")) {
   process.exit(1);
 }
 
-const result = await scanObjects(envArg);
-
-console.log(JSON.stringify(result, undefined, 2));
+scanObjects(envArg)
+  .then((result) => {
+    console.log(JSON.stringify(result, undefined, 2));
+  })
+  .catch((error) => {
+    console.error("Error scanning objects:", error);
+    process.exit(1);
+  });
