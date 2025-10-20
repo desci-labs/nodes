@@ -332,6 +332,8 @@ async function getRefereeInvites(
   try {
     const refereeInvitesResult = await fetchRefereeInvites({
       OR: [{ userId: refereeUserId }, { email: refereeEmail }],
+      accepted: { not: true },
+      declined: { not: true },
     });
 
     if (refereeInvitesResult.isErr()) {

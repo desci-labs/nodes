@@ -729,7 +729,11 @@ const getSubmissionExtendedData = async (submissionId: number): Promise<Result<S
   const targetVersionIndex = researchObject.versions.length - submission.version;
   const targetVersion = researchObject.versions[targetVersionIndex];
   const targetVersionManifestCid = hexToCid(targetVersion.cid);
-  const manifest = await getManifestByCid(targetVersionManifestCid);
+  logger.info(
+    { targetVersionManifestCid, uuid: submission.node.uuid, versions: researchObject.versions, targetVersion },
+    '[targetVersionManifestCid]',
+  );
+  const manifest = await getManifestByCid(targetVersionManifestCid); //"bafkreiac3foykeehoxwmkiaaptsguyr4lf7hhr32zttafajpi62gjqnkne"
 
   const authors = manifest.authors?.map((author) => author.name) ?? [];
   const abstract = manifest.description;
