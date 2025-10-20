@@ -1,23 +1,11 @@
 import { type ProjectFrontmatter } from '@awesome-myst/myst-zod';
 import { z } from 'zod';
-import axios from 'axios';
-import * as fs from 'fs/promises';
-import * as fsSync from 'fs';
-import FormData from 'form-data';
-import { rimraf } from 'rimraf';
+import { Worker } from 'worker_threads';
+import path from 'path';
 
 import { logger } from '../../logger.js';
 import type { Request, Response } from 'express';
 import { sendError, sendSuccess } from '../../core/api.js';
-import path from 'path';
-import {
-  calculateTotalZipUncompressedSize,
-  extractZipFileAndCleanup,
-  parseMystImportGithubUrl,
-  saveZipStreamToDisk,
-  zipUrlToStream,
-} from '../../utils.js';
-import { spawn } from 'child_process';
 
 export const TEMP_REPO_ZIP_PATH = path.join(process.cwd(), 'tmp');
 
@@ -41,43 +29,7 @@ export const githubMystImportSchema = z.object({
   }),
 });
 
-const updateJobStatus = async ({
-  jobId,
-  message,
-  status,
-  uuid,
-}: {
-  jobId: string;
-  status: string;
-  message: string;
-  uuid: string;
-}) => {
-  try {
-    await axios.post(
-      `${DESCI_SERVER_URL}/v1/nodes/${uuid}/github-myst-import/${jobId}/updateStatus`,
-      {
-        status,
-        message,
-      },
-      {
-        headers: {
-          'X-Internal-Secret': `${INTERNAL_SERVICE_SECRET}`,
-        },
-      },
-    );
-  } catch (error) {
-    logger.error({ error }, 'MYST::updateJobStatusError');
-  }
-};
-
-const cleanup = async (path: string) => {
-  if (!path) return;
-  try {
-    await fs.rm(path, { recursive: true, force: true });
-  } catch (error) {
-    logger.error({ error }, 'MYST::cleanupError');
-  }
-};
+// Worker thread will handle all the heavy processing
 
 export const buildAndExportMystRepo = async (req: Request, res: Response) => {
   const { url, jobId, uuid, parsedDocument } = req.body as {
@@ -93,188 +45,58 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     return sendError(res, 'URL, parsedDocument, jobId and uuid are required', 400);
   }
 
-  const parseImportUrlResult = parseMystImportGithubUrl(url);
-  if (parseImportUrlResult.isErr()) {
-    return sendError(res, parseImportUrlResult.error.message, 400);
-  }
-
-  sendSuccess(res, { jobId, uuid });
-
-  await updateJobStatus({
-    jobId,
-    uuid,
-    status: 'processing',
-    message: 'Downloading repo files...',
-  });
-
-  const { archiveDownloadUrl, repo, branch } = parseImportUrlResult.value;
-
-  const zipStream = await zipUrlToStream(archiveDownloadUrl);
-  const zipPath = TEMP_REPO_ZIP_PATH + '/' + repo + '-' + branch + '-' + Date.now() + '.zip';
-
-  let savedFolderPath = '';
-  let totalSize = 0;
-  let externalUrlTotalSizeBytes = 0;
-  try {
-    await fs.mkdir(zipPath.replace('.zip', ''), { recursive: true });
-    await saveZipStreamToDisk(zipStream, zipPath);
-    totalSize = await calculateTotalZipUncompressedSize(zipPath);
-    externalUrlTotalSizeBytes = totalSize;
-    await extractZipFileAndCleanup(zipPath, TEMP_REPO_ZIP_PATH);
-    savedFolderPath = `${TEMP_REPO_ZIP_PATH}/${repo}${branch ? '-' + branch : ''}`;
-  } catch (error) {
-    logger.error({ error }, 'MYST::saveAndExtractZipFileError');
-    updateJobStatus({
-      jobId,
-      uuid,
-      status: 'failed',
-      message: error.message || 'Failed to save and extract zip file',
-    });
-
-    // Cleanup unzipped repo folder
-    await cleanup(savedFolderPath);
-    await cleanup(zipPath.replace('.zip', ''));
-    return void 0;
-  }
-
-  let buildProcessResult = null;
-  try {
-    await updateJobStatus({
-      jobId,
-      uuid,
-      status: 'processing',
-      message: 'Building the repo files...',
-    });
-
-    logger.info({ savedFolderPath }, 'Building the repo files');
-    // Setup monitored subprocess to run pixi build command
-    const buildProcess = spawn('pixi', ['run', 'build-meca'], {
-      cwd: savedFolderPath,
-      stdio: 'pipe',
-    });
-
-    // Monitor process output
-    buildProcess.stdout.on('data', (data) => {
-      logger.info(`build-meca stdout: ${data}`);
-    });
-
-    buildProcess.stderr.on('data', (data) => {
-      logger.error(`build-meca stderr: ${data}`);
-    });
-
-    // Wait for process to complete
-    buildProcessResult = await new Promise((resolve, reject) => {
-      buildProcess.on('close', (code) => {
-        if (code === 0) {
-          logger.info('build-meca completed successfully');
-          resolve(code);
-        } else {
-          logger.error(`build-meca failed with code ${code}`);
-          reject(code);
-        }
-      });
-    });
-  } catch (error) {
-    logger.error({ error }, 'MYST::buildProcessError');
-    buildProcessResult = error;
-  }
-
-  if (buildProcessResult !== 0) {
-    logger.error({ buildProcessResult }, 'MYST::buildProcessResult');
-    await updateJobStatus({
-      jobId,
-      uuid,
-      status: 'failed',
-      message: 'Failed to build the repo files',
-    });
-
-    await cleanup(savedFolderPath);
-    await cleanup(zipPath.replace('.zip', ''));
-
-    return void 0;
-  }
-
-  logger.info({ savedFolderPath }, 'Building the repo files completed');
-
-  // Cleanup
-  await cleanup(zipPath.replace('.zip', ''));
+  // Send immediate response
+  sendSuccess(res, { jobId, uuid, message: 'Job queued for processing' });
 
   try {
-    // extract manuscript.meca.zip folder
-    const mecaExport = parsedDocument.exports.find((entry) => entry.format === 'meca');
-    const manuscriptMecaZipPath = path.join(savedFolderPath, mecaExport?.output);
-    await extractZipFileAndCleanup(manuscriptMecaZipPath, manuscriptMecaZipPath.replace('.zip', ''));
+    // Spawn worker thread to handle the heavy processing
+    // ALWAYS use .js extension (worker must be pre-compiled even in dev)
+    const workerPath = path.join(process.cwd(), 'src/workers/mystBuildWorker.ts'); // new URL('../../workers/mystBuildWorker.ts', import.meta.url);
+    logger.info(
+      {
+        // workerPath: workerPath.href,
+        workerPath,
+        import: import.meta.url,
+        cwd: process.cwd(),
+        filePath: path.join(process.cwd(), 'src/workers/mystBuildWorker.js'),
+      },
+      'MYST::Spawning worker',
+    );
 
-    const manuscriptExport = parsedDocument.exports.find((entry) => entry.format === 'pdf');
-    const pdfExport = parsedDocument.exports.find((entry) => entry.format === 'typst');
-
-    const manuscriptExportPath = manuscriptExport ? path.join(savedFolderPath, manuscriptExport?.output) : null;
-    const pdfExportPath = pdfExport ? path.join(savedFolderPath, pdfExport?.output) : null;
-    const mecaExportPath = mecaExport ? path.join(savedFolderPath, mecaExport?.output.replace('.zip', '')) : null;
-    const pageContentPath = mecaExport ? path.join(savedFolderPath, '_build/site/content/index.json') : null;
-
-    await updateJobStatus({
-      jobId,
-      uuid,
-      status: 'processing',
-      message: 'Exporting files...',
-    });
-
-    const formData = new FormData();
-
-    const sendFolderContent = async (folder: fsSync.Dirent[], folderPath: string) => {
-      try {
-        for (const file of folder) {
-          if (file.isDirectory()) {
-            const folder = await fs.readdir(path.join(folderPath, file.name), { withFileTypes: true });
-            sendFolderContent(folder, path.join(folderPath, file.name));
-          } else {
-            formData.append('files', fsSync.readFileSync(path.join(folderPath, file.name)), {
-              filename: file.name,
-              filepath: path.join(folderPath.replace(savedFolderPath, ''), file.name),
-            });
-          }
-        }
-      } catch (error) {
-        logger.error({ error }, 'MYST::sendFolderContentError');
-      }
-    };
-
-    if (manuscriptExportPath) {
-      formData.append('files', fsSync.readFileSync(manuscriptExportPath), manuscriptExportPath.split('/').pop());
-    }
-    if (pdfExportPath) {
-      formData.append('files', fsSync.readFileSync(pdfExportPath), pdfExportPath.split('/').pop());
-    }
-    if (mecaExportPath) {
-      const folder = await fs.readdir(mecaExportPath, { withFileTypes: true });
-      await sendFolderContent(folder, mecaExportPath);
-    }
-
-    if (pageContentPath) {
-      formData.append('files', fsSync.readFileSync(pageContentPath), pageContentPath.split('/').pop());
-    }
-
-    formData.append('uuid', uuid);
-    formData.append('contextPath', 'root');
-
-    await axios.post(`${DESCI_SERVER_URL}/v1/nodes/${uuid}/finalize-myst-import/${jobId}/receiveFiles`, formData, {
-      headers: {
-        ...formData.getHeaders(),
-        'X-Internal-Secret': INTERNAL_SERVICE_SECRET,
+    const worker = new Worker(path.join(process.cwd(), 'src/workers/mystBuildWorker.ts'), {
+      execArgv: ['-r', 'ts-node/register', '--no-warnings'],
+      workerData: {
+        url,
+        jobId,
+        uuid,
+        parsedDocument,
+        tempRepoZipPath: TEMP_REPO_ZIP_PATH,
+        internalServiceSecret: INTERNAL_SERVICE_SECRET,
+        desciServerUrl: DESCI_SERVER_URL,
       },
     });
-  } catch (error) {
-    logger.error({ error: error.message }, 'MYST::receiveFilesError');
-    await updateJobStatus({
-      jobId,
-      uuid,
-      status: 'failed',
-      message: error.message || 'Failed to export files',
+
+    worker.on('message', (message) => {
+      if (message.success) {
+        logger.info({ jobId, uuid }, 'MYST::Worker completed successfully');
+      } else {
+        logger.error({ jobId, uuid, error: message.error }, 'MYST::Worker failed');
+      }
     });
-  } finally {
-    // Cleanup unzipped repo folder
-    await cleanup(savedFolderPath);
-    return void 0;
+
+    worker.on('error', (error) => {
+      worker.terminate();
+      logger.error({ jobId, uuid, error }, 'MYST::Worker error');
+    });
+
+    worker.on('exit', (code) => {
+      if (code !== 0) {
+        worker.terminate();
+        logger.error({ jobId, uuid, code }, 'MYST::Worker exited with non-zero code');
+      }
+    });
+  } catch (error) {
+    logger.error({ error }, 'MYST::buildAndExportMystRepoError');
+    // return sendError(res, error.message, 500);
   }
 };

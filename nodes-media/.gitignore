@@ -3,3 +3,7 @@ node_modules
 .env
 dist
 log/access.log
+
+# Compiled worker (generated in dev mode)
+src/workers/*.js
+src/workers/*.js.map
