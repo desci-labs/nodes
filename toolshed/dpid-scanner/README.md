@@ -1,10 +1,6 @@
 # dPID Scanner
 
-A utility tool for scanning the legacy dPID registry on-chain and retrieving all existing dPID to UUID mappings for both development and production environments.
-
-## Overview
-
-This tool connects to the legacy dPID registry smart contract on both development and production networks, scanning through all registered dPIDs and their corresponding UUIDs. It processes the data in batches for efficiency and converts the hex-encoded UUIDs to URL-safe base64 format.
+A utility for scanning the dPID registries in different ways.
 
 ## Usage
 
@@ -13,10 +9,31 @@ This tool connects to the legacy dPID registry smart contract on both developmen
 npm ci
 ```
 
+## Scripts
+
+### `scanManifests`
+
+This script scans all dPID's using the resolver, and checks if each manifest is resolvable on ipfs.desci.com.
+
+Usage:
+```bash
+DPID_ENV=prod npm run --silent scanManifests > scan_prod.json
+```
+
+Filter for only 404's:
+```bash
+jq "[.[] | select(.manifests | any(.status != 200))]" scan_prod.json
+```
+
+
+### `scanLegacyRegistries`
+
+This script connects to the legacy dPID registry smart contract on both development and production networks, scanning through all registered dPIDs and their corresponding UUIDs. It processes the data in batches for efficiency and converts the hex-encoded UUIDs to URL-safe base64 format.
+
 Run the scanner:
 
 ```bash
-npm start
+npm run scanLegacyRegistries
 ```
 
 The script will:
@@ -25,7 +42,7 @@ The script will:
 3. Convert UUIDs from hex to URL-safe base64 format (what's used in the DB)
 4. Output the results as a JSON object containing both dev and prod mappings
 
-## Output Format
+#### Output Format
 
 The output is a JSON object with the following structure:
 
@@ -44,7 +61,7 @@ The output is a JSON object with the following structure:
 }
 ```
 
-## Implementation Details
+#### Implementation Details
 
 - Uses `@desci-labs/nodes-lib` for network/contract interaction
 - Processes dPIDs in batches of 100 for optimal performance
