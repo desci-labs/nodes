@@ -678,6 +678,15 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
   },
 };
 
+// Export individual handlers for testing
+export {
+  checkSciweave14DayInactivity,
+  checkProChatRefresh,
+  checkOutOfChatsFollowUp,
+  checkStudentDiscountFollowUp,
+  testEmailHandler,
+};
+
 export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
   checkSciweave14DayInactivity,
   checkProChatRefresh,
