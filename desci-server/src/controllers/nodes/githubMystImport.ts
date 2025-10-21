@@ -292,9 +292,14 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
       });
 
       logger.trace({ scheduleJobResponse: scheduleJobResponse.data }, '[githubMystImport]::JobScheduled');
+
+      if (scheduleJobResponse.status !== 200) {
+        return sendError(res, 'Failed to schedule job', 500);
+      }
+
       return sendSuccess(res, {
         jobId,
-        debug: isDesciUser ? { actions, parsedDocument, response } : undefined,
+        debug: isDesciUser ? { actions, parsedDocument, response, scheduleJobResponse } : undefined,
       });
     } catch (error) {
       logger.error({ error }, 'MYST::JobScheduleError');

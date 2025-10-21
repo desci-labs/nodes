@@ -45,26 +45,21 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     return sendError(res, 'URL, parsedDocument, jobId and uuid are required', 400);
   }
 
-  // Send immediate response
-  sendSuccess(res, { jobId, uuid, message: 'Job queued for processing' });
-
   try {
     // Spawn worker thread to handle the heavy processing
-    // ALWAYS use .js extension (worker must be pre-compiled even in dev)
-    const workerPath = path.join(process.cwd(), 'src/workers/mystBuildWorker.ts'); // new URL('../../workers/mystBuildWorker.ts', import.meta.url);
+    // Use compiled .js extension
+    const workerPath = path.join(process.cwd(), 'dist/workers/mystBuildWorker.js');
     logger.info(
       {
-        // workerPath: workerPath.href,
-        workerPath,
-        import: import.meta.url,
         cwd: process.cwd(),
-        filePath: path.join(process.cwd(), 'src/workers/mystBuildWorker.js'),
+        import: import.meta.url,
+        workerPath,
+        filePath: path.join(process.cwd(), 'dist/workers/mystBuildWorker.js'),
       },
       'MYST::Spawning worker',
     );
 
-    const worker = new Worker(path.join(process.cwd(), 'src/workers/mystBuildWorker.ts'), {
-      execArgv: ['-r', 'ts-node/register', '--no-warnings'],
+    const worker = new Worker(workerPath, {
       workerData: {
         url,
         jobId,
@@ -95,8 +90,11 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
         logger.error({ jobId, uuid, code }, 'MYST::Worker exited with non-zero code');
       }
     });
+
+    // Send immediate response
+    return sendSuccess(res, { jobId, uuid, message: 'Job queued for processing' });
   } catch (error) {
     logger.error({ error }, 'MYST::buildAndExportMystRepoError');
-    // return sendError(res, error.message, 500);
+    return sendError(res, 'Failed to build and export MYST repository', 500);
   }
 };
