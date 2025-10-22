@@ -13,7 +13,7 @@ const NODES_MEDIA_SERVER_URL = process.env.NODES_MEDIA_SERVER_URL || 'http://hos
 const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET;
 
 if (!INTERNAL_SERVICE_SECRET) {
-  throw new Error('INTERNAL_SERVICE_SECRET is not set');
+  console.error('INTERNAL_SERVICE_SECRET is not set');
 }
 
 /**
