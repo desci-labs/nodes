@@ -152,8 +152,10 @@ export const googleAuth = async (req: Request, res: Response) => {
         email: user.email,
         token,
         termsAccepted,
-        ...(isNewUser ? { isNewUser } : {}),
+        id: user.id,
+        ...(isNewUser ? { isNewUser } : {}), // Remove this in the future - duplicated to be consistent with magic.ts, make sure all frontend functionality migrated.
       },
+      ...(isNewUser ? { isNewUser } : {}),
     });
   } catch (error) {
     logger.error({ error }, 'Failed to authenticate with Google');

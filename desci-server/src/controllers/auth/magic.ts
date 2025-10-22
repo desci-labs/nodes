@@ -100,7 +100,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
       res.send({
         ok: true,
-        user: { email: user.email, token, termsAccepted, isGuest: user.isGuest },
+        user: { email: user.email, token, termsAccepted, isGuest: user.isGuest, id: user.id },
         ...(isNewUser ? { isNewUser } : {}), // Indicate to the client that the user is new - for conversion analytics.
       });
 
