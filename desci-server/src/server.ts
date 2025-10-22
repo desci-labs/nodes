@@ -31,6 +31,7 @@ import { dataMigrationWorker } from './services/DataMigration/DataMigrationWorke
 import { refereeRecommenderSqsHandler } from './services/externalApi/RefereeRecommenderSqsHandler.js';
 import { initializeWebSockets, getIO } from './services/websocketService.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
+import { ImportTaskQueueJob } from './workers/importTaskQueue.js';
 
 const logger = parentLogger.child({
   module: 'server.ts',
@@ -307,6 +308,9 @@ export class AppServer {
 
     // Start data migration worker
     dataMigrationWorker.start();
+
+    // Start import task queue cron job
+    ImportTaskQueueJob.start();
 
     // Start referee recommender SQS handler
     await refereeRecommenderSqsHandler.start();

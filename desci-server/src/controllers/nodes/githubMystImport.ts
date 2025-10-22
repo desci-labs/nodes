@@ -6,7 +6,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
-import { ActionType } from '@prisma/client';
+import { ActionType, ImportTaskQueueStatus } from '@prisma/client';
 import axios from 'axios';
 import { NextFunction, Response } from 'express';
 import { load } from 'js-yaml';
@@ -15,17 +15,15 @@ import { errWithCause } from 'pino-std-serializers';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
-import { INTERNAL_SERVICE_SECRET } from '../../config.js';
 import { sendError, sendSuccess } from '../../core/api.js';
 import { UnProcessableRequestError } from '../../core/ApiError.js';
 import { AuthenticatedRequestWithNode, RequestWithJob, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { DEFAULT_TTL, setToCache } from '../../redisClient.js';
 import { processS3DataToIpfs } from '../../services/data/processing.js';
+import { importTaskService } from '../../services/index.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { getNodeByUuid } from '../../services/node.js';
 import repoService from '../../services/repoService.js';
-import { logUserAction } from '../log/userAction.js';
 
 const logger = parentLogger.child({
   module: 'NODE::githubMystImport',
@@ -153,12 +151,9 @@ export type MystImportJob = {
   uuid: string;
   url: string;
   userId: number;
-  status: MystImportJobStatus;
+  status: ImportTaskQueueStatus;
   message: string;
-  parsedDocument: z.infer<typeof projectFrontmatterSchema>;
 };
-
-export type MystImportJobStatus = 'processing' | 'completed' | 'failed' | 'cancelled';
 
 type GithubMystImportRequest = ValidatedRequest<typeof githubMystImportSchema, AuthenticatedRequestWithNode>;
 
@@ -256,53 +251,40 @@ export const githubMystImport = async (req: GithubMystImportRequest, res: Respon
     });
 
     const jobId = `myst-import-${uuidv4()}`;
-    const job = {
-      uuid,
-      url,
-      userId: req.user.id,
-      status: 'processing',
-      message: 'Processing repo link...',
-      parsedDocument: parsedDocument.value,
-    };
-
-    await setToCache(jobId, job);
-    logger.trace({ jobId, uuid, url, userId: req.user.id }, 'MYST::JobCreated');
 
     try {
-      const scheduleJobResponse = await axios.post(
-        `${process.env.NODES_MEDIA_SERVER_URL}/v1/services/process-journal-submission`,
-        {
-          url,
-          uuid,
-          jobId,
-          parsedDocument: parsedDocument.value,
-        },
-        {
-          headers: {
-            'X-Internal-Secret': `${INTERNAL_SERVICE_SECRET}`,
-          },
-        },
-      );
+      // Cancel any existing active tasks for this node
+      const cancelResult = await importTaskService.cancelActiveTasksForNode(uuid);
+      if (cancelResult.cancelled > 0) {
+        logger.info({ uuid, cancelled: cancelResult.cancelled }, 'Cancelled existing active import tasks');
+      }
+
+      // Create import task in the database
+      await importTaskService.createImportTask({
+        jobId,
+        uuid,
+        url,
+        status: ImportTaskQueueStatus.PENDING,
+        attempts: 0,
+        userId: req.user.id,
+        parsedDocument: parsedDocument.value,
+      });
 
       await saveInteraction({
         req,
         userId: req.user.id,
         action: ActionType.MYST_REPO_JOB_SCHEDULED,
-        data: { jobId, url: job.url, uuid: req.node.uuid },
+        data: { jobId, url, uuid: req.node.uuid },
       });
 
-      logger.trace({ scheduleJobResponse: scheduleJobResponse.data }, '[githubMystImport]::JobScheduled');
+      logger.trace({ jobId, uuid, url, userId: req.user.id }, '[githubMystImport]::JobScheduled');
+
       return sendSuccess(res, {
         jobId,
         debug: isDesciUser ? { actions, parsedDocument, response } : undefined,
       });
     } catch (error) {
       logger.error({ error }, 'MYST::JobScheduleError');
-      await setToCache(
-        jobId,
-        { ...job, status: 'failed', message: error.message || 'Failed to schedule job' },
-        DEFAULT_TTL,
-      );
       return sendError(res, error.message || 'Failed to schedule job', 500);
     }
   } else {
@@ -315,35 +297,111 @@ type ImportRequestWithJob = RequestWithJob<
   ValidatedRequest<typeof githubMystImportSchema, AuthenticatedRequestWithNode>
 >;
 
-export const getMystImportJobStatusByJobId = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
-  const job = req.job;
+const getMystImportJobMessage = (status: ImportTaskQueueStatus) => {
+  switch (status) {
+    case ImportTaskQueueStatus.PENDING:
+      return 'Github import job queued for processing';
+    case ImportTaskQueueStatus.IN_PROGRESS:
+      return 'Github import job is processing';
+    case ImportTaskQueueStatus.COMPLETED:
+      return 'Github import job completed';
+    case ImportTaskQueueStatus.FAILED:
+      return 'Github import job failed';
+    default:
+      return 'Github import job is pending';
+  }
+};
 
-  return sendSuccess(res, job);
+export const getMystImportJobStatusByJobId = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
+  const { jobId } = req.params as { jobId: string };
+
+  try {
+    // Get job from database
+    const dbTask = await importTaskService.getTaskByJobId(jobId);
+    if (!dbTask) {
+      return sendError(res, 'Job not found', 404);
+    }
+
+    // Convert database task to job format for compatibility
+    const job = {
+      uuid: dbTask.nodeUuid,
+      url: dbTask.url,
+      status: dbTask.status.toLowerCase(),
+      message: getMystImportJobMessage(dbTask.status),
+      attempts: dbTask.attempts,
+    };
+
+    return sendSuccess(res, job);
+  } catch (error) {
+    logger.error({ error, jobId }, 'Error getting job status');
+    return sendError(res, 'Failed to get job status', 500);
+  }
 };
 
 export const cancelMystImportJob = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
   const { jobId } = req.params as { jobId: string };
   const job = req.job;
 
-  await setToCache(jobId, { ...job, status: 'cancelled', message: 'Job cancelled' }, DEFAULT_TTL);
-  await saveInteraction({
-    req,
-    userId: req.user.id,
-    action: ActionType.MYST_REPO_JOB_CANCELLED,
-    data: { jobId, url: job.url, uuid: req.node.uuid },
-  });
-  return sendSuccess(res, job);
+  try {
+    // Update database task status
+    await importTaskService.deleteTask(jobId);
+
+    await saveInteraction({
+      req,
+      userId: req.user.id,
+      action: ActionType.MYST_REPO_JOB_CANCELLED,
+      data: { jobId, url: job.url, uuid: req.node.uuid },
+    });
+
+    return sendSuccess(res, { ok: true });
+  } catch (error) {
+    logger.error({ error, jobId }, 'Error cancelling job');
+    return sendError(res, 'Failed to cancel job', 500);
+  }
 };
 
 export const updateMystImportJobStatus = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
   const { jobId } = req.params as { jobId: string };
-  const { status, message } = req.body as { status: MystImportJobStatus; message: string };
+  const { status, message } = req.body as { status: ImportTaskQueueStatus; message: string };
   const job = req.job;
 
-  logger.trace({ jobId, status, message }, 'MYST::updateJobStatus');
-  const updated = { ...job, status, message };
-  await setToCache(jobId, updated, DEFAULT_TTL);
-  return sendSuccess(res, updated);
+  try {
+    logger.trace({ jobId, status, message }, 'MYST::updateJobStatus');
+
+    // Update database task status
+    await importTaskService.updateTaskStatus(jobId, status as ImportTaskQueueStatus);
+
+    // Handle completion and cleanup
+    if (status === ImportTaskQueueStatus.COMPLETED) {
+      logger.info({ jobId }, 'MYST::Import task completed successfully');
+
+      // Mark task as completed in database
+      await importTaskService.markTaskCompleted(jobId);
+
+      // Log completion interaction
+      await saveInteraction({
+        req,
+        userId: req.user.id,
+        action: ActionType.MYST_REPO_JOB_COMPLETED,
+        data: { jobId, url: job.url, uuid: req.node.uuid },
+      });
+    } else if (status === ImportTaskQueueStatus.FAILED) {
+      logger.error({ jobId, message }, 'MYST::Import task failed');
+
+      // Log failure interaction
+      await saveInteraction({
+        req,
+        userId: req.user.id,
+        action: ActionType.MYST_REPO_JOB_FAILED,
+        data: { jobId, url: job.url, uuid: req.node.uuid, message },
+      });
+    }
+
+    return sendSuccess(res, { ok: true });
+  } catch (error) {
+    logger.error({ error, jobId }, 'Error updating job status');
+    return sendError(res, 'Failed to update job status', 500);
+  }
 };
 
 export const processMystImportFiles = async (req: ImportRequestWithJob, res: Response, _next: NextFunction) => {
@@ -353,8 +411,8 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
     const files = (req.files as any[]) ?? [];
     logger.trace({ jobId }, 'MYST::FilesReceived');
 
-    if (job.status === 'cancelled') {
-      return sendError(res, 'Job cancelled', 400);
+    if (job.status === ImportTaskQueueStatus.FAILED) {
+      return sendError(res, 'Job failed', 400);
     }
 
     if (files.length) {
@@ -376,18 +434,11 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
         contextPath: 'root',
       });
 
+      // Update database task status based on result
       if (ok) {
-        await setToCache(
-          jobId,
-          { ...job, status: 'completed', message: 'Import finished successfully', value },
-          DEFAULT_TTL,
-        );
+        await importTaskService.updateTaskStatus(jobId, 'COMPLETED');
       } else {
-        await setToCache(
-          jobId,
-          { ...job, status: 'failed', message: 'Failed to import files to drive.', value },
-          DEFAULT_TTL,
-        );
+        await importTaskService.updateTaskWithError(jobId, 'Failed to import files to drive');
       }
 
       sendSuccess(res, { ok: true });
@@ -430,16 +481,12 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
       }
       return void 0;
     } else {
-      await setToCache(jobId, { ...job, status: 'failed', message: 'No files received' }, DEFAULT_TTL);
+      await importTaskService.updateTaskWithError(jobId, 'No files received');
       return sendError(res, 'No files received', 400);
     }
   } catch (err) {
     logger.error({ error: errWithCause(err) }, '[PROCESS FILES ERROR]');
-    await setToCache(
-      jobId,
-      { ...job, status: 'failed', message: err.message || 'Could not process files' },
-      DEFAULT_TTL,
-    );
+    await importTaskService.updateTaskWithError(jobId, err.message || 'Could not process files');
     await saveInteraction({
       req,
       userId: req.user.id,
@@ -447,5 +494,72 @@ export const processMystImportFiles = async (req: ImportRequestWithJob, res: Res
       data: { jobId: jobId, uuid: req.node.uuid, message: err.message || 'Could not process files' },
     });
     return void 0;
+  }
+};
+
+/**
+ * Get active import tasks for a node (pending, in-progress, or failed)
+ */
+export const getActiveMystImportTasks = async (
+  req: AuthenticatedRequestWithNode,
+  res: Response,
+  _next: NextFunction,
+) => {
+  const { uuid } = req.params as { uuid: string };
+
+  try {
+    logger.info({ uuid }, 'Getting active import tasks for node');
+
+    const activeTask = await importTaskService.getActiveTasksForNode(uuid);
+
+    if (!activeTask) {
+      return sendSuccess(res, null);
+    }
+
+    const tasks = {
+      jobId: activeTask.jobId,
+      uuid: activeTask.nodeUuid,
+      url: activeTask.url,
+      status: activeTask.status.toLowerCase(),
+      attempts: activeTask.attempts,
+      message: getMystImportJobMessage(activeTask.status),
+    };
+
+    return sendSuccess(res, tasks);
+  } catch (error) {
+    logger.error({ error, uuid }, 'Error getting active import tasks');
+    return sendError(res, 'Failed to get active import tasks', 500);
+  }
+};
+
+/**
+ * Retry a specific failed import task
+ */
+export const retryMystImportTask = async (req: AuthenticatedRequestWithNode, res: Response, _next: NextFunction) => {
+  const { jobId } = req.params as { jobId: string };
+
+  try {
+    logger.info({ jobId }, 'Retrying import task');
+
+    const retriedTask = await importTaskService.retryTask(jobId);
+
+    await saveInteraction({
+      req,
+      userId: req.user.id,
+      action: ActionType.MYST_REPO_JOB_SCHEDULED,
+      data: { jobId, url: retriedTask.url, uuid: retriedTask.nodeUuid },
+    });
+
+    return sendSuccess(res, {
+      jobId: retriedTask.jobId,
+      uuid: retriedTask.nodeUuid,
+      url: retriedTask.url,
+      status: retriedTask.status.toLowerCase(),
+      attempts: retriedTask.attempts,
+      message: getMystImportJobMessage(retriedTask.status),
+    });
+  } catch (error) {
+    logger.error({ error, jobId }, 'Error retrying import task');
+    return sendError(res, error.message || 'Failed to retry task', 400);
   }
 };
