@@ -6,6 +6,7 @@ import path from 'path';
 import { logger } from '../../logger.js';
 import type { Request, Response } from 'express';
 import { sendError, sendSuccess } from '../../core/api.js';
+import { updateJobStatus } from '../../workers/mystBuildWorker.js';
 
 export const TEMP_REPO_ZIP_PATH = path.join(process.cwd(), 'tmp');
 
@@ -36,13 +37,17 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     url: string;
     jobId: string;
     uuid: string;
-    parsedDocument: ProjectFrontmatter;
+    parsedDocument?: ProjectFrontmatter;
   };
 
-  logger.debug({ jobId, uuid, url }, 'MYST::buildAndExportMystRepo');
+  logger.info({ jobId, uuid, url }, 'MYST::buildAndExportMystRepo');
 
-  if (!url || !parsedDocument || !jobId || !uuid) {
-    return sendError(res, 'URL, parsedDocument, jobId and uuid are required', 400);
+  if (!url || !jobId || !uuid) {
+    return sendError(res, 'URL, jobId and uuid are required', 400);
+  }
+
+  if (!parsedDocument) {
+    return sendError(res, 'parsedDocument is required', 400);
   }
 
   try {
@@ -95,6 +100,14 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
     return sendSuccess(res, { jobId, uuid, message: 'Job queued for processing' });
   } catch (error) {
     logger.error({ error }, 'MYST::buildAndExportMystRepoError');
+    await updateJobStatus({
+      jobId,
+      uuid,
+      status: 'FAILED',
+      message: 'Failed to start the build process',
+      desciServerUrl: DESCI_SERVER_URL,
+      internalServiceSecret: INTERNAL_SERVICE_SECRET,
+    });
     return sendError(res, 'Failed to build and export MYST repository', 500);
   }
 };

@@ -36,10 +36,12 @@ import { getPublishedNodes } from '../../controllers/nodes/getPublishedNodes.js'
 import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
 import {
   cancelMystImportJob,
+  getActiveMystImportTasks,
   getMystImportJobStatusByJobId,
   githubMystImport,
   githubMystImportSchema,
   processMystImportFiles,
+  retryMystImportTask,
   updateMystImportJobStatus,
 } from '../../controllers/nodes/githubMystImport.js';
 import {
@@ -226,6 +228,16 @@ router.post(
   [ensureInternalSecret, ensureJobInfo, mystWrappedHandler],
   asyncHandler(processMystImportFiles),
 );
+
+// MyST import retry route
+router.post(
+  '/:uuid/github-myst-import/:jobId/retry',
+  [ensureUser, ensureNodeAccess, ensureJobInfo],
+  asyncHandler(retryMystImportTask),
+);
+
+// Get active import tasks for a node
+router.get('/:uuid/active-import-tasks', [ensureUser, ensureNodeAccess], asyncHandler(getActiveMystImportTasks));
 
 router.delete('/:uuid', [ensureGuestOrUser], deleteNode);
 

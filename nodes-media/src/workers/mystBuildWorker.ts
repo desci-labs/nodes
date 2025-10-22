@@ -25,7 +25,7 @@ interface WorkerData {
   desciServerUrl: string;
 }
 
-const updateJobStatus = async ({
+export const updateJobStatus = async ({
   jobId,
   message,
   status,
@@ -70,21 +70,12 @@ const cleanup = async (path: string) => {
 const processMystBuild = async (data: WorkerData) => {
   const { url, jobId, uuid, parsedDocument, tempRepoZipPath, internalServiceSecret, desciServerUrl } = data;
 
-  logger.debug({ jobId, uuid, url }, 'MYST::Worker::processMystBuild');
+  logger.debug({ uuid, url }, 'MYST::Worker::processMystBuild');
 
   const parseImportUrlResult = parseMystImportGithubUrl(url);
   if (parseImportUrlResult.isErr()) {
     throw new Error(parseImportUrlResult.error.message);
   }
-
-  await updateJobStatus({
-    jobId,
-    uuid,
-    status: 'processing',
-    message: 'Downloading repo files...',
-    desciServerUrl,
-    internalServiceSecret,
-  });
 
   const { archiveDownloadUrl, repo, branch } = parseImportUrlResult.value;
 
@@ -106,7 +97,7 @@ const processMystBuild = async (data: WorkerData) => {
     await updateJobStatus({
       jobId,
       uuid,
-      status: 'failed',
+      status: 'FAILED',
       message: error.message || 'Failed to save and extract zip file',
       desciServerUrl,
       internalServiceSecret,
@@ -120,15 +111,6 @@ const processMystBuild = async (data: WorkerData) => {
 
   let buildProcessResult = null;
   try {
-    await updateJobStatus({
-      jobId,
-      uuid,
-      status: 'processing',
-      message: 'Building the repo files...',
-      desciServerUrl,
-      internalServiceSecret,
-    });
-
     logger.info({ savedFolderPath }, 'Building the repo files');
     // Setup monitored subprocess to run pixi build command
     const buildProcess = spawn('pixi', ['run', 'build-meca'], {
@@ -167,7 +149,7 @@ const processMystBuild = async (data: WorkerData) => {
     await updateJobStatus({
       jobId,
       uuid,
-      status: 'failed',
+      status: 'FAILED',
       message: 'Failed to build the repo files',
       desciServerUrl,
       internalServiceSecret,
@@ -197,15 +179,6 @@ const processMystBuild = async (data: WorkerData) => {
     const pdfExportPath = pdfExport ? path.join(savedFolderPath, pdfExport?.output) : null;
     const mecaExportPath = mecaExport ? path.join(savedFolderPath, mecaExport?.output.replace('.zip', '')) : null;
     const pageContentPath = mecaExport ? path.join(savedFolderPath, '_build/site/content/index.json') : null;
-
-    await updateJobStatus({
-      jobId,
-      uuid,
-      status: 'processing',
-      message: 'Exporting files...',
-      desciServerUrl,
-      internalServiceSecret,
-    });
 
     const formData = new FormData();
 
@@ -245,12 +218,27 @@ const processMystBuild = async (data: WorkerData) => {
     formData.append('uuid', uuid);
     formData.append('contextPath', 'root');
 
-    await axios.post(`${desciServerUrl}/v1/nodes/${uuid}/finalize-myst-import/${jobId}/receiveFiles`, formData, {
-      headers: {
-        ...formData.getHeaders(),
-        'X-Internal-Secret': internalServiceSecret,
+    const response = await axios.post(
+      `${desciServerUrl}/v1/nodes/${uuid}/finalize-myst-import/${jobId}/receiveFiles`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          'X-Internal-Secret': internalServiceSecret,
+        },
       },
-    });
+    );
+
+    if (response.status === 200) {
+      await updateJobStatus({
+        jobId,
+        uuid,
+        status: 'COMPLETED',
+        message: 'Files exported successfully',
+        desciServerUrl,
+        internalServiceSecret,
+      });
+    }
 
     logger.info({ jobId, uuid }, 'MYST::Worker::Completed successfully');
   } catch (error) {
@@ -258,7 +246,7 @@ const processMystBuild = async (data: WorkerData) => {
     await updateJobStatus({
       jobId,
       uuid,
-      status: 'failed',
+      status: 'FAILED',
       message: error.message || 'Failed to export files',
       desciServerUrl,
       internalServiceSecret,
