@@ -208,6 +208,7 @@ describe('Journal Management Service', () => {
         'id',
         'name',
         'description',
+        'slug',
         'iconCid',
         'createdAt',
         'submissions',
@@ -427,6 +428,7 @@ describe('Journal Management Service', () => {
         expect(res.body.data.journals[0]).to.have.all.keys([
           'id',
           'name',
+          'slug',
           'description',
           'iconCid',
           'createdAt',
@@ -447,6 +449,7 @@ describe('Journal Management Service', () => {
         expect(res.body.data.journal).to.have.all.keys([
           'id',
           'name',
+          'slug',
           'description',
           'iconCid',
           'createdAt',

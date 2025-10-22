@@ -136,10 +136,12 @@
     "rimraf": "^5.0.1",
     "short-unique-id": "^4.4.4",
     "siwe": "^1.1.6",
+    "slugify": "^1.6.6",
     "socket.io": "^4.8.0",
     "stripe": "^18.5.0",
     "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.1",
+    "tsx": "^4.20.5",
     "url-safe-base64": "1.2.0",
     "uuid": "^8.3.2",
     "ws": "^8.18.0",
@@ -149,8 +151,7 @@
     "yaml": "^2.7.0",
     "yauzl": "^2.10.0",
     "zod": "^3.24.2",
-    "zod-openapi": "^4.2.3",
-    "tsx": "^4.20.5"
+    "zod-openapi": "^4.2.3"
   },
   "devDependencies": {
     "@sentry/cli": "^2.55.0",

@@ -20,7 +20,7 @@ import {
   assignSubmissionToEditorSchema,
   createJournalSubmissionSchema,
   getAuthorJournalSubmissionsSchema,
-  listJournalSubmissionsByStatusCountSchema,
+  submissionStatusCountSchema,
   listJournalSubmissionsSchema,
   rejectSubmissionSchema,
   requestRevisionSchema,
@@ -51,7 +51,7 @@ export default function submissionRoutes(router: Router) {
 
   router.get(
     '/:journalId/submissions/status-count',
-    [ensureUser, validateInputs(listJournalSubmissionsByStatusCountSchema)],
+    [ensureUser, validateInputs(submissionStatusCountSchema)],
     asyncHandler(getJournalSubmissionsByStatusCountController),
   );
 

@@ -118,9 +118,12 @@ async function getJournalSubmissions(
       submittedAt: true,
       acceptedAt: true,
       rejectedAt: true,
+      assignedEditorId: true,
+      revisionRequestedAt: true,
       node: {
         select: {
           title: true,
+          uuid: true,
         },
       },
       assignedEditor: {
@@ -420,6 +423,8 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
     data: {
       status: SubmissionStatus.ACCEPTED,
       acceptedAt: new Date(),
+      revisionRequestedAt: null,
+      rejectedAt: null,
     },
     select: {
       id: true,
@@ -491,7 +496,8 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
     data: {
       status: SubmissionStatus.REJECTED,
       rejectedAt: new Date(),
-      acceptedAt: null, // reset acceptedAt to null
+      acceptedAt: null,
+      revisionRequestedAt: null,
     },
     include: {
       journal: true,
@@ -531,10 +537,12 @@ async function requestRevision({
     where: { id: submissionId },
     data: {
       status: SubmissionStatus.REVISION_REQUESTED,
+      revisionRequestedAt: new Date(),
     },
     select: {
       id: true,
       status: true,
+      revisionRequestedAt: true,
     },
   });
 
@@ -721,7 +729,11 @@ const getSubmissionExtendedData = async (submissionId: number): Promise<Result<S
   const targetVersionIndex = researchObject.versions.length - submission.version;
   const targetVersion = researchObject.versions[targetVersionIndex];
   const targetVersionManifestCid = hexToCid(targetVersion.cid);
-  const manifest = await getManifestByCid(targetVersionManifestCid);
+  logger.info(
+    { targetVersionManifestCid, uuid: submission.node.uuid, versions: researchObject.versions, targetVersion },
+    '[targetVersionManifestCid]',
+  );
+  const manifest = await getManifestByCid(targetVersionManifestCid); //"bafkreiac3foykeehoxwmkiaaptsguyr4lf7hhr32zttafajpi62gjqnkne"
 
   const authors = manifest.authors?.map((author) => author.name) ?? [];
   const abstract = manifest.description;

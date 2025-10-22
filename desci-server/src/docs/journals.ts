@@ -4,7 +4,7 @@ import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 import {
   getJournalAnalyticsSchema,
   listFeaturedPublicationsSchema,
-  showUrgentSubmissionsSchema,
+  getSubmissionsSchema,
 } from '../schemas/journals.schema.js';
 import {
   getJournalSchema,
@@ -16,6 +16,7 @@ import {
   updateJournalSchema,
   createJournalSubmissionSchema,
   listJournalSubmissionsSchema,
+  submissionStatusCountSchema,
   assignSubmissionToEditorSchema,
   getAuthorJournalSubmissionsSchema,
   reviewsApiSchema,
@@ -680,7 +681,8 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            submissions: z.array(
+            ok: z.boolean(),
+            data: z.array(
               z.object({
                 id: z.number(),
                 assignedEditorId: z.number().nullable(),
@@ -690,24 +692,29 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
                 submittedAt: z.string().nullable(),
                 acceptedAt: z.string().nullable(),
                 rejectedAt: z.string().nullable(),
+                revisionRequestedAt: z.string().nullable(),
                 doiMintedAt: z.string().nullable(),
                 doi: z.string().nullable(),
+                title: z.string().describe('Title of the research object'),
+                publishedAt: z.string().nullable().describe('Date when the research object was published'),
                 author: z
                   .object({
                     id: z.number(),
                     name: z.string().nullable(),
-                    email: z.string().nullable(),
                     orcid: z.string().nullable(),
                   })
                   .nullable(),
-                assignedEditor: z
-                  .object({
-                    id: z.number(),
-                    name: z.string().nullable(),
-                    email: z.string().nullable(),
-                    orcid: z.string().nullable(),
-                  })
-                  .nullable(),
+                assignedEditor: z.string().nullable().describe('Name of the assigned editor'),
+                reviews: z
+                  .array(
+                    z.object({
+                      completed: z.boolean(),
+                      completedAt: z.string().nullable(),
+                      referee: z.string().nullable().describe('Name of the referee'),
+                      dueDate: z.string().nullable(),
+                    }),
+                  )
+                  .describe('Array of completed reviews for this submission'),
               }),
             ),
             meta: z.object({ count: z.number(), limit: z.number(), offset: z.number() }),
@@ -717,6 +724,51 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
     },
     '404': {
       description: 'Editor not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '500': {
+      description: 'Failed to retrieve journal submissions',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Journal Submissions Status Count
+export const getJournalSubmissionsByStatusCountOperation: ZodOpenApiOperationObject = {
+  operationId: 'getJournalSubmissionsByStatusCount',
+  tags: ['Journals'],
+  summary: 'Get submission counts grouped by status for a journal',
+  requestParams: {
+    path: submissionStatusCountSchema.shape.params,
+    query: submissionStatusCountSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Submission status counts retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            new: z.number().describe('Count of new submissions (submitted but not assigned)'),
+            assigned: z.number().describe('Count of assigned submissions (submitted and assigned to an editor)'),
+            inReview: z.number().describe('Count of submissions currently under review'),
+            underRevision: z.number().describe('Count of submissions with revision requested'),
+            reviewed: z.number().describe('Count of reviewed submissions (accepted or rejected)'),
+            published: z.number().optional().describe('Count of published/accepted submissions'),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Failed to retrieve submission counts',
       content: {
         'application/json': {
           schema: z.object({ error: z.string() }),
@@ -2817,78 +2869,6 @@ export const getPublicJournalAnalyticsOperation: ZodOpenApiOperationObject = {
   },
 };
 
-// Show Urgent Journal Submissions
-export const showUrgentJournalSubmissionsOperation: ZodOpenApiOperationObject = {
-  operationId: 'showUrgentJournalSubmissions',
-  tags: ['Journals'],
-  summary: 'Get urgent journal submissions',
-  description:
-    'Retrieve submissions that have referee assignments due within the next 7 days, requiring immediate attention. Only returns submissions that are not in ACCEPTED or REJECTED status.',
-  requestParams: {
-    path: showUrgentSubmissionsSchema.shape.params,
-    query: showUrgentSubmissionsSchema.shape.query,
-  },
-  responses: {
-    '200': {
-      description: 'Urgent submissions retrieved successfully',
-      content: {
-        'application/json': {
-          schema: z.array(
-            z.object({
-              id: z.number().describe('Submission ID'),
-              dpid: z.number().describe('DPID of the submitted node'),
-              version: z.number().describe('Version of the submitted node'),
-              status: z
-                .enum(['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'PENDING'])
-                .describe('Current submission status'),
-              submittedAt: z.string().describe('Date when the submission was made'),
-              acceptedAt: z.string().nullable().describe('Date when the submission was accepted (if applicable)'),
-              rejectedAt: z.string().nullable().describe('Date when the submission was rejected (if applicable)'),
-              title: z.string().describe('Title of the submitted research object'),
-              author: z.object({
-                name: z.string().describe('Name of the submission author'),
-                orcid: z.string().nullable().describe('ORCID of the submission author'),
-              }),
-              refereeAssignments: z
-                .array(
-                  z.object({
-                    dueDate: z.string().describe('Due date for the referee assignment'),
-                  }),
-                )
-                .describe('Referee assignments for this submission'),
-            }),
-          ),
-        },
-      },
-    },
-    '404': {
-      description: 'Journal not found',
-      content: {
-        'application/json': {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-    '403': {
-      description: 'Not authorized to view urgent submissions',
-      content: {
-        'application/json': {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-    '500': {
-      description: 'Internal server error',
-      content: {
-        'application/json': {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-  },
-  security: [{ BearerAuth: [] }],
-};
-
 // Get Pending Submissions
 export const getPendingSubmissionsOperation: ZodOpenApiOperationObject = {
   operationId: 'getPendingSubmissions',
@@ -2897,7 +2877,8 @@ export const getPendingSubmissionsOperation: ZodOpenApiOperationObject = {
   description:
     'Retrieve all pending submissions for a journal dashboard. Returns submissions that are not in ACCEPTED or REJECTED status, including urgent submissions that require immediate attention (unassigned submissions for chief editors, submissions without accepted referee invites, or referee assignments due within 7 days).',
   requestParams: {
-    path: showUrgentSubmissionsSchema.shape.params,
+    path: getSubmissionsSchema.shape.params,
+    query: getSubmissionsSchema.shape.query,
   },
   responses: {
     '200': {
@@ -3520,6 +3501,9 @@ export const journalPaths: ZodOpenApiPathsObject = {
     post: createJournalSubmissionOperation,
     get: listJournalSubmissionsOperation,
   },
+  '/v1/journals/{journalId}/submissions/status-count': {
+    get: getJournalSubmissionsByStatusCountOperation,
+  },
   '/v1/journals/{journalId}/submissions/{submissionId}': {
     get: getJournalSubmissionOperation,
   },
@@ -3614,9 +3598,6 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/featured': {
     get: listFeaturedJournalPublicationsOperation,
-  },
-  '/v1/journals/{journalId}/urgentSubmissions': {
-    get: showUrgentJournalSubmissionsOperation,
   },
   '/v1/journals/{journalId}/pendingSubmissions': {
     get: getPendingSubmissionsOperation,
