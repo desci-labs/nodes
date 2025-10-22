@@ -28,7 +28,7 @@ services:
     environment:
       # Conditionally start the server instead of invoking the integration test suite
       RUN_SERVER: ${RUN_SERVER:-0}
-      DPID_URL_OVERRIDE: http://dpid_resolver_test:5460
+      DPID_URL_OVERRIDE: http://dpid_resolver_test:5470
       # This is set in CI but not automatically passed to the container
       GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
     ports:
@@ -66,7 +66,7 @@ services:
       timeout: 15s
       retries: 10
     ports:
-      - "8545:8545"
+      - "8555:8545"
     env_file:
       - desci-contracts/.env.test
     environment:
@@ -140,9 +140,9 @@ services:
     restart: no
     environment:
       NODES_API_URL: http://nodes_backend_test:5421
-      CHAIN_RPC_URL: http://test_blockchain:8545
-      CERAMIC_ONE_RPC_URL: http://ceramic_one_test:5101
-      CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5102
+      CHAIN_RPC_URL: http://test_blockchain:8555
+      CERAMIC_ONE_RPC_URL: http://ceramic_one_test:5201
+      CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5202
       # This is set in CI but not automatically passed to the container
       GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
     depends_on:
@@ -160,8 +160,8 @@ services:
     image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
     restart: no
     ports:
-      - 5101:5101 # RPC
-      - 5102:5102 # flight SQL (> v0.53.0)
+      - 5201:5101 # RPC
+      - 5202:5102 # flight SQL (> v0.53.0)
     environment:
       CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
       CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
@@ -196,13 +196,13 @@ services:
     #   context: ~/dev/desci/dpid-resolver
     environment:
       DPID_ENV: local
-      OPTIMISM_RPC_URL: http://test_blockchain:8545
-      CERAMIC_FLIGHT_URL: http://ceramic_one_test:5102
+      OPTIMISM_RPC_URL: http://test_blockchain:8555
+      CERAMIC_FLIGHT_URL: http://ceramic_one_test:5202
       IPFS_GATEWAY: http://nodes_test_ipfs:8080/ipfs
       CACHE_TTL_ANCHORED: 86400
       CACHE_TTL_PENDING: 300
     ports:
-      - "5460:5460"
+      - "5470:5460"
     healthcheck:
       test: ["CMD", "curl", "--fail-with-body", "http://localhost:5460/healthz"]
       interval: 5s
