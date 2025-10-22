@@ -131,6 +131,7 @@ spec:
           export STRIPE_USER_DISCOUNT_COUPON_ID="{{ .Data.STRIPE_USER_DISCOUNT_COUPON_ID }}"
           export SCIWEAVE_USER_DISCOUNT_PC="{{ .Data.SCIWEAVE_USER_DISCOUNT_PC }}"
           export SCIWEAVE_STUDENT_DISCOUNT_PC="{{ .Data.SCIWEAVE_STUDENT_DISCOUNT_PC }}"
+          export ENABLE_IMPORT_QUEUE="{{ .Data.ENABLE_IMPORT_QUEUE }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
