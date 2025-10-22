@@ -309,8 +309,10 @@ export class AppServer {
     // Start data migration worker
     dataMigrationWorker.start();
 
-    // Start import task queue cron job
-    ImportTaskQueueJob.start();
+    if (process.env.ENABLE_IMPORT_QUEUE === 'true') {
+      // Start import task queue cron job
+      ImportTaskQueueJob.start();
+    }
 
     // Start referee recommender SQS handler
     await refereeRecommenderSqsHandler.start();

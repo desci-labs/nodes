@@ -131,6 +131,7 @@ spec:
           export SCIWEAVE_USER_DISCOUNT_PC="{{ .Data.SCIWEAVE_USER_DISCOUNT_PC }}"
           export SCIWEAVE_STUDENT_DISCOUNT_PC="{{ .Data.SCIWEAVE_STUDENT_DISCOUNT_PC }}"
           export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}'
+          export ENABLE_IMPORT_QUEUE="{{ .Data.ENABLE_IMPORT_QUEUE }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";
