@@ -1,3 +1,4 @@
+import type { ProjectFrontmatter } from '@awesome-myst/myst-zod';
 import { ImportTaskQueue, ImportTaskQueueStatus } from '@prisma/client';
 import axios from 'axios';
 import { CronJob } from 'cron';
@@ -5,7 +6,6 @@ import { CronJob } from 'cron';
 import { logger as parentLogger } from '../logger.js';
 import { getFromCache, lockService } from '../redisClient.js';
 import { importTaskService } from '../services/index.js';
-import { asyncMap } from '../utils.js';
 
 const logger = parentLogger.child({ module: 'ImportTaskJob' });
 
@@ -26,7 +26,7 @@ const processImportTask = async (task: ImportTaskQueue) => {
     // Update task status to IN_PROGRESS
     await importTaskService.updateTaskStatus(task.jobId, ImportTaskQueueStatus.IN_PROGRESS);
 
-    const parsedDocument = await getFromCache(`myst-import-job-${task.jobId}`);
+    const parsedDocument = await getFromCache<ProjectFrontmatter>(`myst-import-job-${task.jobId}`);
     if (!parsedDocument) {
       logger.error({ taskId: task.jobId }, 'Parsed document not found in cache');
       await importTaskService.updateTaskWithError(task.jobId, 'Parsed document not found in cache');
@@ -46,14 +46,14 @@ const processImportTask = async (task: ImportTaskQueue) => {
         headers: {
           'X-Internal-Secret': INTERNAL_SERVICE_SECRET,
         },
-        timeout: 1000,
+        timeout: 10000,
       },
     );
 
     if (response.status === 200) {
       logger.info({ taskId: task.jobId }, 'Import task scheduled successfully');
       // Mark as in-progress since external service will handle the actual processing
-      await importTaskService.updateTaskStatus(task.jobId, 'IN_PROGRESS');
+      await importTaskService.updateTaskStatus(task.jobId, ImportTaskQueueStatus.IN_PROGRESS);
       return { success: true, taskId: task.jobId };
     } else {
       logger.error({ taskId: task.jobId, status: response.status }, 'Import task failed to schedule');
@@ -97,11 +97,10 @@ export const onTick = async () => {
 
   // Check how many tasks are currently in progress
   const inProgressTasks = await importTaskService.getInProgressTasks();
-  if (inProgressTasks.length >= 2) {
-    logger.info(
-      { inProgressCount: inProgressTasks.length },
-      'Skipping import task processing - too many tasks in progress',
-    );
+  const availableSlots = Math.max(0, 2 - inProgressTasks.length);
+
+  if (availableSlots === 0) {
+    logger.info({ inProgressCount: inProgressTasks.length }, 'Skipping import task processing - no available slots');
     return;
   }
 
@@ -116,33 +115,46 @@ export const onTick = async () => {
     return;
   }
 
+  // Limit the number of tasks to process based on available slots
+  const tasksToProcess = retryableTasks.slice(0, availableSlots);
+
   logger.info(
     {
       pendingTasks: pendingTasks.length,
       retryableTasks: retryableTasks.length,
       inProgressCount: inProgressTasks.length,
+      availableSlots,
+      tasksToProcess: tasksToProcess.length,
     },
-    'Processing retryable import tasks',
+    'Processing retryable import tasks with bounded concurrency',
   );
 
-  const processed = await asyncMap(retryableTasks, async (task) => {
-    const taskLock = await lockService.aquireLock(task.jobId);
-    logger.info({ taskId: task.jobId, taskLock }, 'ACQUIRE Lock');
+  // Process tasks with bounded concurrency
+  const processed = [];
+  for (let i = 0; i < tasksToProcess.length; i += availableSlots) {
+    const batch = tasksToProcess.slice(i, i + availableSlots);
+    const batchPromises = batch.map(async (task) => {
+      const taskLock = await lockService.aquireLock(task.jobId);
+      logger.info({ taskId: task.jobId, taskLock }, 'ACQUIRE Lock');
 
-    if (!taskLock) return undefined;
+      if (!taskLock) return undefined;
 
-    logger.info({ taskId: task.jobId, taskLock }, 'Lock acquired');
-    try {
-      const result = await processImportTask(task);
-      return result;
-    } catch (err) {
-      logger.warn({ err, taskId: task.jobId }, 'Import task processing error');
-      await importTaskService.updateTaskWithError(task.jobId, err.message);
-      return { success: false, taskId: task.jobId, error: err.message };
-    } finally {
-      await lockService.freeLock(task.jobId);
-    }
-  });
+      logger.info({ taskId: task.jobId, taskLock }, 'Lock acquired');
+      try {
+        const result = await processImportTask(task);
+        return result;
+      } catch (err) {
+        logger.warn({ err, taskId: task.jobId }, 'Import task processing error');
+        await importTaskService.updateTaskWithError(task.jobId, err.message);
+        return { success: false, taskId: task.jobId, error: err.message };
+      } finally {
+        await lockService.freeLock(task.jobId);
+      }
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    processed.push(...batchResults.filter(Boolean));
+  }
 
   logger.trace({ processed }, 'Exiting Import Task Job with results');
 };
