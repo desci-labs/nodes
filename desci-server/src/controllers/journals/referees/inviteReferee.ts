@@ -62,6 +62,10 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
         return sendError(res, error.message, 400);
       }
 
+      if (error.message === 'Referee invite already exists') {
+        return sendError(res, error.message, 409);
+      }
+
       return sendError(res, error.message, 500);
     }
 

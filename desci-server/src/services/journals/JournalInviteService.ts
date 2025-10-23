@@ -115,6 +115,7 @@ async function inviteJournalEditor({
         editor: inviteeExistingUser,
         inviter,
         role,
+        inviteToken: token,
       });
     }
   } catch (error) {
@@ -418,6 +419,7 @@ async function resendEditorInvite({
         editor: inviteeExistingUser,
         inviter,
         role: existingInvite.role,
+        inviteToken: newToken,
       });
     }
   } catch (error) {

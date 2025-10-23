@@ -38,6 +38,20 @@ type InviteRefereeInput = {
 async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeInvite, Error>> {
   try {
     logger.trace({ fn: 'inviteReferee', data }, 'Inviting referee');
+    // check for unexpired existing referee invite for this submission
+    const existingRefereeInvite = await prisma.refereeInvite.findFirst({
+      where: {
+        email: data.refereeEmail?.toLowerCase() ?? '',
+        submissionId: data.submissionId,
+        accepted: { not: true },
+        declined: { not: true },
+        expiresAt: { gt: new Date() },
+      },
+    });
+    if (existingRefereeInvite) {
+      return err(new Error('Referee invite already exists'));
+    }
+
     const existingReferee = data.refereeUserId
       ? await prisma.user.findUnique({
           where: { id: data.refereeUserId },
@@ -133,7 +147,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
 
     const refereeName = existingReferee?.name ?? data.refereeName ?? 'Researcher';
 
-    const refereeEmail = existingReferee?.email ?? data.refereeEmail;
+    const refereeEmail = existingReferee?.email?.toLowerCase() ?? data.refereeEmail?.toLowerCase();
     if (!refereeEmail) {
       return err(new Error('Referee email is required'));
     }
