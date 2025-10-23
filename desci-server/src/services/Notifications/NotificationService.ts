@@ -490,10 +490,12 @@ const emitOnJournalEditorInvite = async ({
   editor,
   inviter,
   role,
+  inviteToken,
 }: {
   journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   editor: User;
   inviter: User;
+  inviteToken: string;
   role: EditorRole;
 }) => {
   const payload: JournalEditorInvitePayload = {
@@ -502,6 +504,7 @@ const emitOnJournalEditorInvite = async ({
     role,
     inviterName: inviter.name,
     inviterUserId: inviter.id,
+    inviteToken,
   };
 
   const notificationData: CreateNotificationData = {
