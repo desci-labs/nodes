@@ -59,16 +59,37 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
     if (allowPromotionCodes) {
       sessionConfig.allow_promotion_codes = true;
     } else if (coupon) {
-      sessionConfig.discounts = [{ coupon }];
+      // The 'coupon' parameter is actually a promotion code string (e.g., STUDENT-123-ABC12345)
+      // We need to look it up to get the promotion code ID
+      try {
+        const promotionCodes = await stripe.promotionCodes.list({
+          code: coupon,
+          limit: 1,
+        });
+
+        if (promotionCodes.data.length > 0) {
+          // Found the promotion code, use its ID
+          sessionConfig.discounts = [{ promotion_code: promotionCodes.data[0].id }];
+          logger.info('Applied promotion code', { code: coupon, promotionCodeId: promotionCodes.data[0].id });
+        } else {
+          // Not found as promotion code, try as coupon ID (fallback for direct coupon IDs)
+          sessionConfig.discounts = [{ coupon }];
+          logger.info('Applied as coupon ID', { coupon });
+        }
+      } catch (error) {
+        logger.error('Failed to look up promotion code, trying as coupon ID', { error, coupon });
+        // Fallback to treating it as a coupon ID
+        sessionConfig.discounts = [{ coupon }];
+      }
     }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
     return res.status(200).json({ sessionId: session.id });
   } catch (error: any) {
-    logger.error('Failed to create subscription checkout', { 
-      error: error.message, 
-      userId: req.user?.id 
+    logger.error('Failed to create subscription checkout', {
+      error: error.message,
+      userId: req.user?.id,
     });
     return res.status(500).json({ error: 'Failed to create subscription checkout' });
   }
@@ -105,18 +126,18 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
       logger.info('Portal session created successfully', { sessionId: portalSession.id });
       return res.status(200).json({ url: portalSession.url });
     } catch (stripeError: any) {
-      logger.error('Stripe portal creation failed', { 
+      logger.error('Stripe portal creation failed', {
         error: stripeError.message,
         type: stripeError.type,
         code: stripeError.code,
-        customerId: subscription.stripeCustomerId
+        customerId: subscription.stripeCustomerId,
       });
       throw stripeError;
     }
   } catch (error: any) {
-    logger.error('Failed to create customer portal session', { 
-      error: error.message, 
-      userId: req.user?.id 
+    logger.error('Failed to create customer portal session', {
+      error: error.message,
+      userId: req.user?.id,
     });
     return res.status(500).json({ error: 'Failed to create customer portal session' });
   }
@@ -132,16 +153,16 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
     logger.info('Getting user subscription', { userId });
 
     const subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
-    
+
     if (!subscription) {
       return res.status(404).json({ error: 'No subscription found' });
     }
 
     return res.status(200).json(subscription);
   } catch (error: any) {
-    logger.error('Failed to get user subscription', { 
-      error: error.message, 
-      userId: req.user?.id 
+    logger.error('Failed to get user subscription', {
+      error: error.message,
+      userId: req.user?.id,
     });
     return res.status(500).json({ error: 'Failed to get user subscription' });
   }
@@ -162,9 +183,9 @@ export const updateSubscription = async (req: RequestWithUser, res: Response): P
 
     return res.status(200).json({ success: true });
   } catch (error: any) {
-    logger.error('Failed to update subscription', { 
-      error: error.message, 
-      userId: req.user?.id 
+    logger.error('Failed to update subscription', {
+      error: error.message,
+      userId: req.user?.id,
     });
     return res.status(500).json({ error: 'Failed to update subscription' });
   }
@@ -183,9 +204,9 @@ export const cancelSubscription = async (req: RequestWithUser, res: Response): P
 
     return res.status(200).json({ success: true });
   } catch (error: any) {
-    logger.error('Failed to cancel subscription', { 
-      error: error.message, 
-      userId: req.user?.id 
+    logger.error('Failed to cancel subscription', {
+      error: error.message,
+      userId: req.user?.id,
     });
     return res.status(500).json({ error: 'Failed to cancel subscription' });
   }
@@ -194,7 +215,7 @@ export const cancelSubscription = async (req: RequestWithUser, res: Response): P
 export const getPricingOptions = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { STRIPE_PRICE_IDS, PLAN_DETAILS } = require('../../config/stripe.js');
-    
+
     const pricingOptions = Object.entries(PLAN_DETAILS).map(([planName, details]: [string, any]) => ({
       planName,
       name: details.name,
