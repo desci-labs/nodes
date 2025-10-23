@@ -82,6 +82,8 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
       } else {
         logger.error({ jobId, uuid, error: message.error }, 'MYST::Worker failed');
       }
+
+      worker.terminate();
     });
 
     worker.on('error', (error) => {
@@ -91,9 +93,9 @@ export const buildAndExportMystRepo = async (req: Request, res: Response) => {
 
     worker.on('exit', (code) => {
       if (code !== 0) {
-        worker.terminate();
         logger.error({ jobId, uuid, code }, 'MYST::Worker exited with non-zero code');
       }
+      worker.terminate();
     });
 
     // Send immediate response
