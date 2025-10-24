@@ -66,7 +66,7 @@ services:
       timeout: 15s
       retries: 10
     ports:
-      - "8545:8545"
+      - "8555:8545"
     env_file:
       - desci-contracts/.env.test
     environment:
@@ -160,8 +160,8 @@ services:
     image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
     restart: no
     ports:
-      - 5101:5101 # RPC
-      - 5102:5102 # flight SQL (> v0.53.0)
+      - 5201:5101 # RPC
+      - 5202:5102 # flight SQL (> v0.53.0)
     environment:
       CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
       CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
@@ -197,12 +197,12 @@ services:
     environment:
       DPID_ENV: local
       OPTIMISM_RPC_URL: http://test_blockchain:8545
-      CERAMIC_FLIGHT_URL: http://ceramic_one_test:5102
+      CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5102
       IPFS_GATEWAY: http://nodes_test_ipfs:8080/ipfs
       CACHE_TTL_ANCHORED: 86400
       CACHE_TTL_PENDING: 300
     ports:
-      - "5460:5460"
+      - "5470:5460"
     healthcheck:
       test: ["CMD", "curl", "--fail-with-body", "http://localhost:5460/healthz"]
       interval: 5s

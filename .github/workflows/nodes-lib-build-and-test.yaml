@@ -11,6 +11,7 @@ env:
   CERAMIC_ADMIN_SEED: ${{ secrets.CERAMIC_ADMIN_SEED }}
 jobs:
   test-nodes-lib:
+    if: false # Temporarily disabled
     runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4

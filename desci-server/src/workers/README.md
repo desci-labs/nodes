@@ -47,6 +47,28 @@ TEST_EMAIL_ADDRESS=your@email.com npm run script:email-reminders
 EMAIL_REMINDER_DRY_RUN=true TEST_EMAIL_ADDRESS=your@email.com npm run script:email-reminders
 ```
 
+**Running Tests:**
+
+Integration tests are available to verify handler logic without sending actual emails:
+
+```bash
+# Run all email reminder tests
+npm test emailReminders.test.ts
+
+# Run specific test suite
+npm test -- -t "checkSciweave14DayInactivity"
+
+# Run with verbose output
+npm test emailReminders.test.ts -- --reporter=verbose
+```
+
+Tests automatically:
+
+- Set up users with exact criteria for each handler
+- Run handlers in DRY_RUN mode
+- Verify users are correctly picked up or skipped
+- Clean up database after each test
+
 **Adding New Reminder Types:**
 
 1. Add a new handler in `emailReminderConfig.ts`:
@@ -64,7 +86,7 @@ const checkMyNewReminder: EmailReminderHandler = {
 };
 ```
 
-2. Add it to the `EMAIL_REMINDER_HANDLERS` array:
+2. Export it and add it to the `EMAIL_REMINDER_HANDLERS` array:
 
 ```typescript
 export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
@@ -74,7 +96,23 @@ export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
 ];
 ```
 
-3. Test locally, then deploy via K8s CronJob
+3. Add tests in `test/integration/emailReminders.test.ts`:
+
+```typescript
+describe('checkMyNewReminder', () => {
+  it('should identify users who match criteria', async () => {
+    // Setup: Create user with exact criteria
+    // Run: const result = await checkMyNewReminder.handler();
+    // Assert: expect(result.sent).toBe(1);
+  });
+
+  it('should skip users who do not match criteria', async () => {
+    // Test negative cases
+  });
+});
+```
+
+4. Test locally with dry run, then deploy via K8s CronJob
 
 **Monitoring:**
 
