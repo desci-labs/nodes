@@ -61,6 +61,7 @@ export const updateJobStatus = async ({
 const cleanup = async (path: string) => {
   if (!path) return;
   try {
+    logger.info({ path }, 'MYST::cleanup::removing path');
     await fs.rm(path, { recursive: true, force: true });
   } catch (error) {
     logger.error({ error }, 'MYST::cleanupError');
@@ -79,69 +80,84 @@ const processMystBuild = async (data: WorkerData) => {
 
   const { archiveDownloadUrl, repo, branch } = parseImportUrlResult.value;
 
-  const zipStream = await zipUrlToStream(archiveDownloadUrl);
   const zipPath = tempRepoZipPath + '/' + repo + '-' + branch + '-' + Date.now() + '.zip';
-
-  let savedFolderPath = '';
+  let savedFolderPath = `${tempRepoZipPath}/${repo}${branch ? '-' + branch : ''}`;
   let totalSize = 0;
   let externalUrlTotalSizeBytes = 0;
-  try {
-    await fs.mkdir(zipPath.replace('.zip', ''), { recursive: true });
-    await saveZipStreamToDisk(zipStream, zipPath);
-    totalSize = await calculateTotalZipUncompressedSize(zipPath);
-    externalUrlTotalSizeBytes = totalSize;
-    await extractZipFileAndCleanup(zipPath, tempRepoZipPath);
-    savedFolderPath = `${tempRepoZipPath}/${repo}${branch ? '-' + branch : ''}`;
-  } catch (error) {
-    logger.error({ error }, 'MYST::Worker::saveAndExtractZipFileError');
-    await updateJobStatus({
-      jobId,
-      uuid,
-      status: 'FAILED',
-      message: error.message || 'Failed to save and extract zip file',
-      desciServerUrl,
-      internalServiceSecret,
-    });
 
-    // Cleanup unzipped repo folder
-    await cleanup(savedFolderPath);
-    await cleanup(zipPath.replace('.zip', ''));
-    throw error;
+  // Check if savedFolderPath already exists
+  const savedFolderExists = await fs
+    .access(savedFolderPath)
+    .then(() => true)
+    .catch(() => false);
+
+  if (!savedFolderExists) {
+    try {
+      const zipStream = await zipUrlToStream(archiveDownloadUrl);
+      await fs.mkdir(zipPath.replace('.zip', ''), { recursive: true });
+      await saveZipStreamToDisk(zipStream, zipPath);
+      totalSize = await calculateTotalZipUncompressedSize(zipPath);
+      externalUrlTotalSizeBytes = totalSize;
+      await extractZipFileAndCleanup(zipPath, tempRepoZipPath, true);
+    } catch (error) {
+      logger.error({ error }, 'MYST::Worker::saveAndExtractZipFileError');
+      await updateJobStatus({
+        jobId,
+        uuid,
+        status: 'FAILED',
+        message: error.message || 'Failed to save and extract zip file',
+        desciServerUrl,
+        internalServiceSecret,
+      });
+
+      // Cleanup unzipped repo folder
+      await cleanup(zipPath.replace('.zip', ''));
+      throw error;
+    }
+  } else {
+    logger.info({ savedFolderPath }, 'MYST::Worker::savedFolderPath already exists, skipping download and extraction');
   }
 
   let buildProcessResult = null;
-  try {
-    logger.info({ savedFolderPath }, 'Building the repo files');
-    // Setup monitored subprocess to run pixi build command
-    const buildProcess = spawn('pixi', ['run', 'build-meca'], {
-      cwd: savedFolderPath,
-      stdio: 'pipe',
-    });
 
-    // Monitor process output
-    buildProcess.stdout.on('data', (data) => {
-      logger.info(`build-meca stdout: ${data}`);
-    });
-
-    buildProcess.stderr.on('data', (data) => {
-      logger.error(`build-meca stderr: ${data}`);
-    });
-
-    // Wait for process to complete
-    buildProcessResult = await new Promise((resolve, reject) => {
-      buildProcess.on('close', (code) => {
-        if (code === 0) {
-          logger.info('build-meca completed successfully');
-          resolve(code);
-        } else {
-          logger.error(`build-meca failed with code ${code}`);
-          reject(code);
-        }
+  // Skip build process if savedFolderPath already exists
+  if (!savedFolderExists) {
+    try {
+      logger.info({ savedFolderPath }, 'Building the repo files');
+      // Setup monitored subprocess to run pixi build command
+      const buildProcess = spawn('pixi', ['run', 'build-meca'], {
+        cwd: savedFolderPath,
+        stdio: 'pipe',
       });
-    });
-  } catch (error) {
-    logger.error({ error }, 'MYST::Worker::buildProcessError');
-    buildProcessResult = error;
+
+      // Monitor process output
+      buildProcess.stdout.on('data', (data) => {
+        logger.info(`build-meca stdout: ${data}`);
+      });
+
+      buildProcess.stderr.on('data', (data) => {
+        logger.error(`build-meca stderr: ${data}`);
+      });
+
+      // Wait for process to complete
+      buildProcessResult = await new Promise((resolve, reject) => {
+        buildProcess.on('close', (code) => {
+          if (code === 0) {
+            logger.info('build-meca completed successfully');
+            resolve(code);
+          } else {
+            logger.error(`build-meca failed with code ${code}`);
+            reject(code);
+          }
+        });
+      });
+    } catch (error) {
+      logger.error({ error }, 'MYST::Worker::buildProcessError');
+      buildProcessResult = error;
+    }
+  } else {
+    logger.info({ savedFolderPath }, 'MYST::Worker::savedFolderPath already exists, skipping build process');
+    buildProcessResult = 0; // Set to success since we're skipping
   }
 
   if (buildProcessResult !== 0) {
@@ -155,7 +171,6 @@ const processMystBuild = async (data: WorkerData) => {
       internalServiceSecret,
     });
 
-    await cleanup(savedFolderPath);
     await cleanup(zipPath.replace('.zip', ''));
 
     throw new Error('Build process failed');
@@ -170,7 +185,18 @@ const processMystBuild = async (data: WorkerData) => {
     // extract manuscript.meca.zip folder
     const mecaExport = parsedDocument.exports.find((entry) => entry.format === 'meca');
     const manuscriptMecaZipPath = path.join(savedFolderPath, mecaExport?.output);
-    await extractZipFileAndCleanup(manuscriptMecaZipPath, manuscriptMecaZipPath.replace('.zip', ''));
+
+    // Check if manuscriptMecaZipPath already exists before extraction
+    const mecaZipExists = await fs
+      .access(manuscriptMecaZipPath.replace('.zip', ''))
+      .then(() => true)
+      .catch(() => false);
+
+    if (!mecaZipExists) {
+      await extractZipFileAndCleanup(manuscriptMecaZipPath, manuscriptMecaZipPath.replace('.zip', ''), true);
+    } else {
+      logger.info({ manuscriptMecaZipPath }, 'MYST::Worker::manuscriptMecaZipPath already exists, skipping extraction');
+    }
 
     const manuscriptExport = parsedDocument.exports.find((entry) => entry.format === 'pdf');
     const pdfExport = parsedDocument.exports.find((entry) => entry.format === 'typst');
@@ -251,10 +277,8 @@ const processMystBuild = async (data: WorkerData) => {
       desciServerUrl,
       internalServiceSecret,
     });
-    throw error;
-  } finally {
-    // Cleanup unzipped repo folder
     await cleanup(savedFolderPath);
+    throw error;
   }
 };
 
