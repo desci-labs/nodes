@@ -79,8 +79,8 @@ if [ "$SKIP_NODES_LIB" != "1" ]; then
     CERAMIC_ADMIN_SEED=$(grep "CERAMIC_ADMIN_SEED" .env | cut -d"=" -f2)
   fi
 
-  CERAMIC_ONE_RPC_URL="http://localhost:5101" PRIVATE_KEY="$CERAMIC_ADMIN_SEED" npx --yes @desci-labs/desci-codex-models deploy
-  CERAMIC_ONE_RPC_URL="http://localhost:5101" npx --yes @desci-labs/desci-codex-models register
+  CERAMIC_ONE_RPC_URL="http://localhost:5201" PRIVATE_KEY="$CERAMIC_ADMIN_SEED" npx --yes @desci-labs/desci-codex-models deploy
+  CERAMIC_ONE_RPC_URL="http://localhost:5201" npx --yes @desci-labs/desci-codex-models register
 
   # 4. Run nodes-lib tests
   echo "🤞 Running nodes-lib tests..."
