@@ -28,7 +28,7 @@ services:
     environment:
       # Conditionally start the server instead of invoking the integration test suite
       RUN_SERVER: ${RUN_SERVER:-0}
-      DPID_URL_OVERRIDE: http://dpid_resolver_test:5470
+      DPID_URL_OVERRIDE: http://dpid_resolver_test:5460
       # This is set in CI but not automatically passed to the container
       GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
     ports:
@@ -140,9 +140,9 @@ services:
     restart: no
     environment:
       NODES_API_URL: http://nodes_backend_test:5421
-      CHAIN_RPC_URL: http://test_blockchain:8555
+      CHAIN_RPC_URL: http://test_blockchain:8545
       CERAMIC_ONE_RPC_URL: http://ceramic_one_test:5101
-      CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5202
+      CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5102
       # This is set in CI but not automatically passed to the container
       GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
     depends_on:
@@ -196,8 +196,8 @@ services:
     #   context: ~/dev/desci/dpid-resolver
     environment:
       DPID_ENV: local
-      OPTIMISM_RPC_URL: http://test_blockchain:8555
-      CERAMIC_FLIGHT_URL: http://ceramic_one_test:5202
+      OPTIMISM_RPC_URL: http://test_blockchain:8545
+      CERAMIC_FLIGHT_URL: http://ceramic_one_test:5102
       IPFS_GATEWAY: http://nodes_test_ipfs:8080/ipfs
       CACHE_TTL_ANCHORED: 86400
       CACHE_TTL_PENDING: 300
