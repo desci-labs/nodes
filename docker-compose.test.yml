@@ -141,7 +141,7 @@ services:
     environment:
       NODES_API_URL: http://nodes_backend_test:5421
       CHAIN_RPC_URL: http://test_blockchain:8555
-      CERAMIC_ONE_RPC_URL: http://ceramic_one_test:5201
+      CERAMIC_ONE_RPC_URL: http://ceramic_one_test:5101
       CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5202
       # This is set in CI but not automatically passed to the container
       GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
