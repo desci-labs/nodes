@@ -23,6 +23,7 @@
     "script:testing": "tsx --inspect=0.0.0.0:9277 ./src/scripts/test-exec.ts",
     "script:backfill-legacy-dpids": "tsx --inspect=0.0.0.0:9277 ./src/scripts/fix-global-legacy-dpids.ts",
     "script:es-index-published-nodes": "tsx --inspect=0.0.0.0:9277 ./src/scripts/index-published-nodes-elastic-search.ts",
+    "script:tsnode-es-index-published-nodes": "debug=* node --inspect=0.0.0.0:9277 --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/index-published-nodes-elastic-search.ts",
     "script:preload-ai-api": "tsx --inspect=0.0.0.0:9277 ./src/scripts/preload-ai-api.ts",
     "script:migrate-draft-trees": "tsx ./src/scripts/migrate-draft-trees.ts",
     "script:endorse-dpid": "tsx ./src/scripts/endorse-dpid.ts",
