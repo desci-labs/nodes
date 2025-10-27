@@ -14,8 +14,8 @@ export const generatePresignedUrlSchema = z.object({
 // Trigger Referee Recommendation Request
 export const triggerRefereeRecommendationSchema = z.object({
   body: z.object({
-    cid: z.string().min(1, 'CID is required'),
-    external: z.boolean().optional().default(false),
+    fileUrl: z.string().min(1, 'fileUrl is required'),
+    fileHash: z.string().min(1, 'fileHash is required').optional(),
     top_n_closely_matching: z.number().int().min(1).max(50).optional().default(5),
     number_referees: z.number().int().min(1).max(50).optional().default(10),
     force_run: z.boolean().optional().default(false),

@@ -1,6 +1,8 @@
+import { ExternalApi } from '@prisma/client';
 import { Response } from 'express';
 import { z } from 'zod';
 
+import { prisma } from '../../../client.js';
 import { sendSuccess, sendError } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
@@ -10,6 +12,7 @@ const logger = parentLogger.child({ module: 'RefereeRecommender::PresignedUrlCon
 
 const generatePresignedUrlSchema = z.object({
   body: z.object({
+    fileHash: z.string().min(1, 'fileHash is required'),
     fileName: z.string().min(1, 'fileName is required'),
   }),
 });
@@ -24,17 +27,51 @@ export const generatePresignedUrl = async (req: AuthenticatedRequest, res: Respo
     }
 
     const { body } = generatePresignedUrlSchema.parse(req);
-    const { fileName } = body;
+    const { fileHash, fileName } = body;
 
     logger.info(
       {
         userId: user.id,
+        fileHash,
         fileName,
       },
-      'Generating presigned URL for referee recommender',
+      'Checking cache and potentially generating presigned URL for referee recommender',
     );
 
-    // Validate file extension (assuming PDFs for now)
+    // First, check if we have cached results for this fileHash
+    const cachedResult = await prisma.externalApiUsage.findFirst({
+      where: {
+        userId: user.id,
+        apiType: ExternalApi.REFEREE_FINDER,
+        queryingData: {
+          path: ['fileHash'],
+          equals: fileHash,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc', // Get the most recent result
+      },
+    });
+
+    if (cachedResult) {
+      logger.info(
+        {
+          userId: user.id,
+          fileHash,
+          cachedResultId: cachedResult.id,
+        },
+        'Found cached results for fileHash',
+      );
+
+      return sendSuccess(res, {
+        cached: true,
+        message: 'Results for this file are already available',
+        resultKey: RefereeRecommenderService.prepareFormattedFileName(fileHash),
+      });
+    }
+
+    // No cached results found, proceed with generating presigned URL
+    // Validate file extension
     if (!fileName.toLowerCase().endsWith('.pdf')) {
       return sendError(res, 'Only PDF files are supported', 400);
     }
@@ -49,7 +86,7 @@ export const generatePresignedUrl = async (req: AuthenticatedRequest, res: Respo
       return sendError(res, 'Failed to generate presigned URL', 500);
     }
 
-    const { presignedUrl, fileName: generatedFileName } = result.value;
+    const { presignedUrl, downloadUrl, fileName: generatedFileName } = result.value;
 
     logger.info(
       {
@@ -60,9 +97,11 @@ export const generatePresignedUrl = async (req: AuthenticatedRequest, res: Respo
     );
 
     return sendSuccess(res, {
+      cached: false,
       presignedUrl,
+      downloadUrl,
       fileName: generatedFileName,
-      expiresIn: 3600, // 1 hour
+      fileHash,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

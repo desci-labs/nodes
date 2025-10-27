@@ -1429,12 +1429,13 @@ model JournalFormResponse {
 }
 
 model ExternalApiUsage {
-  id        Int         @id @default(autoincrement())
-  userId    Int
-  apiType   ExternalApi
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  data      Json?
+  id           Int         @id @default(autoincrement())
+  userId       Int
+  apiType      ExternalApi
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  data         Json? // Can dump additional metadata here
+  queryingData Json? // GIN indexed, important data thats used for querying goes here, avoid dumping random metadata.
 
   // Relationships
   user User @relation(fields: [userId], references: [id])
