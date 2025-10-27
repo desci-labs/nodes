@@ -22,8 +22,6 @@ export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
     const { email, role, inviteTtlDays, name } = req.validatedData.body;
     const inviterId = req.user.id;
 
-    logger.info({ journalId, email, role, inviteTtlDays, inviterId }, 'Attempting to invite editor');
-
     const existingInvite = await prisma.editorInvite.findFirst({
       where: {
         journalId,
@@ -31,9 +29,11 @@ export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
         expiresAt: { gt: new Date() },
       },
     });
-    if (existingInvite) {
-      return sendError(res, 'Editor invite already exists', 409);
-    }
+    logger.info({ journalId, email, existingInvite }, 'Attempting to invite editor');
+
+    // if (existingInvite) {
+    //   return sendError(res, 'Editor invite already exists', 409);
+    // }
 
     const existingEditor = await prisma.journalEditor.findFirst({
       where: {
@@ -43,9 +43,11 @@ export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
         },
       },
     });
-    if (existingEditor) {
-      return sendError(res, 'Editor already exists in this journal', 409);
-    }
+    logger.info({ journalId, email, existingEditor }, 'Attempting to invite editor');
+
+    // if (existingEditor) {
+    //   return sendError(res, 'Editor already exists in this journal', 409);
+    // }
 
     const invite = await JournalInviteService.inviteJournalEditor({
       journalId,
