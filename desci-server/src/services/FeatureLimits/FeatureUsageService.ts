@@ -129,7 +129,7 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
             : SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL;
 
           // Send the email
-          await sendEmail({
+          const sgMessageId = await sendEmail({
             type: emailType,
             payload: {
               email: user.email,
@@ -147,6 +147,7 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
                 feature: Feature.RESEARCH_ASSISTANT,
                 triggeredByUsageId: result.usageId,
                 isStudent,
+                ...(sgMessageId && { sgMessageId }),
               },
             },
           });

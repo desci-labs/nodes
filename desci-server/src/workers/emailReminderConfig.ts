@@ -165,7 +165,7 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
               },
             });
           } else {
-            await sendEmail({
+            const sgMessageId = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
               payload: {
                 email: user.email,
@@ -183,6 +183,7 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
                   planCodename: userLimit.planCodename,
                   feature: userLimit.feature,
                   useLimit: userLimit.useLimit,
+                  ...(sgMessageId && { sgMessageId }),
                 },
               },
             });
@@ -304,7 +305,7 @@ const checkProChatRefresh: EmailReminderHandler = {
               },
             });
           } else {
-            await sendEmail({
+            const sgMessageId = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH,
               payload: {
                 email: user.email,
@@ -325,6 +326,7 @@ const checkProChatRefresh: EmailReminderHandler = {
                   daysSinceStart,
                   isPeriodExpired,
                   isJustRefreshed,
+                  ...(sgMessageId && { sgMessageId }),
                 },
               },
             });
@@ -396,7 +398,7 @@ const testEmailHandler: EmailReminderHandler = {
         });
       }
       // else {
-      await sendEmail({
+      const sgMessageId = await sendEmail({
         type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
         payload: {
           email: TEST_EMAIL,
@@ -405,6 +407,10 @@ const testEmailHandler: EmailReminderHandler = {
         },
       });
       // }
+
+      if (sgMessageId) {
+        logger.info({ sgMessageId }, 'Test email sent with message ID');
+      }
 
       logger.info({ testEmail: TEST_EMAIL, dryRun: isDryRunMode() }, 'Test email sent successfully');
       sent++;
@@ -430,7 +436,6 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
     let sent = 0;
     let skipped = 0;
     let errors = 0;
-
     try {
       const twentyFourHoursAgo = subHours(new Date(), 24);
       const seventyTwoHoursAgo = subHours(new Date(), 72);
@@ -506,7 +511,7 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
           });
 
           // Send follow-up email with coupon
-          await sendEmail({
+          const sgMessageId = await sendEmail({
             type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
             payload: {
               email: user.email,
@@ -528,6 +533,7 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
                 couponCode: coupon.code,
                 couponId: coupon.id,
                 expiresAt: coupon.expiresAt!.toISOString(),
+                ...(sgMessageId && { sgMessageId }),
               },
             },
           });
@@ -639,7 +645,7 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
           });
 
           // Send student discount email
-          await sendEmail({
+          const sgMessageId = await sendEmail({
             type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT,
             payload: {
               email: user.email,
@@ -658,6 +664,7 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
               details: {
                 limitEmailId: limitEmail.id,
                 couponCode: coupon.code,
+                ...(sgMessageId && { sgMessageId }),
               },
             },
           });

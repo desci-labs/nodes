@@ -40,9 +40,15 @@ const logger = parentLogger.child({ module: 'SciweaveEmailService' });
 /**
  * Sends an email using SendGrid for Sciweave
  * @param devLog - Optional object with additional information to log in dev mode
+ * @returns SendGrid message ID if available
  */
-async function sendSciweaveEmail(message: sgMail.MailDataRequired, devLog?: Record<string, string>) {
+async function sendSciweaveEmail(
+  message: sgMail.MailDataRequired,
+  devLog?: Record<string, string>,
+): Promise<string | undefined> {
   try {
+    let messageId: string | undefined;
+
     if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
         process.env.SERVER_URL === 'https://nodes-api.desci.com'
@@ -54,6 +60,11 @@ async function sendSciweaveEmail(message: sgMail.MailDataRequired, devLog?: Reco
       message.subject = `${subjectPrefix} ${message.subject}`;
       const response = await sgMail.send(message);
       logger.trace(response, '[SCIWEAVE_EMAIL]:: Response');
+
+      // Extract message ID from response headers
+      if (response && response[0] && response[0].headers) {
+        messageId = response[0].headers['x-message-id'] as string;
+      }
     } else {
       logger.info({ nodeEnv: process.env.NODE_ENV }, '[SCIWEAVE_EMAIL]::', message.subject);
     }
@@ -66,12 +77,15 @@ async function sendSciweaveEmail(message: sgMail.MailDataRequired, devLog?: Reco
       const BgYellow = '\x1b[43m';
       const BIG_SIGNAL = `\n\n${BgYellow}$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$${Reset}\n\n`;
       logger.info(
-        { devLog },
+        { devLog, messageId },
         `${BIG_SIGNAL}Sciweave Email sent to ${email}\n\n${BgGreen}${message.subject}${Reset}${BIG_SIGNAL}`,
       );
     }
+
+    return messageId;
   } catch (err) {
     logger.error({ err }, '[ERROR]:: SCIWEAVE_EMAIL');
+    return undefined;
   }
 }
 
@@ -85,7 +99,7 @@ async function sendWelcomeEmail({ email, firstName, lastName }: WelcomeEmailPayl
 
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL}`);
-    return;
+    return undefined;
   }
 
   const message = {
@@ -102,7 +116,7 @@ async function sendWelcomeEmail({ email, firstName, lastName }: WelcomeEmailPayl
     },
   };
 
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function sendUpgradeEmail({ email, firstName, lastName }: UpgradeEmailPayload['payload']) {
@@ -110,7 +124,7 @@ async function sendUpgradeEmail({ email, firstName, lastName }: UpgradeEmailPayl
 
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL}`);
-    return;
+    return undefined;
   }
 
   const message = {
@@ -127,7 +141,7 @@ async function sendUpgradeEmail({ email, firstName, lastName }: UpgradeEmailPayl
     },
   };
 
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function sendCancellationEmail({ email, firstName, lastName }: CancellationEmailPayload['payload']) {
@@ -135,7 +149,7 @@ async function sendCancellationEmail({ email, firstName, lastName }: Cancellatio
 
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL}`);
-    return;
+    return undefined;
   }
 
   const message = {
@@ -152,7 +166,7 @@ async function sendCancellationEmail({ email, firstName, lastName }: Cancellatio
     },
   };
 
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function send14DayInactivityEmail({ email, firstName, lastName }: InactivityEmailPayload['payload']) {
@@ -160,7 +174,7 @@ async function send14DayInactivityEmail({ email, firstName, lastName }: Inactivi
 
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY}`);
-    return;
+    return undefined;
   }
 
   const message = {
@@ -177,14 +191,14 @@ async function send14DayInactivityEmail({ email, firstName, lastName }: Inactivi
     },
   };
 
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function sendOutOfChatsInitialEmail({ email, firstName, lastName }: OutOfChatsInitialEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL];
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL}`);
-    return;
+    return undefined;
   }
   const message = {
     to: email,
@@ -195,7 +209,7 @@ async function sendOutOfChatsInitialEmail({ email, firstName, lastName }: OutOfC
       user: { firstName: firstName || '', lastName: lastName || '', email },
     },
   };
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function sendOutOfChatsCtaClickedEmail({
@@ -206,7 +220,7 @@ async function sendOutOfChatsCtaClickedEmail({
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED];
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED}`);
-    return;
+    return undefined;
   }
   const message = {
     to: email,
@@ -217,7 +231,7 @@ async function sendOutOfChatsCtaClickedEmail({
       user: { firstName: firstName || '', lastName: lastName || '', email },
     },
   };
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function sendOutOfChatsNoCtaEmail({
@@ -231,7 +245,7 @@ async function sendOutOfChatsNoCtaEmail({
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA];
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA}`);
-    return;
+    return undefined;
   }
   const message = {
     to: email,
@@ -253,14 +267,14 @@ async function sendOutOfChatsNoCtaEmail({
       }),
     },
   };
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function sendProChatRefreshEmail({ email, firstName, lastName }: ProChatRefreshEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH];
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH}`);
-    return;
+    return undefined;
   }
   const message = {
     to: email,
@@ -271,7 +285,7 @@ async function sendProChatRefreshEmail({ email, firstName, lastName }: ProChatRe
       user: { firstName: firstName || '', lastName: lastName || '', email },
     },
   };
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function sendStudentDiscountEmail({
@@ -284,7 +298,7 @@ async function sendStudentDiscountEmail({
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT];
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT}`);
-    return;
+    return undefined;
   }
   const message = {
     to: email,
@@ -297,7 +311,7 @@ async function sendStudentDiscountEmail({
       percentOff: percentOff || 0,
     },
   };
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 async function sendStudentDiscountLimitReachedEmail({
@@ -308,7 +322,7 @@ async function sendStudentDiscountLimitReachedEmail({
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED];
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED}`);
-    return;
+    return undefined;
   }
   const message = {
     to: email,
@@ -319,7 +333,7 @@ async function sendStudentDiscountLimitReachedEmail({
       user: { firstName: firstName || '', lastName: lastName || '', email },
     },
   };
-  await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, { templateId });
 }
 
 export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
