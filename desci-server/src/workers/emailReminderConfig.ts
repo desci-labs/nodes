@@ -9,7 +9,7 @@ import { Feature, SentEmailType } from '@prisma/client';
 import { subDays, subHours } from 'date-fns';
 
 import { prisma } from '../client.js';
-import { SCIWEAVE_USER_DISCOUNT_PERCENT } from '../config.js';
+import { SCIWEAVE_USER_DISCOUNT_PERCENT, SENDGRID_API_KEY } from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { sendEmail } from '../services/email/email.js';
 import { SciweaveEmailTypes } from '../services/email/sciweaveEmailTypes.js';
@@ -165,7 +165,7 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
               },
             });
           } else {
-            const sgMessageId = await sendEmail({
+            const emailResult = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
               payload: {
                 email: user.email,
@@ -183,7 +183,10 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
                   planCodename: userLimit.planCodename,
                   feature: userLimit.feature,
                   useLimit: userLimit.useLimit,
-                  ...(sgMessageId && { sgMessageId }),
+                  ...(emailResult && {
+                    sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                    internalTrackingId: emailResult.internalTrackingId,
+                  }),
                 },
               },
             });
@@ -305,7 +308,7 @@ const checkProChatRefresh: EmailReminderHandler = {
               },
             });
           } else {
-            const sgMessageId = await sendEmail({
+            const emailResult = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH,
               payload: {
                 email: user.email,
@@ -326,7 +329,10 @@ const checkProChatRefresh: EmailReminderHandler = {
                   daysSinceStart,
                   isPeriodExpired,
                   isJustRefreshed,
-                  ...(sgMessageId && { sgMessageId }),
+                  ...(emailResult && {
+                    sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                    internalTrackingId: emailResult.internalTrackingId,
+                  }),
                 },
               },
             });
@@ -357,6 +363,37 @@ const checkProChatRefresh: EmailReminderHandler = {
     return { sent, skipped, errors };
   },
 };
+
+async function checkClicksForMessage(internalTrackingId: string) {
+  try {
+    debugger;
+    const searchParams = new URLSearchParams({
+      query: `custom_args.internal_tracking_id="${internalTrackingId}"`,
+      limit: '1000',
+    });
+
+    const response = await fetch(`https://api.sendgrid.com/v3/messages?${searchParams}`, {
+      headers: {
+        Authorization: `Bearer ${SENDGRID_API_KEY}`,
+      },
+    });
+
+    if (response.ok) {
+      const searchData = await response.json();
+      if (searchData.messages && searchData.messages.length > 0) {
+        const message = searchData.messages[0];
+        const hasClicks = message.events?.some((event: any) => event.event_name === 'click');
+        return hasClicks;
+      }
+    }
+
+    logger.warn({ internalTrackingId }, 'Could not find message for click tracking');
+    return false;
+  } catch (error) {
+    logger.error({ error, internalTrackingId }, 'Failed to check clicks for message');
+    return false;
+  }
+}
 
 /**
  * TEST HANDLER - Send a test email to verify the system works
@@ -398,7 +435,7 @@ const testEmailHandler: EmailReminderHandler = {
         });
       }
       // else {
-      const sgMessageId = await sendEmail({
+      const emailResult = await sendEmail({
         type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
         payload: {
           email: TEST_EMAIL,
@@ -407,10 +444,18 @@ const testEmailHandler: EmailReminderHandler = {
         },
       });
       // }
-
-      if (sgMessageId) {
-        logger.info({ sgMessageId }, 'Test email sent with message ID');
+      if (emailResult) {
+        logger.info(
+          {
+            sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+            internalTrackingId: emailResult.internalTrackingId,
+          },
+          'Test email sent with tracking IDs',
+        );
       }
+      debugger;
+
+      const hasClicks = emailResult ? await checkClicksForMessage(emailResult.internalTrackingId) : false;
 
       logger.info({ testEmail: TEST_EMAIL, dryRun: isDryRunMode() }, 'Test email sent successfully');
       sent++;
@@ -511,7 +556,7 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
           });
 
           // Send follow-up email with coupon
-          const sgMessageId = await sendEmail({
+          const emailResult = await sendEmail({
             type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
             payload: {
               email: user.email,
@@ -533,7 +578,10 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
                 couponCode: coupon.code,
                 couponId: coupon.id,
                 expiresAt: coupon.expiresAt!.toISOString(),
-                ...(sgMessageId && { sgMessageId }),
+                ...(emailResult && {
+                  sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                  internalTrackingId: emailResult.internalTrackingId,
+                }),
               },
             },
           });
@@ -645,7 +693,7 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
           });
 
           // Send student discount email
-          const sgMessageId = await sendEmail({
+          const emailResult = await sendEmail({
             type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT,
             payload: {
               email: user.email,
@@ -664,7 +712,10 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
               details: {
                 limitEmailId: limitEmail.id,
                 couponCode: coupon.code,
-                ...(sgMessageId && { sgMessageId }),
+                ...(emailResult && {
+                  sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                  internalTrackingId: emailResult.internalTrackingId,
+                }),
               },
             },
           });

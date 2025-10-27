@@ -40,14 +40,15 @@ const logger = parentLogger.child({ module: 'SciweaveEmailService' });
 /**
  * Sends an email using SendGrid for Sciweave
  * @param devLog - Optional object with additional information to log in dev mode
- * @returns SendGrid message ID if available
+ * @returns Object containing SendGrid message ID prefix and internal tracking ID
  */
 async function sendSciweaveEmail(
   message: sgMail.MailDataRequired,
   devLog?: Record<string, string>,
-): Promise<string | undefined> {
+): Promise<{ sgMessageIdPrefix?: string; internalTrackingId: string } | undefined> {
   try {
-    let messageId: string | undefined;
+    let sgMessageIdPrefix: string | undefined;
+    const internalTrackingId = `sciweave_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
     if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
@@ -58,12 +59,19 @@ async function sendSciweaveEmail(
             : '[local-sciweave]';
 
       message.subject = `${subjectPrefix} ${message.subject}`;
+
+      // Add internal tracking ID
+      message.customArgs = {
+        ...message.customArgs,
+        internal_tracking_id: internalTrackingId,
+      };
+
       const response = await sgMail.send(message);
       logger.trace(response, '[SCIWEAVE_EMAIL]:: Response');
-
-      // Extract message ID from response headers
+      debugger;
+      // Extract message ID from response headers (partial ID)
       if (response && response[0] && response[0].headers) {
-        messageId = response[0].headers['x-message-id'] as string;
+        sgMessageIdPrefix = response[0].headers['x-message-id'] as string;
       }
     } else {
       logger.info({ nodeEnv: process.env.NODE_ENV }, '[SCIWEAVE_EMAIL]::', message.subject);
@@ -77,12 +85,12 @@ async function sendSciweaveEmail(
       const BgYellow = '\x1b[43m';
       const BIG_SIGNAL = `\n\n${BgYellow}$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$${Reset}\n\n`;
       logger.info(
-        { devLog, messageId },
+        { devLog, sgMessageIdPrefix, internalTrackingId },
         `${BIG_SIGNAL}Sciweave Email sent to ${email}\n\n${BgGreen}${message.subject}${Reset}${BIG_SIGNAL}`,
       );
     }
 
-    return messageId;
+    return { sgMessageIdPrefix, internalTrackingId };
   } catch (err) {
     logger.error({ err }, '[ERROR]:: SCIWEAVE_EMAIL');
     return undefined;
