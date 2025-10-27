@@ -1,9 +1,10 @@
-import { Organization, User } from '@prisma/client';
+import { Organization, SentEmailType, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { sendEmail } from '../../services/email/email.js';
+import { hasEmailBeenSent, recordSentEmail } from '../../services/email/helpers.js';
 import { SciweaveEmailTypes } from '../../services/email/sciweaveEmailTypes.js';
 import { getUserNameById } from '../../services/user.js';
 
@@ -137,14 +138,20 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       throw error;
     }
 
-    
     if (body.isNewSciweaveUser) {
-      
-      const { firstName, lastName } = await getUserNameById(user.id); // ID variant for refreshed name, instead of user obj.
-      await sendEmail({
-        type: SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL,
-        payload: { email: user.email, firstName, lastName },
-      });
+      const alreadySent = await hasEmailBeenSent(SentEmailType.SCIWEAVE_WELCOME_EMAIL, user.id);
+
+      if (!alreadySent) {
+        const { firstName, lastName } = await getUserNameById(user.id); // ID variant for refreshed name, instead of user obj.
+        await sendEmail({
+          type: SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL,
+          payload: { email: user.email, firstName, lastName },
+        });
+
+        await recordSentEmail(SentEmailType.SCIWEAVE_WELCOME_EMAIL, user.id);
+      } else {
+        logger.debug({ userId: user.id }, 'Welcome email already sent, skipping');
+      }
     }
 
     return res.send({ ok: true });
@@ -153,4 +160,3 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     return res.status(500).send({ ok: false, error });
   }
 };
-
