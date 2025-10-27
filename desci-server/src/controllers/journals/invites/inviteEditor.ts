@@ -48,7 +48,7 @@ export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
         userId: exisitingUser?.id,
       },
     });
-    logger.info({ journalId, email, existingEditor }, 'Attempting to invite editor');
+    logger.info({ journalId, email, exisitingUser, existingEditor }, 'Attempting to invite editor');
 
     // if (existingEditor) {
     //   return sendError(res, 'Editor already exists in this journal', 409);
