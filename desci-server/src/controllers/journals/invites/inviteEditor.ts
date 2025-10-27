@@ -35,12 +35,17 @@ export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
     //   return sendError(res, 'Editor invite already exists', 409);
     // }
 
+    const exisitingUser = await prisma.user.findFirst({
+      where: {
+        email: email.toLowerCase(),
+      },
+    });
+    logger.info({ journalId, email, exisitingUser }, 'Attempting to invite editor');
+
     const existingEditor = await prisma.journalEditor.findFirst({
       where: {
         journalId,
-        user: {
-          email: email.toLowerCase(),
-        },
+        userId: exisitingUser?.id,
       },
     });
     logger.info({ journalId, email, existingEditor }, 'Attempting to invite editor');
