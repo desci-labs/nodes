@@ -142,6 +142,7 @@
     "stripe": "^18.5.0",
     "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.1",
+    "ts-node": "^10.9.2",
     "tsx": "^4.20.5",
     "url-safe-base64": "1.2.0",
     "uuid": "^8.3.2",
