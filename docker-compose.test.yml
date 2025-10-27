@@ -197,7 +197,7 @@ services:
     environment:
       DPID_ENV: local
       OPTIMISM_RPC_URL: http://test_blockchain:8545
-      CERAMIC_ONE_FLIGHT_URL: http://ceramic_one_test:5102
+      CERAMIC_FLIGHT_URL: http://ceramic_one_test:5102
       IPFS_GATEWAY: http://nodes_test_ipfs:8080/ipfs
       CACHE_TTL_ANCHORED: 86400
       CACHE_TTL_PENDING: 300
