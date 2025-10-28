@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { raw } from 'express';
-import { handleStripeWebhook } from '../../controllers/stripe/webhook.js';
+
 import {
   createSubscriptionCheckout,
   createCustomerPortal,
@@ -9,6 +9,7 @@ import {
   cancelSubscription,
   getPricingOptions,
 } from '../../controllers/stripe/subscription.js';
+import { handleStripeWebhook } from '../../controllers/stripe/webhook.js';
 import { ensureUser } from '../../middleware/permissions.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { requireStripe } from '../../utils/stripe.js';

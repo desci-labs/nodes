@@ -1548,6 +1548,23 @@ model ImportTaskQueue {
   node           Node                  @relation(fields: [nodeUuid], references: [uuid])
 }
 
+model SentEmail {
+  id                 Int           @id @default(autoincrement())
+  userId             Int
+  emailType          SentEmailType
+  internalTrackingId String? // internal tracking ID for webhook correlation
+  details            Json? // Extra context like submissionId, reviewId, etc.
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([internalTrackingId])
+  @@index([internalTrackingId, emailType])
+  @@index([userId, emailType])
+  @@index([userId, emailType, createdAt])
+}
+
 enum ImportTaskQueueStatus {
   PENDING
   IN_PROGRESS
@@ -1928,18 +1945,4 @@ enum SentEmailType {
   // Journal/Review emails
   REFEREE_REVIEW_REMINDER
   OVERDUE_REVIEW_ALERT
-}
-
-model SentEmail {
-  id        Int           @id @default(autoincrement())
-  userId    Int
-  emailType SentEmailType
-  details   Json? // Extra context like submissionId, reviewId, etc.
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId, emailType])
-  @@index([userId, emailType, createdAt])
 }
