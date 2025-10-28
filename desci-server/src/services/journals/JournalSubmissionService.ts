@@ -149,6 +149,19 @@ async function getJournalSubmissions(
           completedAt: true,
         },
       },
+      RefereeInvite: {
+        select: {
+          id: true,
+          accepted: true,
+          acceptedAt: true,
+          declined: true,
+          declinedAt: true,
+          expiresAt: true,
+          createdAt: true,
+          email: true,
+          name: true,
+        },
+      },
     },
   });
 }

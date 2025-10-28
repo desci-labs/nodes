@@ -1,5 +1,6 @@
 import { DriveObject } from '@desci-labs/desci-models';
 import { EditorRole, JournalEventLogAction, JournalSubmission, Prisma, SubmissionStatus } from '@prisma/client';
+import { isAfter } from 'date-fns';
 import { Response } from 'express';
 
 import { prisma } from '../../../client.js';
@@ -121,11 +122,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     let orderBy: Prisma.JournalSubmissionOrderByWithRelationInput;
     if (sortBy) {
-      if (sortBy === 'newest') {
-        orderBy = {
-          submittedAt: sortOrder,
-        };
-      } else if (sortBy === 'oldest') {
+      if (sortBy === 'date') {
         orderBy = {
           submittedAt: sortOrder,
         };
@@ -136,10 +133,9 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
           },
         };
       }
-      // TODO: order by impact
     }
 
-    logger.trace({ filter, orderBy, offset, limit }, 'listJournalSubmissionsController::filter');
+    logger.trace({ filter, payload: req.validatedData }, 'listJournalSubmissionsController::filter');
 
     if (role === EditorRole.CHIEF_EDITOR) {
       submissions = await journalSubmissionService.getJournalSubmissions(journalId, filter, orderBy, offset, limit);
@@ -182,6 +178,20 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
             referee: review.referee?.name,
             dueDate: review.dueDate,
           })),
+        refereeInvites: submission.RefereeInvite.filter(
+          (invite) => isAfter(new Date(), invite.expiresAt) && !invite.accepted && !invite.declined,
+        ).map((invite) => ({
+          id: invite.id,
+          email: invite.email,
+          name: invite.name,
+          accepted: invite.accepted,
+          acceptedAt: invite.acceptedAt,
+          declined: invite.declined,
+          declinedAt: invite.declinedAt,
+          expiresAt: invite.expiresAt,
+          invitedAt: invite.createdAt,
+        })),
+        RefereeInvite: void 0,
         refereeAssignments: void 0,
         title: submission.node.title,
         node: undefined,
