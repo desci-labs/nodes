@@ -30,16 +30,18 @@ interface SendGridEvent {
   [key: string]: any;
 }
 
-function verifySignature(publicKey: string, payload: string, signature: string, timestamp: string): boolean {
+function verifySignature(publicKey: string, payloadBuffer: Buffer, signature: string, timestamp: string): boolean {
   try {
-    const timestampPayload = timestamp + payload;
-    const decodedSignature = Buffer.from(signature, 'base64');
+    // Build message as Buffer concatenation to preserve exact bytes
+    const timestampBuffer = Buffer.from(timestamp, 'utf8');
+    const message = Buffer.concat([timestampBuffer, payloadBuffer]);
+    const signatureBuffer = Buffer.from(signature, 'base64');
 
-    // Create verifier
+    // Create verifier and update with the raw Buffer
     const verifier = crypto.createVerify('sha256');
-    verifier.update(timestampPayload, 'utf8');
+    verifier.update(message);
 
-    return verifier.verify(publicKey, decodedSignature);
+    return verifier.verify(publicKey, signatureBuffer);
   } catch (error) {
     logger.error({ error }, 'Error verifying SendGrid signature');
     return false;
@@ -58,8 +60,9 @@ export const handleSendGridWebhook = async (req: Request, res: Response): Promis
         return res.status(400).json({ error: 'Missing required headers' });
       }
 
-      const payload = JSON.stringify(req.body);
-      const isValid = verifySignature(SENDGRID_WEBHOOK_VERIFY_KEY, payload, signature, timestamp);
+      // Get raw payload buffer - req.body should be a Buffer from raw() middleware
+      const payloadBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body), 'utf8');
+      const isValid = verifySignature(SENDGRID_WEBHOOK_VERIFY_KEY, payloadBuffer, signature, timestamp);
 
       if (!isValid) {
         logger.error('SendGrid webhook signature verification failed');
@@ -67,7 +70,9 @@ export const handleSendGridWebhook = async (req: Request, res: Response): Promis
       }
     }
 
-    const events: SendGridEvent[] = Array.isArray(req.body) ? req.body : [req.body];
+    // Parse body if it's a Buffer from raw() middleware
+    const parsedBody = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
+    const events: SendGridEvent[] = Array.isArray(parsedBody) ? parsedBody : [parsedBody];
 
     logger.info(`Processing ${events.length} SendGrid webhook events`);
 
