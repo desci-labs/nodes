@@ -68,7 +68,7 @@ async function sendSciweaveEmail(
 
       const response = await sgMail.send(message);
       logger.trace(response, '[SCIWEAVE_EMAIL]:: Response');
-      debugger;
+
       // Extract message ID from response headers (partial ID)
       if (response && response[0] && response[0].headers) {
         sgMessageIdPrefix = response[0].headers['x-message-id'] as string;
@@ -224,6 +224,9 @@ async function sendOutOfChatsCtaClickedEmail({
   email,
   firstName,
   lastName,
+  couponCode,
+  percentOff,
+  expiresAt,
 }: OutOfChatsCtaClickedEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED];
   if (!templateId) {
@@ -237,6 +240,9 @@ async function sendOutOfChatsCtaClickedEmail({
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
       user: { firstName: firstName || '', lastName: lastName || '', email },
+      couponCode,
+      percentOff,
+      expiresAt: expiresAt.toISOString(),
     },
   };
   return await sendSciweaveEmail(message, { templateId });
@@ -367,6 +373,6 @@ export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
     case SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED:
       return sendStudentDiscountLimitReachedEmail(props.payload);
     default:
-      assertNever(props);
+      return assertNever(props);
   }
 };

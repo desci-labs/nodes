@@ -179,14 +179,19 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
               data: {
                 userId: user.id,
                 emailType: SentEmailType.SCIWEAVE_14_DAY_INACTIVITY,
+                ...(emailResult &&
+                  emailResult.internalTrackingId && {
+                    internalTrackingId: emailResult.internalTrackingId,
+                  }),
+
                 details: {
                   planCodename: userLimit.planCodename,
                   feature: userLimit.feature,
                   useLimit: userLimit.useLimit,
-                  ...(emailResult && {
-                    sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
-                    internalTrackingId: emailResult.internalTrackingId,
-                  }),
+                  ...(emailResult &&
+                    emailResult.sgMessageIdPrefix && {
+                      sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                    }),
                 },
               },
             });
@@ -322,6 +327,10 @@ const checkProChatRefresh: EmailReminderHandler = {
               data: {
                 userId: user.id,
                 emailType: SentEmailType.SCIWEAVE_PRO_CHAT_REFRESH,
+                ...(emailResult &&
+                  emailResult.internalTrackingId && {
+                    internalTrackingId: emailResult.internalTrackingId,
+                  }),
                 details: {
                   planCodename: userLimit.planCodename,
                   feature: userLimit.feature,
@@ -329,10 +338,10 @@ const checkProChatRefresh: EmailReminderHandler = {
                   daysSinceStart,
                   isPeriodExpired,
                   isJustRefreshed,
-                  ...(emailResult && {
-                    sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
-                    internalTrackingId: emailResult.internalTrackingId,
-                  }),
+                  ...(emailResult &&
+                    emailResult.sgMessageIdPrefix && {
+                      sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                    }),
                 },
               },
             });
@@ -363,37 +372,6 @@ const checkProChatRefresh: EmailReminderHandler = {
     return { sent, skipped, errors };
   },
 };
-
-async function checkClicksForMessage(internalTrackingId: string) {
-  try {
-    debugger;
-    const searchParams = new URLSearchParams({
-      query: `custom_args.internal_tracking_id="${internalTrackingId}"`,
-      limit: '1000',
-    });
-
-    const response = await fetch(`https://api.sendgrid.com/v3/messages?${searchParams}`, {
-      headers: {
-        Authorization: `Bearer ${SENDGRID_API_KEY}`,
-      },
-    });
-
-    if (response.ok) {
-      const searchData = await response.json();
-      if (searchData.messages && searchData.messages.length > 0) {
-        const message = searchData.messages[0];
-        const hasClicks = message.events?.some((event: any) => event.event_name === 'click');
-        return hasClicks;
-      }
-    }
-
-    logger.warn({ internalTrackingId }, 'Could not find message for click tracking');
-    return false;
-  } catch (error) {
-    logger.error({ error, internalTrackingId }, 'Failed to check clicks for message');
-    return false;
-  }
-}
 
 /**
  * TEST HANDLER - Send a test email to verify the system works
@@ -444,18 +422,6 @@ const testEmailHandler: EmailReminderHandler = {
         },
       });
       // }
-      if (emailResult) {
-        logger.info(
-          {
-            sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
-            internalTrackingId: emailResult.internalTrackingId,
-          },
-          'Test email sent with tracking IDs',
-        );
-      }
-      debugger;
-
-      const hasClicks = emailResult ? await checkClicksForMessage(emailResult.internalTrackingId) : false;
 
       logger.info({ testEmail: TEST_EMAIL, dryRun: isDryRunMode() }, 'Test email sent successfully');
       sent++;
@@ -472,10 +438,10 @@ const testEmailHandler: EmailReminderHandler = {
  * All configured email reminder handlers
  * Add your handlers to this array
  */
-// 24-hour follow-up: OUT_OF_CHATS_NO_CTA (non-students) with 48hr coupon
+// 24-hour follow-up: Check CTA click status and send appropriate email: SCIWEAVE_OUT_OF_CHATS_NO_CTA or SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED
 const checkOutOfChatsFollowUp: EmailReminderHandler = {
-  name: 'Out of Chats Follow-Up (Non-Students)',
-  description: 'Send 48hr coupon to non-students 24hrs after hitting limit',
+  name: 'Out of Chats Follow-Up (Non-Students, CTA-based)',
+  description: 'Send follow-up email based on CTA click status 24hrs after hitting limit for non-students',
   enabled: true,
   handler: async () => {
     let sent = 0;
@@ -521,11 +487,13 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
             continue;
           }
 
-          // Check if we already sent the follow-up email
+          // Check if we already sent any follow-up email (either type)
           const existingFollowUp = await prisma.sentEmail.findFirst({
             where: {
               userId: user.id,
-              emailType: SentEmailType.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
+              emailType: {
+                in: [SentEmailType.SCIWEAVE_OUT_OF_CHATS_NO_CTA, SentEmailType.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED],
+              },
             },
           });
 
@@ -535,13 +503,19 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
             continue;
           }
 
+          // Check if user clicked the CTA in the initial email
+          const ctaClicked = (initialEmail.details as any)?.ctaClicked === true;
+          const emailTypeToSend = ctaClicked
+            ? SentEmailType.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED
+            : SentEmailType.SCIWEAVE_OUT_OF_CHATS_NO_CTA;
+
           if (isDryRunMode()) {
             recordDryRunEmail({
               userId: user.id,
               email: user.email,
-              emailType: 'SCIWEAVE_OUT_OF_CHATS_NO_CTA',
-              handlerName: 'Out of Chats Follow-Up (Non-Students)',
-              details: { initialEmailId: initialEmail.id },
+              emailType: ctaClicked ? 'SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED' : 'SCIWEAVE_OUT_OF_CHATS_NO_CTA',
+              handlerName: 'Out of Chats Follow-Up (CTA-based)',
+              details: { initialEmailId: initialEmail.id, ctaClicked },
             });
             sent++;
             continue;
@@ -552,41 +526,73 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
             percentOff: SCIWEAVE_USER_DISCOUNT_PERCENT,
             userId: user.id,
             email: user.email,
-            emailType: 'SCIWEAVE_OUT_OF_CHATS_NO_CTA',
+            emailType: ctaClicked ? 'SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED' : 'SCIWEAVE_OUT_OF_CHATS_NO_CTA',
           });
 
-          // Send follow-up email with coupon
-          const emailResult = await sendEmail({
-            type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
-            payload: {
-              email: user.email,
-              firstName: user.firstName || undefined,
-              lastName: user.lastName || undefined,
-              couponCode: coupon.code,
-              percentOff: coupon.percentOff || SCIWEAVE_USER_DISCOUNT_PERCENT,
-              expiresAt: coupon.expiresAt!,
-            },
-          });
+          let emailResult;
+
+          if (ctaClicked) {
+            // Send CTA clicked follow-up email with coupon
+            emailResult = await sendEmail({
+              type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED,
+              payload: {
+                email: user.email,
+                firstName: user.firstName || undefined,
+                lastName: user.lastName || undefined,
+                couponCode: coupon.code,
+                percentOff: coupon.percentOff || SCIWEAVE_USER_DISCOUNT_PERCENT,
+                expiresAt: coupon.expiresAt!,
+              },
+            });
+          } else {
+            // Send follow-up email with coupon for users who didn't click CTA
+            emailResult = await sendEmail({
+              type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
+              payload: {
+                email: user.email,
+                firstName: user.firstName || undefined,
+                lastName: user.lastName || undefined,
+                couponCode: coupon.code,
+                percentOff: coupon.percentOff || SCIWEAVE_USER_DISCOUNT_PERCENT,
+                expiresAt: coupon.expiresAt!,
+              },
+            });
+          }
 
           // Record that we sent this email
+          const emailDetails: any = {
+            initialEmailId: initialEmail.id,
+            ctaClicked,
+            couponCode: coupon.code,
+            couponId: coupon.id,
+            expiresAt: coupon.expiresAt!.toISOString(),
+            ...(emailResult &&
+              emailResult.sgMessageIdPrefix && {
+                sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+              }),
+          };
+
           await prisma.sentEmail.create({
             data: {
               userId: user.id,
-              emailType: SentEmailType.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
-              details: {
-                initialEmailId: initialEmail.id,
-                couponCode: coupon.code,
-                couponId: coupon.id,
-                expiresAt: coupon.expiresAt!.toISOString(),
-                ...(emailResult && {
-                  sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+              emailType: emailTypeToSend,
+              ...(emailResult &&
+                emailResult.internalTrackingId && {
                   internalTrackingId: emailResult.internalTrackingId,
                 }),
-              },
+              details: emailDetails,
             },
           });
 
-          logger.info({ userId: user.id, couponCode: coupon.code }, 'Sent out-of-chats follow-up email');
+          logger.info(
+            {
+              userId: user.id,
+              emailType: emailTypeToSend,
+              ctaClicked,
+              couponCode: coupon.code,
+            },
+            'Sent out-of-chats follow-up email',
+          );
           sent++;
         } catch (err) {
           logger.error({ err, userId: user.id }, 'Failed to process follow-up email for user');
@@ -709,13 +715,17 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
             data: {
               userId: user.id,
               emailType: SentEmailType.SCIWEAVE_STUDENT_DISCOUNT,
+              ...(emailResult &&
+                emailResult.internalTrackingId && {
+                  internalTrackingId: emailResult.internalTrackingId,
+                }),
               details: {
                 limitEmailId: limitEmail.id,
                 couponCode: coupon.code,
-                ...(emailResult && {
-                  sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
-                  internalTrackingId: emailResult.internalTrackingId,
-                }),
+                ...(emailResult &&
+                  emailResult.sgMessageIdPrefix && {
+                    sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                  }),
               },
             },
           });

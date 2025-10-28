@@ -62,6 +62,9 @@ export type OutOfChatsCtaClickedEmailPayload = {
     email: string;
     firstName?: string;
     lastName?: string;
+    couponCode: string; // 48-hour limited coupon
+    percentOff: number;
+    expiresAt: Date;
   };
 };
 
