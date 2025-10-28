@@ -745,7 +745,7 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
                       invitedAt: z.string().describe('Date when the invitation was sent'),
                     }),
                   )
-                  .describe('Array of active referee invitations for this submission'),
+                  .describe('Array of expired referee invitations for this submission'),
               }),
             ),
             meta: z.object({ count: z.number(), limit: z.number(), offset: z.number() }),

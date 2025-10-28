@@ -178,18 +178,22 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
             referee: review.referee?.name,
             dueDate: review.dueDate,
           })),
-        refereeInvites: submission.RefereeInvite.filter(
-          (invite) => isAfter(new Date(), invite.expiresAt) && !invite.accepted && !invite.declined,
-        ).map((invite) => ({
-          id: invite.id,
-          email: invite.email,
-          accepted: invite.accepted,
-          acceptedAt: invite.acceptedAt,
-          declined: invite.declined,
-          declinedAt: invite.declinedAt,
-          expiresAt: invite.expiresAt,
-          invitedAt: invite.createdAt,
-        })),
+        refereeInvites:
+          role === EditorRole.CHIEF_EDITOR || role === EditorRole.ASSOCIATE_EDITOR
+            ? submission.RefereeInvite.filter(
+                (invite) =>
+                  (!invite.expiresAt || isAfter(new Date(), invite.expiresAt)) && !invite.accepted && !invite.declined,
+              ).map((invite) => ({
+                id: invite.id,
+                email: invite.email,
+                accepted: invite.accepted,
+                acceptedAt: invite.acceptedAt,
+                declined: invite.declined,
+                declinedAt: invite.declinedAt,
+                expiresAt: invite.expiresAt,
+                invitedAt: invite.createdAt,
+              }))
+            : [],
         RefereeInvite: void 0,
         refereeAssignments: void 0,
         title: submission.node.title,
