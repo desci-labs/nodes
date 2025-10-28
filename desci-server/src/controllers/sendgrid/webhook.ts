@@ -134,17 +134,14 @@ async function processEvent(event: SendGridEvent) {
   }
 
   // Check if we've already recorded a click (idempotent)
-  const currentDetails = emailRecord.details as any;
+  const currentDetails = (emailRecord.details ?? {}) as Record<string, any>;
 
   if (currentDetails?.ctaClicked) {
     logger.debug({ internal_tracking_id }, 'CTA click already recorded, skipping');
     return;
   }
 
-  const updatedDetails = {
-    ...currentDetails,
-    ctaClicked: true,
-  };
+  const updatedDetails = { ...(currentDetails || {}), ctaClicked: true };
 
   // Update to track that CTA was clicked
   await prisma.sentEmail.update({
