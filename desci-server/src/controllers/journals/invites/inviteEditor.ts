@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Response } from 'express';
 import _ from 'lodash';
 
+import { prisma } from '../../../client.js';
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
@@ -21,7 +22,37 @@ export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
     const { email, role, inviteTtlDays, name } = req.validatedData.body;
     const inviterId = req.user.id;
 
-    logger.info({ journalId, email, role, inviteTtlDays, inviterId }, 'Attempting to invite editor');
+    const existingInvite = await prisma.editorInvite.findFirst({
+      where: {
+        journalId,
+        email: email.toLowerCase(),
+        expiresAt: { gt: new Date() },
+      },
+    });
+    logger.info({ journalId, email, existingInvite }, 'Attempting to invite editor');
+
+    // if (existingInvite) {
+    //   return sendError(res, 'Editor invite already exists', 409);
+    // }
+
+    const exisitingUser = await prisma.user.findFirst({
+      where: {
+        email: email.toLowerCase(),
+      },
+    });
+    logger.info({ journalId, email, exisitingUser }, 'Attempting to invite editor');
+
+    const existingEditor = await prisma.journalEditor.findFirst({
+      where: {
+        journalId,
+        userId: exisitingUser?.id,
+      },
+    });
+    logger.info({ journalId, email, exisitingUser, existingEditor }, 'Attempting to invite editor');
+
+    // if (existingEditor) {
+    //   return sendError(res, 'Editor already exists in this journal', 409);
+    // }
 
     const invite = await JournalInviteService.inviteJournalEditor({
       journalId,

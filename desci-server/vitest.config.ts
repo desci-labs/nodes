@@ -1,3 +1,5 @@
+import { config } from 'dotenv';
+config({ path: '../.env.test' });
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig(() => ({
@@ -14,6 +16,7 @@ export default defineConfig(() => ({
     //fileParallelism: false,
     // Only show console output for failed tests
     silent: 'passed-only',
+    disableConsoleIntercept: true,
     pool: 'forks',
     poolOptions: {
       forks: {

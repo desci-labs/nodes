@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "tsx src/index.ts",
+    "scanLegacyRegistries": "tsx src/scanLegacyRegistries.ts",
+    "scanManifests": "tsx src/scanManifests.ts",
     "lint": "prettier . --write && eslint --max-warnings 0 --fix ."
   },
   "keywords": [],
   "author": "Edvard Hübinette",
   "license": "MIT",
-  "description": "Scan legacy dPID registry to find dPID data",
+  "description": "Utilities for scanning the dPID registries",
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@types/node": "^20.17.12",

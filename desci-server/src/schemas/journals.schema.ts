@@ -138,6 +138,7 @@ export const resendEditorInviteSchema = z.object({
 export const createJournalSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Journal name cannot be empty.'),
+    slug: z.string().optional().describe('The slug of the journal'),
     description: z.string().optional(),
     iconCid: z.string().optional(),
   }),
@@ -177,6 +178,7 @@ export const updateJournalSchema = z.object({
   }),
   body: z.object({
     name: z.string().min(1, 'Journal name cannot be empty.').optional(),
+    slug: z.string().optional().describe('The slug of the journal'),
     description: z.string().optional(),
     iconCid: z.string().optional(),
   }),
@@ -221,6 +223,20 @@ export const listJournalSubmissionsSchema = z.object({
       .describe('The field to sort the submissions by'),
     sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('The order to sort the submissions by'),
     impact: z.enum(['high', 'medium', 'low']).optional().describe('The impact of the submissions to return'),
+  }),
+});
+
+export const submissionStatusCountSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal'),
+  }),
+  query: z.object({
+    startDate: z.coerce.date().optional().describe('The start date of the submissions to return'),
+    endDate: z.coerce.date().optional().describe('The end date of the submissions to return'),
+    assignedToMe: z.coerce
+      .boolean()
+      .nullable()
+      .describe('If true, only submissions assigned to the current user as an editor will be returned'),
   }),
 });
 
@@ -679,7 +695,7 @@ export const getJournalAnalyticsSchema = z.object({
   }),
 });
 
-export const showUrgentSubmissionsSchema = z.object({
+export const getSubmissionsSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal to get urgent submissions for'),
   }),

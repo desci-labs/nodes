@@ -77,6 +77,7 @@ export type JournalEditorInvitePayload = {
   role: EditorRole;
   inviterName: string;
   inviterUserId: number;
+  inviteToken: string;
 };
 
 export type SubmissionAssignedToEditorPayload = {

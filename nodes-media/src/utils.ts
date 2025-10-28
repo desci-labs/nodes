@@ -66,7 +66,11 @@ export async function calculateTotalZipUncompressedSize(zipPath: string): Promis
 }
 
 // Extracts a zip file to a given path, deletes the zip, and returns the extracted path.
-export async function extractZipFileAndCleanup(zipFilePath: string, outputDirectory: string): Promise<string> {
+export async function extractZipFileAndCleanup(
+  zipFilePath: string,
+  outputDirectory: string,
+  deleteZip: boolean = true,
+): Promise<string> {
   let extractedPath = '';
   return new Promise((resolve, reject) => {
     yauzl.open(zipFilePath, { lazyEntries: true }, (err, zipfile) => {
@@ -109,9 +113,11 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
           writeStream.on('error', (err) => {
             writeStream.close(); // Ensure the file is closed
             logger.error({ err, zipFilePath }, 'Failed to write stream');
-            fs.promises.unlink(zipFilePath).catch((e) => {
-              logger.error({ e, zipFilePath }, 'Failed to delete zip file');
-            });
+            if (deleteZip) {
+              fs.promises.unlink(zipFilePath).catch((e) => {
+                logger.error({ e, zipFilePath }, 'Failed to delete zip file');
+              });
+            }
             reject(err);
           });
           writeStream.on('finish', () => zipfile.readEntry());
@@ -122,9 +128,13 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
 
       zipfile.on('end', async () => {
         try {
-          // Delete the original zip file.
-          await fs.promises.unlink(zipFilePath);
-          logger.info({ zipFilePath }, 'Done extracting zip file');
+          // Delete the original zip file only if deleteZip is true.
+          if (deleteZip) {
+            await fs.promises.unlink(zipFilePath);
+            logger.info({ zipFilePath }, 'Done extracting zip file and deleted zip');
+          } else {
+            logger.info({ zipFilePath }, 'Done extracting zip file, keeping zip');
+          }
           resolve(extractedPath);
         } catch (error) {
           logger.error({ error, zipFilePath }, 'Failed to extract zip file');
@@ -133,9 +143,11 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
       });
 
       zipfile.on('error', (e) => {
-        fs.promises.unlink(zipFilePath).catch((e) => {
-          logger.error({ e, zipFilePath }, 'Failed to delete zip file');
-        });
+        if (deleteZip) {
+          fs.promises.unlink(zipFilePath).catch((e) => {
+            logger.error({ e, zipFilePath }, 'Failed to delete zip file');
+          });
+        }
         logger.error({ e, zipFilePath }, 'Failed to extract zip file');
         reject(e);
       });

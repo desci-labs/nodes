@@ -65,6 +65,7 @@ model Node {
   DataMigration        DataMigration[]
   dataMigrationId      Int?
   JournalSubmission    JournalSubmission[]
+  ImportTaskQueue      ImportTaskQueue[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -101,6 +102,8 @@ model InteractionLog {
   node       Node?       @relation(fields: [nodeId], references: [id])
   user       User?       @relation(fields: [userId], references: [id])
   waitlist   Waitlist?   @relation(fields: [waitlistId], references: [id])
+
+  @@index([userId, action])
 }
 
 model Session {
@@ -273,8 +276,10 @@ model User {
   ExternalApiUsage       ExternalApiUsage[]
   UserFeatureLimit       UserFeatureLimit[]
   Subscription           Subscription[]
+  SentEmail              SentEmail[]
   PaymentMethod          PaymentMethod[]
   Invoice                Invoice[]
+  ImportTaskQueue        ImportTaskQueue[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1162,6 +1167,7 @@ model DataMigration {
 model Journal {
   id                    Int      @id @default(autoincrement())
   name                  String
+  slug                  String?
   description           String?
   iconCid               String? // URL to icon
   createdAt             DateTime @default(now())
@@ -1206,18 +1212,19 @@ model JournalEditor {
 }
 
 model JournalSubmission {
-  id               Int              @id @default(autoincrement())
-  journalId        Int
-  authorId         Int
-  dpid             Int // Node dPID
-  version          Int // Node version
-  status           SubmissionStatus @default(SUBMITTED)
-  assignedEditorId Int?
-  submittedAt      DateTime         @default(now())
-  acceptedAt       DateTime?
-  rejectedAt       DateTime?
-  doiMintedAt      DateTime?
-  doi              String? // Minted DOI
+  id                  Int              @id @default(autoincrement())
+  journalId           Int
+  authorId            Int
+  dpid                Int // Node dPID
+  version             Int // Node version
+  status              SubmissionStatus @default(SUBMITTED)
+  assignedEditorId    Int?
+  submittedAt         DateTime         @default(now())
+  acceptedAt          DateTime?
+  rejectedAt          DateTime?
+  revisionRequestedAt DateTime?
+  doiMintedAt         DateTime?
+  doi                 String? // Minted DOI
 
   // Relationships
   journal             Journal                     @relation(fields: [journalId], references: [id])
@@ -1349,34 +1356,6 @@ model RefereeInvite {
   invitedBy  User              @relation("InvitedBy", fields: [invitedById], references: [id])
   user       User?             @relation("RefereeUser", fields: [userId], references: [id])
 }
-
-// model JournalSubmissionMessage {
-//   id           Int       @id @default(autoincrement())
-//   submissionId Int
-//   senderId     Int
-//   receiverId   Int
-//   message      String
-//   createdAt    DateTime  @default(now())
-//   readAt       DateTime?
-
-//   // Relationships
-//   submission JournalSubmission @relation(fields: [submissionId], references: [id])
-//   sender     User              @relation("MessageSender", fields: [senderId], references: [id])
-//   receiver   User              @relation("MessageReceiver", fields: [receiverId], references: [id])
-//   User       User?             @relation(fields: [userId], references: [id])
-//   userId     Int?
-// }
-
-// model JournalEmailTemplate { 
-//   id        Int               @id @default(autoincrement())
-//   journalId Int
-//   type      EmailTemplateType
-//   subject   String
-//   body      String     // Don't think this can be expressed in a string in a useful way, maybe a JSON Object, lets deal with this during implementation.
-
-//   // Relationships
-//   journal Journal @relation(fields: [journalId], references: [id])
-// }
 
 model JournalBilling {
   id                Int       @id @default(autoincrement())
@@ -1552,6 +1531,28 @@ model Invoice {
   @@index([userId])
   @@index([subscriptionId])
   @@index([status])
+}
+
+model ImportTaskQueue {
+  id             Int                   @id @default(autoincrement())
+  jobId          String                @unique // The job ID from the external service
+  nodeUuid       String                @unique // The UUID of the node
+  userId         Int
+  url            String
+  status         ImportTaskQueueStatus @default(PENDING)
+  parsedDocument Json? // Store the parsed MyST document
+  attempts       Int?                  @default(0)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  user           User                  @relation(fields: [userId], references: [id])
+  node           Node                  @relation(fields: [nodeUuid], references: [uuid])
+}
+
+enum ImportTaskQueueStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
 }
 
 enum Feature {
@@ -1910,4 +1911,35 @@ enum StripeInvoiceStatus {
   PAID
   UNCOLLECTIBLE
   VOID
+}
+
+enum SentEmailType {
+  // Sciweave emails
+  SCIWEAVE_WELCOME_EMAIL
+  SCIWEAVE_UPGRADE_EMAIL
+  SCIWEAVE_CANCELLATION_EMAIL
+  SCIWEAVE_14_DAY_INACTIVITY
+  SCIWEAVE_OUT_OF_CHATS_INITIAL
+  SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED
+  SCIWEAVE_OUT_OF_CHATS_NO_CTA
+  SCIWEAVE_PRO_CHAT_REFRESH
+  SCIWEAVE_STUDENT_DISCOUNT
+  SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED
+  // Journal/Review emails
+  REFEREE_REVIEW_REMINDER
+  OVERDUE_REVIEW_ALERT
+}
+
+model SentEmail {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  emailType SentEmailType
+  details   Json? // Extra context like submissionId, reviewId, etc.
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, emailType])
+  @@index([userId, emailType, createdAt])
 }

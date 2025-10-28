@@ -1,11 +1,11 @@
 import { SubmissionStatus } from '@prisma/client';
-import { endOfDay, isAfter, startOfDay, isBefore } from 'date-fns';
+import { isBefore } from 'date-fns';
 import { Response } from 'express';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { ValidatedRequest, AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { showUrgentSubmissionsSchema } from '../../../schemas/journals.schema.js';
+import { getSubmissionsSchema } from '../../../schemas/journals.schema.js';
 import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
 import { journalSubmissionService } from '../../../services/journals/JournalSubmissionService.js';
 
@@ -13,15 +13,11 @@ const logger = parentLogger.child({
   module: 'Journals::ShowUrgentJournalSubmissionsController',
 });
 
-type ShowUrgentJournalSubmissionsRequest = ValidatedRequest<typeof showUrgentSubmissionsSchema, AuthenticatedRequest>;
-const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-export const showUrgentJournalSubmissionsController = async (
-  req: ShowUrgentJournalSubmissionsRequest,
-  res: Response,
-) => {
+type PendingSubmissionsRequest = ValidatedRequest<typeof getSubmissionsSchema, AuthenticatedRequest>;
+
+export const getPendingSubmissionsController = async (req: PendingSubmissionsRequest, res: Response) => {
   try {
     const { journalId } = req.validatedData.params;
-    const { startDate, endDate } = req.validatedData.query;
 
     const journal = await JournalManagementService.getJournalById(journalId);
 
@@ -29,32 +25,30 @@ export const showUrgentJournalSubmissionsController = async (
       return sendError(res, 'Journal not found.', 404);
     }
 
-    const from = startDate ? startOfDay(startDate) : null;
-    const to = endDate ? endOfDay(endDate) : null;
-    logger.info({ journalId, userId: req.user?.id, from, to }, 'Attempting to retrieve urgent journal submissions');
-
     const submissions = await journalSubmissionService.getUrgentJournalSubmissions(
       journalId,
       {
         status: { notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED] },
-        ...(from && to
-          ? {
-              submittedAt: { gte: from, lte: to },
-            }
-          : {}),
       },
       20,
     );
 
-    // filter submissions that have referee assignments that are due in the next 7 days
-    const urgentSubmissions = submissions.filter((submission) =>
-      submission.refereeAssignments.some(
-        (assignment) =>
-          isBefore(new Date(), assignment.dueDate) && isAfter(new Date(Date.now() + SEVEN_DAYS), assignment.dueDate),
-      ),
-    );
-    const data = urgentSubmissions.map((submission) => ({
+    const data = submissions.map((submission) => ({
       ...submission,
+      assignedEditor: submission.assignedEditor?.name,
+      reviews: submission.refereeAssignments.map((review) => ({
+        dueDate: review.dueDate,
+        completed: review.completedAssignment,
+        completedAt: review.completedAt,
+        referee: review.referee?.name,
+      })),
+      activeReferees: submission.refereeAssignments.length,
+      refereeInvites: submission.RefereeInvite.map((invite) => ({
+        accepted: invite.accepted,
+        isDue: invite?.expiresAt ? isBefore(invite.expiresAt, new Date()) : false,
+      })),
+      RefereeInvite: void 0,
+      refereeAssignments: void 0,
       title: submission.node.title,
       node: null,
     }));

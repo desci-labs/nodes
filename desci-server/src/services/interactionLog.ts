@@ -6,6 +6,7 @@ import { Request } from 'express';
 import { prisma } from '../client.js';
 import { IS_PRODUCTION } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
+import { UserRole } from '../schemas/users.schema.js';
 import { getUtcDateXDaysAgo } from '../utils/clock.js';
 
 import { mixpanel } from './MixpanelService.js';
@@ -102,6 +103,32 @@ export const getUserQuestionnaireSubmitted = async (userId?: number, appType?: A
       action,
     },
   });
+};
+
+/**
+ * Check if a user identified themselves as a student in the Sciweave questionnaire
+ */
+export const isUserStudentSciweave = async (userId: number): Promise<boolean> => {
+  logger.debug({ fn: 'isUserStudent', userId }, 'interactionLog::isUserStudent');
+
+  const questionnaire = await prisma.interactionLog.findFirst({
+    where: {
+      userId,
+      action: ActionType.SUBMIT_SCIWEAVE_QUESTIONNAIRE,
+    },
+  });
+
+  if (!questionnaire?.extra) {
+    return false;
+  }
+
+  try {
+    const data = JSON.parse(questionnaire.extra) as { role?: string };
+    return data.role === UserRole.STUDENT;
+  } catch (error) {
+    logger.error({ error, userId, extra: questionnaire.extra }, 'Failed to parse questionnaire data');
+    return false;
+  }
 };
 
 export const getUserPublishConsent = async (userId?: number) => {

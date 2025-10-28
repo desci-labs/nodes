@@ -49,6 +49,7 @@ describe('Journal Submission Service', () => {
       data: {
         name: 'Test Journal',
         description: 'Test Description',
+        slug: 'test-journal',
         iconCid: 'test-icon-cid',
         editors: {
           create: {
@@ -289,6 +290,21 @@ describe('Journal Submission Service', () => {
         SubmissionStatus.UNDER_REVIEW,
         SubmissionStatus.ACCEPTED,
       ]);
+    });
+
+    it('can view all submissions by status count', async () => {
+      // Get submissions as associate editor
+      response = await request
+        .get(`/v1/journals/${journal.id}/submissions/status-count`)
+        .set('authorization', `Bearer ${chiefEditor.token}`);
+      expect(response.status).toBe(200);
+      const submissions = response.body.data;
+
+      expect(submissions.new).toBe(1);
+      expect(submissions.assigned).toBe(0);
+      expect(submissions.inReview).toBe(1);
+      expect(submissions.underRevision).toBe(0);
+      expect(submissions.reviewed).toBe(1);
     });
 
     it('can assign submissions to associate editors', async () => {
@@ -635,6 +651,7 @@ describe('Journal Submission Service', () => {
         throw new Error('Failed to create journal');
       }
       journal = result._unsafeUnwrap();
+      expect(journal.slug).toBe('test-journal');
 
       // add associate editor to journal
       await prisma.journalEditor.create({

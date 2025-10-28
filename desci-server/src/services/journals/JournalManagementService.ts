@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import _ from 'lodash';
 import { ok, err, Result } from 'neverthrow';
+import slugifyModule from 'slugify';
 
 import { logger } from '../../logger.js';
 import { FormStructure } from '../../schemas/journalsForm.schema.js';
@@ -17,6 +18,8 @@ import { FormStructure } from '../../schemas/journalsForm.schema.js';
 import { JournalFormService } from './JournalFormService.js';
 
 const prisma = new PrismaClient();
+
+const slugify = slugifyModule.default;
 
 // Default journal settings
 export const DEFAULT_JOURNAL_SETTINGS = {
@@ -209,6 +212,7 @@ export async function getJournalSettingsByIdWithDefaults(journalId: number): Pro
 
 interface CreateJournalInput {
   name: string;
+  slug?: string;
   description?: string;
   iconCid?: string;
   ownerId: number;
@@ -218,6 +222,7 @@ async function createJournal(data: CreateJournalInput): Promise<Result<Journal, 
     const journal = await prisma.journal.create({
       data: {
         name: data.name,
+        slug: data.slug ?? slugify(data.name, { lower: true, strict: true }),
         description: data.description,
         iconCid: data.iconCid,
         settings: DEFAULT_JOURNAL_SETTINGS,
@@ -275,6 +280,7 @@ interface UpdateJournalInput {
   name?: string;
   description?: string;
   iconCid?: string;
+  slug?: string;
 }
 
 async function updateJournal(
@@ -318,6 +324,7 @@ async function updateJournal(
           name: data.name,
           description: data.description,
           iconCid: data.iconCid,
+          slug: data.slug,
         },
       }),
       prisma.journalEventLog.create({
@@ -382,6 +389,7 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
       select: {
         id: true,
         name: true,
+        slug: true,
         description: true,
         iconCid: true,
         createdAt: true,
@@ -592,6 +600,7 @@ async function listJournals(userId?: number): Promise<Result<ListedJournal[], Er
         id: true,
         name: true,
         description: true,
+        slug: true,
         iconCid: true,
         createdAt: true,
         aboutArticle: true,
