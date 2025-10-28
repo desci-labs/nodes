@@ -736,7 +736,6 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
                   .array(
                     z.object({
                       id: z.number().describe('Unique identifier for the referee invitation'),
-                      email: z.string().nullable().describe('Email address of the invited referee'),
                       name: z.string().nullable().describe('Name of the invited referee'),
                       accepted: z.boolean().describe('Whether the invitation has been accepted'),
                       acceptedAt: z.string().nullable().describe('Date when the invitation was accepted'),

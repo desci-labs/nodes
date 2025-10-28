@@ -183,7 +183,6 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
         ).map((invite) => ({
           id: invite.id,
           email: invite.email,
-          name: invite.name,
           accepted: invite.accepted,
           acceptedAt: invite.acceptedAt,
           declined: invite.declined,
