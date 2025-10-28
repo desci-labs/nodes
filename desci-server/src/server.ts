@@ -137,9 +137,9 @@ export class AppServer {
 
     this.app.use(helmet());
 
-    // Skip JSON parsing for Stripe webhook endpoint to preserve raw body for signature verification
+    // Skip JSON parsing for webhook endpoints to preserve raw body for signature verification
     this.app.use((req, res, next) => {
-      if (req.path === '/v1/stripe/webhook') {
+      if (req.path === '/v1/stripe/webhook' || req.path === '/v1/sendgrid/webhook') {
         next();
       } else {
         bodyParser.json({ limit: '100mb' })(req, res, next);

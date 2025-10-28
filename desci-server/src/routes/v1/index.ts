@@ -29,6 +29,7 @@ import openalex from './openalex.js';
 import pub from './pub.js';
 import referral from './referral.js';
 import search from './search.js';
+import sendgrid from './sendgrid.js';
 import services from './services/index.js';
 import stripe from './stripe.js';
 import users from './users.js';
@@ -80,6 +81,7 @@ router.use('/journals', journals);
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
 router.get('/researchFields', [ensureGuestOrUser], queryResearchFields);
+router.use('/sendgrid', sendgrid);
 router.get('/ror', [ensureGuestOrUser], queryRor);
 router.get('/cidmd/:cid', ipfsReadGatewayProxy);
 
