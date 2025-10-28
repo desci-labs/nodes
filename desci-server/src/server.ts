@@ -32,6 +32,7 @@ import { refereeRecommenderSqsHandler } from './services/externalApi/RefereeReco
 import { initializeWebSockets, getIO } from './services/websocketService.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { ImportTaskQueueJob } from './workers/importTaskQueue.js';
+import { SERVER_ENV } from './config/index.js';
 
 const logger = parentLogger.child({
   module: 'server.ts',
@@ -288,13 +289,11 @@ export class AppServer {
       logger.info('[DeSci Nodes] Telemetry enabled');
       Sentry.init({
         dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
+        environment: SERVER_ENV,
         release: 'desci-nodes-server@' + process.env.npm_package_version,
         integrations: [Sentry.prismaIntegration(), nodeProfilingIntegration()],
-        // Set tracesSampleRate to 1.0 to capture 100%
-        // of transactions for performance monitoring.
-        // We recommend adjusting this value in production
-        tracesSampleRate: 1.0,
-        profilesSampleRate: 1.0,
+        tracesSampleRate: 0.1,
+        profilesSampleRate: 0.1,
       });
       Sentry.setupExpressErrorHandler(this.app);
     } else {
