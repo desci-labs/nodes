@@ -1,4 +1,4 @@
-import { SearchTotalHits } from '@elastic/elasticsearch/lib/api/types.js';
+import type { estypes } from '@elastic/elasticsearch';
 
 import { VALID_ENTITIES } from '../../services/ElasticSearchService.js';
 export type Entity = string;
@@ -27,14 +27,14 @@ export interface QuerySuccessResponse extends QueryDebuggingResponse {
   index: (typeof VALID_ENTITIES)[number];
   page: number;
   perPage: number;
-  total: number | SearchTotalHits;
+  total: number | estypes.SearchTotalHits;
   data: any[];
 }
 
 export interface ByMonthQuerySuccessResponse extends QueryDebuggingResponse {
   ok: true;
   index: (typeof VALID_ENTITIES)[number];
-  total: number | SearchTotalHits;
+  total: number | estypes.SearchTotalHits;
   data: any[];
 }
 
