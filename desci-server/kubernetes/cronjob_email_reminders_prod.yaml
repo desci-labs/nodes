@@ -8,7 +8,7 @@ spec:
   # TEMPORARILY SUSPENDED FOR TESTING - Manually trigger with kubectl create job
   # Run every 4 hours (when enabled)
   schedule: '0 */4 * * *'
-  suspend: true # Set to false to enable automatic scheduling
+  suspend: false # Set to false to enable automatic scheduling
   # Prevent overlapping jobs
   concurrencyPolicy: Forbid
   # Keep history for debugging

@@ -21,7 +21,7 @@ export const sendRefereeReviewReminderController = async (req: SendRefereeReview
     logger.info({ submissionId, refereeUserId, editorUserId }, 'Attempting to send referee review reminder');
 
     const result = await JournalRefereeManagementService.sendRefereeReviewReminder({
-      submissionId: parseInt(submissionId),
+      submissionId: Number(submissionId),
       refereeUserId,
       editorUserId,
     });

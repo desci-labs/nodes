@@ -97,6 +97,7 @@ export const openaiDocumentation = createDocument({
     { name: 'OpenAlex', description: 'OpenAlex related operations' },
     { name: 'Authors', description: 'Authors-related operations' },
     { name: 'Search', description: 'Elastic search api operations' },
+    { name: 'Journals', description: 'Journal management, submissions, reviews, and editorial operations' },
   ],
   components: {
     securitySchemes: {
