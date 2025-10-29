@@ -1,8 +1,8 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Node, NodeVersion, Prisma } from '@prisma/client';
+import { Node, Prisma } from '@prisma/client';
 import axios from 'axios';
-import _, { range, sum } from 'lodash';
-import { mean, median } from 'mathjs';
+import _ from 'lodash';
+import { median } from 'mathjs';
 
 import { prisma } from '../client.js';
 import { logger, logger as parentLogger } from '../logger.js';
@@ -16,7 +16,7 @@ import { NodeUuid } from './manifestRepo.js';
 import repoService from './repoService.js';
 
 export async function getDpidFromNode(node: Node, manifest?: ResearchObjectV1): Promise<number | string | undefined> {
-  let dpid: string | number = node.dpidAlias;
+  let dpid: string | number = node.dpidAlias || node.legacyDpid;
   if (!dpid) {
     const manifestCid = node.manifestUrl;
     try {
@@ -37,18 +37,20 @@ export const getNodeByUuid = async (uuid: string) => {
 };
 
 export const getNodeByDpid = async (dpid: number) => {
-  return prisma.node.findUnique({
-    where: { dpidAlias: dpid },
-    select: { uuid: true, dpidAlias: true },
+  return prisma.node.findFirst({
+    where: {
+      OR: [{ dpidAlias: dpid }, { legacyDpid: dpid }],
+    },
+    select: { uuid: true, dpidAlias: true, legacyDpid: true },
   });
 };
 
 export async function getDpidFromNodeUuid(nodeUuid: string): Promise<number | string | undefined> {
   const node = await prisma.node.findUnique({
     where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
-    select: { dpidAlias: true, manifestUrl: true },
+    select: { dpidAlias: true, legacyDpid: true, manifestUrl: true },
   });
-  let dpid: string | number = node.dpidAlias;
+  let dpid: string | number = node.dpidAlias || node.legacyDpid;
   if (!dpid) {
     const manifestCid = node.manifestUrl;
     try {

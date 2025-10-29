@@ -102,7 +102,7 @@ export const list = async (req: UserNodesRequest, res: UserNodesResponse) => {
       const cid = n.versions[0].manifestUrl;
       return {
         ...draftInfo,
-        dpid: n.dpidAlias ?? (await cachedGetDpidFromManifest(cid, gateway)),
+        dpid: n.dpidAlias ?? n.legacyDpid ?? (await cachedGetDpidFromManifest(cid, gateway)),
         versionIx: n.versions.length - 1,
         publishedAt: n.versions[0].createdAt,
         isPublished: true as const,
@@ -127,6 +127,7 @@ export const listAllUserNodes = async (ownerId: number, page: number, size: numb
       title: true,
       createdAt: true,
       dpidAlias: true,
+      legacyDpid: true,
       versions: {
         select: {
           manifestUrl: true,
