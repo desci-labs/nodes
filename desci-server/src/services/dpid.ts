@@ -20,11 +20,14 @@ export interface DpidMetadata {
 }
 
 export async function getDpidMetadata(dpid: number, version?: number): Promise<DpidMetadata> {
-  const node = await prisma.node.findUnique({
-    where: { dpidAlias: dpid },
+  const node = await prisma.node.findFirst({
+    where: {
+      OR: [{ dpidAlias: dpid }, { legacyDpid: dpid }],
+    },
     select: {
       uuid: true,
       dpidAlias: true,
+      legacyDpid: true,
       DoiRecord: {
         select: {
           doi: true,
@@ -34,7 +37,7 @@ export async function getDpidMetadata(dpid: number, version?: number): Promise<D
   });
 
   if (!node) {
-    throw new NotFoundError(`No research object found for DPID: ${dpid}`);
+    throw new NotFoundError(`No node found for dPID ${dpid}`);
   }
 
   const { researchObjects } = await getIndexedResearchObjects([node.uuid]);
@@ -71,7 +74,7 @@ export async function getDpidMetadata(dpid: number, version?: number): Promise<D
     publicationYear: targetVersion.time ? new Date(parseInt(targetVersion.time) * 1000).getFullYear() : undefined,
     publicationDate: pubDate ? `${pubDate[2]}/${pubDate[0]}/${pubDate[1]}` : undefined, // YYYY/MM/DD
     pdfUrl: pdfComponent ? `${IPFS_RESOLVER}/${pdfComponent.payload.cid}` : undefined,
-    dpid: node.dpidAlias,
+    dpid: node.dpidAlias || node.legacyDpid,
     version: targetVersionIndex + 1,
   };
 
