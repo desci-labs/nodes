@@ -45,11 +45,12 @@ const logger = parentLogger.child({ module: 'SciweaveEmailService' });
 async function sendSciweaveEmail(
   message: sgMail.MailDataRequired,
   devLog?: Record<string, string>,
-): Promise<{ sgMessageIdPrefix?: string; internalTrackingId: string } | undefined> {
-  try {
-    let sgMessageIdPrefix: string | undefined;
-    const internalTrackingId = `sciweave_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+): Promise<{ sgMessageIdPrefix?: string; internalTrackingId: string }> {
+  // Generate tracking ID outside try block so it's always available
+  const internalTrackingId = `sciweave_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  let sgMessageIdPrefix: string | undefined;
 
+  try {
     if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
         process.env.SERVER_URL === 'https://nodes-api.desci.com'
@@ -89,12 +90,12 @@ async function sendSciweaveEmail(
         `${BIG_SIGNAL}Sciweave Email sent to ${email}\n\n${BgGreen}${message.subject}${Reset}${BIG_SIGNAL}`,
       );
     }
-
-    return { sgMessageIdPrefix, internalTrackingId };
   } catch (err) {
-    logger.error({ err }, '[ERROR]:: SCIWEAVE_EMAIL');
-    return undefined;
+    logger.error({ err, internalTrackingId }, '[ERROR]:: SCIWEAVE_EMAIL');
   }
+
+  // Always return tracking ID, even if email failed to send
+  return { sgMessageIdPrefix, internalTrackingId };
 }
 
 export function assertNever(value: never) {
