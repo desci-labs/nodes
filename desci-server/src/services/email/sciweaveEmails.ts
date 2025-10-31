@@ -45,10 +45,11 @@ const logger = parentLogger.child({ module: 'SciweaveEmailService' });
 async function sendSciweaveEmail(
   message: sgMail.MailDataRequired,
   devLog?: Record<string, string>,
-): Promise<{ sgMessageIdPrefix?: string; internalTrackingId: string }> {
+): Promise<{ sgMessageIdPrefix?: string; internalTrackingId: string; success: boolean }> {
   // Generate tracking ID outside try block so it's always available
   const internalTrackingId = `sciweave_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   let sgMessageIdPrefix: string | undefined;
+  let success = false;
 
   try {
     if (SHOULD_SEND_EMAIL) {
@@ -74,6 +75,8 @@ async function sendSciweaveEmail(
       if (response && response[0] && response[0].headers) {
         sgMessageIdPrefix = response[0].headers['x-message-id'] as string;
       }
+
+      success = true;
     } else {
       logger.info({ nodeEnv: process.env.NODE_ENV }, '[SCIWEAVE_EMAIL]::', message.subject);
     }
@@ -94,8 +97,7 @@ async function sendSciweaveEmail(
     logger.error({ err, internalTrackingId }, '[ERROR]:: SCIWEAVE_EMAIL');
   }
 
-  // Always return tracking ID, even if email failed to send
-  return { sgMessageIdPrefix, internalTrackingId };
+  return { sgMessageIdPrefix, internalTrackingId, success };
 }
 
 export function assertNever(value: never) {

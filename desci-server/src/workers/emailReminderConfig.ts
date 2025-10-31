@@ -174,8 +174,8 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
               },
             });
 
-            // Only record if email was actually sent (emailResult is not undefined)
-            if (emailResult) {
+            // Only record if email was actually sent successfully
+            if (emailResult && emailResult.success) {
               await prisma.sentEmail.create({
                 data: {
                   userId: user.id,
@@ -319,8 +319,8 @@ const checkProChatRefresh: EmailReminderHandler = {
               },
             });
 
-            // Only record if email was actually sent (emailResult is not undefined)
-            if (emailResult) {
+            // Only record if email was actually sent successfully
+            if (emailResult && emailResult.success) {
               await prisma.sentEmail.create({
                 data: {
                   userId: user.id,
@@ -556,8 +556,8 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
             });
           }
 
-          // Only record if email was actually sent (emailResult is not undefined)
-          if (emailResult) {
+          // Only record if email was actually sent successfully
+          if (emailResult && emailResult.success) {
             const emailDetails: any = {
               initialEmailId: initialEmail.id,
               ctaClicked,
@@ -705,8 +705,8 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
             },
           });
 
-          // Only record if email was actually sent (emailResult is not undefined)
-          if (emailResult) {
+          // Only record if email was actually sent successfully
+          if (emailResult && emailResult.success) {
             await prisma.sentEmail.create({
               data: {
                 userId: user.id,
