@@ -14,7 +14,6 @@ export const STRIPE_PRICE_IDS = {
   },
 } as const;
 
-
 export const PLAN_DETAILS = {
   AI_REFEREE_FINDER: {
     name: 'Referee Finder Pro',

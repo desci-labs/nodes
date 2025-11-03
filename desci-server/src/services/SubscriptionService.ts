@@ -13,12 +13,12 @@ import {
 import Stripe from 'stripe';
 
 import { getPlanTypeFromPriceId, getBillingIntervalFromPriceId } from '../config/stripe.js';
+import { SCIWEAVE_FREE_LIMIT } from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
 import { sendEmail } from './email/email.js';
 import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
-import { SCIWEAVE_FREE_LIMIT } from '../config.js';
 import { FEATURE_LIMIT_DEFAULTS } from './FeatureLimits/constants.js';
 
 const logger = parentLogger.child({
@@ -62,9 +62,28 @@ export class SubscriptionService {
       },
     });
 
+    await prisma.user.update({
+      where: { id: userId },
+      data: { stripeUserId: customer.id },
+    });
+
     logger.info('Created new Stripe customer', { userId, customerId: customer.id });
 
     return customer;
+  }
+
+  static async getStripeCustomerId(userId: number) {
+    logger.info({ fn: 'getStripeCustomerId' }, 'stripe::getStripeCustomerId', { userId });
+
+    // Check if user already has a Stripe customer
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { stripeUserId: true },
+    });
+
+    logger.info({ fn: 'getStripeCustomerId', userId, stripeUserId: user?.stripeUserId }, 'Customer ID found');
+
+    return user?.stripeUserId;
   }
 
   static async handleCustomerCreated(customer: Stripe.Customer) {
@@ -98,6 +117,18 @@ export class SubscriptionService {
     const billingInterval = SubscriptionService.getBillingIntervalFromPriceIdHelper(priceId);
     const sub = subscription as any; // Cast to any to access properties
 
+    const subscriptionItem = subscription?.items?.data?.[0];
+    const currentPeriodStart = subscriptionItem?.current_period_start
+      ? new Date(subscriptionItem.current_period_start * 1000)
+      : sub.current_period_start
+        ? new Date(sub.current_period_start * 1000)
+        : null;
+    const currentPeriodEnd = subscriptionItem?.current_period_end
+      ? new Date(subscriptionItem.current_period_end * 1000)
+      : sub.current_period_end
+        ? new Date(sub.current_period_end * 1000)
+        : null;
+
     // Use upsert to make subscription creation idempotent
     await prisma.subscription.upsert({
       where: { stripeSubscriptionId: subscription.id },
@@ -109,8 +140,8 @@ export class SubscriptionService {
         status: this.mapStripeStatusToPrismaStatus(subscription.status),
         planType,
         billingInterval,
-        currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : null,
-        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+        currentPeriodStart,
+        currentPeriodEnd,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
         trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
@@ -120,8 +151,8 @@ export class SubscriptionService {
         planType,
         billingInterval,
         stripePriceId: priceId,
-        currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : null,
-        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+        currentPeriodStart,
+        currentPeriodEnd,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
         trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
