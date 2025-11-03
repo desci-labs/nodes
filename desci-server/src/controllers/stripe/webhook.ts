@@ -277,6 +277,19 @@ async function handlePaymentIntentCreated(paymentIntent: Stripe.PaymentIntent) {
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   logger.info('Processing payment intent succeeded', { paymentIntentId: paymentIntent.id });
   // Payment success is handled via invoice.payment_succeeded, no action needed
+  const stripe = getStripe();
+  const subscriptions = await stripe.subscriptions.list({
+    customer: paymentIntent.customer as string,
+    status: 'active',
+  });
+  const activeSubscription = subscriptions.data.find((subscription) => subscription.status === 'active');
+  logger.info({ activeSubscription }, 'Active subscription found');
+  if (!activeSubscription) {
+    logger.error('No active subscription found', { paymentIntentId: paymentIntent.id });
+    return;
+  }
+  logger.info('Handling subscription created', { subscriptionId: activeSubscription.id });
+  await SubscriptionService.handleSubscriptionCreated(activeSubscription);
 }
 
 async function handleChargeSucceeded(charge: Stripe.Charge) {
