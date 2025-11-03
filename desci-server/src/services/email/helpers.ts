@@ -32,22 +32,25 @@ export const hasEmailBeenSent = async (emailType: SentEmailType, userId: number)
  * @param emailType - The type of email that was sent
  * @param userId - The user ID who received the email
  * @param details - Optional additional details to store with the record
+ * @param internalTrackingId - Optional internal tracking ID for webhook correlation
  */
 export const recordSentEmail = async (
   emailType: SentEmailType,
   userId: number,
   details?: Record<string, any>,
+  internalTrackingId?: string,
 ): Promise<void> => {
   try {
     await prisma.sentEmail.create({
       data: {
         userId,
         emailType,
+        internalTrackingId,
         details: details || undefined,
       },
     });
 
-    logger.debug({ emailType, userId }, 'Recorded sent email');
+    logger.debug({ emailType, userId, internalTrackingId }, 'Recorded sent email');
   } catch (error) {
     logger.error({ error, emailType, userId }, 'Failed to record sent email');
     throw error;

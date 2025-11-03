@@ -143,12 +143,21 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
 
       if (!alreadySent) {
         const { firstName, lastName } = await getUserNameById(user.id); // ID variant for refreshed name, instead of user obj.
-        await sendEmail({
+        const emailResult = await sendEmail({
           type: SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL,
           payload: { email: user.email, firstName, lastName },
         });
 
-        await recordSentEmail(SentEmailType.SCIWEAVE_WELCOME_EMAIL, user.id);
+        await recordSentEmail(
+          SentEmailType.SCIWEAVE_WELCOME_EMAIL,
+          user.id,
+          {
+            ...(emailResult &&
+              'sgMessageIdPrefix' in emailResult &&
+              emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
+          },
+          emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
+        );
       } else {
         logger.debug({ userId: user.id }, 'Welcome email already sent, skipping');
       }

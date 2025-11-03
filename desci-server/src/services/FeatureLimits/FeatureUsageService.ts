@@ -129,7 +129,7 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
             : SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL;
 
           // Send the email
-          const sgMessageId = await sendEmail({
+          const emailResult = await sendEmail({
             type: emailType,
             payload: {
               email: user.email,
@@ -143,11 +143,15 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
             data: {
               userId,
               emailType: sentEmailType,
+              internalTrackingId:
+                emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
               details: {
                 feature: Feature.RESEARCH_ASSISTANT,
                 triggeredByUsageId: result.usageId,
                 isStudent,
-                ...(sgMessageId && { sgMessageId }),
+                ...(emailResult &&
+                  'sgMessageIdPrefix' in emailResult &&
+                  emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
               },
             },
           });
