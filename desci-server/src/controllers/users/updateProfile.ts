@@ -71,22 +71,24 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       updatedProfile.lastName = nameParts.slice(1).join(' ') || '';
     } else if ((isUpdatingFirstName || isUpdatingLastName) && !isUpdatingName) {
       // firstName/lastName are being updated but not name - concatenate them
-      // Be smart: if lastName is missing but existing name has 2 words, only replace first word
-      const newFirstName = profile.firstName !== undefined ? profile.firstName : user.firstName;
-      const newLastName = profile.lastName !== undefined ? profile.lastName : user.lastName;
-
-      if (newLastName) {
-        // If we have a lastName, simple concatenation
-        updatedProfile.name = `${newFirstName || ''} ${newLastName}`.trim();
-      } else if (newFirstName) {
-        // If no lastName but existing name has multiple words, only replace first word
-        const existingNameParts = user.name?.split(' ') || [];
-        if (existingNameParts.length > 1) {
-          updatedProfile.name = `${newFirstName} ${existingNameParts.slice(1).join(' ')}`.trim();
-        } else {
-          updatedProfile.name = newFirstName;
-        }
-      }
+      // Parse legacy user.name as ultimate fallback
+      const nameParts = user.name?.split(' ') || [];
+      const fallbackFirst = nameParts[0];
+      const fallbackLast = nameParts.slice(1).join(' ');
+      
+      // Resolve with fallbacks: explicit updates > existing columns > legacy parsed name
+      const resolvedFirst = profile.firstName !== undefined 
+        ? profile.firstName 
+        : (user.firstName ?? fallbackFirst);
+      const resolvedLast = profile.lastName !== undefined 
+        ? profile.lastName 
+        : (user.lastName ?? fallbackLast);
+      
+      // Rebuild name from resolved values, honoring explicit clears (empty strings)
+      updatedProfile.name = [resolvedFirst, resolvedLast]
+        .filter(part => part !== undefined && part !== '')
+        .join(' ')
+        .trim();
 
       if (profile.firstName !== undefined) {
         updatedProfile.firstName = profile.firstName;
