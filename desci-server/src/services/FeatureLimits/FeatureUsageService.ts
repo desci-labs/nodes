@@ -8,6 +8,7 @@ import { SciweaveEmailTypes } from '../email/sciweaveEmailTypes.js';
 import { isUserStudentSciweave } from '../interactionLog.js';
 
 import { FeatureLimitsService } from './FeatureLimitsService.js';
+import { getUserNameByUser } from '../user.js';
 
 const logger = parentLogger.child({ module: 'FeatureUsageService' });
 
@@ -106,7 +107,7 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
         // Get user details for email
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { email: true, firstName: true, lastName: true, receiveSciweaveMarketingEmails: true },
+          select: { email: true, firstName: true, lastName: true, name: true, receiveSciweaveMarketingEmails: true },
         });
 
         if (user) {
@@ -128,13 +129,15 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
             ? SentEmailType.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED
             : SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL;
 
+          const { firstName, lastName } = await getUserNameByUser(user);
+
           // Send the email
           const emailResult = await sendEmail({
             type: emailType,
             payload: {
               email: user.email,
-              firstName: user.firstName || undefined,
-              lastName: user.lastName || undefined,
+              firstName: firstName || 'Researcher',
+              lastName,
             },
           });
 

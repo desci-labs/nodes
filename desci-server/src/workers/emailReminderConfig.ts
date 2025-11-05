@@ -17,6 +17,7 @@ import { isUserStudentSciweave } from '../services/interactionLog.js';
 import { StripeCouponService } from '../services/StripeCouponService.js';
 
 import { isDryRunMode, recordDryRunEmail } from './emailDryRun.js';
+import { getUserNameByUser } from '../services/user.js';
 
 const logger = parentLogger.child({ module: 'EmailReminderConfig' });
 
@@ -86,6 +87,7 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
             select: {
               id: true,
               email: true,
+              name: true,
               firstName: true,
               lastName: true,
               receiveSciweaveMarketingEmails: true,
@@ -165,12 +167,14 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
               },
             });
           } else {
+            const { firstName, lastName } = await getUserNameByUser(user);
+
             const emailResult = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
               payload: {
                 email: user.email,
-                firstName: user.firstName || undefined,
-                lastName: user.lastName || undefined,
+                firstName: firstName || undefined,
+                lastName: lastName || undefined,
               },
             });
 
@@ -244,6 +248,7 @@ const checkProChatRefresh: EmailReminderHandler = {
             select: {
               id: true,
               email: true,
+              name: true,
               firstName: true,
               lastName: true,
               receiveSciweaveMarketingEmails: true,
@@ -310,12 +315,14 @@ const checkProChatRefresh: EmailReminderHandler = {
               },
             });
           } else {
+            const { firstName, lastName } = await getUserNameByUser(user);
+
             const emailResult = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH,
               payload: {
                 email: user.email,
-                firstName: user.firstName || undefined,
-                lastName: user.lastName || undefined,
+                firstName: firstName || undefined,
+                lastName: lastName || undefined,
               },
             });
 
@@ -464,6 +471,7 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
               email: true,
               firstName: true,
               lastName: true,
+              name: true,
               receiveSciweaveMarketingEmails: true,
             },
           },
@@ -528,14 +536,16 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
 
           let emailResult;
 
+          const { firstName, lastName } = await getUserNameByUser(user);
+
           if (ctaClicked) {
             // Send CTA clicked follow-up email with coupon
             emailResult = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED,
               payload: {
                 email: user.email,
-                firstName: user.firstName || undefined,
-                lastName: user.lastName || undefined,
+                firstName: firstName || 'Researcher',
+                lastName: lastName,
                 couponCode: coupon.code,
                 percentOff: coupon.percentOff || SCIWEAVE_USER_DISCOUNT_PERCENT,
                 expiresAt: coupon.expiresAt!,
@@ -547,8 +557,8 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
               type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
               payload: {
                 email: user.email,
-                firstName: user.firstName || undefined,
-                lastName: user.lastName || undefined,
+                firstName: firstName || 'Researcher',
+                lastName: lastName,
                 couponCode: coupon.code,
                 percentOff: coupon.percentOff || SCIWEAVE_USER_DISCOUNT_PERCENT,
                 expiresAt: coupon.expiresAt!,
@@ -631,6 +641,7 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
             select: {
               id: true,
               email: true,
+              name: true,
               firstName: true,
               lastName: true,
               receiveSciweaveMarketingEmails: true,
@@ -693,13 +704,15 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
             email: user.email,
           });
 
+          const { firstName, lastName } = await getUserNameByUser(user);
+
           // Send student discount email
           const emailResult = await sendEmail({
             type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT,
             payload: {
               email: user.email,
-              firstName: user.firstName || undefined,
-              lastName: user.lastName || undefined,
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
               couponCode: coupon.code,
               percentOff: coupon.percentOff,
             },
