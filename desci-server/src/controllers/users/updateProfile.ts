@@ -58,14 +58,56 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       email?: string;
     };
 
-    updatedProfile.name = profile.name;
+    // Sync name fields: keep name, firstName, and lastName in sync
+    const isUpdatingName = profile.name !== undefined;
+    const isUpdatingFirstName = profile.firstName !== undefined;
+    const isUpdatingLastName = profile.lastName !== undefined;
 
-    if (profile?.firstName) {
-      updatedProfile.firstName = profile.firstName;
-    }
+    if (isUpdatingName && !isUpdatingFirstName && !isUpdatingLastName) {
+      // Name is being updated but not firstName/lastName - split the name
+      updatedProfile.name = profile.name;
+      const nameParts = profile.name?.split(' ') || [];
+      updatedProfile.firstName = nameParts[0] || '';
+      updatedProfile.lastName = nameParts.slice(1).join(' ') || '';
+    } else if ((isUpdatingFirstName || isUpdatingLastName) && !isUpdatingName) {
+      // firstName/lastName are being updated but not name - concatenate them
+      // Parse legacy user.name as ultimate fallback
+      const nameParts = user.name?.split(' ') || [];
+      const fallbackFirst = nameParts[0];
+      const fallbackLast = nameParts.slice(1).join(' ');
+      
+      // Resolve with fallbacks: explicit updates > existing columns > legacy parsed name
+      const resolvedFirst = profile.firstName !== undefined 
+        ? profile.firstName 
+        : (user.firstName ?? fallbackFirst);
+      const resolvedLast = profile.lastName !== undefined 
+        ? profile.lastName 
+        : (user.lastName ?? fallbackLast);
+      
+      // Rebuild name from resolved values, honoring explicit clears (empty strings)
+      updatedProfile.name = [resolvedFirst, resolvedLast]
+        .filter(part => part !== undefined && part !== '')
+        .join(' ')
+        .trim();
 
-    if (profile?.lastName) {
-      updatedProfile.lastName = profile.lastName;
+      if (profile.firstName !== undefined) {
+        updatedProfile.firstName = profile.firstName;
+      }
+      if (profile.lastName !== undefined) {
+        updatedProfile.lastName = profile.lastName;
+      }
+    } else if (isUpdatingName || isUpdatingFirstName || isUpdatingLastName) {
+      // Both sets are being updated - sync name to "firstName lastName"
+      if (isUpdatingFirstName) {
+        updatedProfile.firstName = profile.firstName;
+      }
+      if (isUpdatingLastName) {
+        updatedProfile.lastName = profile.lastName;
+      }
+
+      const finalFirstName = profile.firstName !== undefined ? profile.firstName : user.firstName;
+      const finalLastName = profile.lastName !== undefined ? profile.lastName : user.lastName;
+      updatedProfile.name = `${finalFirstName || ''} ${finalLastName || ''}`.trim();
     }
 
     if (profile?.role) {
@@ -143,12 +185,21 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
 
       if (!alreadySent) {
         const { firstName, lastName } = await getUserNameById(user.id); // ID variant for refreshed name, instead of user obj.
-        await sendEmail({
+        const emailResult = await sendEmail({
           type: SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL,
           payload: { email: user.email, firstName, lastName },
         });
 
-        await recordSentEmail(SentEmailType.SCIWEAVE_WELCOME_EMAIL, user.id);
+        await recordSentEmail(
+          SentEmailType.SCIWEAVE_WELCOME_EMAIL,
+          user.id,
+          {
+            ...(emailResult &&
+              'sgMessageIdPrefix' in emailResult &&
+              emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
+          },
+          emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
+        );
       } else {
         logger.debug({ userId: user.id }, 'Welcome email already sent, skipping');
       }

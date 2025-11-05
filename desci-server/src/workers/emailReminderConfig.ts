@@ -17,6 +17,7 @@ import { isUserStudentSciweave } from '../services/interactionLog.js';
 import { StripeCouponService } from '../services/StripeCouponService.js';
 
 import { isDryRunMode, recordDryRunEmail } from './emailDryRun.js';
+import { getUserNameByUser } from '../services/user.js';
 
 const logger = parentLogger.child({ module: 'EmailReminderConfig' });
 
@@ -86,6 +87,7 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
             select: {
               id: true,
               email: true,
+              name: true,
               firstName: true,
               lastName: true,
               receiveSciweaveMarketingEmails: true,
@@ -165,36 +167,35 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
               },
             });
           } else {
+            const { firstName, lastName } = await getUserNameByUser(user);
+
             const emailResult = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
               payload: {
                 email: user.email,
-                firstName: user.firstName || undefined,
-                lastName: user.lastName || undefined,
+                firstName: firstName || undefined,
+                lastName: lastName || undefined,
               },
             });
 
-            // Record that we sent this email
-            await prisma.sentEmail.create({
-              data: {
-                userId: user.id,
-                emailType: SentEmailType.SCIWEAVE_14_DAY_INACTIVITY,
-                ...(emailResult &&
-                  emailResult.internalTrackingId && {
-                    internalTrackingId: emailResult.internalTrackingId,
-                  }),
-
-                details: {
-                  planCodename: userLimit.planCodename,
-                  feature: userLimit.feature,
-                  useLimit: userLimit.useLimit,
-                  ...(emailResult &&
-                    emailResult.sgMessageIdPrefix && {
+            // Only record if email was actually sent successfully
+            if (emailResult && emailResult.success) {
+              await prisma.sentEmail.create({
+                data: {
+                  userId: user.id,
+                  emailType: SentEmailType.SCIWEAVE_14_DAY_INACTIVITY,
+                  internalTrackingId: emailResult.internalTrackingId,
+                  details: {
+                    planCodename: userLimit.planCodename,
+                    feature: userLimit.feature,
+                    useLimit: userLimit.useLimit,
+                    ...(emailResult.sgMessageIdPrefix && {
                       sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
                     }),
+                  },
                 },
-              },
-            });
+              });
+            }
           }
 
           logger.info({ userId: user.id, email: user.email, dryRun: isDryRunMode() }, 'Sent 14-day inactivity email');
@@ -247,6 +248,7 @@ const checkProChatRefresh: EmailReminderHandler = {
             select: {
               id: true,
               email: true,
+              name: true,
               firstName: true,
               lastName: true,
               receiveSciweaveMarketingEmails: true,
@@ -313,38 +315,40 @@ const checkProChatRefresh: EmailReminderHandler = {
               },
             });
           } else {
+            const { firstName, lastName } = await getUserNameByUser(user);
+
             const emailResult = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH,
               payload: {
                 email: user.email,
-                firstName: user.firstName || undefined,
-                lastName: user.lastName || undefined,
+                firstName: firstName || undefined,
+                lastName: lastName || undefined,
               },
             });
 
-            // Record that we sent this email
-            await prisma.sentEmail.create({
-              data: {
-                userId: user.id,
-                emailType: SentEmailType.SCIWEAVE_PRO_CHAT_REFRESH,
-                ...(emailResult &&
-                  emailResult.internalTrackingId && {
-                    internalTrackingId: emailResult.internalTrackingId,
-                  }),
-                details: {
-                  planCodename: userLimit.planCodename,
-                  feature: userLimit.feature,
-                  currentPeriodStart: userLimit.currentPeriodStart ? userLimit.currentPeriodStart.toISOString() : null,
-                  daysSinceStart,
-                  isPeriodExpired,
-                  isJustRefreshed,
-                  ...(emailResult &&
-                    emailResult.sgMessageIdPrefix && {
+            // Only record if email was actually sent successfully
+            if (emailResult && emailResult.success) {
+              await prisma.sentEmail.create({
+                data: {
+                  userId: user.id,
+                  emailType: SentEmailType.SCIWEAVE_PRO_CHAT_REFRESH,
+                  internalTrackingId: emailResult.internalTrackingId,
+                  details: {
+                    planCodename: userLimit.planCodename,
+                    feature: userLimit.feature,
+                    currentPeriodStart: userLimit.currentPeriodStart
+                      ? userLimit.currentPeriodStart.toISOString()
+                      : null,
+                    daysSinceStart,
+                    isPeriodExpired,
+                    isJustRefreshed,
+                    ...(emailResult.sgMessageIdPrefix && {
                       sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
                     }),
+                  },
                 },
-              },
-            });
+              });
+            }
           }
 
           logger.info(
@@ -467,6 +471,7 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
               email: true,
               firstName: true,
               lastName: true,
+              name: true,
               receiveSciweaveMarketingEmails: true,
             },
           },
@@ -531,14 +536,16 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
 
           let emailResult;
 
+          const { firstName, lastName } = await getUserNameByUser(user);
+
           if (ctaClicked) {
             // Send CTA clicked follow-up email with coupon
             emailResult = await sendEmail({
               type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED,
               payload: {
                 email: user.email,
-                firstName: user.firstName || undefined,
-                lastName: user.lastName || undefined,
+                firstName: firstName || 'Researcher',
+                lastName: lastName,
                 couponCode: coupon.code,
                 percentOff: coupon.percentOff || SCIWEAVE_USER_DISCOUNT_PERCENT,
                 expiresAt: coupon.expiresAt!,
@@ -550,8 +557,8 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
               type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
               payload: {
                 email: user.email,
-                firstName: user.firstName || undefined,
-                lastName: user.lastName || undefined,
+                firstName: firstName || 'Researcher',
+                lastName: lastName,
                 couponCode: coupon.code,
                 percentOff: coupon.percentOff || SCIWEAVE_USER_DISCOUNT_PERCENT,
                 expiresAt: coupon.expiresAt!,
@@ -559,30 +566,28 @@ const checkOutOfChatsFollowUp: EmailReminderHandler = {
             });
           }
 
-          // Record that we sent this email
-          const emailDetails: any = {
-            initialEmailId: initialEmail.id,
-            ctaClicked,
-            couponCode: coupon.code,
-            couponId: coupon.id,
-            expiresAt: coupon.expiresAt!.toISOString(),
-            ...(emailResult &&
-              emailResult.sgMessageIdPrefix && {
+          // Only record if email was actually sent successfully
+          if (emailResult && emailResult.success) {
+            const emailDetails: any = {
+              initialEmailId: initialEmail.id,
+              ctaClicked,
+              couponCode: coupon.code,
+              couponId: coupon.id,
+              expiresAt: coupon.expiresAt!.toISOString(),
+              ...(emailResult.sgMessageIdPrefix && {
                 sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
               }),
-          };
+            };
 
-          await prisma.sentEmail.create({
-            data: {
-              userId: user.id,
-              emailType: emailTypeToSend,
-              ...(emailResult &&
-                emailResult.internalTrackingId && {
-                  internalTrackingId: emailResult.internalTrackingId,
-                }),
-              details: emailDetails,
-            },
-          });
+            await prisma.sentEmail.create({
+              data: {
+                userId: user.id,
+                emailType: emailTypeToSend,
+                internalTrackingId: emailResult.internalTrackingId,
+                details: emailDetails,
+              },
+            });
+          }
 
           logger.info(
             {
@@ -636,6 +641,7 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
             select: {
               id: true,
               email: true,
+              name: true,
               firstName: true,
               lastName: true,
               receiveSciweaveMarketingEmails: true,
@@ -698,37 +704,37 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
             email: user.email,
           });
 
+          const { firstName, lastName } = await getUserNameByUser(user);
+
           // Send student discount email
           const emailResult = await sendEmail({
             type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT,
             payload: {
               email: user.email,
-              firstName: user.firstName || undefined,
-              lastName: user.lastName || undefined,
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
               couponCode: coupon.code,
               percentOff: coupon.percentOff,
             },
           });
 
-          // Record that we sent this email
-          await prisma.sentEmail.create({
-            data: {
-              userId: user.id,
-              emailType: SentEmailType.SCIWEAVE_STUDENT_DISCOUNT,
-              ...(emailResult &&
-                emailResult.internalTrackingId && {
-                  internalTrackingId: emailResult.internalTrackingId,
-                }),
-              details: {
-                limitEmailId: limitEmail.id,
-                couponCode: coupon.code,
-                ...(emailResult &&
-                  emailResult.sgMessageIdPrefix && {
+          // Only record if email was actually sent successfully
+          if (emailResult && emailResult.success) {
+            await prisma.sentEmail.create({
+              data: {
+                userId: user.id,
+                emailType: SentEmailType.SCIWEAVE_STUDENT_DISCOUNT,
+                internalTrackingId: emailResult.internalTrackingId,
+                details: {
+                  limitEmailId: limitEmail.id,
+                  couponCode: coupon.code,
+                  ...(emailResult.sgMessageIdPrefix && {
                     sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
                   }),
+                },
               },
-            },
-          });
+            });
+          }
 
           logger.info({ userId: user.id, couponCode: coupon.code }, 'Sent student discount email');
           sent++;
