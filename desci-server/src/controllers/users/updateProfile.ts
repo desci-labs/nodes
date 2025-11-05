@@ -58,14 +58,54 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       email?: string;
     };
 
-    updatedProfile.name = profile.name;
+    // Sync name fields: keep name, firstName, and lastName in sync
+    const isUpdatingName = profile.name !== undefined;
+    const isUpdatingFirstName = profile.firstName !== undefined;
+    const isUpdatingLastName = profile.lastName !== undefined;
 
-    if (profile?.firstName) {
-      updatedProfile.firstName = profile.firstName;
-    }
+    if (isUpdatingName && !isUpdatingFirstName && !isUpdatingLastName) {
+      // Name is being updated but not firstName/lastName - split the name
+      updatedProfile.name = profile.name;
+      const nameParts = profile.name?.split(' ') || [];
+      updatedProfile.firstName = nameParts[0] || '';
+      updatedProfile.lastName = nameParts.slice(1).join(' ') || '';
+    } else if ((isUpdatingFirstName || isUpdatingLastName) && !isUpdatingName) {
+      // firstName/lastName are being updated but not name - concatenate them
+      // Be smart: if lastName is missing but existing name has 2 words, only replace first word
+      const newFirstName = profile.firstName !== undefined ? profile.firstName : user.firstName;
+      const newLastName = profile.lastName !== undefined ? profile.lastName : user.lastName;
 
-    if (profile?.lastName) {
-      updatedProfile.lastName = profile.lastName;
+      if (newLastName) {
+        // If we have a lastName, simple concatenation
+        updatedProfile.name = `${newFirstName || ''} ${newLastName}`.trim();
+      } else if (newFirstName) {
+        // If no lastName but existing name has multiple words, only replace first word
+        const existingNameParts = user.name?.split(' ') || [];
+        if (existingNameParts.length > 1) {
+          updatedProfile.name = `${newFirstName} ${existingNameParts.slice(1).join(' ')}`.trim();
+        } else {
+          updatedProfile.name = newFirstName;
+        }
+      }
+
+      if (profile.firstName !== undefined) {
+        updatedProfile.firstName = profile.firstName;
+      }
+      if (profile.lastName !== undefined) {
+        updatedProfile.lastName = profile.lastName;
+      }
+    } else if (isUpdatingName || isUpdatingFirstName || isUpdatingLastName) {
+      // Both sets are being updated - sync name to "firstName lastName"
+      if (isUpdatingFirstName) {
+        updatedProfile.firstName = profile.firstName;
+      }
+      if (isUpdatingLastName) {
+        updatedProfile.lastName = profile.lastName;
+      }
+
+      const finalFirstName = profile.firstName !== undefined ? profile.firstName : user.firstName;
+      const finalLastName = profile.lastName !== undefined ? profile.lastName : user.lastName;
+      updatedProfile.name = `${finalFirstName || ''} ${finalLastName || ''}`.trim();
     }
 
     if (profile?.role) {
