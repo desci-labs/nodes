@@ -1,3 +1,4 @@
+import { SubscriptionStatus } from '@prisma/client';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
@@ -116,7 +117,7 @@ export const createPaymentIntent = async (req: RequestWithUser, res: Response): 
     const subscription = await stripe.subscriptions.retrieve(existingSubscription.stripeSubscriptionId, {
       expand: ['latest_invoice.confirmation_secret'],
     });
-    console.log('[stripe]::existing subscription', subscription.id);
+    logger.info({ subscriptionId: subscription.id }, 'stripe::existing subscription');
 
     if (subscription.status === 'incomplete' && subscription.metadata.priceId === priceId) {
       return res.status(200).json({
@@ -150,7 +151,7 @@ export const createPaymentIntent = async (req: RequestWithUser, res: Response): 
     billing_mode: { type: 'flexible' },
     expand: ['latest_invoice.confirmation_secret'],
   });
-  console.log('[stripe]::new subscription', subscription.id);
+  logger.info({ customerId: customer.id, userId: req.user?.id }, 'stripe::new subscription');
 
   if (!(subscription.latest_invoice as Stripe.Invoice)?.confirmation_secret?.client_secret) {
     throw new Error('Subscription confirmation secret is not set');
@@ -162,6 +163,7 @@ export const createPaymentIntent = async (req: RequestWithUser, res: Response): 
     customer: customer.id,
   });
 };
+
 export const createCustomerPortal = async (req: RequestWithUser, res: Response): Promise<Response> => {
   try {
     const userId = req.user?.id;
@@ -221,10 +223,10 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
 
     let subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
 
-    if (!subscription) {
-      logger.info('[stripe]::no subscription found, fetching from Stripe');
+    if (!subscription || subscription.status !== SubscriptionStatus.ACTIVE) {
+      logger.info({ userId }, 'stripe::no active subscription found, fetching from Stripe');
       const stripeCustomerId = await SubscriptionService.getStripeCustomerId(userId);
-      logger.info({ stripeCustomerId }, '[stripe]::stripe customer ID');
+      logger.info({ stripeCustomerId }, 'stripe::stripe customer ID');
 
       if (!stripeCustomerId) return res.status(200).json(null);
 
@@ -235,13 +237,16 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
       });
       const activeSubscription = subscriptions.data.find((subscription) => subscription.status === 'active');
 
-      logger.info({ activeSubscription }, '[stripe]::active subscription');
+      logger.info({ activeSubscription }, 'stripe::active subscription');
 
       if (!activeSubscription) return res.status(404).json({ error: 'No subscription found' });
 
       await SubscriptionService.handleSubscriptionCreated(activeSubscription);
 
-      logger.info('[stripe]::subscription created, fetching from DB');
+      logger.info(
+        { userId, stripeCustomerId, subscriptionId: activeSubscription.id },
+        'stripe::subscription created, fetching from DB',
+      );
 
       subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
     }
