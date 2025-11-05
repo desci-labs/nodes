@@ -130,7 +130,7 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
 };
 
 async function handleCustomerCreated(customer: Stripe.Customer) {
-  logger.info('Processing customer created', { customerId: customer.id });
+  logger.info({ customerId: customer.id }, 'stripe::handleCustomerCreated');
 
   try {
     await SubscriptionService.handleCustomerCreated(customer);
@@ -144,7 +144,7 @@ async function handleCustomerCreated(customer: Stripe.Customer) {
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
-  logger.info('Processing subscription created', { subscriptionId: subscription.id });
+  logger.info({ subscriptionId: subscription.id }, 'stripe::handleSubscriptionCreated');
 
   try {
     await SubscriptionService.handleSubscriptionCreated(subscription);
@@ -158,7 +158,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  logger.info('Processing subscription updated', { subscriptionId: subscription.id });
+  logger.info({ subscriptionId: subscription.id }, 'stripe::handleSubscriptionUpdated');
 
   try {
     await SubscriptionService.handleSubscriptionUpdated(subscription);
@@ -186,7 +186,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 }
 
 async function handleInvoiceCreated(invoice: Stripe.Invoice) {
-  logger.info('Processing invoice created', { invoiceId: invoice.id });
+  logger.info({ invoiceId: invoice.id }, 'stripe::handleInvoiceCreated');
 
   try {
     await SubscriptionService.handleInvoiceCreated(invoice);
@@ -200,7 +200,7 @@ async function handleInvoiceCreated(invoice: Stripe.Invoice) {
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
-  logger.info('Processing invoice payment succeeded', { invoiceId: invoice.id });
+  logger.info({ invoiceId: invoice.id }, 'stripe::handleInvoicePaymentSucceeded');
 
   try {
     await SubscriptionService.handleInvoicePaymentSucceeded(invoice);
@@ -214,7 +214,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
-  logger.info('Processing invoice payment failed', { invoiceId: invoice.id });
+  logger.info({ invoiceId: invoice.id }, 'stripe::handleInvoicePaymentFailed');
 
   try {
     await SubscriptionService.handleInvoicePaymentFailed(invoice);
@@ -228,7 +228,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 }
 
 async function handlePaymentMethodAttached(paymentMethod: Stripe.PaymentMethod) {
-  logger.info('Processing payment method attached', { paymentMethodId: paymentMethod.id });
+  logger.info({ paymentMethodId: paymentMethod.id }, 'stripe::handlePaymentMethodAttached');
 
   try {
     await SubscriptionService.handlePaymentMethodAttached(paymentMethod);
@@ -242,7 +242,7 @@ async function handlePaymentMethodAttached(paymentMethod: Stripe.PaymentMethod) 
 }
 
 async function handlePaymentMethodDetached(paymentMethod: Stripe.PaymentMethod) {
-  logger.info('Processing payment method detached', { paymentMethodId: paymentMethod.id });
+  logger.info({ paymentMethodId: paymentMethod.id }, 'stripe::handlePaymentMethodDetached');
 
   try {
     await SubscriptionService.handlePaymentMethodDetached(paymentMethod);
@@ -256,7 +256,7 @@ async function handlePaymentMethodDetached(paymentMethod: Stripe.PaymentMethod) 
 }
 
 async function handleTrialWillEnd(subscription: Stripe.Subscription) {
-  logger.info('Processing trial will end', { subscriptionId: subscription.id });
+  logger.info({ subscriptionId: subscription.id }, 'stripe::handleTrialWillEnd');
 
   try {
     await SubscriptionService.handleTrialWillEnd(subscription);
@@ -270,12 +270,12 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
 }
 
 async function handlePaymentIntentCreated(paymentIntent: Stripe.PaymentIntent) {
-  logger.info('Processing payment intent created', { paymentIntentId: paymentIntent.id });
+  logger.info({ paymentIntentId: paymentIntent.id }, 'stripe::handlePaymentIntentCreated');
   // Payment intents are automatically handled by Stripe, no action needed
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  logger.info('Processing payment intent succeeded', { paymentIntentId: paymentIntent.id });
+  logger.info({ paymentIntentId: paymentIntent.customer }, 'stripe::handlePaymentIntentSucceeded');
   // Payment success is handled via invoice.payment_succeeded, no action needed
   const stripe = getStripe();
   const subscriptions = await stripe.subscriptions.list({
@@ -283,7 +283,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     status: 'active',
   });
   const activeSubscription = subscriptions.data.find((subscription) => subscription.status === 'active');
-  logger.info({ activeSubscription }, 'Active subscription found');
+  logger.info({ activeSubscription }, 'stripe::Active subscription found');
   if (!activeSubscription) {
     logger.error('No active subscription found', { paymentIntentId: paymentIntent.id });
     return;
