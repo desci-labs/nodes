@@ -1,16 +1,18 @@
 # build.yml
 on:
+  # Disabled - deprecated I believe in favor of sync server
   # pull_request:
   #   paths:
   #   - desci-server/**
-  push:
-    paths:
-      - .github/workflows/**
-      - desci-repo/**
-    branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
-      - main # triggers on pushes that contain changes
-      - develop
-      - demo
+  # push:
+  #   paths:
+  #     - .github/workflows/**
+  #     - desci-repo/**
+  #   branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
+  #     - main # triggers on pushes that contain changes
+  #     - develop
+  #     - demo
+  workflow_dispatch: # Can still run manually if needed
 
 name: Build desci-repo
 
