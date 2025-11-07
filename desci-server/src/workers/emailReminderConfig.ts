@@ -704,13 +704,19 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
               ? (limitEmail.details.couponCode as string)
               : undefined;
 
+          const existingPercentOff =
+            limitEmail.details && typeof limitEmail.details === 'object' && 'percentOff' in limitEmail.details
+              ? (limitEmail.details.percentOff as number)
+              : undefined;
+
           let couponCode: string;
           let percentOff: number | undefined;
 
           if (existingCouponCode) {
             // Reuse the existing coupon
             couponCode = existingCouponCode;
-            logger.info({ userId: user.id, couponCode }, 'Reusing existing student discount coupon');
+            percentOff = existingPercentOff;
+            logger.info({ userId: user.id, couponCode, percentOff }, 'Reusing existing student discount coupon');
           } else {
             // Fallback: generate new coupon if not found (shouldn't happen normally)
             logger.warn({ userId: user.id }, 'No coupon found in limit email, generating new one');

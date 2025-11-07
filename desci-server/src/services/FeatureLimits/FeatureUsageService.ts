@@ -169,7 +169,7 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
                 feature: Feature.RESEARCH_ASSISTANT,
                 triggeredByUsageId: result.usageId,
                 isStudent,
-                ...(couponInfo && { couponCode: couponInfo.code }),
+                ...(couponInfo && { couponCode: couponInfo.code, percentOff: couponInfo.percentOff }),
                 ...(emailResult &&
                   'sgMessageIdPrefix' in emailResult &&
                   emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
