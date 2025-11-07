@@ -25,6 +25,12 @@ jobs:
       # Enable blacksmith docker layer caching
       #- uses: useblacksmith/setup-docker-builder@v1
 
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install --update
+
       - name: Login to AWS ECR Public as a guest # Higher rate limits for pulling from public ECR repositories (ceramic-one)
         run: |
           aws ecr-public get-login-password --region us-east-1 --no-sign-request | docker login --username AWS --password-stdin public.ecr.aws
