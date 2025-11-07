@@ -8,6 +8,7 @@ import {
   updateSubscription,
   cancelSubscription,
   getPricingOptions,
+  createPaymentIntent,
 } from '../../controllers/stripe/subscription.js';
 import { handleStripeWebhook } from '../../controllers/stripe/webhook.js';
 import { ensureUser } from '../../middleware/permissions.js';
@@ -20,6 +21,7 @@ const router = Router();
 router.post('/webhook', [raw({ type: 'application/json' }), requireStripe], asyncHandler(handleStripeWebhook));
 
 // Subscription management endpoints - require authentication and Stripe config
+router.post('/subscription/payment-intent', [requireStripe, ensureUser], asyncHandler(createPaymentIntent));
 router.post('/subscription/checkout', [requireStripe, ensureUser], asyncHandler(createSubscriptionCheckout));
 router.post('/subscription/portal', [requireStripe, ensureUser], asyncHandler(createCustomerPortal));
 router.get('/subscription', [requireStripe, ensureUser], asyncHandler(getUserSubscription));

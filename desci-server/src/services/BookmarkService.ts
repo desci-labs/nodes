@@ -159,6 +159,7 @@ export const getBookmarks = async (
           select: {
             uuid: true,
             dpidAlias: true,
+            legacyDpid: true,
             manifestUrl: true,
             manifestDocumentId: true,
             cid: true,

@@ -25,6 +25,10 @@ jobs:
       # Enable blacksmith docker layer caching
       #- uses: useblacksmith/setup-docker-builder@v1
 
+      - name: Pre-pull ceramic-one image
+        run: |
+          docker pull public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0 || echo "Pull failed, will retry during docker-compose"
+
       - name: Run tests
         run:
           SKIP_NODES_LIB=1 ./integrationTestRunner.sh

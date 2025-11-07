@@ -22,7 +22,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { roleCopy } from '../../templates/emails/journals/InviteEditor.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 import { attestationService } from '../Attestation.js';
-import { getDpidFromNode, getDpidFromNodeUuid } from '../node.js';
+import { getDpidFromNode } from '../node.js';
 import { PublishServices } from '../PublishServices.js';
 import { emitWebsocketEvent, WebSocketEventType } from '../websocketService.js';
 
@@ -459,7 +459,7 @@ const emitOnDoiIssuance = async ({ nodeUuid, doi, status }: { nodeUuid: string; 
   const dotlessUuid = nodeUuid.replace(/\./g, '');
   const node = await prisma.node.findUnique({
     where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
-    select: { ownerId: true, title: true, dpidAlias: true, manifestUrl: true },
+    select: { ownerId: true, title: true, dpidAlias: true, legacyDpid: true, manifestUrl: true },
   });
   const dpid = await getDpidFromNode(node as Node);
 

@@ -13,12 +13,12 @@ import {
 import Stripe from 'stripe';
 
 import { getPlanTypeFromPriceId, getBillingIntervalFromPriceId } from '../config/stripe.js';
+import { SCIWEAVE_FREE_LIMIT } from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
 import { sendEmail } from './email/email.js';
 import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
-import { SCIWEAVE_FREE_LIMIT } from '../config.js';
 import { FEATURE_LIMIT_DEFAULTS } from './FeatureLimits/constants.js';
 
 const logger = parentLogger.child({
@@ -29,7 +29,7 @@ const prisma = new PrismaClient();
 
 export class SubscriptionService {
   static async getOrCreateStripeCustomer(userId: number) {
-    logger.info('Getting or creating Stripe customer', { userId });
+    logger.info({ userId }, 'stripe::getOrCreateStripeCustomer');
 
     // Check if user already has a Stripe customer
     const existingSubscription = await prisma.subscription.findFirst({
@@ -62,9 +62,28 @@ export class SubscriptionService {
       },
     });
 
-    logger.info('Created new Stripe customer', { userId, customerId: customer.id });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { stripeUserId: customer.id },
+    });
+
+    logger.info({ userId, customerId: customer.id }, 'Created new Stripe customer');
 
     return customer;
+  }
+
+  static async getStripeCustomerId(userId: number) {
+    logger.info({ fn: 'getStripeCustomerId', userId }, 'stripe::getStripeCustomerId');
+
+    // Check if user already has a Stripe customer
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { stripeUserId: true },
+    });
+
+    logger.info({ fn: 'getStripeCustomerId', userId, stripeUserId: user?.stripeUserId }, 'stripe::Customer ID found');
+
+    return user?.stripeUserId;
   }
 
   static async handleCustomerCreated(customer: Stripe.Customer) {
@@ -88,6 +107,11 @@ export class SubscriptionService {
   static async handleSubscriptionCreated(subscription: Stripe.Subscription) {
     logger.info('Handling subscription created', { subscriptionId: subscription.id });
 
+    if (subscription.status !== 'active') {
+      logger.warn({ subscriptionId: subscription.id }, 'Subscription is not active yet');
+      return;
+    }
+
     const userId = await this.getUserIdFromCustomer(subscription.customer as string);
     if (!userId) {
       throw new Error('Unable to find userId from customer');
@@ -98,6 +122,19 @@ export class SubscriptionService {
     const billingInterval = SubscriptionService.getBillingIntervalFromPriceIdHelper(priceId);
     const sub = subscription as any; // Cast to any to access properties
 
+    const subscriptionItem = subscription?.items?.data?.[0];
+    const currentPeriodStart = subscriptionItem?.current_period_start
+      ? new Date(subscriptionItem.current_period_start * 1000)
+      : sub.current_period_start
+        ? new Date(sub.current_period_start * 1000)
+        : null;
+    const currentPeriodEnd = subscriptionItem?.current_period_end
+      ? new Date(subscriptionItem.current_period_end * 1000)
+      : sub.current_period_end
+        ? new Date(sub.current_period_end * 1000)
+        : null;
+
+    logger.info({ priceId, planType, userId, subscriptionId: subscription.id }, 'Handle subscription created');
     // Use upsert to make subscription creation idempotent
     await prisma.subscription.upsert({
       where: { stripeSubscriptionId: subscription.id },
@@ -109,8 +146,8 @@ export class SubscriptionService {
         status: this.mapStripeStatusToPrismaStatus(subscription.status),
         planType,
         billingInterval,
-        currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : null,
-        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+        currentPeriodStart,
+        currentPeriodEnd,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
         trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
@@ -120,8 +157,8 @@ export class SubscriptionService {
         planType,
         billingInterval,
         stripePriceId: priceId,
-        currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000) : null,
-        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+        currentPeriodStart,
+        currentPeriodEnd,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
         trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
@@ -130,7 +167,6 @@ export class SubscriptionService {
 
     // Update user feature limits based on new plan
     await this.updateUserFeatureLimits(userId, planType);
-
     // Send upgrade email for paid plans (any plan that's not FREE)
     if (planType !== PlanType.FREE) {
       try {
@@ -156,20 +192,56 @@ export class SubscriptionService {
       }
     }
 
-    logger.info('Subscription created successfully', { subscriptionId: subscription.id, userId });
+    logger.info({ subscriptionId: subscription.id, userId }, 'stripe::Subscription created successfully');
   }
 
   static async handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-    logger.info('Handling subscription updated', { subscriptionId: subscription.id });
+    logger.info({ subscriptionId: subscription.id }, 'stripe::handleSubscriptionUpdated');
+
+    const userId = await this.getUserIdFromCustomer(subscription.customer as string);
+    if (!userId) {
+      logger.warn({ subscriptionId: subscription.id }, 'Unable to find userId from customer');
+      throw new Error('Unable to find userId from customer');
+    }
+
+    const existingSubscription = await prisma.subscription.findUnique({
+      where: { stripeSubscriptionId: subscription.id },
+    });
 
     const priceId = subscription.items.data[0]?.price.id;
     const planType = this.mapStripePriceToPlanType(priceId);
     const billingInterval = SubscriptionService.getBillingIntervalFromPriceIdHelper(priceId);
     const sub = subscription as any; // Cast to any to access properties
 
-    const updatedSubscription = await prisma.subscription.update({
+    const subscriptionItem = subscription?.items?.data?.[0];
+    const currentPeriodStart = subscriptionItem?.current_period_start
+      ? new Date(subscriptionItem.current_period_start * 1000)
+      : sub.current_period_start
+        ? new Date(sub.current_period_start * 1000)
+        : null;
+    const currentPeriodEnd = subscriptionItem?.current_period_end
+      ? new Date(subscriptionItem.current_period_end * 1000)
+      : sub.current_period_end
+        ? new Date(sub.current_period_end * 1000)
+        : null;
+
+    const updatedSubscription = await prisma.subscription.upsert({
       where: { stripeSubscriptionId: subscription.id },
-      data: {
+      create: {
+        userId,
+        stripeCustomerId: subscription.customer as string,
+        stripeSubscriptionId: subscription.id,
+        stripePriceId: priceId,
+        status: this.mapStripeStatusToPrismaStatus(subscription.status),
+        planType,
+        billingInterval,
+        currentPeriodStart,
+        currentPeriodEnd,
+        cancelAtPeriodEnd: sub.cancel_at_period_end,
+        trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
+        trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
+      },
+      update: {
         status: this.mapStripeStatusToPrismaStatus(subscription.status),
         planType,
         billingInterval,
@@ -184,9 +256,38 @@ export class SubscriptionService {
     });
 
     // Update user feature limits
-    await this.updateUserFeatureLimits(updatedSubscription.userId, planType);
+    if (subscription.status === 'active') {
+      await this.updateUserFeatureLimits(updatedSubscription.userId, planType);
 
-    logger.info('Subscription updated successfully', { subscriptionId: subscription.id });
+      if (!existingSubscription) {
+        // Send upgrade email for the first time.
+        if (planType !== PlanType.FREE) {
+          try {
+            const user = await this.getUserForEmail(userId);
+            if (user) {
+              await sendEmail({
+                type: SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL,
+                payload: {
+                  email: user.email,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                },
+              });
+              logger.info('Upgrade email sent', { userId, subscriptionId: subscription.id, planType });
+            }
+          } catch (emailError) {
+            logger.error('Failed to send upgrade email', {
+              error: emailError,
+              userId,
+              subscriptionId: subscription.id,
+              planType,
+            });
+          }
+        }
+      }
+    }
+
+    logger.info({ subscriptionId: subscription.id }, 'stripe::Subscription updated successfully');
   }
 
   static async handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -229,7 +330,7 @@ export class SubscriptionService {
   }
 
   static async handleInvoiceCreated(invoice: Stripe.Invoice) {
-    logger.info('Handling invoice created', { invoiceId: invoice.id });
+    logger.info({ invoiceId: invoice.id }, 'stripe::handleInvoiceCreated');
 
     const userId = await this.getUserIdFromCustomer(invoice.customer as string);
     if (!userId) {
@@ -238,7 +339,7 @@ export class SubscriptionService {
     }
 
     const subscription = await prisma.subscription.findFirst({
-      where: { stripeCustomerId: invoice.customer as string, status: SubscriptionStatus.ACTIVE },
+      where: { stripeCustomerId: invoice.customer as string },
     });
 
     // Use upsert to make invoice creation idempotent
@@ -412,6 +513,16 @@ export class SubscriptionService {
       return subscription.userId;
     }
 
+    // check user stripeUserId
+    const user = await prisma.user.findUnique({
+      where: { stripeUserId: customerId },
+      select: { id: true },
+    });
+
+    if (user?.id) {
+      return user.id;
+    }
+
     // For test customers, extract userId from metadata if present
     if (customerId.startsWith('cus_test_')) {
       // This is a test customer, no need to call Stripe API
@@ -420,7 +531,7 @@ export class SubscriptionService {
 
     // Fallback to Stripe API if not found in DB (only for real customers)
     try {
-      logger.info('Falling back to Stripe API for customer lookup', { customerId });
+      logger.info({ customerId }, 'Falling back to Stripe API for customer lookup');
       const stripe = getStripe();
       const customer = await stripe.customers.retrieve(customerId);
 
@@ -431,19 +542,22 @@ export class SubscriptionService {
 
           // Validate that it's a valid number
           if (!isNaN(userId) && userId > 0) {
-            logger.info('Found userId in customer metadata', { customerId, userId });
+            logger.info({ customerId, userId }, 'Found userId in customer metadata');
             return userId;
           } else {
-            logger.warn('Invalid userId in customer metadata', {
-              customerId,
-              rawUserId: stripeCustomer.metadata.userId,
-            });
+            logger.warn(
+              {
+                customerId,
+                rawUserId: stripeCustomer.metadata.userId,
+              },
+              'Invalid userId in customer metadata',
+            );
           }
         } else {
-          logger.warn('Customer has no userId metadata', { customerId });
+          logger.warn({ customerId }, 'Customer has no userId metadata');
         }
       } else {
-        logger.warn('Customer is deleted or not found', { customerId });
+        logger.warn({ customerId }, 'Customer is deleted or not found');
       }
     } catch (error) {
       logger.error('Failed to fetch customer from Stripe', {

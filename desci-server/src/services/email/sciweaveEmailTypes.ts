@@ -24,7 +24,7 @@ export type UpgradeEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
   };
 };
@@ -33,7 +33,7 @@ export type CancellationEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
   };
 };
@@ -42,7 +42,7 @@ export type InactivityEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
   };
 };
@@ -51,7 +51,7 @@ export type OutOfChatsInitialEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
   };
 };
@@ -60,7 +60,7 @@ export type OutOfChatsCtaClickedEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
     couponCode: string; // 48-hour limited coupon
     percentOff: number;
@@ -72,7 +72,7 @@ export type OutOfChatsNoCtaEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
     couponCode: string; // 48-hour limited coupon
     percentOff: number;
@@ -84,7 +84,7 @@ export type ProChatRefreshEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
   };
 };
@@ -93,7 +93,7 @@ export type StudentDiscountEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
     couponCode: string; // Student discount coupon
     percentOff?: number;
@@ -104,8 +104,10 @@ export type StudentDiscountLimitReachedEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED;
   payload: {
     email: string;
-    firstName?: string;
+    firstName: string;
     lastName?: string;
+    couponCode: string; // Student discount coupon
+    percentOff?: number;
   };
 };
 

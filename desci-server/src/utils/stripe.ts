@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+
 import { logger as parentLogger } from '../logger.js';
 
 const logger = parentLogger.child({
@@ -10,7 +11,7 @@ let isStripeConfigured = false;
 
 function initializeStripe(): void {
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  
+
   if (secretKey) {
     try {
       stripeInstance = new Stripe(secretKey);
@@ -41,7 +42,7 @@ export function requireStripe(req: any, res: any, next: any): void {
   if (!isStripeEnabled()) {
     return res.status(500).json({
       error: 'Stripe service unavailable',
-      message: 'Stripe is not configured on this server'
+      message: 'Stripe is not configured on this server',
     });
   }
   next();
