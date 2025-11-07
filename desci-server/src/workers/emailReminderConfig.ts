@@ -698,11 +698,35 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
             continue;
           }
 
-          // Get the persistent student discount coupon
-          const coupon = await StripeCouponService.getStudentDiscountCoupon({
-            userId: user.id,
-            email: user.email,
-          });
+          // Reuse the coupon from the initial limit-reached email
+          const existingCouponCode =
+            limitEmail.details && typeof limitEmail.details === 'object' && 'couponCode' in limitEmail.details
+              ? (limitEmail.details.couponCode as string)
+              : undefined;
+
+          const existingPercentOff =
+            limitEmail.details && typeof limitEmail.details === 'object' && 'percentOff' in limitEmail.details
+              ? (limitEmail.details.percentOff as number)
+              : undefined;
+
+          let couponCode: string;
+          let percentOff: number | undefined;
+
+          if (existingCouponCode) {
+            // Reuse the existing coupon
+            couponCode = existingCouponCode;
+            percentOff = existingPercentOff;
+            logger.info({ userId: user.id, couponCode, percentOff }, 'Reusing existing student discount coupon');
+          } else {
+            // Fallback: generate new coupon if not found (shouldn't happen normally)
+            logger.warn({ userId: user.id }, 'No coupon found in limit email, generating new one');
+            const coupon = await StripeCouponService.getStudentDiscountCoupon({
+              userId: user.id,
+              email: user.email,
+            });
+            couponCode = coupon.code;
+            percentOff = coupon.percentOff;
+          }
 
           const { firstName, lastName } = await getUserNameByUser(user);
 
@@ -713,8 +737,8 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
               email: user.email,
               firstName: firstName || undefined,
               lastName: lastName || undefined,
-              couponCode: coupon.code,
-              percentOff: coupon.percentOff,
+              couponCode,
+              percentOff,
             },
           });
 
@@ -727,7 +751,7 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
                 internalTrackingId: emailResult.internalTrackingId,
                 details: {
                   limitEmailId: limitEmail.id,
-                  couponCode: coupon.code,
+                  couponCode,
                   ...(emailResult.sgMessageIdPrefix && {
                     sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
                   }),
@@ -736,7 +760,7 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
             });
           }
 
-          logger.info({ userId: user.id, couponCode: coupon.code }, 'Sent student discount email');
+          logger.info({ userId: user.id, couponCode }, 'Sent student discount email');
           sent++;
         } catch (err) {
           logger.error({ err, userId: user.id }, 'Failed to process student discount email for user');

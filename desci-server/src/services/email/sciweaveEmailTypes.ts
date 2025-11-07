@@ -106,6 +106,8 @@ export type StudentDiscountLimitReachedEmailPayload = {
     email: string;
     firstName: string;
     lastName?: string;
+    couponCode: string; // Student discount coupon
+    percentOff?: number;
   };
 };
 

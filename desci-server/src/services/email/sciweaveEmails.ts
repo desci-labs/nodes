@@ -335,6 +335,8 @@ async function sendStudentDiscountLimitReachedEmail({
   email,
   firstName,
   lastName,
+  couponCode,
+  percentOff,
 }: StudentDiscountLimitReachedEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED];
   if (!templateId) {
@@ -348,6 +350,8 @@ async function sendStudentDiscountLimitReachedEmail({
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
       user: { firstName: firstName || '', lastName: lastName || '', email },
+      couponCode,
+      percentOff: percentOff || 0,
     },
   };
   return await sendSciweaveEmail(message, { templateId });
