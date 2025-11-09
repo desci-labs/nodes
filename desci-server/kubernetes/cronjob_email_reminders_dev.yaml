@@ -57,6 +57,8 @@ spec:
               export TEST_EMAIL_ADDRESS={{ .Data.TEST_EMAIL_ADDRESS }}
               export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
               export EMAIL_REMINDER_DRY_RUN={{ .Data.EMAIL_REMINDER_DRY_RUN }}
+              export CLOUDFLARE_WORKER_API={{ .Data.CLOUDFLARE_WORKER_API }}
+              export CLOUDFLARE_WORKER_API_SECRET={{ .Data.CLOUDFLARE_WORKER_API_SECRET }}
               echo "appfinish";
               {{- end -}}
           labels:
