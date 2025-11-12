@@ -2976,10 +2976,11 @@ export const getPendingSubmissionsOperation: ZodOpenApiOperationObject = {
               reviews: z
                 .array(
                   z.object({
-                    dueDate: z.string().describe('Due date for the review'),
-                    completed: z.boolean().describe('Whether the review has been completed'),
+                    dueDate: z.string().nullable().describe('Due date for the review'),
+                    completed: z.boolean().nullable().describe('Whether the review has been completed'),
                     completedAt: z.string().nullable().describe('Date when the review was completed'),
                     referee: z.string().nullable().describe('Name of the referee'),
+                    refereeUserId: z.number().describe('User ID of the referee'),
                   }),
                 )
                 .describe('All reviews for this submission'),
