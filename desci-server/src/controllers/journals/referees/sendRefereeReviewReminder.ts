@@ -41,7 +41,7 @@ export const sendRefereeReviewReminderController = async (req: SendRefereeReview
         return sendError(res, error.message, 403);
       }
       if (error.message === 'Referee not found') {
-        return sendError(res, error.message, 404);
+        return sendError(res, error.message, 400);
       }
       if (error.message === 'Referee assignment not found') {
         return sendError(res, error.message, 404);

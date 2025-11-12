@@ -1,6 +1,6 @@
 import { DriveObject } from '@desci-labs/desci-models';
 import { EditorRole, JournalEventLogAction, JournalSubmission, Prisma, SubmissionStatus } from '@prisma/client';
-import { isAfter } from 'date-fns';
+import { isAfter, isBefore } from 'date-fns';
 import { Response } from 'express';
 
 import { prisma } from '../../../client.js';
@@ -181,8 +181,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
         refereeInvites:
           role === EditorRole.CHIEF_EDITOR || role === EditorRole.ASSOCIATE_EDITOR
             ? submission.RefereeInvite.filter(
-                (invite) =>
-                  (!invite.expiresAt || isAfter(new Date(), invite.expiresAt)) && !invite.accepted && !invite.declined,
+                (invite) => isBefore(new Date(), invite.expiresAt) && !invite.accepted && !invite.declined,
               ).map((invite) => ({
                 id: invite.id,
                 email: invite.email,
