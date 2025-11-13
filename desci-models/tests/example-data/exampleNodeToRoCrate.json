@@ -1,5 +1,11 @@
 {
-  "@context": "https://w3id.org/ro/crate/1.1/context",
+  "@context": ["https://w3id.org/ro/crate/1.1/context",
+  {
+    "ipfsCid": {
+      "@id": "https://ipld.io/specs/ipld/schemas/schema-syntax/#ipld",
+      "@type": "@id"
+    }
+  }],
   "@graph": [
     {
       "@id": "ro-crate-metadata.json",
@@ -13,15 +19,18 @@
     },
     {
       "@id": "./",
-      "@type": "CreativeWork",
+      "@type": "Dataset",
       "creator": [
         {
           "@id": "https://orcid.org/0000-0001-2345-6789"
         }
       ],
+      "datePublished": "2025-11-13T02:09:18.780Z",
+      "description": "Test dataset",
       "license": "https://creativecommons.org/licenses/by/4.0/",
       "name": "Test dataset",
-      "url": "https://beta.dpid.org/123"
+      "url": "https://beta.dpid.org/123",
+      "hasPart": [{"@id": "example.pdf"}, {"@id": "example.zip"}, {"@id": "data.zip"}]
     },
     {
       "@id": "https://orcid.org/0000-0001-2345-6789",
@@ -29,7 +38,7 @@
       "name": "John Doe"
     },
     {
-      "/": "bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy",
+      "ipfsCid": "bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy",
       "@id": "example.pdf",
       "@type": "CreativeWork",
       "encodingFormat": "application/pdf",
@@ -37,7 +46,7 @@
       "url": "https://ipfs.desci.com/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy"
     },
     {
-      "/": "bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i",
+      "ipfsCid": "bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i",
       "@id": "example.zip",
       "@type": "SoftwareSourceCode",
       "discussionUrl": "https://github.com/hubsmoke/rhapsody-in-blue",
@@ -46,7 +55,7 @@
       "url": "https://ipfs.desci.com/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"
     },
     {
-      "/": "bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m",
+      "ipfsCid": "bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m",
       "@id": "data.zip",
       "@type": "Dataset",
       "encodingFormat": "application/octet-stream",

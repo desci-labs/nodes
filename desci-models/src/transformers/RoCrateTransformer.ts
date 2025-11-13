@@ -116,7 +116,15 @@ export class RoCrateTransformer implements BaseTransformer {
     this.nodeObject = nodeObject;
     const authors = nodeObject.authors?.map(this.mapAuthor);
     const crate: any = {
-      '@context': 'https://w3id.org/ro/crate/1.1/context',
+      '@context': [
+        'https://w3id.org/ro/crate/1.1/context',
+        {
+          'ipfsCid': {
+            '@id': 'https://ipld.io/specs/ipld/schemas/schema-syntax/#ipld',
+            '@type': '@id'
+          }
+        }
+      ],
       '@graph': [
         {
           '@id': 'ro-crate-metadata.json',
@@ -130,16 +138,26 @@ export class RoCrateTransformer implements BaseTransformer {
         },
         {
           '@id': './',
-          '@type': 'CreativeWork',
+          '@type': 'Dataset',
           name: nodeObject.title,
           license: licenseToUrl(nodeObject.defaultLicense || 'CC-BY-SA-4.0'),
           url: nodeObject.dpid ? `https://${nodeObject.dpid.prefix}.dpid.org/${nodeObject.dpid.id}` : undefined,
+          // Add the missing required properties
+          description: nodeObject.description || nodeObject.title || 'Research object dataset',
+          datePublished: nodeObject.history?.[0]?.date 
+            ? new Date(nodeObject.history[0].date * 1000).toISOString() // Convert UTC seconds to ISO string
+            : new Date().toISOString(), // Fallback to current date
           creator: authors
-            ?.filter((a) => a['@id'])
-            .map((a) => ({
-              // don't expand all author info, stored elsewhere
-              '@id': a['@id'],
-            })),
+          ?.filter((a) => a['@id'])
+          .map((a) => ({
+            // don't expand all author info, stored elsewhere
+            '@id': a['@id'],
+          })),
+          
+          // Only include the root directory component, not individual components
+          hasPart: nodeObject.components
+            .filter((c) => isNodeRoot(c)) // Only the root directory
+            .map((c) => ({ '@id': c.id }))
         },
       ].concat(authors || [{}]),
     };
@@ -175,7 +193,7 @@ export class RoCrateTransformer implements BaseTransformer {
         ...(crateComponent as CreativeWork),
       };
       creativeWork.encodingFormat = 'application/pdf';
-      (creativeWork as any)['/'] = cleanupUrlOrCid((component.payload as any).url);
+      (creativeWork as any)['ipfsCid'] = cleanupUrlOrCid((component.payload as any).url);
       creativeWork.url = `${DESCI_IPFS_RESOLVER_HTTP}${cleanupUrlOrCid((component.payload as any).url)}`;
       creativeWork['@type'] = 'CreativeWork';
       crateComponent = creativeWork;
@@ -185,7 +203,7 @@ export class RoCrateTransformer implements BaseTransformer {
       };
       softwareSourceCode.encodingFormat = 'text/plain';
 
-      (softwareSourceCode as any)['/'] = cleanupUrlOrCid(component.payload.url);
+      (softwareSourceCode as any)['ipfsCid'] = cleanupUrlOrCid(component.payload.url);
       softwareSourceCode.url = `${DESCI_IPFS_RESOLVER_HTTP}${cleanupUrlOrCid(component.payload.url)}`;
       softwareSourceCode.discussionUrl = component.payload.externalUrl;
       softwareSourceCode['@type'] = 'SoftwareSourceCode';
@@ -211,7 +229,7 @@ export class RoCrateTransformer implements BaseTransformer {
         }
       }
       dataset.encodingFormat = 'application/octet-stream';
-      (dataset as any)['/'] = cleanupUrlOrCid((component.payload as any).url || (component.payload as any).cid);
+      (dataset as any)['ipfsCid'] = cleanupUrlOrCid((component.payload as any).url || (component.payload as any).cid);
       dataset.url = `${DESCI_IPFS_RESOLVER_HTTP}${cleanupUrlOrCid(
         (component.payload as any).url || (component.payload as any).cid,
       )}`;
@@ -230,10 +248,24 @@ export class RoCrateTransformer implements BaseTransformer {
       const dataset: Dataset = {
         ...(crateComponent as Dataset),
       };
-      dataset['@id'] = './root';
-      dataset['hasPart'] = this.nodeObject!.components.filter((d) => d.type === ResearchObjectComponentType.DATA).map(
-        (d) => ({ '@id': d.id }),
+      
+      // Use the component's actual ID instead of hardcoded './root/'
+      dataset['@id'] = component.id;
+      
+      // Find components that belong to this root component
+      // Components belong to this root if their path starts with this component's path
+      const rootPath = component.payload.path;
+      const childComponents = this.nodeObject!.components.filter((c) => 
+        c.id !== component.id && // Don't include self
+        c.payload.path && // Has a path
+        c.payload.path.startsWith(rootPath + '/') // Path starts with root path + '/'
       );
+      
+      // Add hasPart relationships to child components
+      if (childComponents.length > 0) {
+        dataset['hasPart'] = childComponents.map((c) => ({ '@id': c.id }));
+      }
+      
       crateComponent = dataset;
     }
 
@@ -269,17 +301,17 @@ export class RoCrateTransformer implements BaseTransformer {
 
     if (encodingFormat === 'application/pdf') {
       nodeComponent.type = ResearchObjectComponentType.PDF;
-      (nodeComponent.payload as any)['/'] = crateComponent.url;
+      (nodeComponent.payload as any)['ipfsCid'] = crateComponent.url;
       (nodeComponent.payload as any).url = crateComponent.url;
     } else if (encodingFormat === 'text/plain') {
       nodeComponent.type = ResearchObjectComponentType.CODE;
-      (nodeComponent.payload as any)['/'] = crateComponent.url;
+      (nodeComponent.payload as any)['ipfsCid'] = crateComponent.url;
       (nodeComponent.payload as any).url = crateComponent.url;
     } else if (encodingFormat === 'application/octet-stream') {
       nodeComponent.type = ResearchObjectComponentType.DATA;
       (nodeComponent.payload as any).cid = crateComponent.url;
-      (nodeComponent.payload as any)['/'] = crateComponent.url;
-    } else {
+      (nodeComponent.payload as any)['ipfsCid'] = crateComponent.url;
+    } else {    
       nodeComponent.type = ResearchObjectComponentType.UNKNOWN;
     }
 
