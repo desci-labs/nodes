@@ -184,7 +184,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
                 (invite) => isBefore(new Date(), invite.expiresAt) && !invite.accepted && !invite.declined,
               ).map((invite) => ({
                 id: invite.id,
-                email: invite.email,
+                name: invite.name,
                 accepted: invite.accepted,
                 acceptedAt: invite.acceptedAt,
                 declined: invite.declined,
