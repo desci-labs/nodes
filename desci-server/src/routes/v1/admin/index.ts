@@ -6,6 +6,7 @@ import {
   getAnalytics,
   getAggregatedAnalytics,
   getNewUserAnalytics,
+  getNewSciweaveUserAnalytics,
   userAnalyticsSchema,
   getAggregatedAnalyticsCsv,
 } from '../../../controllers/admin/analytics.js';
@@ -41,6 +42,11 @@ router.get(
   asyncHandler(getAggregatedAnalyticsCsv),
 );
 router.get('/analytics/new-users', [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin], getNewUserAnalytics);
+router.get(
+  '/analytics/new-sciweave-users',
+  [validate(analyticsChartSchema), ensureUser, ensureUserIsAdmin],
+  asyncHandler(getNewSciweaveUserAnalytics),
+);
 router.get(
   '/analytics/active-users',
   [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
