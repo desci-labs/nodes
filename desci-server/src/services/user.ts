@@ -1,4 +1,4 @@
-import { AuthTokenSource, Prisma, User } from '@prisma/client';
+import { ActionType, AuthTokenSource, Prisma, User } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma as client } from '../client.js';
@@ -417,6 +417,37 @@ export const getNewOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
   return newUsersInXDays;
 };
 
+export const getNewSciweaveUsersInXDays = async (dateXDaysAgo: Date) => {
+  logger.trace({ fn: 'getNewSciweaveUsersInXDays' }, 'user::getNewSciweaveUsersInXDays');
+
+  // Get users who have USER_SIGNUP_SUCCESS with isSciweave = true in their interaction logs
+  // and were created after the specified date
+  const sciweaveUserLogs = (await client.$queryRaw`
+    SELECT DISTINCT ON (il."userId")
+      il."userId",
+      u.id,
+      u.email,
+      u.orcid,
+      u."createdAt"
+    FROM "InteractionLog" il
+    INNER JOIN "User" u ON u.id = il."userId"
+    WHERE il.action = 'USER_SIGNUP_SUCCESS'
+      AND il."createdAt" >= ${dateXDaysAgo}
+      AND il."userId" IS NOT NULL
+      AND u."createdAt" >= ${dateXDaysAgo}
+      AND u."isGuest" = false
+      AND (il.extra :: jsonb ->> 'isSciweave') = 'true'
+    ORDER BY il."userId", il."createdAt" ASC
+  `) as { userId: number; id: number; email: string; orcid: string | null; createdAt: Date }[];
+
+  return sciweaveUserLogs.map((log) => ({
+    id: log.id,
+    email: log.email,
+    orcid: log.orcid,
+    createdAt: log.createdAt,
+  }));
+};
+
 export const getCountAllUsers = async (): Promise<number> => {
   logger.trace({ fn: 'getCountAllUsers' }, 'user::getCountAllUsers');
   const allUsers = await client.user.count({ where: { isGuest: false } });
@@ -552,6 +583,37 @@ export const getNewOrcidUsersInRange = async (range: { from: Date; to: Date }) =
   });
 
   return newUsers;
+};
+
+export const getNewSciweaveUsersInRange = async (range: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getNewSciweaveUsersInRange' }, 'user::getNewSciweaveUsersInRange');
+
+  // Get users who have USER_SIGNUP_SUCCESS with isSciweave = true in their interaction logs
+  // and were created within the date range
+  // Use raw query to get distinct user IDs with their user data
+  const sciweaveUserLogs = (await client.$queryRaw`
+    SELECT DISTINCT ON (il."userId")
+      il."userId",
+      u.id,
+      u.email,
+      u.orcid,
+      u."createdAt"
+    FROM "InteractionLog" il
+    INNER JOIN "User" u ON u.id = il."userId"
+    WHERE il.action = 'USER_SIGNUP_SUCCESS'
+      AND il."createdAt" >= ${range.from}
+      AND il."createdAt" < ${range.to}
+      AND il."userId" IS NOT NULL
+      AND u."createdAt" >= ${range.from}
+      AND u."createdAt" < ${range.to}
+      AND u."isGuest" = false
+      AND (il.extra :: jsonb ->> 'isSciweave') = 'true'
+    ORDER BY il."userId", il."createdAt" ASC
+  `) as { createdAt: Date }[];
+
+  return sciweaveUserLogs.map((log) => ({
+    createdAt: log.createdAt,
+  }));
 };
 
 export const countAllUsers = async (range?: { from: Date; to: Date }): Promise<number> => {

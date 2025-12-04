@@ -49,6 +49,7 @@ export const getAggregatedAnalyticsOperation: ZodOpenApiOperationObject = {
                 date: z.date(),
                 newUsers: z.number(),
                 newOrcidUsers: z.number(),
+                newSciweaveUsers: z.number(),
                 activeUsers: z.number(),
                 activeOrcidUsers: z.number(),
                 nodeViews: z.number(),
@@ -171,6 +172,39 @@ export const getNewOrcidUserAnalyticsOperation: ZodOpenApiOperationObject = {
               dateJoined: z.union([z.string(), z.number()]),
             }),
           ),
+        },
+      },
+    },
+  },
+};
+
+export const getNewSciweaveUserAnalyticsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getNewSciweaveUserAnalytics',
+  tags: ['Admin'],
+  summary: 'Get New Sciweave User Analytics',
+  description:
+    'Retrieve aggregated analytics data for new Sciweave users (users with USER_SIGNUP_SUCCESS and isSciweave=true in their interaction logs) within a specified time period, grouped by time intervals (daily, weekly, monthly, yearly).',
+  requestParams: {
+    query: analyticsChartSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Successful operation',
+      content: {
+        'application/json': {
+          schema: z.object({
+            analytics: z.array(
+              z.object({
+                date: z.string(),
+                newSciweaveUsers: z.number(),
+              }),
+            ),
+            meta: z.object({
+              from: z.string(),
+              to: z.string(),
+              diffInDays: z.number(),
+            }),
+          }),
         },
       },
     },

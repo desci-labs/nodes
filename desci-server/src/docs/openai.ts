@@ -13,6 +13,7 @@ import {
   getActiveOrcidUserAnalyticsOperation,
   getNewUserAnalyticsOperation,
   getNewOrcidUserAnalyticsOperation,
+  getNewSciweaveUserAnalyticsOperation,
 } from './analytics.js';
 import { authPaths } from './auth.js';
 import { authorPaths } from './authors.js';
@@ -51,6 +52,9 @@ export const analyticsPaths = {
   },
   '/v1/admin/analytics/new-orcid-users': {
     get: getNewOrcidUserAnalyticsOperation,
+  },
+  '/v1/admin/analytics/new-sciweave-users': {
+    get: getNewSciweaveUserAnalyticsOperation,
   },
 };
 

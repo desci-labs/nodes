@@ -70,6 +70,7 @@ import {
   getCountNewUsersWithOrcidInMonth,
   getNewOrcidUsersInRange,
   getNewOrcidUsersInXDays,
+  getNewSciweaveUsersInRange,
   getNewUsersInRange,
   getNewUsersInXDays,
   getUsersWithMarketingConsent,
@@ -85,6 +86,7 @@ interface DataRow {
   date: string;
   newUsers: number;
   newOrcidUsers: number;
+  newSciweaveUsers: number;
   activeUsers: number;
   activeOrcidUsers: number;
   newNodes: number;
@@ -100,6 +102,7 @@ interface AnalyticsData {
   date: Date | string;
   newUsers: number;
   newOrcidUsers: number;
+  newSciweaveUsers: number;
   activeUsers: number;
   activeOrcidUsers: number;
   newNodes: number;
@@ -409,6 +412,7 @@ async function aggregateAnalytics(from: Date, to: Date) {
   const [
     newUsers,
     newOrcidUsers,
+    newSciweaveUsers,
     activeUsers,
     activeOrcidUsers,
     newNodes,
@@ -422,6 +426,7 @@ async function aggregateAnalytics(from: Date, to: Date) {
   ] = await Promise.all([
     getNewUsersInRange({ from, to }),
     getNewOrcidUsersInRange({ from, to }),
+    getNewSciweaveUsersInRange({ from, to }),
     getActiveUsersInRange({ from, to }),
     getActiveOrcidUsersInRange({ from, to }),
     getNewNodesInRange({ from, to }),
@@ -437,6 +442,7 @@ async function aggregateAnalytics(from: Date, to: Date) {
   return {
     newUsers,
     newOrcidUsers,
+    newSciweaveUsers,
     activeUsers,
     activeOrcidUsers,
     newNodes,
@@ -479,6 +485,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       nodeViews,
       newNodes,
       newUsers,
+      newSciweaveUsers,
       activeUsers,
       newOrcidUsers,
       activeOrcidUsers,
@@ -530,6 +537,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
       const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
+      const newSciweaveUsersAgg = newSciweaveUsers.filter((user) =>
+        isWithinInterval(user.createdAt, selectedDatesInterval),
+      );
       const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
         isWithinInterval(user.createdAt, selectedDatesInterval),
@@ -574,6 +584,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
         date: peggedPeriod.toISOString(),
         newUsers: newUsersAgg.length,
         newOrcidUsers: newOrcidUsersAgg.length,
+        newSciweaveUsers: newSciweaveUsersAgg.length,
         activeUsers: activeUsersAgg.length,
         activeOrcidUsers: activeOrcidUsersAgg.length,
         nodeViews: nodeViewsAgg.length,
@@ -673,6 +684,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
       nodeViews,
       newNodes,
       newUsers,
+      newSciweaveUsers,
       activeUsers,
       newOrcidUsers,
       activeOrcidUsers,
@@ -697,6 +709,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
 
       const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
+      const newSciweaveUsersAgg = newSciweaveUsers.filter((user) =>
+        isWithinInterval(user.createdAt, selectedDatesInterval),
+      );
       const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
         isWithinInterval(user.createdAt, selectedDatesInterval),
@@ -726,6 +741,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
               : formatDate(period, 'dd MMM yyyy'),
         newUsers: newUsersAgg.length,
         newOrcidUsers: newOrcidUsersAgg.length,
+        newSciweaveUsers: newSciweaveUsersAgg.length,
         activeUsers: activeUsersAgg.length,
         activeOrcidUsers: activeOrcidUsersAgg.length,
         nodeViews: nodeViewsAgg.length,
@@ -758,7 +774,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
   }
 
   const csv = [
-    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,bytesDownloaded,nodeLikes,communitySubmissions,badgeVerifications',
+    'date,newUsers,newOrcidUsers,newSciweaveUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,bytesDownloaded,nodeLikes,communitySubmissions,badgeVerifications',
     ...aggregatedData
       .reverse()
       .map((row) =>
@@ -766,6 +782,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
           row.date,
           row.newUsers,
           row.newOrcidUsers,
+          row.newSciweaveUsers,
           row.activeUsers,
           row.activeOrcidUsers,
           row.newNodes,
@@ -900,4 +917,104 @@ export const getActiveOrcidUserAnalytics = async (req: Request, res: Response) =
 
   const rows = await getActiveOrcidUsersInXDays(utcMidnightXDaysAgo);
   await processUserAnalytics(rows, false, res, true, false);
+};
+
+export const getNewSciweaveUserAnalytics = async (req: RequestWithUser, res: Response) => {
+  const {
+    query: { from, to, interval: timeInterval },
+  } = req as zod.infer<typeof analyticsChartSchema>;
+
+  const toDate = new Date(to.split('GMT')[0]);
+  const fromDate = new Date(from.split('GMT')[0]);
+
+  const diffInDays = differenceInDays(toDate, fromDate);
+  const startDate = startOfDay(fromDate);
+  const endDate = endOfDay(toDate);
+  logger.trace(
+    { fn: 'getNewSciweaveUserAnalytics', diffInDays, from, to, fromDate, toDate, startDate, endDate },
+    'getNewSciweaveUserAnalytics',
+  );
+
+  const selectedDates = { from: startDate, to: endDate };
+
+  const cacheKey = `sciweaveUserAnalytics-${selectedDates.from.toDateString()}-${selectedDates.to.toDateString()}-${timeInterval}`;
+  logger.trace({ cacheKey }, 'GET: CACHE KEY');
+
+  let aggregatedData = await getFromCache<{ date: string; value: number }[]>(cacheKey);
+
+  let count = 0;
+  if (!aggregatedData) {
+    const newSciweaveUsers = await getNewSciweaveUsersInRange({
+      from: selectedDates.from,
+      to: selectedDates.to,
+    });
+    count = newSciweaveUsers.length;
+    const getIntervals = () => {
+      switch (timeInterval) {
+        case 'daily':
+          return selectedDates?.from && selectedDates?.to
+            ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
+            : null;
+        case 'weekly':
+          return selectedDates?.from && selectedDates?.to
+            ? eachWeekOfInterval(interval(selectedDates.from, selectedDates.to))
+            : null;
+        case 'monthly':
+          return selectedDates?.from && selectedDates?.to
+            ? eachMonthOfInterval(interval(selectedDates.from, selectedDates.to))
+            : null;
+        case 'yearly':
+          return selectedDates?.from && selectedDates?.to
+            ? eachYearOfInterval(interval(selectedDates.from, selectedDates.to))
+            : null;
+        default:
+          return selectedDates?.from && selectedDates?.to
+            ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
+            : null;
+      }
+    };
+
+    const allDatesInInterval = getIntervals();
+
+    aggregatedData = allDatesInInterval.map((period) => {
+      const selectedDatesInterval =
+        timeInterval === 'daily'
+          ? interval(startOfDay(period), endOfDay(period))
+          : timeInterval === 'weekly'
+            ? interval(startOfWeek(period), endOfWeek(period))
+            : timeInterval === 'monthly'
+              ? interval(startOfMonth(period), endOfMonth(period))
+              : timeInterval === 'yearly'
+                ? interval(startOfYear(period), endOfYear(period))
+                : interval(startOfDay(period), endOfDay(period));
+
+      const newSciweaveUsersAgg = newSciweaveUsers.filter((user) =>
+        isWithinInterval(user.createdAt, selectedDatesInterval),
+      );
+
+      const peggedPeriod = isWithinInterval(period, interval(selectedDates.from, selectedDates.to))
+        ? period
+        : selectedDates.from;
+
+      return {
+        date: peggedPeriod.toISOString(),
+        value: newSciweaveUsersAgg.length,
+      };
+    });
+
+    // cache query result for a day.
+    logger.trace({ cacheKey }, 'SET: CACHE KEY');
+    await setToCache(cacheKey, aggregatedData, ONE_DAY_TTL);
+  }
+
+  const data = {
+    analytics: aggregatedData,
+    count: count,
+    meta: {
+      from: selectedDates.from.toISOString(),
+      to: selectedDates.to.toISOString(),
+      diffInDays,
+    },
+  };
+  return new SuccessResponse(data).send(res);
 };
