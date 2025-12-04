@@ -196,9 +196,10 @@ export const getNewSciweaveUserAnalyticsOperation: ZodOpenApiOperationObject = {
             analytics: z.array(
               z.object({
                 date: z.string(),
-                newSciweaveUsers: z.number(),
+                value: z.number(),
               }),
             ),
+            count: z.number(),
             meta: z.object({
               from: z.string(),
               to: z.string(),

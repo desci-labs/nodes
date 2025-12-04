@@ -940,72 +940,85 @@ export const getNewSciweaveUserAnalytics = async (req: RequestWithUser, res: Res
   const cacheKey = `sciweaveUserAnalytics-${selectedDates.from.toDateString()}-${selectedDates.to.toDateString()}-${timeInterval}`;
   logger.trace({ cacheKey }, 'GET: CACHE KEY');
 
-  let aggregatedData = await getFromCache<{ date: string; value: number }[]>(cacheKey);
+  const cachedData = await getFromCache<{ analytics: { date: string; value: number }[]; count: number }>(cacheKey);
 
-  let count = 0;
-  if (!aggregatedData) {
-    const newSciweaveUsers = await getNewSciweaveUsersInRange({
-      from: selectedDates.from,
-      to: selectedDates.to,
-    });
-    count = newSciweaveUsers.length;
-    const getIntervals = () => {
-      switch (timeInterval) {
-        case 'daily':
-          return selectedDates?.from && selectedDates?.to
-            ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
-            : null;
-        case 'weekly':
-          return selectedDates?.from && selectedDates?.to
-            ? eachWeekOfInterval(interval(selectedDates.from, selectedDates.to))
-            : null;
-        case 'monthly':
-          return selectedDates?.from && selectedDates?.to
-            ? eachMonthOfInterval(interval(selectedDates.from, selectedDates.to))
-            : null;
-        case 'yearly':
-          return selectedDates?.from && selectedDates?.to
-            ? eachYearOfInterval(interval(selectedDates.from, selectedDates.to))
-            : null;
-        default:
-          return selectedDates?.from && selectedDates?.to
-            ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
-            : null;
-      }
-    };
-
-    const allDatesInInterval = getIntervals();
-
-    aggregatedData = allDatesInInterval.map((period) => {
-      const selectedDatesInterval =
-        timeInterval === 'daily'
-          ? interval(startOfDay(period), endOfDay(period))
-          : timeInterval === 'weekly'
-            ? interval(startOfWeek(period), endOfWeek(period))
-            : timeInterval === 'monthly'
-              ? interval(startOfMonth(period), endOfMonth(period))
-              : timeInterval === 'yearly'
-                ? interval(startOfYear(period), endOfYear(period))
-                : interval(startOfDay(period), endOfDay(period));
-
-      const newSciweaveUsersAgg = newSciweaveUsers.filter((user) =>
-        isWithinInterval(user.createdAt, selectedDatesInterval),
-      );
-
-      const peggedPeriod = isWithinInterval(period, interval(selectedDates.from, selectedDates.to))
-        ? period
-        : selectedDates.from;
-
-      return {
-        date: peggedPeriod.toISOString(),
-        value: newSciweaveUsersAgg.length,
-      };
-    });
-
-    // cache query result for a day.
-    logger.trace({ cacheKey }, 'SET: CACHE KEY');
-    await setToCache(cacheKey, aggregatedData, ONE_DAY_TTL);
+  if (cachedData) {
+    return new SuccessResponse(cachedData).send(res);
   }
+  let count = 0;
+  const newSciweaveUsers = await getNewSciweaveUsersInRange({
+    from: selectedDates.from,
+    to: selectedDates.to,
+  });
+  count = newSciweaveUsers.length;
+  const getIntervals = () => {
+    switch (timeInterval) {
+      case 'daily':
+        return selectedDates?.from && selectedDates?.to
+          ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'weekly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachWeekOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'monthly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachMonthOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'yearly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachYearOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      default:
+        return selectedDates?.from && selectedDates?.to
+          ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+    }
+  };
+
+  const allDatesInInterval = getIntervals();
+
+  const aggregatedData = allDatesInInterval.map((period) => {
+    const selectedDatesInterval =
+      timeInterval === 'daily'
+        ? interval(startOfDay(period), endOfDay(period))
+        : timeInterval === 'weekly'
+          ? interval(startOfWeek(period), endOfWeek(period))
+          : timeInterval === 'monthly'
+            ? interval(startOfMonth(period), endOfMonth(period))
+            : timeInterval === 'yearly'
+              ? interval(startOfYear(period), endOfYear(period))
+              : interval(startOfDay(period), endOfDay(period));
+
+    const newSciweaveUsersAgg = newSciweaveUsers.filter((user) =>
+      isWithinInterval(user.createdAt, selectedDatesInterval),
+    );
+
+    const peggedPeriod = isWithinInterval(period, interval(selectedDates.from, selectedDates.to))
+      ? period
+      : selectedDates.from;
+
+    return {
+      date: peggedPeriod.toISOString(),
+      value: newSciweaveUsersAgg.length,
+    };
+  });
+
+  // cache query result for a day.
+  logger.trace({ cacheKey }, 'SET: CACHE KEY');
+  await setToCache(
+    cacheKey,
+    {
+      analytics: aggregatedData,
+      count: count,
+      meta: {
+        from: selectedDates.from.toISOString(),
+        to: selectedDates.to.toISOString(),
+        diffInDays,
+      },
+    },
+    ONE_DAY_TTL,
+  );
 
   const data = {
     analytics: aggregatedData,
