@@ -3,7 +3,7 @@ import z from 'zod';
 import { ZodOpenApiOperationObject } from 'zod-openapi';
 
 import { userAnalyticsSchema } from '../controllers/admin/analytics.js';
-import { analyticsChartSchema } from '../controllers/admin/schema.js';
+import { analyticsChartSchema, sciweaveUsersExportSchema } from '../controllers/admin/schema.js';
 
 export const getAnalyticsOperation: ZodOpenApiOperationObject = {
   operationId: 'getAnalytics',
@@ -206,6 +206,35 @@ export const getNewSciweaveUserAnalyticsOperation: ZodOpenApiOperationObject = {
               diffInDays: z.number(),
             }),
           }),
+        },
+      },
+    },
+  },
+};
+
+export const exportSciweaveUsersCsvOperation: ZodOpenApiOperationObject = {
+  operationId: 'exportSciweaveUsersCsv',
+  tags: ['Admin'],
+  summary: 'Export Sciweave Users CSV',
+  description:
+    'Export all Sciweave users (users with USER_SIGNUP_SUCCESS and isSciweave=true) to CSV format. Includes email, dateJoined, role (from questionnaire), sciweave consent status, and sciweave marketing consent status. Optionally filter by date range using from and to query parameters.',
+  requestParams: {
+    query: sciweaveUsersExportSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'CSV file exported successfully',
+      content: {
+        'text/csv': {
+          schema: z.string(),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
         },
       },
     },

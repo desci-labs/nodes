@@ -62,6 +62,7 @@ import {
   getBytesInRange,
 } from '../../services/nodeManager.js';
 import {
+  getAllSciweaveUsersForExport,
   getCountAllOrcidUsers,
   getCountAllUsers,
   getCountNewOrcidUsersInXDays,
@@ -78,7 +79,7 @@ import {
 import { getUtcDateXDaysAgo } from '../../utils/clock.js';
 import { asyncMap } from '../../utils.js';
 
-import { analyticsChartSchema } from './schema.js';
+import { analyticsChartSchema, sciweaveUsersExportSchema } from './schema.js';
 
 const logger = parentLogger.child({ module: 'ADMIN::AnalyticsController' });
 
@@ -1030,4 +1031,45 @@ export const getNewSciweaveUserAnalytics = async (req: RequestWithUser, res: Res
     },
   };
   return new SuccessResponse(data).send(res);
+};
+
+export const exportSciweaveUsersCsv = async (req: RequestWithUser, res: Response) => {
+  const user = req.user;
+  logger.info({ fn: 'exportSciweaveUsersCsv' }, `GET exportSciweaveUsersCsv called by ${user.email}`);
+
+  try {
+    const { from, to } = (req as zod.infer<typeof sciweaveUsersExportSchema>).query;
+
+    let dateRange: { from: Date; to: Date } | undefined;
+    if (from && to) {
+      const fromDate = new Date(from.split('GMT')[0]);
+      const toDate = new Date(to.split('GMT')[0]);
+      dateRange = {
+        from: startOfDay(fromDate),
+        to: endOfDay(toDate),
+      };
+      logger.trace({ fn: 'exportSciweaveUsersCsv', dateRange }, 'Filtering users by date range');
+    }
+
+    const users = await getAllSciweaveUsersForExport(dateRange);
+
+    const csv = [
+      'email,joinedAt,role,sciweaveConsent,sciweaveMarketingConsent',
+      ...users.map((user) => {
+        const formattedDate = formatDate(user.dateJoined, 'dd MMM yyyy');
+        const role = user.role || '';
+        const sciweaveConsent = user.sciweaveConsent ? 'true' : 'false';
+        const sciweaveMarketingConsent = user.sciweaveMarketingConsent ? 'true' : 'false';
+
+        return [user.email, formattedDate, role, sciweaveConsent, sciweaveMarketingConsent].join(',');
+      }),
+    ].join('\n');
+
+    res.setHeader('Content-disposition', 'attachment; filename=sciweave-users.csv');
+    res.set('Content-Type', 'text/csv');
+    res.status(200).send(csv);
+  } catch (error) {
+    logger.error({ fn: 'exportSciweaveUsersCsv', error }, 'Failed to export Sciweave users CSV');
+    res.status(500).json({ error: 'Failed to export Sciweave users' });
+  }
 };
