@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import {
   createCsv,
+  exportSciweaveUsersCsv,
   getActiveUserAnalytics,
   getAnalytics,
   getAggregatedAnalytics,
@@ -15,7 +16,7 @@ import { retryMigration } from '../../../controllers/admin/data/retryMigration.j
 import { debugAllNodesHandler, debugNodeHandler } from '../../../controllers/admin/debug.js';
 import { listDoiRecords, mintDoi } from '../../../controllers/admin/doi/index.js';
 import { resumePublish } from '../../../controllers/admin/publish/resumePublish.js';
-import { analyticsChartSchema } from '../../../controllers/admin/schema.js';
+import { analyticsChartSchema, sciweaveUsersExportSchema } from '../../../controllers/admin/schema.js';
 import { ensureAdmin, ensureUserIsAdmin } from '../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 import { validate } from '../../../middleware/validator.js';
@@ -46,6 +47,11 @@ router.get(
   '/analytics/new-sciweave-users',
   [validate(analyticsChartSchema), ensureUser, ensureUserIsAdmin],
   asyncHandler(getNewSciweaveUserAnalytics),
+);
+router.get(
+  '/analytics/sciweave-users/export',
+  [validate(sciweaveUsersExportSchema), ensureUser, ensureUserIsAdmin],
+  asyncHandler(exportSciweaveUsersCsv),
 );
 router.get(
   '/analytics/active-users',

@@ -7,6 +7,7 @@ import { createDocument } from 'zod-openapi';
 import { metricsPaths } from './admin/metrics.js';
 import { adminNodesPaths } from './admin/nodes.js';
 import {
+  exportSciweaveUsersCsvOperation,
   getAnalyticsOperation,
   getAggregatedAnalyticsOperation,
   getAggregatedAnalyticsCsvOperation,
@@ -55,6 +56,9 @@ export const analyticsPaths = {
   },
   '/v1/admin/analytics/new-sciweave-users': {
     get: getNewSciweaveUserAnalyticsOperation,
+  },
+  '/v1/admin/analytics/sciweave-users/export': {
+    get: exportSciweaveUsersCsvOperation,
   },
 };
 

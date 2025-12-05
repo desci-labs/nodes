@@ -25,3 +25,18 @@ export const metricsApiSchema = zod.object({
     compareToPreviousPeriod: zod.coerce.boolean().optional().default(false).describe('Compare to previous period'),
   }),
 });
+
+export const sciweaveUsersExportSchema = zod.object({
+  query: zod.object({
+    from: zod
+      .string()
+      .datetime()
+      .optional()
+      .openapi({ description: 'Start date for filtering users by dateJoined (ISO datetime)', example: '2025-01-01T00:00:00.000Z' }),
+    to: zod
+      .string()
+      .datetime()
+      .optional()
+      .openapi({ description: 'End date for filtering users by dateJoined (ISO datetime)', example: '2025-12-31T23:59:59.999Z' }),
+  }),
+});
