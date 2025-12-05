@@ -616,6 +616,90 @@ export const getNewSciweaveUsersInRange = async (range: { from: Date; to: Date }
   }));
 };
 
+export interface SciweaveUserExportData {
+  email: string;
+  dateJoined: Date;
+  role: string | null;
+  sciweaveConsent: boolean;
+  sciweaveMarketingConsent: boolean;
+}
+
+export const getAllSciweaveUsersForExport = async (range?: {
+  from: Date;
+  to: Date;
+}): Promise<SciweaveUserExportData[]> => {
+  logger.trace({ fn: 'getAllSciweaveUsersForExport', range }, 'user::getAllSciweaveUsersForExport');
+
+  // Get all users who have USER_SIGNUP_SUCCESS with isSciweave = true
+  // Optionally filter by date range if provided
+  const sciweaveUsers = (await client.$queryRaw`
+    SELECT DISTINCT ON (il."userId")
+      il."userId",
+      u.id,
+      u.email,
+      u."createdAt",
+      u."receiveSciweaveMarketingEmails"
+    FROM "InteractionLog" il
+    INNER JOIN "User" u ON u.id = il."userId"
+    WHERE il.action = 'USER_SIGNUP_SUCCESS'
+      AND il."userId" IS NOT NULL
+      AND u."isGuest" = false
+      AND (il.extra :: jsonb ->> 'isSciweave') = 'true'
+      ${range ? Prisma.sql`AND u."createdAt" >= ${range.from} AND u."createdAt" < ${range.to}` : Prisma.sql``}
+    ORDER BY il."userId", il."createdAt" ASC
+  `) as {
+    userId: number;
+    id: number;
+    email: string;
+    createdAt: Date;
+    receiveSciweaveMarketingEmails: boolean;
+  }[];
+
+  // For each user, get their questionnaire data (role) and consent status
+  const usersWithData = await Promise.all(
+    sciweaveUsers.map(async (user) => {
+      // Get questionnaire data for role
+      const questionnaire = await client.interactionLog.findFirst({
+        where: {
+          userId: user.userId,
+          action: ActionType.SUBMIT_SCIWEAVE_QUESTIONNAIRE,
+        },
+        select: {
+          extra: true,
+        },
+      });
+
+      let role: string | null = null;
+      if (questionnaire?.extra) {
+        try {
+          const data = JSON.parse(questionnaire.extra) as { role?: string };
+          role = data.role || null;
+        } catch (error) {
+          logger.warn({ error, userId: user.userId }, 'Failed to parse questionnaire data');
+        }
+      }
+
+      // Check if user has sciweave consent (USER_SCIWEAVE_TERMS_CONSENT)
+      const consent = await client.interactionLog.findFirst({
+        where: {
+          userId: user.userId,
+          action: ActionType.USER_SCIWEAVE_TERMS_CONSENT,
+        },
+      });
+
+      return {
+        email: user.email,
+        dateJoined: user.createdAt,
+        role,
+        sciweaveConsent: !!consent,
+        sciweaveMarketingConsent: user.receiveSciweaveMarketingEmails,
+      };
+    }),
+  );
+
+  return usersWithData;
+};
+
 export const countAllUsers = async (range?: { from: Date; to: Date }): Promise<number> => {
   logger.trace({ fn: 'countAllUsers' }, 'user::countAllUsers');
   return await client.user.count({ where: { ...(range && { createdAt: { gte: range.from, lt: range.to } }) } });
