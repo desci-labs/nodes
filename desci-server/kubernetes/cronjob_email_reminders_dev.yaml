@@ -57,6 +57,11 @@ spec:
               export TEST_EMAIL_ADDRESS={{ .Data.TEST_EMAIL_ADDRESS }}
               export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
               export EMAIL_REMINDER_DRY_RUN={{ .Data.EMAIL_REMINDER_DRY_RUN }}
+              export CLOUDFLARE_WORKER_API={{ .Data.CLOUDFLARE_WORKER_API }}
+              export CLOUDFLARE_WORKER_API_SECRET={{ .Data.CLOUDFLARE_WORKER_API_SECRET }}
+              export IPFS_NODE_URL="http://ipfs-gateway-staging-internal.default.svc.cluster.local:5001"
+              export GUEST_IPFS_NODE_URL="{{ .Data.GUEST_IPFS_NODE_URL }}"
+              export PUBLIC_IPFS_RESOLVER="{{ .Data.PUBLIC_IPFS_RESOLVER }}"
               echo "appfinish";
               {{- end -}}
           labels:

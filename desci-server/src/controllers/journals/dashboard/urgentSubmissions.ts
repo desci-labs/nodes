@@ -41,6 +41,7 @@ export const getPendingSubmissionsController = async (req: PendingSubmissionsReq
         completed: review.completedAssignment,
         completedAt: review.completedAt,
         referee: review.referee?.name,
+        refereeUserId: review.referee?.id,
       })),
       activeReferees: submission.refereeAssignments.length,
       refereeInvites: submission.RefereeInvite.map((invite) => ({

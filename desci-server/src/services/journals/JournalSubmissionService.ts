@@ -222,6 +222,7 @@ async function getUrgentJournalSubmissions(
           dueDate: true,
           referee: {
             select: {
+              id: true,
               name: true,
             },
           },

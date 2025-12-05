@@ -35,16 +35,16 @@ export const sendRefereeReviewReminderController = async (req: SendRefereeReview
 
       // Handle specific controlled errors with appropriate HTTP status codes
       if (error.message === 'Submission not found') {
-        return sendError(res, error.message, 404);
+        return sendError(res, error.message, 400);
       }
       if (error.message === 'Editor not authorized for this submission') {
         return sendError(res, error.message, 403);
       }
       if (error.message === 'Referee not found') {
-        return sendError(res, error.message, 404);
+        return sendError(res, error.message, 400);
       }
       if (error.message === 'Referee assignment not found') {
-        return sendError(res, error.message, 404);
+        return sendError(res, error.message, 400);
       }
       if (error.message === 'A reminder was recently sent. Please try again later.') {
         return sendError(res, error.message, 429);
