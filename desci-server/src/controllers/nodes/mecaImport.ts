@@ -25,7 +25,12 @@ import { getNodeByUuid } from '../../services/node.js';
 import repoService from '../../services/repoService.js';
 import { extractZipFileAndCleanup } from '../../utils.js';
 
-const TEMP_MECA_PATH = './repo-tmp/meca';
+export const TEMP_MECA_PATH = './repo-tmp/meca';
+
+// Configurable size limit for MECA archive processing (default: 500MB)
+const MAX_MECA_TOTAL_SIZE_BYTES = parseInt(process.env.MECA_MAX_TOTAL_SIZE_BYTES || '524288000', 10);
+// Maximum number of files allowed in a MECA archive
+const MAX_MECA_FILE_COUNT = parseInt(process.env.MECA_MAX_FILE_COUNT || '1000', 10);
 
 const logger = parentLogger.child({
   module: 'NODE::mecaImport',
@@ -87,9 +92,9 @@ const parseMystYaml = async (yamlPath: string) => {
       return { ok: false, error: 'myst.yml validation failed' };
     }
 
-    if (!parsedYaml['project']) {
-      return { ok: false, error: 'Missing project metadata in myst.yml' };
-    }
+    // if (!parsedYaml['project']) {
+    //   return { ok: false, error: 'Missing project metadata in myst.yml' };
+    // }
 
     return {
       ok: true,
@@ -102,36 +107,174 @@ const parseMystYaml = async (yamlPath: string) => {
 };
 
 /**
- * Collect all files from extracted MECA directory for upload
+ * Error thrown when file collection exceeds safety limits
  */
-const collectFilesForUpload = async (extractedPath: string): Promise<Express.Multer.File[]> => {
-  const files: Express.Multer.File[] = [];
+class FileCollectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FileCollectionError';
+  }
+}
+
+/**
+ * Verifies that a resolved path is safely contained within the base directory
+ */
+const isPathSafelyContained = (resolvedPath: string, basePath: string): boolean => {
+  const normalizedBase = path.resolve(basePath) + path.sep;
+  const normalizedResolved = path.resolve(resolvedPath);
+  return normalizedResolved.startsWith(normalizedBase) || normalizedResolved === path.resolve(basePath);
+};
+
+/**
+ * File metadata collected during directory walk (before reading content)
+ */
+interface FileMetadata {
+  fullPath: string;
+  relativePath: string;
+  size: number;
+}
+
+/**
+ * Collect file metadata from extracted MECA directory (without reading content)
+ * This allows us to enforce size limits before loading files into memory
+ */
+const collectFileMetadata = async (
+  extractedPath: string,
+  maxTotalSize: number = MAX_MECA_TOTAL_SIZE_BYTES,
+  maxFileCount: number = MAX_MECA_FILE_COUNT,
+): Promise<FileMetadata[]> => {
+  const fileMetadata: FileMetadata[] = [];
+  let totalSize = 0;
+  const resolvedBasePath = await fs.promises.realpath(extractedPath);
 
   const walkDir = async (dir: string, basePath: string = '') => {
+    // Use lstat to get info without following symlinks
+    const dirStat = await fs.promises.lstat(dir);
+    if (dirStat.isSymbolicLink()) {
+      logger.warn({ dir }, 'MECA::Skipping symlinked directory');
+      return;
+    }
+
     const entries = await fs.promises.readdir(dir, { withFileTypes: true });
 
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       const relativePath = basePath ? path.join(basePath, entry.name) : entry.name;
 
-      if (entry.isDirectory()) {
-        await walkDir(fullPath, relativePath);
-      } else {
-        const buffer = await fs.promises.readFile(fullPath);
-        files.push({
-          fieldname: 'files',
-          originalname: relativePath,
-          encoding: '7bit',
-          mimetype: getMimeType(entry.name),
-          buffer,
-          size: buffer.length,
-        } as Express.Multer.File);
+      // Use lstat to detect symlinks without following them
+      const stat = await fs.promises.lstat(fullPath);
+
+      if (stat.isSymbolicLink()) {
+        logger.warn({ fullPath, relativePath }, 'MECA::Skipping symlink for security');
+        continue;
       }
+
+      if (stat.isDirectory()) {
+        // Verify directory path is still within extracted path
+        const resolvedDir = await fs.promises.realpath(fullPath);
+        if (!isPathSafelyContained(resolvedDir, resolvedBasePath)) {
+          logger.warn({ fullPath, resolvedDir, resolvedBasePath }, 'MECA::Directory path escapes extraction boundary');
+          throw new FileCollectionError(`Directory path traversal detected: ${relativePath}`);
+        }
+        await walkDir(fullPath, relativePath);
+      } else if (stat.isFile()) {
+        // Verify file path is safely contained within extraction directory
+        const resolvedFile = await fs.promises.realpath(fullPath);
+        if (!isPathSafelyContained(resolvedFile, resolvedBasePath)) {
+          logger.warn({ fullPath, resolvedFile, resolvedBasePath }, 'MECA::File path escapes extraction boundary');
+          throw new FileCollectionError(`File path traversal detected: ${relativePath}`);
+        }
+
+        // Check file count limit
+        if (fileMetadata.length >= maxFileCount) {
+          throw new FileCollectionError(
+            `MECA archive exceeds maximum file count of ${maxFileCount}. Consider splitting into smaller archives.`,
+          );
+        }
+
+        // Check total size limit before adding
+        totalSize += stat.size;
+        if (totalSize > maxTotalSize) {
+          throw new FileCollectionError(
+            `MECA archive exceeds maximum total size of ${Math.round(maxTotalSize / 1024 / 1024)}MB. ` +
+              `Consider splitting into smaller archives or contact support for large imports.`,
+          );
+        }
+
+        fileMetadata.push({
+          fullPath: resolvedFile,
+          relativePath,
+          size: stat.size,
+        });
+      }
+      // Skip other file types (block devices, character devices, FIFOs, sockets)
     }
   };
 
   await walkDir(extractedPath);
+  return fileMetadata;
+};
+
+/**
+ * Read files in batches to avoid memory pressure
+ * @param metadata File metadata to process
+ * @param batchSize Number of files to read at once (default: 50)
+ */
+const readFilesInBatches = async (metadata: FileMetadata[], batchSize: number = 50): Promise<Express.Multer.File[]> => {
+  const files: Express.Multer.File[] = [];
+
+  for (let i = 0; i < metadata.length; i += batchSize) {
+    const batch = metadata.slice(i, i + batchSize);
+    const batchPromises = batch.map(async (fileMeta) => {
+      const buffer = await fs.promises.readFile(fileMeta.fullPath);
+      return {
+        fieldname: 'files',
+        originalname: fileMeta.relativePath,
+        encoding: '7bit',
+        mimetype: getMimeType(fileMeta.relativePath),
+        buffer,
+        size: buffer.length,
+      } as Express.Multer.File;
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    files.push(...batchResults);
+
+    // Log progress for large archives
+    if (metadata.length > batchSize) {
+      logger.info(
+        { processed: Math.min(i + batchSize, metadata.length), total: metadata.length },
+        'MECA::File batch processing progress',
+      );
+    }
+  }
+
   return files;
+};
+
+/**
+ * Collect all files from extracted MECA directory for upload
+ * Security features:
+ * - Detects and skips symlinks to prevent directory traversal
+ * - Validates all paths are within the extraction directory
+ * - Enforces configurable total size and file count limits
+ * - Processes files in batches to reduce memory pressure
+ */
+const collectFilesForUpload = async (
+  extractedPath: string,
+  options?: {
+    maxTotalSize?: number;
+    maxFileCount?: number;
+    batchSize?: number;
+  },
+): Promise<Express.Multer.File[]> => {
+  const { maxTotalSize, maxFileCount, batchSize } = options || {};
+
+  // First pass: collect metadata and validate paths/sizes without reading content
+  const fileMetadata = await collectFileMetadata(extractedPath, maxTotalSize, maxFileCount);
+
+  // Second pass: read files in batches
+  return readFilesInBatches(fileMetadata, batchSize);
 };
 
 /**
@@ -173,7 +316,7 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
   const { uuid } = req.validatedData.params;
   const { dryRun } = req.validatedData.body;
   const user = req.user;
-  const isDesciUser = user.email.endsWith('@desci.com');
+  const isDesciUser = user.email?.endsWith('@desci.com') ?? false;
 
   // Check for uploaded file
   const file = req.file as Express.Multer.File;
@@ -296,8 +439,17 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
     }
 
     // Collect all files from extracted MECA directory
-    const filesToUpload = await collectFilesForUpload(extractedPath);
-    logger.info({ fileCount: filesToUpload.length }, 'MECA::Collected files for upload');
+    let filesToUpload: Express.Multer.File[];
+    try {
+      filesToUpload = await collectFilesForUpload(extractedPath);
+      logger.info({ fileCount: filesToUpload.length }, 'MECA::Collected files for upload');
+    } catch (error) {
+      if (error instanceof FileCollectionError) {
+        await rimraf(extractedPath);
+        return sendError(res, error.message, 400);
+      }
+      throw error;
+    }
 
     if (filesToUpload.length === 0) {
       await rimraf(extractedPath);
@@ -352,11 +504,55 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
 
       logger.info({ componentsToPin }, 'MECA::Components to pin');
 
-      await repoService.dispatchAction({
-        uuid: node.uuid,
-        documentId: node.manifestDocumentId as DocumentId,
-        actions: [{ type: 'Add Components', components: componentsToPin }] as ManifestActions[],
-      });
+      try {
+        const pinResponse = await repoService.dispatchAction({
+          uuid: node.uuid,
+          documentId: node.manifestDocumentId as DocumentId,
+          actions: [{ type: 'Add Components', components: componentsToPin }] as ManifestActions[],
+        });
+
+        if (!pinResponse) {
+          //   throw new Error('dispatchAction returned empty response');
+          await saveInteraction({
+            req,
+            userId: user.id,
+            action: ActionType.MYST_REPO_JOB_FAILED,
+            data: {
+              uuid: node.uuid,
+              message: 'Failed to pin components: dispatchAction returned empty response',
+            },
+          });
+        }
+      } catch (pinError) {
+        const pinErrorMsg = pinError instanceof Error ? pinError.message : String(pinError);
+        logger.error(
+          {
+            error: pinError,
+            stack: pinError instanceof Error ? pinError.stack : undefined,
+            uuid: node.uuid,
+            manifestDocumentId: node.manifestDocumentId,
+            componentsToPin,
+          },
+          'MECA::Failed to pin components',
+        );
+
+        // Cleanup on pin failure
+        try {
+          if (fs.existsSync(zipPath)) await fs.promises.unlink(zipPath);
+          if (fs.existsSync(extractedPath)) await rimraf(extractedPath);
+        } catch (cleanupError) {
+          logger.error({ cleanupError }, 'MECA::Cleanup error during pin failure');
+        }
+
+        await saveInteraction({
+          req,
+          userId: user.id,
+          action: ActionType.MYST_REPO_JOB_FAILED,
+          data: { uuid: node.uuid, message: `Failed to pin components: ${pinErrorMsg}` },
+        });
+
+        return sendError(res, `Failed to pin manuscript components: ${pinErrorMsg}`, 500);
+      }
     }
 
     await saveInteraction({
@@ -372,7 +568,8 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
       debug: isDesciUser ? { actions, parsedDocument, uploadResult: value } : undefined,
     });
   } catch (error) {
-    logger.error({ error }, 'MECA::Import error');
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error({ error, stack: error instanceof Error ? error.stack : undefined }, 'MECA::Import error');
 
     // Cleanup on error
     try {
@@ -386,9 +583,9 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
       req,
       userId: user.id,
       action: ActionType.MYST_REPO_JOB_FAILED,
-      data: { uuid, source: 'meca', message: error.message || 'Import failed' },
+      data: { uuid, source: 'meca', message: msg || 'Import failed' },
     });
 
-    return sendError(res, error.message || 'Failed to import MECA archive', 500);
+    return sendError(res, msg || 'Failed to import MECA archive', 500);
   }
 };
