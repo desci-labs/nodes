@@ -2,8 +2,6 @@ import { Node, User } from '@prisma/client';
 import { Request } from 'express';
 import { z, ZodTypeAny } from 'zod';
 
-import { MystImportJob } from '../controllers/nodes/githubMystImport.js';
-
 export interface AuthenticatedRequest<P = any, ResBody = any, ReqBody = any, ReqQuery = any>
   extends Request<P, ResBody, ReqBody, ReqQuery> {
   user: User;
@@ -24,10 +22,6 @@ export interface OptionalAuthenticatedRequest<P = any, ResBody = any, ReqBody = 
 
 export type ValidatedRequest<S extends ZodTypeAny, TReq extends Request = Request> = TReq & {
   validatedData: z.infer<S>;
-};
-
-export type RequestWithJob<TReq extends Request = Request> = TReq & {
-  job: MystImportJob;
 };
 
 export interface ApiResponse<T> {
