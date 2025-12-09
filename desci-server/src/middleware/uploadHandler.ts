@@ -2,7 +2,6 @@ import multer = require('multer');
 import multerS3 from 'multer-s3';
 import { v4 } from 'uuid';
 
-import { TEMP_MECA_PATH } from '../controllers/nodes/mecaImport.js';
 import { logger } from '../logger.js';
 import { isS3Configured, s3Client } from '../services/s3.js';
 
@@ -60,17 +59,9 @@ export const wrappedHandler = (req, res, next) => {
 
 // Single file upload handler for MECA imports (uses memory storage for buffer access)
 const mecaUpload = multer({
-  // storage: multer.diskStorage({
-  //   destination: (req, file, cb) => {
-  //     cb(null, TEMP_MECA_PATH);
-  //   },
-  //   filename: (req, file, cb) => {
-  //     cb(null, `${v4()}-${file.originalname}`);
-  //   },
-  // }),
   preservePath: true,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit for MECA archives
+    fileSize: 10 * 1024 * 1024, // 10MB limit for MECA archives
   },
   fileFilter: (req, file, cb) => {
     // Accept zip files
