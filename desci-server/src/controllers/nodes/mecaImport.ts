@@ -49,6 +49,17 @@ export const mecaImportSchema = z.object({
   }),
 });
 
+// Schema for affiliation - can be a string (id/name reference) or an object
+const affiliationItemSchema = z.union([
+  z.string(),
+  z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    institution: z.string().optional(),
+    department: z.string().optional(),
+  }),
+]);
+
 const mystYamlSchema = z.object({
   version: z.number(),
   project: z.object({
@@ -60,13 +71,101 @@ const mystYamlSchema = z.object({
         z.object({
           name: z.string(),
           email: z.string().optional(),
+          // Single affiliation string (legacy/simple format)
           affiliation: z.string().optional(),
+          // Array of affiliations (can be strings or objects)
+          affiliations: z.union([affiliationItemSchema, z.array(affiliationItemSchema)]).optional(),
           orcid: z.string().optional(),
         }),
       )
       .optional(),
   }),
 });
+
+// Type for global affiliation entries
+type GlobalAffiliation = {
+  id?: string;
+  name?: string;
+  institution?: string;
+  department?: string;
+};
+
+/**
+ * Resolve affiliations for an author, handling:
+ * - Embedded affiliations (author.affiliations array or single object)
+ * - Single affiliation string (author.affiliation)
+ * - ID/name references resolved against global affiliations list
+ */
+const resolveAuthorAffiliations = (
+  author: {
+    affiliation?: string;
+    affiliations?: string | GlobalAffiliation | (string | GlobalAffiliation)[];
+  },
+  globalAffiliations?: GlobalAffiliation[],
+): { id: string; name: string }[] => {
+  const organizations: { id: string; name: string }[] = [];
+
+  // Helper to get affiliation name from various sources
+  const getAffiliationName = (aff: string | GlobalAffiliation): string | undefined => {
+    if (typeof aff === 'string') {
+      return aff;
+    }
+    return aff.name || aff.institution;
+  };
+
+  // Helper to resolve a string reference against global affiliations
+  const resolveStringAffiliation = (ref: string): string => {
+    if (!globalAffiliations || globalAffiliations.length === 0) {
+      return ref; // Use the string as-is if no global list
+    }
+
+    // Try to find by id first
+    const byId = globalAffiliations.find((a) => a.id === ref);
+    if (byId) {
+      return byId.name || byId.institution || ref;
+    }
+
+    // Try to find by name/institution match
+    const byName = globalAffiliations.find((a) => a.name === ref || a.institution === ref);
+    if (byName) {
+      return byName.name || byName.institution || ref;
+    }
+
+    // Return the string as-is (it may already be the affiliation name)
+    return ref;
+  };
+
+  // Helper to add an affiliation to organizations
+  const addAffiliation = (aff: string | GlobalAffiliation) => {
+    if (typeof aff === 'string') {
+      const resolvedName = resolveStringAffiliation(aff);
+      if (resolvedName) {
+        organizations.push({ id: '', name: resolvedName });
+      }
+    } else {
+      const name = getAffiliationName(aff);
+      if (name) {
+        organizations.push({ id: aff.id || '', name });
+      }
+    }
+  };
+
+  // Process embedded affiliations array (preferred)
+  if (author.affiliations !== undefined) {
+    const affiliations = Array.isArray(author.affiliations) ? author.affiliations : [author.affiliations];
+    for (const aff of affiliations) {
+      if (aff) {
+        addAffiliation(aff);
+      }
+    }
+  }
+  // Fall back to single affiliation string
+  else if (author.affiliation) {
+    addAffiliation(author.affiliation);
+  }
+
+  return organizations;
+};
 
 /**
  * Parse and validate the myst.yml file from the extracted MECA bundle
@@ -385,15 +484,18 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
     if (authors?.length > 0) {
       actions.push({
         type: 'Set Contributors',
-        contributors: authors.map((author, authorIndex) => {
-          const organization = affiliations?.[authorIndex];
+        contributors: authors.map((author) => {
+          logger.info({ author, affiliations }, 'MECA::Author');
+          // Resolve affiliations using embedded data or global affiliations list
+          const organizations = resolveAuthorAffiliations(author, affiliations as GlobalAffiliation[] | undefined);
+
           return {
             id: uuidv4(),
             name: author.name,
             role: [],
             email: author.email,
             ...(author?.orcid && { orcid: author.orcid }),
-            ...(organization && { organizations: [{ id: author.email ?? '', name: organization.name }] }),
+            ...(organizations.length > 0 && { organizations }),
           };
         }),
       });
@@ -480,7 +582,7 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
     });
 
     // Pin PDF manuscripts as components
-    const manuscriptFiles = value.tree[0].contains?.filter(
+    const manuscriptFiles = value?.tree?.[0]?.contains?.filter(
       (drive) => drive.componentType === ResearchObjectComponentType.PDF || drive.name.endsWith('.pdf'),
     );
 
