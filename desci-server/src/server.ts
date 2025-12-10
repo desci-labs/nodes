@@ -31,7 +31,6 @@ import { dataMigrationWorker } from './services/DataMigration/DataMigrationWorke
 import { refereeRecommenderSqsHandler } from './services/externalApi/RefereeRecommenderSqsHandler.js';
 import { initializeWebSockets, getIO } from './services/websocketService.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
-import { ImportTaskQueueJob } from './workers/importTaskQueue.js';
 import { SERVER_ENV } from './config/index.js';
 
 const logger = parentLogger.child({
@@ -307,11 +306,6 @@ export class AppServer {
 
     // Start data migration worker
     dataMigrationWorker.start();
-
-    if (process.env.ENABLE_IMPORT_QUEUE === 'true') {
-      // Start import task queue cron job
-      ImportTaskQueueJob.start();
-    }
 
     // Start referee recommender SQS handler
     await refereeRecommenderSqsHandler.start();
