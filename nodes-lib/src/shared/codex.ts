@@ -107,6 +107,7 @@ const codexPublishC1 = async (
         id: existingStreamID,
         title: prepublishResult.updatedManifest.title,
         manifest: prepublishResult.updatedManifestCid,
+        license: prepublishResult.updatedManifest.defaultLicense || "",
       });
       console.log(`${LOG_CTX} successfully updated research object`, ids);
     } else if (dpidHistory.length === 0) {
@@ -222,6 +223,7 @@ const codexPublishComposeDB = async (
         id: streamID,
         title: prepublishResult.updatedManifest.title,
         manifest: prepublishResult.updatedManifestCid,
+        license: prepublishResult.updatedManifest.defaultLicense || "",
       });
       console.log(`${LOG_CTX} successfully appended latest update`, ids);
     }
@@ -291,7 +293,12 @@ const backfillNewStream = async (
     const op =
       streamID === ""
         ? createResearchObject(compose, { title, manifest, license })
-        : updateResearchObject(compose, { id: streamID, title, manifest });
+        : updateResearchObject(compose, {
+            id: streamID,
+            title,
+            manifest,
+            license,
+          });
     return op;
   };
 
@@ -348,6 +355,7 @@ const backfillNewStreamC1 = async (
             id: streamID,
             title,
             manifest,
+            license,
           });
 
     let result;
