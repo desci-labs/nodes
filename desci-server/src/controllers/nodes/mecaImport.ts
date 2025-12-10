@@ -451,12 +451,10 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
 
     // Save uploaded zip to disk
     await fs.promises.writeFile(zipPath, file.buffer);
-    logger.info({ zipPath, extractedPath }, 'MECA::Saved zip file to disk');
 
     // Extract zip file
     await fs.promises.mkdir(extractedPath, { recursive: true });
     await extractZipFileAndCleanup(zipPath, extractedPath);
-    logger.info({ extractedPath }, 'MECA::Extracted zip file');
 
     // Find and parse myst.yml from bundle directory
     const mystYamlPath = path.join(extractedPath, 'bundle', 'myst.yml');
@@ -485,7 +483,6 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
       actions.push({
         type: 'Set Contributors',
         contributors: authors.map((author) => {
-          logger.info({ author, affiliations }, 'MECA::Author');
           // Resolve affiliations using embedded data or global affiliations list
           const organizations = resolveAuthorAffiliations(author, affiliations as GlobalAffiliation[] | undefined);
 
@@ -544,7 +541,6 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
     let filesToUpload: Express.Multer.File[];
     try {
       filesToUpload = await collectFilesForUpload(extractedPath);
-      logger.info({ fileCount: filesToUpload.length }, 'MECA::Collected files for upload');
     } catch (error) {
       if (error instanceof FileCollectionError) {
         await rimraf(extractedPath);
@@ -587,8 +583,6 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
     );
 
     if (manuscriptFiles && manuscriptFiles.length > 0) {
-      logger.info({ manuscriptFiles }, 'MECA::Found manuscript files to pin');
-
       const componentsToPin = manuscriptFiles.map((drive) => {
         const newComponent: ResearchObjectV1Component = {
           id: uuidv4(),
@@ -603,8 +597,6 @@ export const mecaImport = async (req: MecaImportRequest, res: Response, _next: N
         };
         return newComponent;
       });
-
-      logger.info({ componentsToPin }, 'MECA::Components to pin');
 
       try {
         const pinResponse = await repoService.dispatchAction({
