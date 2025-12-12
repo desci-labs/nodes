@@ -1,4 +1,5 @@
-import { init, Identify } from '@amplitude/analytics-node';
+import { init, Identify, identify, flush } from '@amplitude/analytics-node';
+import { AmplitudeReturn } from '@amplitude/analytics-node/lib/esm/types.js';
 import { Result, ok, err } from 'neverthrow';
 
 import { logger } from '../logger.js';
@@ -9,8 +10,8 @@ export enum AmplitudeAppType {
 }
 
 // Initialize Amplitude clients - will be null if env not present
-let publishAmplitudeClient: any = null;
-let sciweaveAmplitudeClient: any = null;
+let publishAmplitudeClient: AmplitudeReturn<void> | null = null;
+let sciweaveAmplitudeClient: AmplitudeReturn<void> | null = null;
 
 const initAmplitude = (): void => {
   const publishApiKey = process.env.AMPLITUDE_API_KEY_PUBLISH;
@@ -44,12 +45,12 @@ const initAmplitude = (): void => {
 // Initialize on module load
 initAmplitude();
 
-const getAmplitudeClient = (appType: AmplitudeAppType): any => {
+const getAmplitudeClient = async (appType: AmplitudeAppType): Promise<any> => {
   switch (appType) {
     case AmplitudeAppType.PUBLISH:
       return publishAmplitudeClient;
     case AmplitudeAppType.SCIWEAVE:
-      return sciweaveAmplitudeClient;
+      return await sciweaveAmplitudeClient?.promise;
     default:
       return null;
   }
@@ -61,43 +62,48 @@ export interface UserProperties {
   publishRole?: string;
   publishDiscoverySource?: string;
   firstName?: string;
+  role?: string;
   receiveSciweaveMarketingEmails?: boolean;
   receivePublishMarketingEmails?: boolean;
   [key: string]: unknown;
 }
 
-export const updateUserProperties = async (
-  userId: string | number,
-  properties: UserProperties,
-  appType: AmplitudeAppType,
-): Promise<Result<void, string>> => {
-  const amplitudeClient = getAmplitudeClient(appType);
-
-  if (!amplitudeClient) {
-    // Silently succeed when Amplitude is not configured for this app
-    return ok(undefined);
-  }
-
+export const updateUserProperties = async ({
+  userId,
+  deviceId,
+  properties,
+  appType,
+}: {
+  userId: string | number;
+  deviceId?: string | null;
+  properties: UserProperties;
+  appType: AmplitudeAppType;
+}): Promise<Result<any, string>> => {
+  logger.info({ properties, userId }, `[Amplitude] Updating properties for user ${userId} in ${appType} app`);
   try {
-    const identify = new Identify();
+    const event = new Identify();
     for (const [k, v] of Object.entries(properties)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      identify.set(k, v as any);
+      event.set(k, v as any);
     }
 
-    const identifyResult = await amplitudeClient.identify(identify, {
-      user_id: String(userId),
+    const { promise: identifyPromise } = identify(event, {
+      device_id: deviceId,
+      // user_id: String(userId),
     });
 
     // Force immediate sending
-    const flushResult = await amplitudeClient.flush();
+    flush();
 
-    logger.info(`[Amplitude] Updated properties for user ${userId} in ${appType} app`, {
-      identifyResult,
-      flushResult: flushResult?.length || 0,
-    });
+    logger.info(
+      {
+        identifyPromise: await identifyPromise,
+        properties,
+      },
+      `[Amplitude] Updated properties for user ${userId} in ${appType} app`,
+    );
 
-    return ok(undefined);
+    return ok(await identifyPromise);
   } catch (error) {
     const errorMessage = `Failed to update user properties for ${appType} app: ${error}`;
     logger.error(`[Amplitude] ${errorMessage}`);
@@ -111,7 +117,7 @@ export const trackEvent = async (
   appType: AmplitudeAppType,
   eventProperties: Record<string, unknown> = {},
 ): Promise<Result<void, string>> => {
-  const amplitudeClient = getAmplitudeClient(appType);
+  const amplitudeClient = await getAmplitudeClient(appType);
 
   if (!amplitudeClient) {
     // Silently succeed when Amplitude is not configured for this app

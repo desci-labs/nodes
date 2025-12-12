@@ -2,11 +2,12 @@ import { NextFunction, Response, Router } from 'express';
 import { Request } from 'express';
 
 import { prisma } from '../../../../client.js';
+import { updateAmplitudeIdentity, updateAmplitudeIdentitySchema } from '../../../../controllers/admin/amplitude.js';
 import { getMarketingConsentUsersCsv, searchUserProfiles } from '../../../../controllers/admin/users.js';
 import { SuccessMessageResponse } from '../../../../core/ApiResponse.js';
 import { ensureAdmin, ensureUserIsAdmin } from '../../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../../middleware/permissions.js';
-import { validateInputs } from '../../../../middleware/validator.js';
+import { validate, validateInputs } from '../../../../middleware/validator.js';
 import { exportMarketingConsentSchema } from '../../../../schemas/users.schema.js';
 import { asyncHandler } from '../../../../utils/asyncHandler.js';
 
@@ -30,6 +31,16 @@ router.get(
   '/export-marketing-consent',
   [ensureUser, ensureUserIsAdmin, validateInputs(exportMarketingConsentSchema)],
   getMarketingConsentUsersCsv,
+);
+
+/**
+ * Update user identity/properties on Amplitude
+ * @see https://amplitude.com/docs/apis/analytics/identify
+ */
+router.post(
+  '/:userId/amplitude/identify',
+  [validate(updateAmplitudeIdentitySchema)],
+  asyncHandler(updateAmplitudeIdentity),
 );
 
 export default router;
