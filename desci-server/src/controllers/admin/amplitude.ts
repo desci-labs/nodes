@@ -53,7 +53,7 @@ interface AmplitudeUserProfile {
  * @see https://amplitude.com/docs/apis/analytics/user-profile
  */
 async function fetchAmplitudeUserProfile(userId: string): Promise<Record<string, unknown> | null> {
-  const secretKey = '7e596fee3c780cb811237cc0396eaa24'; // process.env.AMPLITUDE_SECRET_KEY_SCIWEAVE;
+  const secretKey = process.env.AMPLITUDE_SECRET_KEY_SCIWEAVE;
 
   if (!secretKey) {
     logger.warn(
