@@ -39,7 +39,7 @@ router.get(
  */
 router.post(
   '/:userId/amplitude/identify',
-  [validate(updateAmplitudeIdentitySchema)],
+  [ensureUser, ensureAdmin, validate(updateAmplitudeIdentitySchema)],
   asyncHandler(updateAmplitudeIdentity),
 );
 
