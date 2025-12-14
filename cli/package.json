@@ -1,0 +1,54 @@
+{
+  "name": "@desci-labs/nodes-cli",
+  "version": "0.1.0",
+  "description": "CLI for interacting with DeSci Nodes - push, pull, and publish research data",
+  "type": "module",
+  "bin": {
+    "nodes-cli": "./dist/index.js",
+    "desci": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc && chmod +x dist/index.js",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "desci",
+    "nodes",
+    "cli",
+    "ipfs",
+    "research",
+    "publishing"
+  ],
+  "author": "DeSci Labs",
+  "license": "MIT",
+  "dependencies": {
+    "@desci-labs/desci-codex-lib": "^2.0.0-rc6",
+    "@desci-labs/desci-models": "^0.2.28",
+    "@desci-labs/nodes-lib": "file:../nodes-lib",
+    "axios": "^1.6.5",
+    "boxen": "^8.0.1",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "conf": "^13.0.1",
+    "enquirer": "^2.4.1",
+    "figures": "^6.1.0",
+    "glob": "^10.3.10",
+    "gradient-string": "^3.0.0",
+    "open": "^10.1.0",
+    "ora": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/gradient-string": "^1.1.6",
+    "@types/node": "^20.11.5",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ]
+}
