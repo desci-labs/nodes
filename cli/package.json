@@ -11,6 +11,9 @@
     "build": "rm -rf dist && tsc && chmod +x dist/index.js",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
+    "test": "vitest --run --config vitest.config.ts",
+    "test:unit": "vitest --run --config vitest.config.ts test/config.spec.ts",
+    "test:integration": "vitest --run --config vitest.config.ts test/cli.spec.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -27,7 +30,6 @@
     "@desci-labs/desci-codex-lib": "^2.0.0-rc6",
     "@desci-labs/desci-models": "^0.2.28",
     "@desci-labs/nodes-lib": "file:../nodes-lib",
-    "axios": "^1.6.5",
     "boxen": "^8.0.1",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
@@ -42,8 +44,10 @@
   "devDependencies": {
     "@types/gradient-string": "^1.1.6",
     "@types/node": "^20.11.5",
+    "axios": "^1.13.2",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.1"
   },
   "engines": {
     "node": ">=18"
