@@ -104,11 +104,6 @@ export const updateAmplitudeIdentity = async (req: UpdateAmplitudeIdentityReques
   const { userId } = req.params;
   const { properties, deviceId } = req.validatedData.body;
 
-  logger.info(
-    { fn: 'updateAmplitudeIdentity', userId, adminUser: req.user?.email, properties },
-    `Updating Amplitude identity for user ${userId}`,
-  );
-
   const result = await updateUserProperties({
     userId,
     deviceId,
@@ -120,8 +115,6 @@ export const updateAmplitudeIdentity = async (req: UpdateAmplitudeIdentityReques
     logger.error({ fn: 'updateAmplitudeIdentity', userId, error: result.error }, 'Failed to update Amplitude identity');
     throw new BadRequestError(result.error);
   }
-
-  logger.info({ fn: 'updateAmplitudeIdentity', userId }, 'Successfully updated Amplitude identity');
 
   // Fetch user profile to verify the update
   //   const currentProperties = await fetchAmplitudeUserProfile(userId);

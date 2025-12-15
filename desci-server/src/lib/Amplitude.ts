@@ -89,7 +89,7 @@ export const updateUserProperties = async ({
 
     const { promise: identifyPromise } = identify(event, {
       device_id: deviceId,
-      // user_id: String(userId),
+      user_id: String(userId),
     });
 
     // Force immediate sending
