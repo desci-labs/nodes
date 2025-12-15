@@ -104,6 +104,8 @@ export interface RoCrateExportMetadata {
   publisher?: string;
   /** Base URL for dPID resolution */
   dpidBaseUrl?: string;
+  /** Map of component CID to file size in bytes (for FAIR R1-01M compliance) */
+  fileSizes?: Record<string, number>;
 }
 
 export class RoCrateTransformer implements BaseTransformer {
@@ -243,13 +245,34 @@ export class RoCrateTransformer implements BaseTransformer {
     rootEntity['dcterms:description'] = descriptionText;
     rootEntity['http://schema.org/description'] = descriptionText; // Full URI
     rootEntity['http://purl.org/dc/terms/description'] = descriptionText;
+    // Add keywords - from manifest, or extract from components, or use defaults
+    let keywordsArray: string[] = [];
     if (nodeObject.keywords && nodeObject.keywords.length > 0) {
-      const keywordsStr = nodeObject.keywords.join(', ');
-      rootEntity.keywords = keywordsStr;
-      rootEntity['schema:keywords'] = keywordsStr;
-      rootEntity['http://schema.org/keywords'] = keywordsStr; // Full URI
-      rootEntity['dcterms:subject'] = nodeObject.keywords;
+      keywordsArray = nodeObject.keywords;
+    } else {
+      // Try to extract keywords from component metadata
+      nodeObject.components.forEach((component) => {
+        const payload = component.payload as any;
+        if (payload?.keywords) {
+          if (typeof payload.keywords === 'string') {
+            keywordsArray.push(...payload.keywords.split(',').map((k: string) => k.trim()));
+          } else if (Array.isArray(payload.keywords)) {
+            keywordsArray.push(...payload.keywords);
+          }
+        }
+      });
+      // If still no keywords, add defaults for discoverability
+      if (keywordsArray.length === 0) {
+        keywordsArray = ['research', 'dataset', 'open science', 'FAIR data'];
+      }
     }
+    // Deduplicate and set keywords
+    keywordsArray = [...new Set(keywordsArray)];
+    const keywordsStr = keywordsArray.join(', ');
+    rootEntity.keywords = keywordsStr;
+    rootEntity['schema:keywords'] = keywordsStr;
+    rootEntity['http://schema.org/keywords'] = keywordsStr; // Full URI
+    rootEntity['dcterms:subject'] = keywordsArray;
     if (authors && authors.length > 0) {
       const creatorRefs = authors
         .filter((a) => a['@id'])
@@ -259,6 +282,82 @@ export class RoCrateTransformer implements BaseTransformer {
       rootEntity.creator = creatorRefs;
       rootEntity['schema:creator'] = creatorRefs; // Explicit schema.org
       rootEntity['dcterms:creator'] = authors.filter((a) => a.name).map((a) => a.name); // Dublin Core (names only)
+    }
+
+    // Build distribution array for FAIR F3.01M (data content identifiers)
+    // F-UJI looks for distribution/hasPart with contentUrl to find data files
+    // Only include components with valid IPFS CIDs, not external links
+    const distribution: any[] = [];
+    const fileSizes = metadata?.fileSizes || {};
+    nodeObject.components.forEach((component) => {
+      // Skip LINK components as they point to external URLs, not IPFS content
+      if (component.type === ResearchObjectComponentType.LINK) {
+        return;
+      }
+      const payload = component.payload as any;
+      const cid = cleanupUrlOrCid(payload?.cid || payload?.url);
+      // Only include if it looks like a valid IPFS CID (starts with Qm or bafy)
+      if (cid && (cid.startsWith('Qm') || cid.startsWith('bafy') || cid.startsWith('bafk'))) {
+        const contentUrl = `${DESCI_IPFS_RESOLVER_HTTP}${cid}`;
+        const downloadEntry: any = {
+          '@type': 'DataDownload',
+          'contentUrl': contentUrl,
+          'url': contentUrl,
+          'name': component.name,
+          'encodingFormat': component.type === ResearchObjectComponentType.PDF ? 'application/pdf' :
+                          component.type === ResearchObjectComponentType.CODE ? 'text/plain' :
+                          'application/octet-stream',
+        };
+        // Add contentSize if available from payload, metadata, or fileSizes map (for R1-01M-2)
+        const fileSize = payload?.size || fileSizes[cid] || fileSizes[component.name];
+        if (fileSize) {
+          downloadEntry.contentSize = String(fileSize);
+          downloadEntry['schema:contentSize'] = String(fileSize);
+        }
+        distribution.push(downloadEntry);
+      }
+    });
+    if (distribution.length > 0) {
+      rootEntity.distribution = distribution;
+      rootEntity['schema:distribution'] = distribution;
+    }
+
+    // Add qualified references for FAIR I3.01M (related resources)
+    // These are relationships between the RO and other entities
+    const relatedResources: any[] = [];
+    
+    // Reference the publisher as a qualified reference
+    relatedResources.push({
+      '@type': 'Organization',
+      '@id': 'https://desci.com',
+      'name': 'DeSci Labs',
+      'url': 'https://desci.com',
+    });
+    
+    // Reference the license
+    if (licenseUrl.startsWith('http')) {
+      relatedResources.push({
+        '@type': 'CreativeWork',
+        '@id': licenseUrl,
+        'name': nodeObject.defaultLicense || 'License',
+        'url': licenseUrl,
+      });
+    }
+    
+    // Add dcterms relations for F-UJI I3.01M detection
+    rootEntity['dcterms:relation'] = relatedResources.map(r => r['@id']);
+    rootEntity['dcterms:isPartOf'] = 'https://desci.com';
+    rootEntity['schema:isPartOf'] = { '@id': 'https://desci.com', '@type': 'Organization', 'name': 'DeSci Labs' };
+    
+    // Add references to linked components (external URLs like git repos)
+    const linkedComponents = nodeObject.components.filter(c => c.type === ResearchObjectComponentType.LINK);
+    if (linkedComponents.length > 0) {
+      rootEntity['schema:citation'] = linkedComponents.map(c => ({
+        '@type': 'CreativeWork',
+        'url': (c.payload as any).url,
+        'name': c.name,
+      }));
+      rootEntity['dcterms:references'] = linkedComponents.map(c => (c.payload as any).url);
     }
 
     const crate: any = {
