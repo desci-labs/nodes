@@ -2,7 +2,7 @@ import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { sendError, sendSuccess } from '../../core/api.js';
-import { updateUserProperties, AmplitudeAppType } from '../../lib/Amplitude.js';
+import { AmplitudeAppType, updateUserProperties } from '../../lib/Amplitude.js';
 import { logger as parentLogger } from '../../logger.js';
 import { UserRole } from '../../schemas/users.schema.js';
 import { saveInteraction } from '../../services/interactionLog.js';
@@ -30,14 +30,14 @@ export const submitSciweaveQuestionnaire = async (req: Request, res: Response, n
     });
 
     // Update Amplitude user properties for sciweave app
-    const amplitudeResult = await updateUserProperties(
-      user?.id,
-      {
+    const amplitudeResult = await updateUserProperties({
+      userId: user?.id,
+      properties: {
         sciweaveRole: role,
         sciweaveDiscoverySource: discoverySource,
       },
-      AmplitudeAppType.SCIWEAVE,
-    );
+      appType: AmplitudeAppType.SCIWEAVE,
+    });
 
     if (amplitudeResult.isErr()) {
       logger.warn({ error: amplitudeResult.error }, 'Failed to update Amplitude properties');
