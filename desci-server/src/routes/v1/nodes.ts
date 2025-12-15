@@ -35,16 +35,6 @@ import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js'
 import { getPublishedNodes } from '../../controllers/nodes/getPublishedNodes.js';
 import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
 import {
-  cancelMystImportJob,
-  getActiveMystImportTasks,
-  getMystImportJobStatusByJobId,
-  githubMystImport,
-  githubMystImportSchema,
-  processMystImportFiles,
-  retryMystImportTask,
-  updateMystImportJobStatus,
-} from '../../controllers/nodes/githubMystImport.js';
-import {
   show,
   draftUpdate,
   list,
@@ -89,6 +79,7 @@ import {
   postNodeLike,
   unlikeNodeSchema,
 } from '../../controllers/nodes/likes.js';
+import { mecaImport, mecaImportSchema } from '../../controllers/nodes/mecaImport.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
 import { updateNoveltyScoreConfigController } from '../../controllers/nodes/updateNoveltyScoreConfig.js';
 import { attachUser } from '../../middleware/attachUser.js';
@@ -98,10 +89,8 @@ import {
   ensureWriteNodeAccess,
   attachNode,
 } from '../../middleware/authorisation.js';
-import { ensureInternalSecret } from '../../middleware/internalSecret.js';
-import { ensureJobInfo } from '../../middleware/mystJobValidator.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
-import { mystWrappedHandler } from '../../middleware/uploadHandler.js';
+import { mecaWrappedHandler } from '../../middleware/uploadHandler.js';
 import { validate, validateInputs } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
@@ -198,46 +187,12 @@ router.post(
   asyncHandler(automateManuscriptDoi),
 );
 
-// myst github import
+// MECA archive import
 router.post(
-  '/:uuid/github-myst-import',
-  [ensureUser, ensureNodeAccess, validateInputs(githubMystImportSchema)],
-  asyncHandler(githubMystImport),
+  '/:uuid/meca-import',
+  [ensureUser, ensureNodeAccess, mecaWrappedHandler, validateInputs(mecaImportSchema)],
+  asyncHandler(mecaImport),
 );
-
-router.get(
-  '/:uuid/github-myst-import/:jobId',
-  [ensureUser, ensureNodeAccess, ensureJobInfo],
-  asyncHandler(getMystImportJobStatusByJobId),
-);
-
-router.post(
-  '/:uuid/github-myst-import/:jobId/cancel',
-  [ensureUser, ensureNodeAccess, ensureJobInfo],
-  asyncHandler(cancelMystImportJob),
-);
-
-router.post(
-  '/:uuid/github-myst-import/:jobId/updateStatus',
-  [ensureInternalSecret, ensureJobInfo],
-  asyncHandler(updateMystImportJobStatus),
-);
-
-router.post(
-  '/:uuid/finalize-myst-import/:jobId/receiveFiles',
-  [ensureInternalSecret, ensureJobInfo, mystWrappedHandler],
-  asyncHandler(processMystImportFiles),
-);
-
-// MyST import retry route
-router.post(
-  '/:uuid/github-myst-import/:jobId/retry',
-  [ensureUser, ensureNodeAccess, ensureJobInfo],
-  asyncHandler(retryMystImportTask),
-);
-
-// Get active import tasks for a node
-router.get('/:uuid/active-import-tasks', [ensureUser, ensureNodeAccess], asyncHandler(getActiveMystImportTasks));
 
 router.delete('/:uuid', [ensureGuestOrUser], deleteNode);
 

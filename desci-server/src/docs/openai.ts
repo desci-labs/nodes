@@ -4,6 +4,7 @@ import path from 'path';
 import { stringify } from 'yaml';
 import { createDocument } from 'zod-openapi';
 
+import { amplitudePaths } from './admin/amplitude.js';
 import { metricsPaths } from './admin/metrics.js';
 import { adminNodesPaths } from './admin/nodes.js';
 import {
@@ -22,7 +23,6 @@ import { communityPaths } from './communities.js';
 import { doiPaths } from './doi.js';
 import { dpidPaths } from './dpid.js';
 import { journalPaths } from './journals.js';
-import { mystImportPaths } from './mystImport.js';
 import { openAlexPaths } from './openalex.js';
 import { searchPaths } from './search.js';
 import {
@@ -148,9 +148,9 @@ export const openaiDocumentation = createDocument({
     ...dpidPaths,
     ...openAlexPaths,
     ...journalPaths,
-    ...mystImportPaths,
     ...adminNodesPaths,
     ...metricsPaths,
+    ...amplitudePaths,
   },
 });
 
