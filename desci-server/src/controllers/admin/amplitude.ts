@@ -102,7 +102,7 @@ async function fetchAmplitudeUserProfile(userId: string): Promise<Record<string,
  */
 export const updateAmplitudeIdentity = async (req: UpdateAmplitudeIdentityRequest, res: Response) => {
   const { userId } = req.params;
-  const { properties, deviceId } = req.body;
+  const { properties, deviceId } = req.validatedData.body;
 
   logger.info(
     { fn: 'updateAmplitudeIdentity', userId, adminUser: req.user?.email, properties },
