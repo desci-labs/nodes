@@ -1,6 +1,10 @@
 # Insight Importer
 This project contains tools for importing publications from Insight Journal to Nodes. The method might be useful for other imports, where there is static data for publication history that should be reflected in the history of new nodes.
 
+> [!NOTE]
+> After nodes have been created, there is a separate script that handles submissions to the journal system.
+> See [JOURNALS.md](./JOURNALS.md)
+
 ## Method
 An external git repo contains a metadata manifest, and optionally a cover image, for each publication. This _roughly_ corresponds to the ResearchoObject schema, but needs transforming. `sync.sh` grabs information from this repo, grabs referenced CIDs to articles, code and/or data, and the node scripts wrangles them into functional nodes with `nodes-lib`.
 
@@ -100,8 +104,8 @@ This is checked in as [src/ijTypes.ts](src/ijTypes.ts), and can be regenerated w
 
 #### Create nodes
 If running locally, first do these steps:
-1. Tunnel to the `pub.desci.com` RPC service: `kubectl port-forward --address 0.0.0.0 s3-public-ipfs-prod-xx-yy 5005:5001`
-2. Configure the backend to run locally, but with `PUBLIC_IPFS_RESOLVER=http://host.docker.internal:5005` so it can find content via `pub.desci.com`
+1. Tunnel to the `pub.desci.com` RPC service: `kubectl port-forward --address 0.0.0.0 s3-public-ipfs-prod-xx-yy 5006:5001`
+2. Configure the backend to run locally, but with `PUBLIC_IPFS_RESOLVER=http://host.docker.internal:5006` so it can find content via `pub.desci.com`
 
 Regardless, do these steps:
 1. Run `cp .env.example .env` and fill it in according to the instructions. You need to setup an account, generate an API key, etc.

@@ -2,6 +2,7 @@ import {
   License,
   ManifestActions,
   ResearchObjectComponentCodeSubtype,
+  ResearchObjectComponentDataSubtype,
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentLinkSubtype,
   ResearchObjectComponentType,
@@ -19,13 +20,15 @@ import {
   createDraftNode,
   publishNode,
   uploadFiles
-} from '@desci-labs/nodes-lib';
+} from '@desci-labs/nodes-lib/node';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { ATTESTATION_IDS, ENV, SIGNER, USER_ID } from "./index.js";
+import { sleep } from './utils.js';
 
 /** Whacky little DB approximation that saves pub:uuid mappings to enable re-runs to continue */
-let existingNodes: Record<number, string>;
-const getExistingNode = (pubId: number): string | undefined => {
+type ExistingNode = { uuid: string, dpid?: number };
+let existingNodes: Record<number, { uuid: string, dpid?: number }>;
+const getExistingNode = (pubId: number): ExistingNode | undefined => {
   if (existingNodes) {
     return existingNodes[pubId];
   } else if (existsSync(`existingNodes_${ENV}.json`)) {
@@ -47,7 +50,7 @@ process.on('exit', () => {
 export const makeNode = async (ijMetadata: IJMetadata) => {
   const ijPub = ijMetadata.publication;
 
-  let uuid = getExistingNode(ijPub.publication_id);
+  let uuid = getExistingNode(ijPub.publication_id)?.uuid;
   if (uuid) {
     console.log(`📗 Pub ${ijPub.publication_id}: Re-using node ${uuid}`);
   } else {
@@ -59,7 +62,7 @@ export const makeNode = async (ijMetadata: IJMetadata) => {
     });
     console.log(`📗 Pub: ${ijPub.publication_id}: Created new node ${draftResult.node.uuid}`);
     uuid = draftResult.node.uuid;
-    existingNodes[ijPub.publication_id] = uuid
+    existingNodes[ijPub.publication_id] = { uuid, dpid: undefined };
   }
 
   if (ijPub.source_code_git_repo) {
@@ -73,6 +76,29 @@ export const makeNode = async (ijMetadata: IJMetadata) => {
     await addLinkComponent(uuid, params);
   }
 
+  if (ijMetadata.coverImage) {
+    const cid = ijMetadata.coverImage;
+    try {
+      await addExternalCid({
+        uuid,
+        externalCids: [{ name: 'cover.jpeg', cid }],
+        contextPath: '/',
+        componentType: ResearchObjectComponentType.DATA,
+        componentSubtype: ResearchObjectComponentDataSubtype.IMAGE,
+        autoStar: true,
+      })
+      console.log('- Added cover image CID:', cid);
+    } catch (e) {
+      const err = e as Error;
+      if (err.message.includes('409')) {
+        console.log('- Skipping duplicate cover image CID:', cid);
+      } else {
+        console.log({ err: err.name, msg: err.message })
+        throw err;
+      }
+    }
+  }
+
   const manifestActions = renderStaticManifestActions(ijMetadata);
   await changeManifest(uuid, manifestActions);
 
@@ -83,7 +109,8 @@ export const makeNode = async (ijMetadata: IJMetadata) => {
   ].filter(p => p !== undefined)
   await uploadMissingFiles(uuid, filePathsToUpload);
 
-  await publishRevisions(uuid, ijPub.revisions);
+  const dpid = await publishRevisions(uuid, ijPub.revisions);
+  existingNodes[ijPub.publication_id] = { ...existingNodes[ijPub.publication_id], dpid };
 }
 
 const renderStaticManifestActions = (ijMetadata: IJMetadata): ManifestActions[] => {
@@ -149,7 +176,8 @@ const renderReviewsMarkdown = (ijPub: IJMetadata['publication']): string | undef
 /**
  * Iterates over revisions to perform draft updates and publishes
  */
-const publishRevisions = async (uuid: string, revisions: Revision[]): Promise<void> => {
+const publishRevisions = async (uuid: string, revisions: Revision[]): Promise<number> => {
+  let nodeDpid: number;
   for (const rev of revisions) {
     const currentRev = revisions.indexOf(rev);
     console.log('- Handling rev', currentRev, '...');
@@ -157,10 +185,10 @@ const publishRevisions = async (uuid: string, revisions: Revision[]): Promise<vo
       try {
         await addExternalCid({
           uuid,
-          externalCids: [{ name: 'article.pdf', cid: rev.article }],
+          externalCids: [{ name: 'manuscript.pdf', cid: rev.article }],
           contextPath: '/',
           componentType: ResearchObjectComponentType.PDF,
-          componentSubtype: ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
+          componentSubtype: ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
           autoStar: true,
         })
         console.log('  - Added article CID:', rev.article);
@@ -205,10 +233,13 @@ const publishRevisions = async (uuid: string, revisions: Revision[]): Promise<vo
 
     console.log('  - Calling publish...');
     const { dpid } = await publishNode(uuid, SIGNER);
-    console.log('  - Claiming attestations...');
-    await claimAttestations(uuid, dpid, !!rev.source_code);
+    // wait for pipeline processing before publishing next version to avoid current SDK bug
+    await sleep(1_000);
+    nodeDpid = dpid;
+    // console.log('  - Claiming attestations...');
+    // await claimAttestations(uuid, dpid, !!rev.source_code);
   }
-
+  return nodeDpid;
 }
 
 // Seems to be only cc-by-3.0, so we do a safety check and write a constant instead of parsing
@@ -252,7 +283,8 @@ const parseReferences = (citations: CitationList[] | undefined): ResearchObjectR
     .filter(c => c.doi)
     .map(c => ({
       type: 'doi' as const,
-      id: c.doi!
+      id: c.doi!,
+      title: "" // Q: seems this will be filtered out by lack of passthrough in sync-server zod validation anyway?
     }));
 
   if (references.length === 0) {
@@ -350,3 +382,4 @@ const tryClaimIgnoreDupeErr = async (apiCall: () => Promise<any>) => {
     }
   }
 }
+

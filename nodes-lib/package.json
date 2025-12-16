@@ -43,13 +43,13 @@
     "lint": "eslint . --fix",
     "test": "vitest --run --config vitest.config.ts",
     "test:debug": "npm run test -- --inspect-brk --no-file-parallelism --test-timeout 99999999",
-    "docs": "typedoc src/index.ts"
+    "docs": "typedoc"
   },
   "dependencies": {
     "@desci-labs/desci-codex-lib": "^2.0.0-rc6",
     "@desci-labs/desci-codex-models": "^1.0.0-rc3",
     "@desci-labs/desci-contracts": "^0.2.7",
-    "@desci-labs/desci-models": "^0.2.19",
+    "@desci-labs/desci-models": "^0.2.29-rc1",
     "@didtools/cacao": "^3.0.1",
     "@didtools/pkh-ethereum": "^0.5.0",
     "@stablelib/random": "^1.0.2",
