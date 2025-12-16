@@ -1,10 +1,9 @@
 import 'dotenv/config'
 import { Convert, IJMetadata } from './ijTypes.js';
 import { makeNode } from './nodes.js';
-import {NODESLIB_CONFIGS, setApiKey, setNodesLibConfig} from '@desci-labs/nodes-lib';
-import {readdir, readFile} from "node:fs/promises";
+import { NODESLIB_CONFIGS, setApiKey, setNodesLibConfig, signerFromPkey } from '@desci-labs/nodes-lib/node';
+import {readdir, readFile } from "node:fs/promises";
 import { join } from 'path';
-import {signerFromPkey} from "@desci-labs/nodes-lib/dist/util/signing.js";
 
 const PUBLISH_PKEY = process.env.PUBLISH_PKEY;
 const API_TOKEN = process.env.NODES_API_TOKEN;
@@ -28,7 +27,7 @@ setApiKey(API_TOKEN);
 
 if (![process.env.IJ_ATT_ID, process.env.OC_ATT_ID].every(Boolean)) {
   console.log('Attestation ID envvars not set!');
-  process.exit(1);
+  // process.exit(1);
 }
 export const ATTESTATION_IDS = {
   ij: Number(process.env.IJ_ATT_ID),

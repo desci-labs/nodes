@@ -1,12 +1,13 @@
 {
   "name": "insight-import",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Import Insight Journal entries into Nodes",
   "type": "module",
   "main": "index.js",
   "scripts": {
     "generate-types": "./generateTsTypes.sh",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "submit-and-accept": "tsx src/submitAndAccept.ts"
   },
   "author": "Edvard Hübinette",
   "license": "MIT",
