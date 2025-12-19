@@ -9,6 +9,7 @@ import {
   Feature,
   PlanCodename,
   Period,
+  SentEmailType,
 } from '@prisma/client';
 import Stripe from 'stripe';
 
@@ -18,6 +19,7 @@ import { logger as parentLogger } from '../logger.js';
 import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
 import { sendEmail } from './email/email.js';
+import { recordSentEmail } from './email/helpers.js';
 import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
 import { FEATURE_LIMIT_DEFAULTS } from './FeatureLimits/constants.js';
 
@@ -287,6 +289,49 @@ export class SubscriptionService {
       }
     }
 
+    // Send cancellation email when user cancels renewal (cancel_at_period_end becomes true)
+    const previousCancelAtPeriodEnd = existingSubscription?.cancelAtPeriodEnd ?? false;
+    const newCancelAtPeriodEnd = sub.cancel_at_period_end ?? false;
+
+    if (!previousCancelAtPeriodEnd && newCancelAtPeriodEnd) {
+      try {
+        const user = await this.getUserForEmail(userId);
+        if (user) {
+          const emailResult = await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL,
+            payload: {
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            },
+          });
+
+          await recordSentEmail(
+            SentEmailType.SCIWEAVE_CANCELLATION_EMAIL,
+            userId,
+            {
+              subscriptionId: subscription.id,
+              ...(emailResult &&
+                'sgMessageIdPrefix' in emailResult &&
+                emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
+            },
+            emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
+          );
+
+          logger.info('Cancellation email sent (renewal cancelled)', {
+            userId,
+            subscriptionId: subscription.id,
+          });
+        }
+      } catch (emailError) {
+        logger.error('Failed to send cancellation email', {
+          error: emailError,
+          userId,
+          subscriptionId: subscription.id,
+        });
+      }
+    }
+
     logger.info({ subscriptionId: subscription.id }, 'stripe::Subscription updated successfully');
   }
 
@@ -304,22 +349,38 @@ export class SubscriptionService {
     // Update feature limits based on remaining active subscriptions
     await this.updateFeatureLimitsAfterCancellation(updatedSubscription.userId);
 
-    // Send cancellation email
+    // Send subscription ended email (billing period has ended)
     try {
       const user = await this.getUserForEmail(updatedSubscription.userId);
       if (user) {
-        await sendEmail({
-          type: SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL,
+        const emailResult = await sendEmail({
+          type: SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED,
           payload: {
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
           },
         });
-        logger.info('Cancellation email sent', { userId: updatedSubscription.userId, subscriptionId: subscription.id });
+
+        await recordSentEmail(
+          SentEmailType.SCIWEAVE_SUBSCRIPTION_ENDED,
+          updatedSubscription.userId,
+          {
+            subscriptionId: subscription.id,
+            ...(emailResult &&
+              'sgMessageIdPrefix' in emailResult &&
+              emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
+          },
+          emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
+        );
+
+        logger.info('Subscription ended email sent', {
+          userId: updatedSubscription.userId,
+          subscriptionId: subscription.id,
+        });
       }
     } catch (emailError) {
-      logger.error('Failed to send cancellation email', {
+      logger.error('Failed to send subscription ended email', {
         error: emailError,
         userId: updatedSubscription.userId,
         subscriptionId: subscription.id,

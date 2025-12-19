@@ -11,6 +11,7 @@ import {
   WelcomeEmailPayload,
   UpgradeEmailPayload,
   CancellationEmailPayload,
+  SubscriptionEndedEmailPayload,
   InactivityEmailPayload,
   OutOfChatsInitialEmailPayload,
   OutOfChatsCtaClickedEmailPayload,
@@ -160,6 +161,31 @@ async function sendCancellationEmail({ email, firstName, lastName }: Cancellatio
 
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL}`);
+    return undefined;
+  }
+
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email,
+      },
+    },
+  };
+
+  return await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendSubscriptionEndedEmail({ email, firstName, lastName }: SubscriptionEndedEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED];
+
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED}`);
     return undefined;
   }
 
@@ -365,6 +391,8 @@ export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
       return sendUpgradeEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL:
       return sendCancellationEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED:
+      return sendSubscriptionEndedEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY:
       return send14DayInactivityEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL:
