@@ -12,6 +12,7 @@ import {
   UpgradeEmailPayload,
   CancellationEmailPayload,
   SubscriptionEndedEmailPayload,
+  AnnualUpsellEmailPayload,
   InactivityEmailPayload,
   OutOfChatsInitialEmailPayload,
   OutOfChatsCtaClickedEmailPayload,
@@ -186,6 +187,31 @@ async function sendSubscriptionEndedEmail({ email, firstName, lastName }: Subscr
 
   if (!templateId) {
     logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED}`);
+    return undefined;
+  }
+
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email,
+      },
+    },
+  };
+
+  return await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendAnnualUpsellEmail({ email, firstName, lastName }: AnnualUpsellEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL];
+
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL}`);
     return undefined;
   }
 
@@ -393,6 +419,8 @@ export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
       return sendCancellationEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED:
       return sendSubscriptionEndedEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL:
+      return sendAnnualUpsellEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY:
       return send14DayInactivityEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL:

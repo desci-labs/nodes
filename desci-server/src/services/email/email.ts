@@ -830,6 +830,7 @@ export const sendEmail = async (props: EmailProps) => {
     case SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL:
     case SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL:
     case SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED:
+    case SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL:
     case SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY:
     case SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL:
     case SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED:

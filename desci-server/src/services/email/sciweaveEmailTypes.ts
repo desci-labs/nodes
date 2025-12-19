@@ -3,6 +3,7 @@ export enum SciweaveEmailTypes {
   SCIWEAVE_UPGRADE_EMAIL = 'SCIWEAVE_UPGRADE_EMAIL',
   SCIWEAVE_CANCELLATION_EMAIL = 'SCIWEAVE_CANCELLATION_EMAIL',
   SCIWEAVE_SUBSCRIPTION_ENDED = 'SCIWEAVE_SUBSCRIPTION_ENDED',
+  SCIWEAVE_ANNUAL_UPSELL = 'SCIWEAVE_ANNUAL_UPSELL',
   SCIWEAVE_14_DAY_INACTIVITY = 'SCIWEAVE_14_DAY_INACTIVITY',
   SCIWEAVE_OUT_OF_CHATS_INITIAL = 'SCIWEAVE_OUT_OF_CHATS_INITIAL',
   SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED = 'SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED',
@@ -41,6 +42,15 @@ export type CancellationEmailPayload = {
 
 export type SubscriptionEndedEmailPayload = {
   type: SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED;
+  payload: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+  };
+};
+
+export type AnnualUpsellEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL;
   payload: {
     email: string;
     firstName: string;
@@ -126,6 +136,7 @@ export type SciweaveEmailProps =
   | UpgradeEmailPayload
   | CancellationEmailPayload
   | SubscriptionEndedEmailPayload
+  | AnnualUpsellEmailPayload
   | InactivityEmailPayload
   | OutOfChatsInitialEmailPayload
   | OutOfChatsCtaClickedEmailPayload

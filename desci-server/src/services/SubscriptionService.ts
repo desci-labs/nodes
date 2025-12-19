@@ -19,7 +19,7 @@ import { logger as parentLogger } from '../logger.js';
 import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
 import { sendEmail } from './email/email.js';
-import { recordSentEmail } from './email/helpers.js';
+import { hasEmailBeenSent, recordSentEmail } from './email/helpers.js';
 import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
 import { FEATURE_LIMIT_DEFAULTS } from './FeatureLimits/constants.js';
 
@@ -443,7 +443,81 @@ export class SubscriptionService {
       },
     });
 
+    // Check for annual upsell opportunity (after 3rd monthly payment)
+    await this.checkAndSendAnnualUpsellEmail(invoice);
+
     logger.info('Invoice payment succeeded processed', { invoiceId: invoice.id });
+  }
+
+  /**
+   * Sends annual upsell email after 3rd successful monthly payment
+   */
+  private static async checkAndSendAnnualUpsellEmail(invoice: Stripe.Invoice) {
+    try {
+      // Get the subscription via customer ID (same approach as handleInvoiceCreated)
+      const subscription = await prisma.subscription.findFirst({
+        where: { stripeCustomerId: invoice.customer as string },
+      });
+
+      if (!subscription || subscription.billingInterval !== BillingInterval.MONTHLY) {
+        return;
+      }
+
+      // Count paid invoices for this subscription
+      const paidInvoiceCount = await prisma.invoice.count({
+        where: {
+          subscriptionId: subscription.id,
+          status: StripeInvoiceStatus.PAID,
+        },
+      });
+
+      // Send upsell email after exactly 3 payments
+      if (paidInvoiceCount !== 3) {
+        return;
+      }
+
+      // Check if email has already been sent
+      const alreadySent = await hasEmailBeenSent(SentEmailType.SCIWEAVE_ANNUAL_UPSELL, subscription.userId);
+      if (alreadySent) {
+        logger.debug({ userId: subscription.userId }, 'Annual upsell email already sent, skipping');
+        return;
+      }
+
+      const user = await this.getUserForEmail(subscription.userId);
+      if (!user) {
+        return;
+      }
+
+      const emailResult = await sendEmail({
+        type: SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL,
+        payload: {
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+      });
+
+      await recordSentEmail(
+        SentEmailType.SCIWEAVE_ANNUAL_UPSELL,
+        subscription.userId,
+        {
+          subscriptionId: subscription.stripeSubscriptionId,
+          paidInvoiceCount,
+          ...(emailResult &&
+            'sgMessageIdPrefix' in emailResult &&
+            emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
+        },
+        emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
+      );
+
+      logger.info('Annual upsell email sent', {
+        userId: subscription.userId,
+        subscriptionId: subscription.stripeSubscriptionId,
+        paidInvoiceCount,
+      });
+    } catch (error) {
+      logger.error('Failed to check/send annual upsell email', { error, invoiceId: invoice.id });
+    }
   }
 
   static async handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
