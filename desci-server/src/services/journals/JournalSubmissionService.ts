@@ -189,6 +189,12 @@ async function getFeaturedJournalPublications(
   });
 }
 
+async function countFeaturedJournalPublications(filter: Prisma.JournalSubmissionWhereInput) {
+  return await prisma.journalSubmission.count({
+    where: filter,
+  });
+}
+
 async function getUrgentJournalSubmissions(
   journalId: number,
   filter: Prisma.JournalSubmissionWhereInput,
@@ -975,5 +981,6 @@ export const journalSubmissionService = {
   getSubmissionDetails,
   getUrgentJournalSubmissions,
   getFeaturedJournalPublications,
+  countFeaturedJournalPublications,
   getFeaturedPublicationDetails,
 };
