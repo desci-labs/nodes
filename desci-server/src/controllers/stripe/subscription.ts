@@ -119,7 +119,7 @@ export const createPaymentIntent = async (req: RequestWithUser, res: Response): 
     });
     logger.info({ subscriptionId: subscription.id }, 'stripe::existing subscription');
 
-    if (subscription.status !== 'incomplete' && subscription.metadata.priceId === priceId) {
+    if (subscription.status === 'incomplete' && subscription.metadata.priceId === priceId) {
       return res.status(200).json({
         paymentIntent: (subscription.latest_invoice as Stripe.Invoice)?.confirmation_secret?.client_secret,
         ephemeralKey: ephemeralKey.secret,
