@@ -119,7 +119,7 @@ export const createPaymentIntent = async (req: RequestWithUser, res: Response): 
     });
     logger.info({ subscriptionId: subscription.id }, 'stripe::existing subscription');
 
-    if (subscription.status === 'incomplete' && subscription.metadata.priceId === priceId) {
+    if (subscription.status.toLowerCase() !== 'active' && subscription.metadata.priceId === priceId) {
       return res.status(200).json({
         paymentIntent: (subscription.latest_invoice as Stripe.Invoice)?.confirmation_secret?.client_secret,
         ephemeralKey: ephemeralKey.secret,
@@ -173,16 +173,16 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
 
     const { returnUrl } = customerPortalSchema.parse(req.body);
 
-    logger.info('Creating customer portal session', { userId });
+    logger.info({ userId }, 'Creating customer portal session');
 
     // Get user's Stripe customer ID from any subscription (not just active ones)
     const subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
     if (!subscription?.stripeCustomerId) {
-      logger.warn('No customer found for user', { userId });
+      logger.warn({ userId }, 'No customer found for user');
       return res.status(404).json({ error: 'No customer found' });
     }
 
-    logger.info('Found customer for portal', { customerId: subscription.stripeCustomerId });
+    logger.info({ customerId: subscription.stripeCustomerId }, 'Found customer for portal');
 
     // Create portal session
     try {
@@ -192,22 +192,28 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
         return_url: returnUrl || `${req.headers.origin}/settings/subscription`,
       });
 
-      logger.info('Portal session created successfully', { sessionId: portalSession.id });
+      logger.info({ sessionId: portalSession.id }, 'Portal session created successfully');
       return res.status(200).json({ url: portalSession.url });
     } catch (stripeError: any) {
-      logger.error('Stripe portal creation failed', {
-        error: stripeError.message,
-        type: stripeError.type,
-        code: stripeError.code,
-        customerId: subscription.stripeCustomerId,
-      });
+      logger.error(
+        {
+          error: stripeError.message,
+          type: stripeError.type,
+          code: stripeError.code,
+          customerId: subscription.stripeCustomerId,
+        },
+        'Stripe portal creation failed',
+      );
       throw stripeError;
     }
   } catch (error: any) {
-    logger.error('Failed to create customer portal session', {
-      error: error.message,
-      userId: req.user?.id,
-    });
+    logger.error(
+      {
+        error: error.message,
+        userId: req.user?.id,
+      },
+      'Failed to create customer portal session',
+    );
     return res.status(500).json({ error: 'Failed to create customer portal session' });
   }
 };
@@ -219,7 +225,7 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    logger.info('Getting user subscription', { userId });
+    logger.info({ userId }, 'Getting user subscription');
 
     let subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
 
@@ -253,10 +259,13 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
 
     return res.status(200).json(subscription);
   } catch (error: any) {
-    logger.error('Failed to get user subscription', {
-      error: error.message,
-      userId: req.user?.id,
-    });
+    logger.error(
+      {
+        error: error.message,
+        userId: req.user?.id,
+      },
+      'Failed to get user subscription',
+    );
     return res.status(500).json({ error: 'Failed to get user subscription' });
   }
 };

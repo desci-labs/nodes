@@ -83,7 +83,22 @@ export class SubscriptionService {
 
     logger.info({ fn: 'getStripeCustomerId', userId, stripeUserId: user?.stripeUserId }, 'stripe::Customer ID found');
 
-    return user?.stripeUserId;
+    if (user?.stripeUserId) {
+      return user.stripeUserId;
+    }
+
+    // fallback to retrieve it from the subscription
+    const subscription = await prisma.subscription.findFirst({
+      where: { userId },
+      select: { stripeCustomerId: true },
+    });
+    logger.info({ subscription }, 'stripe::subscription found');
+
+    if (subscription?.stripeCustomerId) {
+      return subscription.stripeCustomerId;
+    }
+
+    return null;
   }
 
   static async handleCustomerCreated(customer: Stripe.Customer) {
