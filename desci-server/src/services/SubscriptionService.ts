@@ -83,7 +83,22 @@ export class SubscriptionService {
 
     logger.info({ fn: 'getStripeCustomerId', userId, stripeUserId: user?.stripeUserId }, 'stripe::Customer ID found');
 
-    return user?.stripeUserId;
+    if (user?.stripeUserId) {
+      return user.stripeUserId;
+    }
+
+    // fallback to retrieve it from the subscription
+    const subscription = await prisma.subscription.findFirst({
+      where: { userId },
+      select: { stripeCustomerId: true },
+    });
+    logger.info({ subscription }, 'stripe::subscription found');
+
+    if (subscription?.stripeCustomerId) {
+      return subscription.stripeCustomerId;
+    }
+
+    return null;
   }
 
   static async handleCustomerCreated(customer: Stripe.Customer) {
@@ -167,6 +182,12 @@ export class SubscriptionService {
 
     // Update user feature limits based on new plan
     await this.updateUserFeatureLimits(userId, planType);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { stripeUserId: subscription.customer as string },
+    });
+
     // Send upgrade email for paid plans (any plan that's not FREE)
     if (planType !== PlanType.FREE) {
       try {
@@ -258,6 +279,11 @@ export class SubscriptionService {
     // Update user feature limits
     if (subscription.status === 'active') {
       await this.updateUserFeatureLimits(updatedSubscription.userId, planType);
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: { stripeUserId: subscription.customer as string },
+      });
 
       if (!existingSubscription) {
         // Send upgrade email for the first time.
