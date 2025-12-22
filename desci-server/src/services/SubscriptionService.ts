@@ -185,6 +185,11 @@ export class SubscriptionService {
     // Send upgrade email for paid plans (any plan that's not FREE)
     if (planType !== PlanType.FREE) {
       try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { stripeUserId: subscription.customer as string },
+        });
+
         const user = await this.getUserForEmail(userId);
         if (user) {
           await sendEmail({
