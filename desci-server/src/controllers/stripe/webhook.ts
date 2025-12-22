@@ -285,7 +285,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const activeSubscription = subscriptions.data.find((subscription) => subscription.status === 'active');
   logger.info({ activeSubscription }, 'stripe::Active subscription found');
   if (!activeSubscription) {
-    logger.error('No active subscription found', { paymentIntentId: paymentIntent.id });
+    logger.error({ paymentIntentId: paymentIntent.id }, 'No active subscription found');
     return;
   }
   logger.info('Handling subscription created', { subscriptionId: activeSubscription.id });

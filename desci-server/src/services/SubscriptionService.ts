@@ -274,6 +274,11 @@ export class SubscriptionService {
     if (subscription.status === 'active') {
       await this.updateUserFeatureLimits(updatedSubscription.userId, planType);
 
+      await prisma.user.update({
+        where: { id: userId },
+        data: { stripeUserId: subscription.customer as string },
+      });
+
       if (!existingSubscription) {
         // Send upgrade email for the first time.
         if (planType !== PlanType.FREE) {
