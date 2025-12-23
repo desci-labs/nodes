@@ -13,6 +13,16 @@ const logger = parentLogger.child({
   module: 'STRIPE_SUBSCRIPTION',
 });
 
+// Trusted frontend URL based on server environment
+// This avoids using req.headers.origin which can be spoofed
+const TRUSTED_FRONTEND_URL =
+  process.env.FRONTEND_URL ||
+  (process.env.SERVER_URL === 'https://nodes-api.desci.com'
+    ? 'https://sciweave.com'
+    : process.env.SERVER_URL === 'https://nodes-api-dev.desci.com'
+      ? 'https://dev.sciweave.com'
+      : 'http://localhost:3000');
+
 const createSubscriptionSchema = z.object({
   priceId: z.string(),
   successUrl: z.string().optional(),
@@ -59,12 +69,13 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
     };
 
     // Use embedded mode or redirect mode based on request
+    // Use trusted frontend URL instead of req.headers.origin to prevent URL spoofing
     if (embedded) {
       sessionConfig.ui_mode = 'embedded';
-      sessionConfig.return_url = returnUrl || `${req.headers.origin}/settings/subscription/complete?session_id={CHECKOUT_SESSION_ID}`;
+      sessionConfig.return_url = returnUrl || `${TRUSTED_FRONTEND_URL}/settings/subscription/complete?session_id={CHECKOUT_SESSION_ID}`;
     } else {
-      sessionConfig.success_url = successUrl || `${req.headers.origin}/settings/subscription?success=true`;
-      sessionConfig.cancel_url = cancelUrl || `${req.headers.origin}/settings/subscription?canceled=true`;
+      sessionConfig.success_url = successUrl || `${TRUSTED_FRONTEND_URL}/settings/subscription?success=true`;
+      sessionConfig.cancel_url = cancelUrl || `${TRUSTED_FRONTEND_URL}/settings/subscription?canceled=true`;
     }
 
     // Add promotion codes or specific coupon support
@@ -99,6 +110,14 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
 
     // Return client_secret for embedded mode, sessionId for redirect mode
     if (embedded) {
+      if (!session.client_secret) {
+        logger.error('Stripe session created but client_secret is missing', {
+          sessionId: session.id,
+          userId,
+          embedded: true,
+        });
+        return res.status(500).json({ error: 'Failed to initialize embedded checkout' });
+      }
       return res.status(200).json({ clientSecret: session.client_secret });
     }
     return res.status(200).json({ sessionId: session.id });
@@ -198,11 +217,12 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
     logger.info('Found customer for portal', { customerId: subscription.stripeCustomerId });
 
     // Create portal session
+    // Use trusted frontend URL instead of req.headers.origin to prevent URL spoofing
     try {
       const stripe = getStripe();
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: subscription.stripeCustomerId,
-        return_url: returnUrl || `${req.headers.origin}/settings/subscription`,
+        return_url: returnUrl || `${TRUSTED_FRONTEND_URL}/settings/subscription`,
       });
 
       logger.info('Portal session created successfully', { sessionId: portalSession.id });
