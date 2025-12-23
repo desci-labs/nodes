@@ -17,8 +17,10 @@ const createSubscriptionSchema = z.object({
   priceId: z.string(),
   successUrl: z.string().optional(),
   cancelUrl: z.string().optional(),
+  returnUrl: z.string().optional(),
   allowPromotionCodes: z.boolean().optional(),
   coupon: z.string().optional(),
+  embedded: z.boolean().optional(),
 });
 
 const customerPortalSchema = z.object({
@@ -32,9 +34,9 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { priceId, successUrl, cancelUrl, allowPromotionCodes, coupon } = createSubscriptionSchema.parse(req.body);
+    const { priceId, successUrl, cancelUrl, returnUrl, allowPromotionCodes, coupon, embedded } = createSubscriptionSchema.parse(req.body);
 
-    logger.info('Creating subscription checkout', { userId, priceId, allowPromotionCodes, coupon });
+    logger.info('Creating subscription checkout', { userId, priceId, allowPromotionCodes, coupon, embedded });
 
     // Get or create Stripe customer
     const customer = await SubscriptionService.getOrCreateStripeCustomer(userId);
@@ -51,12 +53,19 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
         },
       ],
       mode: 'subscription',
-      success_url: successUrl || `${req.headers.origin}/settings/subscription?success=true`,
-      cancel_url: cancelUrl || `${req.headers.origin}/settings/subscription?canceled=true`,
       metadata: {
         userId: userId.toString(),
       },
     };
+
+    // Use embedded mode or redirect mode based on request
+    if (embedded) {
+      sessionConfig.ui_mode = 'embedded';
+      sessionConfig.return_url = returnUrl || `${req.headers.origin}/settings/subscription/complete?session_id={CHECKOUT_SESSION_ID}`;
+    } else {
+      sessionConfig.success_url = successUrl || `${req.headers.origin}/settings/subscription?success=true`;
+      sessionConfig.cancel_url = cancelUrl || `${req.headers.origin}/settings/subscription?canceled=true`;
+    }
 
     // Add promotion codes or specific coupon support
     if (allowPromotionCodes) {
@@ -88,6 +97,10 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
+    // Return client_secret for embedded mode, sessionId for redirect mode
+    if (embedded) {
+      return res.status(200).json({ clientSecret: session.client_secret });
+    }
     return res.status(200).json({ sessionId: session.id });
   } catch (error: any) {
     logger.error('Failed to create subscription checkout', {
