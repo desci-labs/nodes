@@ -108,7 +108,7 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
-    // Return client_secret for embedded mode, sessionId for redirect mode
+    // Return client_secret for embedded mode, url for redirect mode
     if (embedded) {
       if (!session.client_secret) {
         logger.error('Stripe session created but client_secret is missing', {
@@ -120,7 +120,16 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       }
       return res.status(200).json({ clientSecret: session.client_secret });
     }
-    return res.status(200).json({ sessionId: session.id });
+
+    // Redirect mode - return session URL (stripe.redirectToCheckout was removed in stripe-js v8)
+    if (!session.url) {
+      logger.error('Stripe session created but URL is missing', {
+        sessionId: session.id,
+        userId,
+      });
+      return res.status(500).json({ error: 'Failed to create checkout session' });
+    }
+    return res.status(200).json({ sessionId: session.id, url: session.url });
   } catch (error: any) {
     logger.error('Failed to create subscription checkout', {
       error: error.message,
