@@ -4,6 +4,8 @@ export enum SciweaveEmailTypes {
   SCIWEAVE_CANCELLATION_EMAIL = 'SCIWEAVE_CANCELLATION_EMAIL',
   SCIWEAVE_SUBSCRIPTION_ENDED = 'SCIWEAVE_SUBSCRIPTION_ENDED',
   SCIWEAVE_ANNUAL_UPSELL = 'SCIWEAVE_ANNUAL_UPSELL',
+  SCIWEAVE_CHECKOUT_1_HOUR = 'SCIWEAVE_CHECKOUT_1_HOUR',
+  SCIWEAVE_CHECKOUT_1_DAY_REMAINING = 'SCIWEAVE_CHECKOUT_1_DAY_REMAINING',
   SCIWEAVE_14_DAY_INACTIVITY = 'SCIWEAVE_14_DAY_INACTIVITY',
   SCIWEAVE_OUT_OF_CHATS_INITIAL = 'SCIWEAVE_OUT_OF_CHATS_INITIAL',
   SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED = 'SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED',
@@ -55,6 +57,30 @@ export type AnnualUpsellEmailPayload = {
     email: string;
     firstName: string;
     lastName?: string;
+  };
+};
+
+export type Checkout1HourEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_HOUR;
+  payload: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+    couponCode: string;
+    percentOff: number;
+    expiresAt: Date;
+  };
+};
+
+export type Checkout1DayRemainingEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_DAY_REMAINING;
+  payload: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+    couponCode: string;
+    percentOff: number;
+    expiresAt: Date;
   };
 };
 
@@ -137,6 +163,8 @@ export type SciweaveEmailProps =
   | CancellationEmailPayload
   | SubscriptionEndedEmailPayload
   | AnnualUpsellEmailPayload
+  | Checkout1HourEmailPayload
+  | Checkout1DayRemainingEmailPayload
   | InactivityEmailPayload
   | OutOfChatsInitialEmailPayload
   | OutOfChatsCtaClickedEmailPayload

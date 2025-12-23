@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 
+import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { SubscriptionService } from '../../services/SubscriptionService.js';
 import { getStripe } from '../../utils/stripe.js';
@@ -305,8 +306,19 @@ async function handleCustomerUpdated(customer: Stripe.Customer) {
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   logger.info('Processing checkout session completed', { sessionId: session.id });
+
+  // Mark the checkout as completed to prevent abandoned cart emails
+  try {
+    await prisma.abandonedCheckout.updateMany({
+      where: { stripeSessionId: session.id },
+      data: { completedAt: new Date() },
+    });
+    logger.debug({ sessionId: session.id }, 'Marked checkout session as completed');
+  } catch (error) {
+    logger.error({ error, sessionId: session.id }, 'Failed to mark checkout session as completed');
+  }
+
   // The subscription creation will be handled by the subscription.created event
-  // No additional action needed here
 }
 
 async function handleInvoiceFinalized(invoice: Stripe.Invoice) {

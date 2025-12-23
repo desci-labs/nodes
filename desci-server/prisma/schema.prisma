@@ -281,6 +281,7 @@ model User {
   PaymentMethod          PaymentMethod[]
   Invoice                Invoice[]
   ImportTaskQueue        ImportTaskQueue[]
+  AbandonedCheckout      AbandonedCheckout[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1564,6 +1565,29 @@ model SentEmail {
   @@index([internalTrackingId, emailType])
   @@index([userId, emailType])
   @@index([userId, emailType, createdAt])
+}
+
+// Track Stripe checkout sessions for abandoned cart emails
+model AbandonedCheckout {
+  id                   Int       @id @default(autoincrement())
+  userId               Int
+  stripeSessionId      String    @unique
+  priceId              String? // The price they were checking out
+  completedAt          DateTime? // Set when checkout completes
+  firstEmailSentAt     DateTime? // When SCIWEAVE_CHECKOUT_1_HOUR was sent
+  couponCode           String? // The 7-day coupon code sent
+  couponExpiresAt      DateTime? // When the coupon expires
+  reminderEmailSentAt  DateTime? // When SCIWEAVE_CHECKOUT_1_DAY_REMAINING was sent
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([completedAt])
+  @@index([firstEmailSentAt])
+  @@index([couponExpiresAt])
+  @@index([createdAt, completedAt])
 }
 
 enum ImportTaskQueueStatus {
