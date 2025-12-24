@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
 
+import { prisma } from '../../client.js';
 import { STRIPE_PRICE_IDS, PLAN_DETAILS } from '../../config/stripe.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
@@ -87,6 +88,21 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
     }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
+
+    // Track this checkout session for abandoned cart emails
+    try {
+      await prisma.abandonedCheckout.create({
+        data: {
+          userId,
+          stripeSessionId: session.id,
+          priceId,
+        },
+      });
+      logger.debug({ userId, sessionId: session.id }, 'Tracked checkout session for abandoned cart emails');
+    } catch (trackError) {
+      // Don't fail the checkout if tracking fails
+      logger.error({ error: trackError, userId, sessionId: session.id }, 'Failed to track checkout session');
+    }
 
     return res.status(200).json({ sessionId: session.id });
   } catch (error: any) {

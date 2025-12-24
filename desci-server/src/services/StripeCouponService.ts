@@ -1,7 +1,9 @@
 import {
   SCIWEAVE_STUDENT_DISCOUNT_PERCENT,
+  SCIWEAVE_CHECKOUT_FOLLOW_UP_DISCOUNT_PERCENT,
   STRIPE_STUDENT_DISCOUNT_COUPON_ID,
   STRIPE_USER_DISCOUNT_COUPON_ID,
+  STRIPE_CHECKOUT_FOLLOW_UP_COUPON_ID,
 } from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { getStripe } from '../utils/stripe.js';
@@ -164,6 +166,67 @@ export const StripeCouponService = {
     } catch (error) {
       logger.error({ error, userId: params.userId }, 'Failed to create 48-hour promotion code');
       throw new Error('Failed to create promotional code');
+    }
+  },
+
+  /**
+   * Create a 7-day promotional code for abandoned checkout follow-up
+   * Used for SCIWEAVE_CHECKOUT_1_HOUR email
+   */
+  create7DayCoupon: async (params: { userId: number; email: string }): Promise<CouponInfo> => {
+    if (!STRIPE_CHECKOUT_FOLLOW_UP_COUPON_ID) {
+      throw new Error(
+        'STRIPE_CHECKOUT_FOLLOW_UP_COUPON_ID is not configured. Please create an abandoned checkout coupon in Stripe and set the environment variable.',
+      );
+    }
+
+    try {
+      const stripe = getStripe();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+
+      // Retrieve the base coupon
+      const coupon = await stripe.coupons.retrieve(STRIPE_CHECKOUT_FOLLOW_UP_COUPON_ID);
+
+      // Generate unique code with random suffix for security
+      const randomCode = generateRandomCode(8);
+      const promoCode = `EARLY-${params.userId}-${randomCode}`;
+
+      // Create a promotion code with 7-day expiration and unique random suffix
+      const promotionCode = await stripe.promotionCodes.create({
+        coupon: coupon.id,
+        code: promoCode,
+        expires_at: Math.floor(expiresAt.getTime() / 1000),
+        max_redemptions: 1,
+        restrictions: {
+          first_time_transaction: false, // Allow existing customers
+        },
+        metadata: {
+          userId: params.userId.toString(),
+          email: params.email,
+          createdFor: 'abandoned_checkout',
+        },
+      });
+
+      logger.info(
+        {
+          couponId: coupon.id,
+          promotionCode: promotionCode.code,
+          userId: params.userId,
+          email: params.email,
+          expiresAt,
+        },
+        'Created 7-day abandoned checkout promotion code',
+      );
+
+      return {
+        id: coupon.id,
+        code: promotionCode.code,
+        percentOff: coupon.percent_off ?? SCIWEAVE_CHECKOUT_FOLLOW_UP_DISCOUNT_PERCENT,
+        expiresAt,
+      };
+    } catch (error) {
+      logger.error({ error, userId: params.userId }, 'Failed to create 7-day promotion code');
+      throw new Error('Failed to create abandoned checkout promotional code');
     }
   },
 };

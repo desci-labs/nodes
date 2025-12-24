@@ -9,6 +9,7 @@ import {
   Feature,
   PlanCodename,
   Period,
+  SentEmailType,
 } from '@prisma/client';
 import Stripe from 'stripe';
 
@@ -18,6 +19,7 @@ import { logger as parentLogger } from '../logger.js';
 import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
 import { sendEmail } from './email/email.js';
+import { hasEmailBeenSent, recordSentEmail } from './email/helpers.js';
 import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
 import { FEATURE_LIMIT_DEFAULTS } from './FeatureLimits/constants.js';
 
@@ -313,6 +315,49 @@ export class SubscriptionService {
       }
     }
 
+    // Send cancellation email when user cancels renewal (cancel_at_period_end becomes true)
+    const previousCancelAtPeriodEnd = existingSubscription?.cancelAtPeriodEnd ?? false;
+    const newCancelAtPeriodEnd = sub.cancel_at_period_end ?? false;
+
+    if (!previousCancelAtPeriodEnd && newCancelAtPeriodEnd) {
+      try {
+        const user = await this.getUserForEmail(userId);
+        if (user) {
+          const emailResult = await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL,
+            payload: {
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            },
+          });
+
+          await recordSentEmail(
+            SentEmailType.SCIWEAVE_CANCELLATION_EMAIL,
+            userId,
+            {
+              subscriptionId: subscription.id,
+              ...(emailResult &&
+                'sgMessageIdPrefix' in emailResult &&
+                emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
+            },
+            emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
+          );
+
+          logger.info('Cancellation email sent (renewal cancelled)', {
+            userId,
+            subscriptionId: subscription.id,
+          });
+        }
+      } catch (emailError) {
+        logger.error('Failed to send cancellation email', {
+          error: emailError,
+          userId,
+          subscriptionId: subscription.id,
+        });
+      }
+    }
+
     logger.info({ subscriptionId: subscription.id }, 'stripe::Subscription updated successfully');
   }
 
@@ -330,22 +375,38 @@ export class SubscriptionService {
     // Update feature limits based on remaining active subscriptions
     await this.updateFeatureLimitsAfterCancellation(updatedSubscription.userId);
 
-    // Send cancellation email
+    // Send subscription ended email (billing period has ended)
     try {
       const user = await this.getUserForEmail(updatedSubscription.userId);
       if (user) {
-        await sendEmail({
-          type: SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL,
+        const emailResult = await sendEmail({
+          type: SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED,
           payload: {
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
           },
         });
-        logger.info('Cancellation email sent', { userId: updatedSubscription.userId, subscriptionId: subscription.id });
+
+        await recordSentEmail(
+          SentEmailType.SCIWEAVE_SUBSCRIPTION_ENDED,
+          updatedSubscription.userId,
+          {
+            subscriptionId: subscription.id,
+            ...(emailResult &&
+              'sgMessageIdPrefix' in emailResult &&
+              emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
+          },
+          emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
+        );
+
+        logger.info('Subscription ended email sent', {
+          userId: updatedSubscription.userId,
+          subscriptionId: subscription.id,
+        });
       }
     } catch (emailError) {
-      logger.error('Failed to send cancellation email', {
+      logger.error('Failed to send subscription ended email', {
         error: emailError,
         userId: updatedSubscription.userId,
         subscriptionId: subscription.id,
@@ -408,7 +469,81 @@ export class SubscriptionService {
       },
     });
 
+    // Check for annual upsell opportunity (after 3rd monthly payment)
+    await this.checkAndSendAnnualUpsellEmail(invoice);
+
     logger.info('Invoice payment succeeded processed', { invoiceId: invoice.id });
+  }
+
+  /**
+   * Sends annual upsell email after 3rd successful monthly payment
+   */
+  private static async checkAndSendAnnualUpsellEmail(invoice: Stripe.Invoice) {
+    try {
+      // Get the subscription via customer ID (same approach as handleInvoiceCreated)
+      const subscription = await prisma.subscription.findFirst({
+        where: { stripeCustomerId: invoice.customer as string },
+      });
+
+      if (!subscription || subscription.billingInterval !== BillingInterval.MONTHLY) {
+        return;
+      }
+
+      // Count paid invoices for this subscription
+      const paidInvoiceCount = await prisma.invoice.count({
+        where: {
+          subscriptionId: subscription.id,
+          status: StripeInvoiceStatus.PAID,
+        },
+      });
+
+      // Send upsell email after exactly 3 payments
+      if (paidInvoiceCount !== 3) {
+        return;
+      }
+
+      // Check if email has already been sent
+      const alreadySent = await hasEmailBeenSent(SentEmailType.SCIWEAVE_ANNUAL_UPSELL, subscription.userId);
+      if (alreadySent) {
+        logger.debug({ userId: subscription.userId }, 'Annual upsell email already sent, skipping');
+        return;
+      }
+
+      const user = await this.getUserForEmail(subscription.userId);
+      if (!user) {
+        return;
+      }
+
+      const emailResult = await sendEmail({
+        type: SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL,
+        payload: {
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+      });
+
+      await recordSentEmail(
+        SentEmailType.SCIWEAVE_ANNUAL_UPSELL,
+        subscription.userId,
+        {
+          subscriptionId: subscription.stripeSubscriptionId,
+          paidInvoiceCount,
+          ...(emailResult &&
+            'sgMessageIdPrefix' in emailResult &&
+            emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
+        },
+        emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
+      );
+
+      logger.info('Annual upsell email sent', {
+        userId: subscription.userId,
+        subscriptionId: subscription.stripeSubscriptionId,
+        paidInvoiceCount,
+      });
+    } catch (error) {
+      logger.error('Failed to check/send annual upsell email', { error, invoiceId: invoice.id });
+    }
   }
 
   static async handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
