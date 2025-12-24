@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM node:20.19.5-bullseye-slim
 
-RUN apt-get -qy update && apt-get -qy install openssl curl socat jq dumb-init
+RUN apt-get -qy update && apt-get -qy install openssl curl socat jq dumb-init python3 build-essential
 
 RUN mkdir /app && chown -R node:node /app
 
