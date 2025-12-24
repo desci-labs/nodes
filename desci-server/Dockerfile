@@ -2,7 +2,7 @@ FROM node:20.19.5-bullseye-slim
 
 VOLUME /root/.yarn
 
-RUN apt-get -qy update && apt-get -qy install openssl curl socat jq
+RUN apt-get -qy update && apt-get -qy install openssl curl socat jq python3 build-essential
 
 RUN mkdir /app && chown -R node:node /app && chown -R node:node /root && mkdir -p /root/.yarn/v6
 
