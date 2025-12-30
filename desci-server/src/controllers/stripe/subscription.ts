@@ -263,7 +263,7 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
 
       if (!activeSubscription) return res.status(404).json({ error: 'No subscription found' });
 
-      await SubscriptionService.handleSubscriptionCreated(activeSubscription);
+      // await SubscriptionService.handleSubscriptionCreated(activeSubscription); TODO: Tay Review
 
       logger.info(
         { userId, stripeCustomerId, subscriptionId: activeSubscription.id },
