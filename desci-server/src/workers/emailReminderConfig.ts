@@ -798,6 +798,7 @@ const checkAbandonedCheckout1Hour: EmailReminderHandler = {
       const twentyFourHoursAgo = subHours(new Date(), 24);
 
       // Find abandoned checkouts that are 1-24 hours old, not completed, and no email sent yet
+      // Use distinct to only get one checkout per user (the most recent one)
       const abandonedCheckouts = await prisma.abandonedCheckout.findMany({
         where: {
           completedAt: null, // Not completed
@@ -819,6 +820,8 @@ const checkAbandonedCheckout1Hour: EmailReminderHandler = {
             },
           },
         },
+        distinct: ['userId'],
+        orderBy: { createdAt: 'desc' },
       });
 
       logger.info({ count: abandonedCheckouts.length }, 'Found abandoned checkouts for 1-hour email');
@@ -831,6 +834,20 @@ const checkAbandonedCheckout1Hour: EmailReminderHandler = {
           // Skip if user has opted out of marketing emails
           if (!user.receiveSciweaveMarketingEmails) {
             logger.debug({ userId: user.id }, 'User opted out of marketing emails, skipping');
+            skipped++;
+            continue;
+          }
+
+          // Check if we've ever sent this email before
+          const existingEmail = await prisma.sentEmail.findFirst({
+            where: {
+              userId: user.id,
+              emailType: SentEmailType.SCIWEAVE_CHECKOUT_1_HOUR,
+            },
+          });
+
+          if (existingEmail) {
+            logger.debug({ userId: user.id }, 'Already sent checkout 1-hour email before, skipping');
             skipped++;
             continue;
           }
