@@ -5,11 +5,15 @@
  * based on various conditions (deadlines, overdue items, pending actions, etc.)
  */
 
-import { Feature, SentEmailType } from '@prisma/client';
+import { Feature, PlanType, SentEmailType } from '@prisma/client';
 import { addDays, subDays, subHours } from 'date-fns';
 
 import { prisma } from '../client.js';
-import { SCIWEAVE_USER_DISCOUNT_PERCENT, SCIWEAVE_CHECKOUT_FOLLOW_UP_DISCOUNT_PERCENT, SENDGRID_API_KEY } from '../config.js';
+import {
+  SCIWEAVE_USER_DISCOUNT_PERCENT,
+  SCIWEAVE_CHECKOUT_FOLLOW_UP_DISCOUNT_PERCENT,
+  SENDGRID_API_KEY,
+} from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { sendEmail } from '../services/email/email.js';
 import { SciweaveEmailTypes } from '../services/email/sciweaveEmailTypes.js';
@@ -836,6 +840,7 @@ const checkAbandonedCheckout1Hour: EmailReminderHandler = {
             where: {
               userId: user.id,
               status: 'ACTIVE',
+              planType: { not: PlanType.FREE },
             },
           });
 
