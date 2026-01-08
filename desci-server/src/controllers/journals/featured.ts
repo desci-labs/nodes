@@ -166,7 +166,7 @@ export const listFeaturedJournalPublicationsController = async (
     }
 
     if (startDate || endDate) {
-      filter.submittedAt = {
+      filter.acceptedAt = {
         ...(startDate && { gte: startDate }),
         ...(endDate && { lte: endDate }),
       };
