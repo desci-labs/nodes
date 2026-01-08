@@ -80,30 +80,38 @@ export function printNodeInfo(node: {
   cid?: string;
   dpidAlias?: number;
 }): void {
-  const status = node.isPublished
-    ? chalk.green("● Published")
-    : chalk.yellow("○ Draft");
+  let status = chalk.yellow("○ Draft");
+  if (node.isPublished) {
+    status = chalk.green("● Published");
+  }
+
+  const lines = [
+    `${chalk.bold("Title:")} ${node.title}`,
+    `${chalk.bold("UUID:")}  ${chalk.dim(node.uuid)}`,
+  ];
+
+  if (node.cid) {
+    lines.push(`${chalk.bold("CID:")}   ${chalk.dim(node.cid)}`);
+  }
+  if (node.dpidAlias) {
+    lines.push(`${chalk.bold("dPID:")}  ${chalk.cyan(node.dpidAlias)}`);
+  }
+  lines.push(`${chalk.bold("Status:")} ${status}`);
+
+  let borderColor: "green" | "yellow" = "yellow";
+  if (node.isPublished) {
+    borderColor = "green";
+  }
 
   console.log(
-    boxen(
-      [
-        `${chalk.bold("Title:")} ${node.title}`,
-        `${chalk.bold("UUID:")}  ${chalk.dim(node.uuid)}`,
-        node.cid ? `${chalk.bold("CID:")}   ${chalk.dim(node.cid)}` : "",
-        node.dpidAlias ? `${chalk.bold("dPID:")}  ${chalk.cyan(node.dpidAlias)}` : "",
-        `${chalk.bold("Status:")} ${status}`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      {
-        title: `${symbols.node} Node`,
-        titleAlignment: "left",
-        padding: 1,
-        margin: { top: 1, bottom: 1, left: 0, right: 0 },
-        borderStyle: "round",
-        borderColor: node.isPublished ? "green" : "yellow",
-      },
-    ),
+    boxen(lines.join("\n"), {
+      title: `${symbols.node} Node`,
+      titleAlignment: "left",
+      padding: 1,
+      margin: { top: 1, bottom: 1, left: 0, right: 0 },
+      borderStyle: "round",
+      borderColor,
+    }),
   );
 }
 
@@ -111,8 +119,12 @@ export function printFileList(
   files: string[],
   type: "upload" | "download",
 ): void {
-  const icon = type === "upload" ? symbols.upload : symbols.download;
-  const action = type === "upload" ? "to upload" : "downloaded";
+  let icon = symbols.download;
+  let action = "downloaded";
+  if (type === "upload") {
+    icon = symbols.upload;
+    action = "to upload";
+  }
 
   console.log(`\n${icon} Files ${action}:\n`);
   files.slice(0, 10).forEach((file) => {

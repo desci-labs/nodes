@@ -102,6 +102,9 @@ export function validatePrivateKey(value: string): boolean | string {
  */
 export function normalizePrivateKey(value: string): string {
   const trimmed = value.trim();
-  return trimmed.startsWith("0x") ? trimmed.slice(2) : trimmed;
+  if (trimmed.startsWith("0x")) {
+    return trimmed.slice(2);
+  }
+  return trimmed;
 }
 

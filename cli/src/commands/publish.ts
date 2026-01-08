@@ -1,18 +1,17 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { select, confirm, password, validatePrivateKey, normalizePrivateKey } from "../prompts.js";
+import { confirm } from "../prompts.js";
 import {
   createSpinner,
   printSuccess,
   printError,
   printNodeInfo,
   symbols,
-  maskString,
 } from "../ui.js";
-import { getApiKey, getEnvConfig, getPrivateKey, setPrivateKey } from "../config.js";
+import { getEnvConfig } from "../config.js";
+import { requireApiKey, resolveNodeUuid, getOrPromptPrivateKey, getErrorMessage } from "../helpers.js";
 import {
   getDraftNode,
-  listNodes,
   publishNode,
   signerFromPkey,
 } from "@desci-labs/nodes-lib/node";
@@ -20,84 +19,20 @@ import {
 export function createPublishCommand(): Command {
   return new Command("publish")
     .description("Publish a node to Codex (requires signing)")
-    .argument("[node]", "Node UUID or partial UUID")
+    .argument("[node]", "Node UUID, partial UUID, or title search term")
     .option("-k, --private-key", "Prompt for private key (won't be saved)")
     .option("--save-key", "Save the private key for future use")
     .option("--mint-doi", "Request DOI minting during publish")
     .action(async (nodeArg: string | undefined, options) => {
       try {
         // Check API key
-        if (!getApiKey()) {
-          printError(
-            "No API key configured. Run: nodes-cli config login",
-          );
-          process.exit(1);
-        }
+        requireApiKey();
 
-        let targetUuid = nodeArg;
-
-        // If no node specified, show picker
-        if (!targetUuid) {
-          const spinner = createSpinner("Fetching your nodes...");
-          spinner.start();
-
-          const { nodes } = await listNodes();
-          spinner.stop();
-
-          if (nodes.length === 0) {
-            printError(
-              "No nodes found. Create one first with: nodes-cli push --new",
-            );
-            process.exit(1);
-          }
-
-          const choices = nodes.map((node) => ({
-            name: node.uuid,
-            message: `${node.title} ${chalk.dim(`(${node.uuid.slice(0, 8)}...)`)} ${
-              node.isPublished
-                ? chalk.green("● Published")
-                : chalk.yellow("○ Draft")
-            }`,
-            value: node.uuid,
-          }));
-
-          targetUuid = await select({
-            message: "Select a node to publish:",
-            choices,
-          });
-        } else {
-          // Handle partial UUID matching
-          const spinner = createSpinner("Finding node...");
-          spinner.start();
-
-          const { nodes } = await listNodes();
-          const matches = nodes.filter(
-            (n) =>
-              n.uuid === targetUuid ||
-              n.uuid.startsWith(targetUuid!) ||
-              n.uuid.includes(targetUuid!),
-          );
-
-          spinner.stop();
-
-          if (matches.length === 0) {
-            printError(`No node found matching: ${targetUuid}`);
-            process.exit(1);
-          } else if (matches.length === 1) {
-            targetUuid = matches[0].uuid;
-          } else {
-            const choices = matches.map((node) => ({
-              name: node.uuid,
-              message: `${node.title} ${chalk.dim(`(${node.uuid.slice(0, 8)}...)`)}`,
-              value: node.uuid,
-            }));
-
-            targetUuid = await select({
-              message: "Multiple nodes match. Select one:",
-              choices,
-            });
-          }
-        }
+        // Resolve node UUID (picker or partial match, also search by title)
+        const targetUuid = await resolveNodeUuid(nodeArg, {
+          selectMessage: "Select a node to publish:",
+          searchByTitle: true,
+        });
 
         // Get node info
         const nodeSpinner = createSpinner("Loading node...");
@@ -120,37 +55,18 @@ export function createPublishCommand(): Command {
           dpidAlias: node.dpidAlias,
         });
 
-        // Get private key
-        let privateKey = options.privateKey ? undefined : getPrivateKey();
-        
-        if (!privateKey) {
-          console.log(
-            chalk.dim("\nPublishing requires an Ethereum private key to sign the transaction.\n"),
-          );
-          
-          privateKey = await password({
-            message: "Enter your private key:",
-            validate: validatePrivateKey,
-          });
-
-          // Normalize the key (strip 0x prefix if present) for consistent usage
-          privateKey = normalizePrivateKey(privateKey);
-
-          if (options.saveKey) {
-            setPrivateKey(privateKey);
-            console.log(chalk.green("✓ Private key saved for future use"));
-          }
-        } else {
-          console.log(
-            chalk.dim(`\nUsing saved private key: ${maskString(privateKey)}`),
-          );
-        }
+        // Get private key (prompt if --private-key flag or not saved)
+        const privateKey = await getOrPromptPrivateKey(options.privateKey, {
+          saveKey: options.saveKey,
+          message: "Enter your private key:",
+        });
 
         // Confirm publish
         const isUpdate = node.ceramicStream !== undefined;
-        const actionText = isUpdate 
-          ? "publish a new version of" 
-          : "publish";
+        let actionText = "publish";
+        if (isUpdate) {
+          actionText = "publish a new version of";
+        }
         
         const confirmed = await confirm({
           message: `Ready to ${actionText} "${node.title}"?`,
@@ -193,11 +109,11 @@ export function createPublishCommand(): Command {
           console.log(`  ${chalk.cyan("Manifest:")}  ${chalk.dim(result.updatedManifestCid)}`);
           console.log(chalk.dim("─".repeat(40)));
 
-          printSuccess(
-            isUpdate 
-              ? "New version published successfully!" 
-              : "Node published successfully!",
-          );
+          let successMsg = "Node published successfully!";
+          if (isUpdate) {
+            successMsg = "New version published successfully!";
+          }
+          printSuccess(successMsg);
 
           const { webUrl } = getEnvConfig();
           console.log(chalk.dim("View your node:"));
@@ -214,9 +130,7 @@ export function createPublishCommand(): Command {
           throw err;
         }
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        printError(`Publish failed: ${message}`);
+        printError(`Publish failed: ${getErrorMessage(error)}`);
         
         // Show more detailed error info for debugging
         if (error instanceof Error && error.cause) {

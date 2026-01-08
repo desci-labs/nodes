@@ -4,6 +4,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { printBanner, printError } from "./ui.js";
 import { getApiKey, getEnvironment, getEnvConfig, initializeNodesLib, WEB_URLS } from "./config.js";
+import { getErrorMessage } from "./helpers.js";
 import {
   createPushCommand,
   createPullCommand,
@@ -14,6 +15,9 @@ import {
 
 // Initialize nodes-lib with stored configuration
 initializeNodesLib();
+
+// Show beta warning on first use
+console.log(chalk.yellow.bold("\n⚠️  This is beta software. Use with caution for production data.\n"));
 
 const program = new Command();
 
@@ -37,10 +41,12 @@ program
       // Show minimal header
       const env = getEnvironment();
       const hasKey = !!getApiKey();
+      let keyIndicator = chalk.red("○");
+      if (hasKey) {
+        keyIndicator = chalk.green("●");
+      }
       console.log(
-        chalk.dim(`\n[${env}] `) +
-          (hasKey ? chalk.green("●") : chalk.red("○")) +
-          chalk.dim(" nodes-cli"),
+        chalk.dim(`\n[${env}] `) + keyIndicator + chalk.dim(" nodes-cli"),
       );
     }
   });
@@ -116,9 +122,11 @@ program
 
     console.log(chalk.bold("Status\n"));
     console.log(`  Environment: ${chalk.yellow(env)}`);
-    console.log(
-      `  API Key:     ${apiKey ? chalk.green("✓ configured") : chalk.red("✗ not set")}`,
-    );
+    let apiKeyStatus = chalk.red("✗ not set");
+    if (apiKey) {
+      apiKeyStatus = chalk.green("✓ configured");
+    }
+    console.log(`  API Key:     ${apiKeyStatus}`);
     console.log(`  API URL:     ${chalk.dim(envConfig.apiUrl)}`);
     console.log(`  Web URL:     ${chalk.dim(envConfig.webUrl)}`);
 
@@ -131,11 +139,7 @@ program
         console.log(chalk.green(`✓ Connected - ${nodes.length} nodes found`));
       } catch (err) {
         console.log(chalk.red("✗ Connection failed"));
-        console.log(
-          chalk.dim(
-            `  ${err instanceof Error ? err.message : "Unknown error"}`,
-          ),
-        );
+        console.log(chalk.dim(`  ${getErrorMessage(err)}`));
       }
     } else {
       console.log(chalk.dim("\nRun `nodes-cli init` to set up your credentials"));

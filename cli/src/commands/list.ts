@@ -8,9 +8,9 @@ import {
   formatBytes,
   symbols,
 } from "../ui.js";
-import { getApiKey, getEnvConfig } from "../config.js";
+import { getEnvConfig } from "../config.js";
+import { requireApiKey } from "../helpers.js";
 import {
-  getDraftNode,
   listNodes,
   retrieveDraftFileTree,
 } from "@desci-labs/nodes-lib/node";
@@ -35,14 +35,29 @@ function formatDate(dateString: string | undefined): string {
 function printTree(items: DriveObject[], prefix = ""): void {
   items.forEach((item, index) => {
     const isLastItem = index === items.length - 1;
-    const connector = isLastItem ? "└── " : "├── ";
-    const icon = item.type === "dir" ? chalk.blue("📁") : chalk.dim("📄");
-    const size = item.size ? chalk.dim(` (${formatBytes(item.size)})`) : "";
+
+    let connector = "├── ";
+    if (isLastItem) {
+      connector = "└── ";
+    }
+
+    let icon = chalk.dim("📄");
+    if (item.type === "dir") {
+      icon = chalk.blue("📁");
+    }
+
+    let size = "";
+    if (item.size) {
+      size = chalk.dim(` (${formatBytes(item.size)})`);
+    }
 
     console.log(`${prefix}${connector}${icon} ${item.name}${size}`);
 
     if (item.type === "dir" && item.contains) {
-      const newPrefix = prefix + (isLastItem ? "    " : "│   ");
+      let newPrefix = prefix + "│   ";
+      if (isLastItem) {
+        newPrefix = prefix + "    ";
+      }
       printTree(item.contains, newPrefix);
     }
   });
@@ -58,10 +73,7 @@ export function createListCommand(): Command {
     .action(async (nodeArg: string | undefined, options) => {
       try {
         // Check API key
-        if (!getApiKey()) {
-          printError("No API key configured. Run: nodes-cli config login");
-          process.exit(1);
-        }
+        requireApiKey();
 
         if (nodeArg) {
           // List files in a specific node
@@ -71,8 +83,10 @@ export function createListCommand(): Command {
           await listAllNodes(options);
         }
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
+        let message = "Unknown error";
+        if (error instanceof Error) {
+          message = error.message;
+        }
         printError(`List failed: ${message}`);
         process.exit(1);
       }
@@ -120,12 +134,24 @@ async function listAllNodes(options: { all?: boolean }): Promise<void> {
     } else {
       // Table view
       const headers = ["Title", "UUID", "Status", "Updated"];
-      const rows = nodes.map((node) => [
-        node.title.length > 30 ? node.title.slice(0, 27) + "..." : node.title,
-        truncateUuid(node.uuid, 12),
-        node.isPublished ? chalk.green("Published") : chalk.yellow("Draft"),
-        formatDate(node.updatedAt),
-      ]);
+      const rows = nodes.map((node) => {
+        let title = node.title;
+        if (title.length > 30) {
+          title = title.slice(0, 27) + "...";
+        }
+
+        let status = chalk.yellow("Draft");
+        if (node.isPublished) {
+          status = chalk.green("Published");
+        }
+
+        return [
+          title,
+          truncateUuid(node.uuid, 12),
+          status,
+          formatDate(node.updatedAt),
+        ];
+      });
 
       printTable(headers, rows);
     }
@@ -185,7 +211,10 @@ async function listNodeFiles(
       // Simple list
       const listFiles = (items: DriveObject[], path = ""): void => {
         for (const item of items) {
-          const fullPath = path ? `${path}/${item.name}` : item.name;
+          let fullPath = item.name;
+          if (path) {
+            fullPath = `${path}/${item.name}`;
+          }
           if (item.type === "file") {
             const size = item.size
               ? chalk.dim(` (${formatBytes(item.size)})`)

@@ -4,7 +4,6 @@ import { resolve, join, dirname } from "path";
 import axios from "axios";
 import chalk from "chalk";
 import type { Writable } from "stream";
-import { select } from "../prompts.js";
 import {
   createSpinner,
   printSuccess,
@@ -13,10 +12,10 @@ import {
   formatBytes,
   symbols,
 } from "../ui.js";
-import { getApiKey, getEnvConfig } from "../config.js";
+import { getEnvConfig } from "../config.js";
+import { requireApiKey, resolveNodeUuid, getErrorMessage } from "../helpers.js";
 import {
   getDraftNode,
-  listNodes,
   retrieveDraftFileTree,
 } from "@desci-labs/nodes-lib/node";
 import type { DriveObject } from "@desci-labs/desci-models";
@@ -215,77 +214,12 @@ export function createPullCommand(): Command {
     .action(async (nodeArg: string | undefined, options) => {
       try {
         // Check API key
-        if (!getApiKey()) {
-          printError(
-            "No API key configured. Run: nodes-cli config login",
-          );
-          process.exit(1);
-        }
+        requireApiKey();
 
-        let targetUuid = nodeArg;
-
-        // If no node specified, show picker
-        if (!targetUuid) {
-          const spinner = createSpinner("Fetching your nodes...");
-          spinner.start();
-
-          const { nodes } = await listNodes();
-          spinner.stop();
-
-          if (nodes.length === 0) {
-            printError(
-              "No nodes found. Create one first with: nodes-cli push --new",
-            );
-            process.exit(1);
-          }
-
-          const choices = nodes.map((node) => ({
-            name: node.uuid,
-            message: `${node.title} ${chalk.dim(`(${node.uuid.slice(0, 8)}...)`)} ${
-              node.isPublished
-                ? chalk.green("● Published")
-                : chalk.yellow("○ Draft")
-            }`,
-            value: node.uuid,
-          }));
-
-          targetUuid = await select({
-            message: "Select a node to pull from:",
-            choices,
-          });
-        } else {
-          // Handle partial UUID matching
-          const spinner = createSpinner("Finding node...");
-          spinner.start();
-
-          const { nodes } = await listNodes();
-          const matches = nodes.filter(
-            (n) =>
-              n.uuid === targetUuid ||
-              n.uuid.startsWith(targetUuid!) ||
-              n.uuid.includes(targetUuid!),
-          );
-
-          spinner.stop();
-
-          if (matches.length === 0) {
-            printError(`No node found matching: ${targetUuid}`);
-            process.exit(1);
-          } else if (matches.length === 1) {
-            targetUuid = matches[0].uuid;
-          } else {
-            const choices = matches.map((node) => ({
-              name: node.uuid,
-              message: `${node.title} ${chalk.dim(`(${node.uuid.slice(0, 8)}...)`)}`,
-              value: node.uuid,
-            }));
-
-            targetUuid = await select({
-              message: "Multiple nodes match. Select one:",
-              choices,
-            });
-          }
-        }
+        // Resolve node UUID (picker or partial match)
+        const targetUuid = await resolveNodeUuid(nodeArg, {
+          selectMessage: "Select a node to pull from:",
+        });
 
         // Get node info
         const nodeSpinner = createSpinner("Loading node...");
@@ -390,9 +324,7 @@ export function createPullCommand(): Command {
           throw err;
         }
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        printError(`Pull failed: ${message}`);
+        printError(`Pull failed: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });

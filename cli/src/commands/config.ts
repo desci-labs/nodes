@@ -13,7 +13,9 @@ import {
   type Environment,
   WEB_URLS,
 } from "../config.js";
-import { printSuccess, printError, symbols, maskString } from "../ui.js";
+import { printSuccess, printError, symbols, maskString, createSpinner } from "../ui.js";
+import { getErrorMessage } from "../helpers.js";
+import { listNodes } from "@desci-labs/nodes-lib/node";
 
 export function createConfigCommand(): Command {
   const cmd = new Command("config")
@@ -67,9 +69,7 @@ export function createConfigCommand(): Command {
           printCurrentConfig();
         }
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        printError(`Config error: ${message}`);
+        printError(`Config error: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });
@@ -139,7 +139,21 @@ export function createConfigCommand(): Command {
           },
         });
 
+        // Set the API key first so the verification call can use it
         setApiKey(apiKey);
+
+        // Verify the API key works by calling a harmless authenticated endpoint
+        const verifySpinner = createSpinner("Verifying API key...");
+        verifySpinner.start();
+
+        try {
+          await listNodes();
+          verifySpinner.succeed("API key verified");
+        } catch (err) {
+          verifySpinner.fail("API key verification failed");
+          clearConfig();
+          throw new Error(`Invalid API key or connection error: ${getErrorMessage(err)}`);
+        }
 
         // Optionally set private key for publishing
         console.log(
@@ -170,9 +184,7 @@ export function createConfigCommand(): Command {
           ),
         );
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        printError(`Login failed: ${message}`);
+        printError(`Login failed: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });
@@ -193,9 +205,7 @@ export function createConfigCommand(): Command {
           printSuccess("Logged out successfully");
         }
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        printError(`Logout failed: ${message}`);
+        printError(`Logout failed: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });
@@ -221,9 +231,7 @@ export function createConfigCommand(): Command {
         setPrivateKey(pkey);
         printSuccess("Private key updated");
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        printError(`Failed to set private key: ${message}`);
+        printError(`Failed to set private key: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });

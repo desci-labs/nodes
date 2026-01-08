@@ -108,10 +108,31 @@ export function clearPrivateKey(): void {
   config.delete("privateKey");
 }
 
+/**
+ * Get the nodes-lib config for the given environment.
+ * For production, ceramicOneRpcUrl is unset to ensure publishing uses
+ * the legacy Ceramic node instead of Ceramic One (which may have issues).
+ */
+function getNodesLibConfigForEnv(env: Environment) {
+  const baseConfig = NODESLIB_CONFIGS[env];
+  
+  if (env === "prod") {
+    // Unset ceramicOneRpcUrl for production to make publishing work correctly
+    // This forces the use of the legacy Ceramic node for prod publishing
+    return {
+      ...baseConfig,
+      ceramicOneRpcUrl: undefined,
+      ceramicOneFlightUrl: undefined,
+    };
+  }
+  
+  return baseConfig;
+}
+
 export function setEnvironment(env: Environment): void {
   config.set("environment", env);
-  // Also update nodes-lib config
-  setNodesLibConfig(NODESLIB_CONFIGS[env]);
+  // Also update nodes-lib config (with prod-specific overrides)
+  setNodesLibConfig(getNodesLibConfigForEnv(env));
 }
 
 export function getEnvironment(): Environment {
@@ -133,7 +154,8 @@ export function initializeNodesLib(): void {
   const env = getEnvironment();
   const apiKey = getApiKey();
   
-  setNodesLibConfig(NODESLIB_CONFIGS[env]);
+  // Use the env-specific config (with prod overrides for ceramicOneRpcUrl)
+  setNodesLibConfig(getNodesLibConfigForEnv(env));
   if (apiKey) {
     setNodesLibApiKey(apiKey);
   }
@@ -145,18 +167,24 @@ export function printCurrentConfig(): void {
   const privateKey = getPrivateKey();
   const envConfig = getEnvConfig();
 
+  let apiKeyStatus = chalk.red("✗ not set");
+  if (apiKey) {
+    apiKeyStatus = chalk.green("✓ configured");
+  }
+
+  let privateKeyStatus = chalk.dim("not set (optional)");
+  if (privateKey) {
+    privateKeyStatus = chalk.green("✓ configured");
+  }
+
   console.log(chalk.bold("\n📋 Current Configuration\n"));
   console.log(chalk.dim("─".repeat(40)));
   console.log(`${chalk.cyan("Environment:")}  ${chalk.yellow(env)}`);
   console.log(`${chalk.cyan("API URL:")}      ${envConfig.apiUrl}`);
   console.log(`${chalk.cyan("IPFS Gateway:")} ${envConfig.ipfsGateway}`);
   console.log(`${chalk.cyan("Web URL:")}      ${envConfig.webUrl}`);
-  console.log(
-    `${chalk.cyan("API Key:")}      ${apiKey ? chalk.green("✓ configured") : chalk.red("✗ not set")}`,
-  );
-  console.log(
-    `${chalk.cyan("Private Key:")} ${privateKey ? chalk.green("✓ configured") : chalk.dim("not set (optional)")}`,
-  );
+  console.log(`${chalk.cyan("API Key:")}      ${apiKeyStatus}`);
+  console.log(`${chalk.cyan("Private Key:")} ${privateKeyStatus}`);
   console.log(chalk.dim("─".repeat(40)));
   console.log(chalk.dim(`\nConfig stored at: ${config.path}\n`));
 }

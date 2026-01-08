@@ -3,7 +3,7 @@ import { existsSync, statSync } from "fs";
 import { resolve, basename, relative } from "path";
 import { glob } from "glob";
 import chalk from "chalk";
-import { select, input, confirm } from "../prompts.js";
+import { input, confirm } from "../prompts.js";
 import {
   createSpinner,
   printSuccess,
@@ -12,11 +12,11 @@ import {
   formatBytes,
   symbols,
 } from "../ui.js";
-import { getApiKey, getEnvConfig } from "../config.js";
+import { getEnvConfig } from "../config.js";
+import { requireApiKey, resolveNodeUuid, createNodeInteractive, getErrorMessage } from "../helpers.js";
 import {
   createDraftNode,
   getDraftNode,
-  listNodes,
   retrieveDraftFileTree,
   deleteData,
   prePublishDraftNode,
@@ -80,10 +80,20 @@ function collectRemotePaths(
   targetScope?: string,
 ): Set<string> {
   const paths = new Set<string>();
-  const normalizedScope = targetScope ? normalizeTarget(targetScope) : undefined;
+  let normalizedScope: string | undefined;
+  if (targetScope) {
+    normalizedScope = normalizeTarget(targetScope);
+  }
 
   for (const item of items) {
-    let itemPath = item.path || (prefix ? `${prefix}/${item.name}` : item.name);
+    let itemPath = item.path;
+    if (!itemPath) {
+      if (prefix) {
+        itemPath = `${prefix}/${item.name}`;
+      } else {
+        itemPath = item.name;
+      }
+    }
     itemPath = normalizePath(itemPath);
 
     if (item.type === "file") {
@@ -102,13 +112,32 @@ function collectRemotePaths(
 }
 
 /**
- * Collect local file paths relative to a folder (POSIX-normalized).
+ * Get the default ignore patterns for file collection.
+ * @param includeHidden - If true, don't ignore hidden files (except .git)
  */
-async function collectLocalPaths(folderPath: string): Promise<Set<string>> {
+function getIgnorePatterns(includeHidden: boolean): string[] {
+  const patterns = ["**/node_modules/**", "**/.git/**", "**/.DS_Store"];
+  if (!includeHidden) {
+    // Ignore all hidden files and directories (starting with .)
+    patterns.push("**/.*", "**/.*/**");
+  }
+  return patterns;
+}
+
+/**
+ * Collect local file paths relative to a folder (POSIX-normalized).
+ * @param folderPath - The folder to collect files from
+ * @param includeHidden - If true, include hidden files (default: false)
+ */
+async function collectLocalPaths(
+  folderPath: string,
+  includeHidden = false,
+): Promise<Set<string>> {
   const files = await glob("**/*", {
     cwd: folderPath,
     nodir: true,
-    ignore: ["**/node_modules/**", "**/.git/**", "**/.DS_Store"],
+    ignore: getIgnorePatterns(includeHidden),
+    dot: includeHidden,
   });
   // Normalize all paths to POSIX format for cross-platform consistency
   return new Set(files.map(toPosixPath));
@@ -139,7 +168,14 @@ interface PdfInfo {
 
 function findFirstPdf(items: DriveObject[], prefix = ""): PdfInfo | null {
   for (const item of items) {
-    const itemPath = item.path || (prefix ? `${prefix}/${item.name}` : `root/${item.name}`);
+    let itemPath = item.path;
+    if (!itemPath) {
+      if (prefix) {
+        itemPath = `${prefix}/${item.name}`;
+      } else {
+        itemPath = `root/${item.name}`;
+      }
+    }
     
     if (item.type === "file" && item.name.toLowerCase().endsWith(".pdf")) {
       return {
@@ -171,18 +207,14 @@ export function createPushCommand(): Command {
       "--clean",
       "Remove remote files that don't exist locally (like rsync --delete)",
     )
+    .option("--include-hidden", "Include hidden files (dotfiles) in upload")
     .option("--dry-run", "Show what would be changed without making changes")
     .option("--prepublish", "Prepare node for publishing after upload")
     .option("-v, --verbose", "Show detailed output")
     .action(async (path: string, options) => {
       try {
         // Check API key
-        if (!getApiKey()) {
-          printError(
-            "No API key configured. Run: nodes-cli config login",
-          );
-          process.exit(1);
-        }
+        requireApiKey();
 
         // Resolve path
         const sourcePath = resolve(process.cwd(), path);
@@ -197,9 +229,11 @@ export function createPushCommand(): Command {
         console.log(
           `\n${symbols.folder} ${chalk.bold("Source:")} ${chalk.cyan(sourcePath)}`,
         );
-        console.log(
-          `${symbols.info} ${chalk.bold("Type:")} ${isDirectory ? "Folder" : "File"}`,
-        );
+        let typeLabel = "File";
+        if (isDirectory) {
+          typeLabel = "Folder";
+        }
+        console.log(`${symbols.info} ${chalk.bold("Type:")} ${typeLabel}`);
 
         if (options.dryRun) {
           console.log(
@@ -214,127 +248,40 @@ export function createPushCommand(): Command {
         let isNewNode = false;
 
         // Create new node or select existing
-        if (options.new || !targetUuid) {
-          if (options.new) {
-            // Create new node
-            const title =
-              options.title ||
-              (await input({
-                message: "Enter a title for the new node:",
-                default: itemName,
-              }));
+        if (options.new) {
+          // Explicit --new flag: create a new node
+          const result = await createNodeInteractive({
+            defaultTitle: options.title || itemName,
+            dryRun: options.dryRun,
+          });
+          if (!result) {
+            // Dry run - exit after logging
+            process.exit(0);
+          }
+          targetUuid = result.uuid;
+          isNewNode = true;
+        } else if (!targetUuid) {
+          // No UUID provided: show picker with "Create new" option
+          const selectedUuid = await resolveNodeUuid(undefined, {
+            selectMessage: "Select a node to push to:",
+            allowCreate: true,
+            noNodesMessage: "No nodes found.",
+          });
 
-            if (options.dryRun) {
-              console.log(chalk.dim(`Would create new node: "${title}"`));
+          if (selectedUuid === "__new__") {
+            // User chose to create a new node
+            const result = await createNodeInteractive({
+              defaultTitle: itemName,
+              dryRun: options.dryRun,
+            });
+            if (!result) {
+              // Dry run - exit after logging
               process.exit(0);
             }
-
-            const spinner = createSpinner("Creating new node...");
-            spinner.start();
-
-            try {
-              const { node } = await createDraftNode({
-                title,
-                defaultLicense: "CC-BY",
-                researchFields: [],
-              });
-              targetUuid = node.uuid;
-              isNewNode = true;
-              spinner.succeed(`Created node: ${chalk.cyan(title)}`);
-              printNodeInfo({
-                uuid: node.uuid,
-                title: node.title,
-                isPublished: false,
-              });
-            } catch (err) {
-              spinner.fail("Failed to create node");
-              throw err;
-            }
+            targetUuid = result.uuid;
+            isNewNode = true;
           } else {
-            // List existing nodes
-            const spinner = createSpinner("Fetching your nodes...");
-            spinner.start();
-
-            const { nodes } = await listNodes();
-            spinner.stop();
-
-            if (nodes.length === 0) {
-              console.log(chalk.yellow("\nNo existing nodes found.\n"));
-              const createNew = await confirm({
-                message: "Would you like to create a new node?",
-                default: true,
-              });
-
-              if (createNew) {
-                const title = await input({
-                  message: "Enter a title for the new node:",
-                  default: itemName,
-                });
-
-                if (options.dryRun) {
-                  console.log(chalk.dim(`Would create new node: "${title}"`));
-                  process.exit(0);
-                }
-
-                const createSpinner2 = createSpinner("Creating new node...");
-                createSpinner2.start();
-                const { node } = await createDraftNode({
-                  title,
-                  defaultLicense: "CC-BY",
-                  researchFields: [],
-                });
-                targetUuid = node.uuid;
-                isNewNode = true;
-                createSpinner2.succeed(`Created node: ${chalk.cyan(title)}`);
-              } else {
-                process.exit(0);
-              }
-            } else {
-              // Show node picker
-              const choices = nodes.map((node) => ({
-                name: node.uuid,
-                message: `${node.title} ${chalk.dim(`(${node.uuid.slice(0, 8)}...)`)} ${
-                  node.isPublished
-                    ? chalk.green("● Published")
-                    : chalk.yellow("○ Draft")
-                }`,
-                value: node.uuid,
-              }));
-
-              choices.unshift({
-                name: "__new__",
-                message: chalk.cyan("+ Create new node"),
-                value: "__new__",
-              });
-
-              targetUuid = await select({
-                message: "Select a node to push to:",
-                choices,
-              });
-
-              if (targetUuid === "__new__") {
-                const title = await input({
-                  message: "Enter a title for the new node:",
-                  default: itemName,
-                });
-
-                if (options.dryRun) {
-                  console.log(chalk.dim(`Would create new node: "${title}"`));
-                  process.exit(0);
-                }
-
-                const createSpinner3 = createSpinner("Creating new node...");
-                createSpinner3.start();
-                const { node } = await createDraftNode({
-                  title,
-                  defaultLicense: "CC-BY",
-                  researchFields: [],
-                });
-                targetUuid = node.uuid;
-                isNewNode = true;
-                createSpinner3.succeed(`Created node: ${chalk.cyan(title)}`);
-              }
-            }
+            targetUuid = selectedUuid;
           }
         }
 
@@ -355,14 +302,19 @@ export function createPushCommand(): Command {
             try {
               const { tree } = await retrieveDraftFileTree(targetUuid);
               remotePaths = collectRemotePaths(tree, "", options.target);
-            } catch {
-              // Node might be empty, that's ok
+            } catch (err) {
+              // Node might be empty, that's ok - but log in verbose mode
+              if (options.verbose) {
+                console.log(chalk.dim(`\n[verbose] Could not fetch file tree: ${getErrorMessage(err)}`));
+              }
             }
           }
 
-          spinner.succeed(
-            `Target: ${chalk.cyan(node.title)} ${isNewNode ? chalk.green("(new)") : chalk.yellow("(updating)")}`,
-          );
+          let statusLabel = chalk.yellow("(updating)");
+          if (isNewNode) {
+            statusLabel = chalk.green("(new)");
+          }
+          spinner.succeed(`Target: ${chalk.cyan(node.title)} ${statusLabel}`);
         } catch {
           spinner.fail(`Node not found: ${targetUuid}`);
           process.exit(1);
@@ -373,7 +325,7 @@ export function createPushCommand(): Command {
         let localPaths = new Set<string>();
 
         if (isDirectory && !isNewNode) {
-          localPaths = await collectLocalPaths(sourcePath);
+          localPaths = await collectLocalPaths(sourcePath, options.includeHidden);
 
           // Map local paths to their full remote paths under the target prefix
           const localToRemoteMap = new Map<string, string>();
@@ -482,19 +434,28 @@ export function createPushCommand(): Command {
 
           let deleted = 0;
           let deleteFailed = 0;
+          const failedDeletes: string[] = [];
+
           for (const filePath of filesToDelete) {
             try {
               await deleteData({ uuid: targetUuid, path: `root/${filePath}` });
               deleted++;
               deleteSpinner.text = `Removing old files... (${deleted}/${filesToDelete.length})`;
-            } catch {
-              // File might already be deleted or inaccessible, track but continue
+            } catch (err) {
+              // File might already be deleted or have problematic characters
               deleteFailed++;
+              failedDeletes.push(filePath);
+              if (options.verbose) {
+                console.log(chalk.yellow(`\n  Warning: Failed to delete ${filePath}: ${getErrorMessage(err)}`));
+              }
             }
           }
 
           if (deleteFailed > 0) {
             deleteSpinner.warn(`Removed ${deleted} files, ${deleteFailed} failed to delete`);
+            if (!options.verbose && failedDeletes.length > 0) {
+              console.log(chalk.dim("  Use --verbose to see which files failed"));
+            }
           } else {
             deleteSpinner.succeed(`Removed ${deleted} old files`);
           }
@@ -514,7 +475,8 @@ export function createPushCommand(): Command {
               cwd: sourcePath,
               nodir: true,
               absolute: true,
-              ignore: ["**/node_modules/**", "**/.git/**", "**/.DS_Store"],
+              ignore: getIgnorePatterns(options.includeHidden),
+              dot: options.includeHidden,
             });
 
             if (files.length === 0) {
@@ -566,7 +528,10 @@ export function createPushCommand(): Command {
             for (const dir of dirs) {
               const dirFiles = filesByDir[dir];
               // dir is already POSIX-normalized from the grouping above
-              const uploadPath = dir === "." ? options.target : `${toPosixPath(options.target)}/${dir}`;
+              let uploadPath = options.target;
+              if (dir !== ".") {
+                uploadPath = `${toPosixPath(options.target)}/${dir}`;
+              }
 
               for (const file of dirFiles) {
                 const fileNameRaw = relative(sourcePath, file);
@@ -668,12 +633,15 @@ export function createPushCommand(): Command {
                 // Component might already exist, that's ok
                 pdfSpinner.warn(`Could not set PDF component (may already exist)`);
                 if (options.verbose) {
-                  console.log(chalk.dim(`  ${pdfErr instanceof Error ? pdfErr.message : 'Unknown error'}`));
+                  console.log(chalk.dim(`  ${getErrorMessage(pdfErr)}`));
                 }
               }
             }
-          } catch {
-            // Failed to get tree, skip PDF component setup
+          } catch (treeErr) {
+            // Failed to get tree after upload - this indicates a problem
+            printError(`Failed to retrieve file tree after upload: ${getErrorMessage(treeErr)}`);
+            console.log(chalk.dim("  The upload may have partially completed."));
+            process.exitCode = 1;
           }
 
           // Prepublish if requested
@@ -699,9 +667,11 @@ export function createPushCommand(): Command {
                 : "Node updated to new version!",
             );
           } else {
-            printSuccess(
-              isNewNode ? "Node created and files uploaded!" : "Draft updated!",
-            );
+            let completionMsg = "Draft updated!";
+            if (isNewNode) {
+              completionMsg = "Node created and files uploaded!";
+            }
+            printSuccess(completionMsg);
             console.log(
               chalk.yellow(`\n${symbols.warning} Changes are in draft state.`),
             );
@@ -734,9 +704,7 @@ export function createPushCommand(): Command {
           throw err;
         }
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        printError(`Push failed: ${message}`);
+        printError(`Push failed: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });
