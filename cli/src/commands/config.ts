@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { select, input, confirm, password } from "../prompts.js";
+import { select, input, confirm, password, validatePrivateKey } from "../prompts.js";
 import {
   setApiKey,
   getEnvironment,
@@ -157,12 +157,7 @@ export function createConfigCommand(): Command {
         if (setupPrivateKey) {
           const pkey = await password({
             message: "Enter your Ethereum private key:",
-            validate: (value: string) => {
-              if (!value || value.length < 64) {
-                return "Please enter a valid private key (64 hex characters)";
-              }
-              return true;
-            },
+            validate: validatePrivateKey,
           });
           setPrivateKey(pkey);
           console.log(chalk.green("✓ Private key saved"));
@@ -187,14 +182,21 @@ export function createConfigCommand(): Command {
     .command("logout")
     .description("Clear saved credentials")
     .action(async () => {
-      const confirmed = await confirm({
-        message: "Are you sure you want to logout?",
-        default: false,
-      });
+      try {
+        const confirmed = await confirm({
+          message: "Are you sure you want to logout?",
+          default: false,
+        });
 
-      if (confirmed) {
-        clearConfig();
-        printSuccess("Logged out successfully");
+        if (confirmed) {
+          clearConfig();
+          printSuccess("Logged out successfully");
+        }
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        printError(`Logout failed: ${message}`);
+        process.exit(1);
       }
     });
 
@@ -203,25 +205,27 @@ export function createConfigCommand(): Command {
     .command("set-key")
     .description("Set or update private key for publishing")
     .action(async () => {
-      const currentKey = getPrivateKey();
-      if (currentKey) {
-        console.log(
-          chalk.dim(`\nCurrent private key: ${maskString(currentKey)}\n`),
-        );
+      try {
+        const currentKey = getPrivateKey();
+        if (currentKey) {
+          console.log(
+            chalk.dim(`\nCurrent private key: ${maskString(currentKey)}\n`),
+          );
+        }
+
+        const pkey = await password({
+          message: "Enter your Ethereum private key:",
+          validate: validatePrivateKey,
+        });
+
+        setPrivateKey(pkey);
+        printSuccess("Private key updated");
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        printError(`Failed to set private key: ${message}`);
+        process.exit(1);
       }
-
-      const pkey = await password({
-        message: "Enter your Ethereum private key:",
-        validate: (value: string) => {
-          if (!value || value.length < 64) {
-            return "Please enter a valid private key (64 hex characters)";
-          }
-          return true;
-        },
-      });
-
-      setPrivateKey(pkey);
-      printSuccess("Private key updated");
     });
 
   // Add clear-key subcommand

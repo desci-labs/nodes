@@ -7,6 +7,7 @@ import {
   setQuietMode,
   type NodesEnv,
 } from "@desci-labs/nodes-lib/node";
+import { normalizePrivateKey } from "./prompts.js";
 
 export type Environment = NodesEnv;
 
@@ -28,9 +29,29 @@ const schema = {
   defaultNodeUuid: { type: "string" as const },
 };
 
+/**
+ * CLI configuration store using Conf.
+ *
+ * SECURITY NOTES:
+ * - Config file location: ~/.config/desci-nodes-cli/config.json (Linux/macOS)
+ *   or %APPDATA%\desci-nodes-cli\Config\config.json (Windows)
+ * - File permissions are set to 0o600 (owner read/write only) for security
+ * - For production use with real keys, ensure the config directory and file
+ *   have restrictive permissions (chmod 600 on the config file)
+ * - The configuration contains sensitive data (API keys, private keys) and
+ *   should be treated as confidential
+ *
+ * RECOMMENDATIONS:
+ * - Set file permissions to 0o600 for the config file in production
+ * - Consider using environment variables for CI/CD pipelines instead
+ * - Never commit the config file to version control
+ */
 export const config = new Conf<CliConfig>({
   projectName: "desci-nodes-cli",
   schema,
+  // Set restrictive file permissions (owner read/write only) for security
+  // This helps protect API keys and private keys stored in the config
+  configFileMode: 0o600,
 });
 
 // Web URLs for each environment
@@ -73,8 +94,14 @@ export function getPrivateKey(): string | undefined {
   return config.get("privateKey");
 }
 
+/**
+ * Stores the private key after normalizing (stripping 0x prefix).
+ * The key is stored in the config file with restrictive permissions.
+ *
+ * @param key - The private key (with or without 0x prefix)
+ */
 export function setPrivateKey(key: string): void {
-  config.set("privateKey", key);
+  config.set("privateKey", normalizePrivateKey(key));
 }
 
 export function clearPrivateKey(): void {

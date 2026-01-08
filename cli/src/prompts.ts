@@ -73,3 +73,35 @@ export async function password(options: {
   return prompt.run() as Promise<string>;
 }
 
+/**
+ * Validates an Ethereum private key.
+ * Accepts keys with or without 0x prefix; the remaining characters must be
+ * exactly 64 hexadecimal digits (0-9, a-f, A-F).
+ *
+ * @param value - The private key to validate (with or without 0x prefix)
+ * @returns true if valid, error message string if invalid
+ */
+export function validatePrivateKey(value: string): boolean | string {
+  const cleaned = value.trim().startsWith("0x")
+    ? value.trim().slice(2)
+    : value.trim();
+
+  if (!cleaned || cleaned.length !== 64 || !/^[0-9a-fA-F]+$/.test(cleaned)) {
+    return "Please enter a valid private key (exactly 64 hex characters, with optional 0x prefix)";
+  }
+
+  return true;
+}
+
+/**
+ * Normalizes an Ethereum private key by stripping leading whitespace and 0x prefix.
+ * Use this before storing the key to ensure consistent format.
+ *
+ * @param value - The private key to normalize
+ * @returns The private key without 0x prefix (64 hex characters)
+ */
+export function normalizePrivateKey(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.startsWith("0x") ? trimmed.slice(2) : trimmed;
+}
+

@@ -1,8 +1,9 @@
 import { Command } from "commander";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, createWriteStream, unlinkSync } from "fs";
 import { resolve, join, dirname } from "path";
 import axios from "axios";
 import chalk from "chalk";
+import type { Writable } from "stream";
 import { select } from "../prompts.js";
 import {
   createSpinner,
@@ -27,13 +28,93 @@ interface DownloadProgress {
   downloadedBytes: number;
 }
 
-async function downloadFile(cid: string): Promise<Buffer> {
+/**
+ * Downloads a file from IPFS gateway directly to disk using streaming.
+ * This avoids loading large files entirely into memory.
+ *
+ * @param cid - The IPFS CID of the file to download
+ * @param destPath - The destination file path to write to
+ * @param onData - Optional callback invoked with bytes downloaded on each chunk
+ * @returns Promise resolving to the total bytes written
+ */
+async function downloadFileToPath(
+  cid: string,
+  destPath: string,
+  onData?: (bytesDownloaded: number) => void,
+): Promise<number> {
   const { ipfsGateway } = getEnvConfig();
-  const response = await axios.get(`${ipfsGateway}/${cid}`, {
-    responseType: "arraybuffer",
-    timeout: 120000,
-  });
-  return Buffer.from(response.data);
+  const url = `${ipfsGateway}/${cid}`;
+
+  let writeStream: Writable | null = null;
+  let totalBytes = 0;
+
+  try {
+    const response = await axios({
+      url,
+      method: "get",
+      responseType: "stream",
+      timeout: 120000,
+    });
+
+    writeStream = createWriteStream(destPath);
+
+    return await new Promise<number>((resolve, reject) => {
+      const stream = response.data;
+
+      stream.on("data", (chunk: Buffer) => {
+        totalBytes += chunk.length;
+        if (onData) {
+          onData(chunk.length);
+        }
+      });
+
+      stream.on("error", (err: Error) => {
+        // Destroy write stream and clean up partial file
+        if (writeStream) {
+          writeStream.destroy();
+        }
+        try {
+          if (existsSync(destPath)) {
+            unlinkSync(destPath);
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+        reject(err);
+      });
+
+      writeStream!.on("error", (err: Error) => {
+        stream.destroy();
+        try {
+          if (existsSync(destPath)) {
+            unlinkSync(destPath);
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+        reject(err);
+      });
+
+      writeStream!.on("finish", () => {
+        resolve(totalBytes);
+      });
+
+      stream.pipe(writeStream);
+    });
+  } catch (err) {
+    // Clean up partial file on error
+    if (writeStream) {
+      writeStream.destroy();
+    }
+    try {
+      if (existsSync(destPath)) {
+        unlinkSync(destPath);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+    throw err;
+  }
 }
 
 async function downloadTree(
@@ -56,9 +137,11 @@ async function downloadTree(
     onProgress(progress);
 
     try {
-      const content = await downloadFile(item.cid);
-      writeFileSync(filePath, content);
-      progress.downloadedBytes += content.length;
+      // Stream file directly to disk, tracking progress via onData callback
+      await downloadFileToPath(item.cid, filePath, (bytesChunk) => {
+        progress.downloadedBytes += bytesChunk;
+        onProgress(progress);
+      });
     } catch (err) {
       console.warn(
         chalk.yellow(`\n  Warning: Failed to download ${item.name}: ${err}`),

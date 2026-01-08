@@ -27,9 +27,19 @@ import {
 import type { DriveObject } from "@desci-labs/desci-models";
 import { ResearchObjectComponentDocumentSubtype } from "@desci-labs/desci-models";
 
-// Normalize a path by removing root/ or /root/ prefix
+/**
+ * Convert a path to POSIX format (forward slashes).
+ * This ensures consistent path comparison across platforms.
+ */
+function toPosixPath(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
+/**
+ * Normalize a path by removing root/ or /root/ prefix and converting to POSIX.
+ */
 function normalizePath(path: string): string {
-  let normalized = path;
+  let normalized = toPosixPath(path);
   if (normalized.startsWith("/")) {
     normalized = normalized.slice(1);
   }
@@ -42,18 +52,48 @@ function normalizePath(path: string): string {
   return normalized;
 }
 
-// Collect all file paths from a drive tree (normalized without root/ prefix)
-function collectRemotePaths(items: DriveObject[], prefix = ""): Set<string> {
+/**
+ * Normalize the target path for consistent comparisons.
+ * Returns the target without leading root/ or trailing slashes.
+ */
+function normalizeTarget(target: string): string {
+  let normalized = normalizePath(target);
+  // Remove trailing slash if present
+  if (normalized.endsWith("/")) {
+    normalized = normalized.slice(0, -1);
+  }
+  return normalized;
+}
+
+/**
+ * Collect all file paths from a drive tree (normalized without root/ prefix).
+ * Optionally filter to only paths within a specific target scope.
+ *
+ * @param items - The drive tree items to collect from
+ * @param prefix - Current path prefix for recursion
+ * @param targetScope - If provided, only collect paths that start with this prefix
+ * @returns Set of normalized file paths
+ */
+function collectRemotePaths(
+  items: DriveObject[],
+  prefix = "",
+  targetScope?: string,
+): Set<string> {
   const paths = new Set<string>();
+  const normalizedScope = targetScope ? normalizeTarget(targetScope) : undefined;
+
   for (const item of items) {
     let itemPath = item.path || (prefix ? `${prefix}/${item.name}` : item.name);
     itemPath = normalizePath(itemPath);
 
     if (item.type === "file") {
-      paths.add(itemPath);
+      // Only include if within target scope (or no scope specified)
+      if (!normalizedScope || itemPath.startsWith(normalizedScope + "/") || itemPath === normalizedScope) {
+        paths.add(itemPath);
+      }
     } else if (item.type === "dir" && item.contains) {
       const dirPrefix = itemPath;
-      for (const p of collectRemotePaths(item.contains, dirPrefix)) {
+      for (const p of collectRemotePaths(item.contains, dirPrefix, targetScope)) {
         paths.add(p);
       }
     }
@@ -61,14 +101,33 @@ function collectRemotePaths(items: DriveObject[], prefix = ""): Set<string> {
   return paths;
 }
 
-// Collect local file paths relative to a folder
+/**
+ * Collect local file paths relative to a folder (POSIX-normalized).
+ */
 async function collectLocalPaths(folderPath: string): Promise<Set<string>> {
   const files = await glob("**/*", {
     cwd: folderPath,
     nodir: true,
     ignore: ["**/node_modules/**", "**/.git/**", "**/.DS_Store"],
   });
-  return new Set(files);
+  // Normalize all paths to POSIX format for cross-platform consistency
+  return new Set(files.map(toPosixPath));
+}
+
+/**
+ * Map a local relative path to its full remote path under the target prefix.
+ * @param localPath - The local file path relative to source folder (POSIX)
+ * @param target - The target path in the node (e.g., "root" or "root/data")
+ * @returns The full remote path (normalized, without root/ prefix)
+ */
+function localToRemotePath(localPath: string, target: string): string {
+  const normalizedTarget = normalizeTarget(target);
+  const posixLocal = toPosixPath(localPath);
+  
+  if (!normalizedTarget || normalizedTarget === "") {
+    return posixLocal;
+  }
+  return `${normalizedTarget}/${posixLocal}`;
 }
 
 // Find the first PDF file in a drive tree
@@ -291,10 +350,11 @@ export function createPushCommand(): Command {
           spinner.text = "Analyzing current files...";
 
           // Get current file tree if updating existing node
+          // Only collect paths within the target scope for accurate comparison
           if (!isNewNode && isDirectory) {
             try {
               const { tree } = await retrieveDraftFileTree(targetUuid);
-              remotePaths = collectRemotePaths(tree);
+              remotePaths = collectRemotePaths(tree, "", options.target);
             } catch {
               // Node might be empty, that's ok
             }
@@ -315,16 +375,24 @@ export function createPushCommand(): Command {
         if (isDirectory && !isNewNode) {
           localPaths = await collectLocalPaths(sourcePath);
 
+          // Map local paths to their full remote paths under the target prefix
+          const localToRemoteMap = new Map<string, string>();
+          for (const localPath of localPaths) {
+            const remotePath = localToRemotePath(localPath, options.target);
+            localToRemoteMap.set(localPath, remotePath);
+          }
+          const localAsRemotePaths = new Set(localToRemoteMap.values());
+
           // Debug output for verbose mode
           if (options.verbose) {
-            console.log(chalk.dim("\n[verbose] Local files:"));
-            [...localPaths]
+            console.log(chalk.dim("\n[verbose] Local files (as remote paths):"));
+            [...localAsRemotePaths]
               .slice(0, 5)
               .forEach((p) => console.log(chalk.dim(`  ${p}`)));
-            if (localPaths.size > 5)
-              console.log(chalk.dim(`  ... and ${localPaths.size - 5} more`));
+            if (localAsRemotePaths.size > 5)
+              console.log(chalk.dim(`  ... and ${localAsRemotePaths.size - 5} more`));
 
-            console.log(chalk.dim("\n[verbose] Remote files:"));
+            console.log(chalk.dim("\n[verbose] Remote files (within target scope):"));
             [...remotePaths]
               .slice(0, 5)
               .forEach((p) => console.log(chalk.dim(`  ${p}`)));
@@ -333,19 +401,27 @@ export function createPushCommand(): Command {
             console.log();
           }
 
-          // Find files to delete (exist remotely but not locally)
+          // Find files to delete (exist remotely within target scope but not in local set)
+          const normalizedTarget = normalizeTarget(options.target);
           if (options.clean) {
             for (const remotePath of remotePaths) {
-              if (!localPaths.has(remotePath)) {
+              // Only consider deletion if the remote path is within the target scope
+              const isInTargetScope = !normalizedTarget || 
+                remotePath.startsWith(normalizedTarget + "/") || 
+                remotePath === normalizedTarget;
+              
+              if (isInTargetScope && !localAsRemotePaths.has(remotePath)) {
                 filesToDelete.push(remotePath);
               }
             }
           }
 
-          // Show summary
-          const newFiles = [...localPaths].filter((p) => !remotePaths.has(p));
+          // Show summary - compare using mapped remote paths
+          const newFiles = [...localPaths].filter(
+            (p) => !remotePaths.has(localToRemoteMap.get(p)!)
+          );
           const updatedFiles = [...localPaths].filter((p) =>
-            remotePaths.has(p),
+            remotePaths.has(localToRemoteMap.get(p)!)
           );
 
           console.log();
@@ -405,17 +481,23 @@ export function createPushCommand(): Command {
           deleteSpinner.start();
 
           let deleted = 0;
+          let deleteFailed = 0;
           for (const filePath of filesToDelete) {
             try {
               await deleteData({ uuid: targetUuid, path: `root/${filePath}` });
               deleted++;
               deleteSpinner.text = `Removing old files... (${deleted}/${filesToDelete.length})`;
             } catch {
-              // File might already be deleted, continue
+              // File might already be deleted or inaccessible, track but continue
+              deleteFailed++;
             }
           }
 
-          deleteSpinner.succeed(`Removed ${deleted} old files`);
+          if (deleteFailed > 0) {
+            deleteSpinner.warn(`Removed ${deleted} files, ${deleteFailed} failed to delete`);
+          } else {
+            deleteSpinner.succeed(`Removed ${deleted} old files`);
+          }
         }
 
         // Upload files
@@ -440,10 +522,12 @@ export function createPushCommand(): Command {
               process.exit(1);
             }
 
-            // Group files by their relative directory
+            // Group files by their relative directory (POSIX-normalized for consistency)
             const filesByDir: Record<string, string[]> = {};
             for (const file of files) {
-              const relPath = relative(sourcePath, file);
+              const relPathRaw = relative(sourcePath, file);
+              // Normalize to POSIX format to ensure consistent directory detection
+              const relPath = toPosixPath(relPathRaw);
               const dir = relPath.includes("/")
                 ? relPath.substring(0, relPath.lastIndexOf("/"))
                 : "";
@@ -456,6 +540,7 @@ export function createPushCommand(): Command {
             const dirs = Object.keys(filesByDir).sort();
             for (const dir of dirs) {
               if (dir !== ".") {
+                // dirs are already POSIX-normalized, safe to split on "/"
                 const parts = dir.split("/");
                 let currentPath = options.target;
                 for (const part of parts) {
@@ -475,19 +560,27 @@ export function createPushCommand(): Command {
 
             // Upload files
             let uploadedCount = 0;
+            let failedCount = 0;
+            const failedFiles: string[] = [];
+
             for (const dir of dirs) {
               const dirFiles = filesByDir[dir];
-              const uploadPath = dir === "." ? options.target : `${options.target}/${dir}`;
+              // dir is already POSIX-normalized from the grouping above
+              const uploadPath = dir === "." ? options.target : `${toPosixPath(options.target)}/${dir}`;
 
               for (const file of dirFiles) {
-                const fileName = relative(sourcePath, file);
+                const fileNameRaw = relative(sourcePath, file);
+                // Normalize to POSIX for consistent display and comparison
+                const fileName = toPosixPath(fileNameRaw);
                 uploadSpinner.text = `Uploading ${chalk.cyan(fileName)} (${uploadedCount + 1}/${files.length})`;
 
                 try {
                   // Check if file exists and delete it first (for overwrite)
-                  if (remotePaths.has(fileName)) {
+                  // Map local path to its full remote path for accurate comparison
+                  const fileRemotePath = localToRemotePath(fileName, options.target);
+                  if (remotePaths.has(fileRemotePath)) {
                     try {
-                      await deleteData({ uuid: targetUuid, path: `${options.target}/${fileName}` });
+                      await deleteData({ uuid: targetUuid, path: `root/${fileRemotePath}` });
                     } catch {
                       // Continue even if delete fails
                     }
@@ -499,7 +592,9 @@ export function createPushCommand(): Command {
                     files: [file],
                   });
                 } catch (err) {
-                  // Log but continue with other files
+                  // Track failure but continue with other files
+                  failedCount++;
+                  failedFiles.push(fileName);
                   if (options.verbose) {
                     console.log(chalk.yellow(`\n  Warning: Failed to upload ${fileName}`));
                   }
@@ -508,19 +603,48 @@ export function createPushCommand(): Command {
                 uploadedCount++;
               }
             }
+
+            // Report results based on success/failure
+            const duration = Date.now() - startTime;
+            const successCount = uploadedCount - failedCount;
+
+            if (failedCount > 0) {
+              uploadSpinner.fail(
+                `Upload completed with errors: ${successCount}/${uploadedCount} files succeeded, ${failedCount} failed (${Math.round(duration / 1000)}s)`,
+              );
+              if (options.verbose && failedFiles.length > 0) {
+                console.log(chalk.red("\nFailed files:"));
+                failedFiles.slice(0, 10).forEach((f) => console.log(chalk.dim(`  ✗ ${f}`)));
+                if (failedFiles.length > 10) {
+                  console.log(chalk.dim(`  ... and ${failedFiles.length - 10} more`));
+                }
+              }
+              process.exitCode = 1;
+            } else {
+              uploadSpinner.succeed(
+                `Upload complete: ${successCount} files in ${Math.round(duration / 1000)}s`,
+              );
+            }
           } else {
             // Single file upload
-            await uploadFiles({
-              uuid: targetUuid,
-              contextPath: options.target,
-              files: [sourcePath],
-            });
+            try {
+              await uploadFiles({
+                uuid: targetUuid,
+                contextPath: options.target,
+                files: [sourcePath],
+              });
+              const duration = Date.now() - startTime;
+              uploadSpinner.succeed(
+                `Upload complete in ${Math.round(duration / 1000)}s`,
+              );
+            } catch (err) {
+              const duration = Date.now() - startTime;
+              uploadSpinner.fail(
+                `Upload failed after ${Math.round(duration / 1000)}s`,
+              );
+              process.exitCode = 1;
+            }
           }
-
-          const duration = Date.now() - startTime;
-          uploadSpinner.succeed(
-            `Upload complete in ${Math.round(duration / 1000)}s`,
-          );
 
           // Auto-assign first PDF as preprint/manuscript component
           try {

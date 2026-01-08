@@ -39,13 +39,13 @@ describe("CLI Integration Tests", () => {
       await axios.get(apiUrl);
       console.log("Server is reachable");
     } catch {
-      console.error(
-        `Failed to connect to desci-server at ${apiUrl}`,
+      const localHint = TEST_ENV === "local" 
+        ? " Run: ./dockerDev.sh (in the nodes root directory)" 
+        : "";
+      // Throw an error instead of process.exit() so other test suites can still run
+      throw new Error(
+        `Failed to connect to desci-server at ${apiUrl}.${localHint}`
       );
-      if (TEST_ENV === "local") {
-        console.error("Run: ./dockerDev.sh (in the nodes root directory)");
-      }
-      process.exit(1);
     }
   });
 

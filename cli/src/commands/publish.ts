@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { select, confirm, password } from "../prompts.js";
+import { select, confirm, password, validatePrivateKey, normalizePrivateKey } from "../prompts.js";
 import {
   createSpinner,
   printSuccess,
@@ -130,14 +130,11 @@ export function createPublishCommand(): Command {
           
           privateKey = await password({
             message: "Enter your private key:",
-            validate: (value: string) => {
-              const cleaned = value.startsWith("0x") ? value.slice(2) : value;
-              if (!cleaned || cleaned.length < 64) {
-                return "Please enter a valid private key (64 hex characters)";
-              }
-              return true;
-            },
+            validate: validatePrivateKey,
           });
+
+          // Normalize the key (strip 0x prefix if present) for consistent usage
+          privateKey = normalizePrivateKey(privateKey);
 
           if (options.saveKey) {
             setPrivateKey(privateKey);
