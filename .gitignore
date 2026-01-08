@@ -18,3 +18,5 @@ local-data/
 **/*.iml
 .composedbRuntimeDefinition.json
 desci-server/preload-ai-failures.json
+
+dist
