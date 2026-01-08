@@ -67,7 +67,8 @@ export const listJournalsOperation: ZodOpenApiOperationObject = {
                 id: z.number(),
                 name: z.string(),
                 description: z.string().nullable(),
-                iconCid: z.string().nullable(),
+                iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
                 createdAt: z.string(),
               }),
             ),
@@ -94,7 +95,8 @@ export const showJournalOperation: ZodOpenApiOperationObject = {
               id: z.number(),
               name: z.string(),
               description: z.string().nullable(),
-              iconCid: z.string().nullable(),
+              iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+              imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
               createdAt: z.string(),
               editors: z.array(
                 z.object({
@@ -142,7 +144,8 @@ export const createJournalOperation: ZodOpenApiOperationObject = {
               id: z.number(),
               name: z.string(),
               description: z.string().nullable(),
-              iconCid: z.string().nullable(),
+              iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+              imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
               createdAt: z.string(),
             }),
           }),
@@ -184,7 +187,8 @@ export const updateJournalOperation: ZodOpenApiOperationObject = {
               id: z.number(),
               name: z.string(),
               description: z.string().nullable(),
-              iconCid: z.string().nullable(),
+              iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+              imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
               createdAt: z.string(),
             }),
           }),
@@ -1055,7 +1059,8 @@ export const getReviewDetailsOperation: ZodOpenApiOperationObject = {
               journal: z.object({
                 id: z.number(),
                 name: z.string(),
-                iconCid: z.string().nullable(),
+                iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
               }),
               formResponse: z
                 .object({
@@ -1810,7 +1815,8 @@ export const listRefereeAssignmentsOperation: ZodOpenApiOperationObject = {
                 journal: z.object({
                   id: z.number(),
                   name: z.string(),
-                  iconCid: z.string().nullable(),
+                  iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                  imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
                   description: z.string().nullable(),
                 }),
                 submission: z.object({
@@ -1856,7 +1862,8 @@ export const showJournalProfileOperation: ZodOpenApiOperationObject = {
                   id: z.number(),
                   name: z.string(),
                   description: z.string().nullable(),
-                  iconCid: z.string().nullable(),
+                  iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                  imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
                 }),
               }),
             ),
@@ -2686,7 +2693,8 @@ export const getReviewsByAssignmentOperation: ZodOpenApiOperationObject = {
               journal: z.object({
                 id: z.number(),
                 name: z.string(),
-                iconCid: z.string().nullable(),
+                iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
               }),
             }),
           }),

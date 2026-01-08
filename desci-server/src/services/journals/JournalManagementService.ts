@@ -215,6 +215,7 @@ interface CreateJournalInput {
   slug?: string;
   description?: string;
   iconCid?: string;
+  imageUrl?: string;
   ownerId: number;
 }
 async function createJournal(data: CreateJournalInput): Promise<Result<Journal, Error>> {
@@ -225,6 +226,7 @@ async function createJournal(data: CreateJournalInput): Promise<Result<Journal, 
         slug: data.slug ?? slugify(data.name, { lower: true, strict: true }),
         description: data.description,
         iconCid: data.iconCid,
+        imageUrl: data.imageUrl,
         settings: DEFAULT_JOURNAL_SETTINGS,
         editors: {
           create: {
@@ -245,6 +247,7 @@ async function createJournal(data: CreateJournalInput): Promise<Result<Journal, 
           name: journal.name,
           description: journal.description,
           iconCid: journal.iconCid,
+          imageUrl: journal.imageUrl,
         },
       },
     });
@@ -280,6 +283,7 @@ interface UpdateJournalInput {
   name?: string;
   description?: string;
   iconCid?: string;
+  imageUrl?: string;
   slug?: string;
 }
 
@@ -300,7 +304,7 @@ async function updateJournal(
     }
 
     const changes: Record<string, { old: string | null; new: string }> = {};
-    const fieldsToCompare: (keyof UpdateJournalInput)[] = ['name', 'description', 'iconCid'];
+    const fieldsToCompare: (keyof UpdateJournalInput)[] = ['name', 'description', 'iconCid', 'imageUrl'];
 
     for (const key of fieldsToCompare) {
       const newValue = data[key];
@@ -324,6 +328,7 @@ async function updateJournal(
           name: data.name,
           description: data.description,
           iconCid: data.iconCid,
+          imageUrl: data.imageUrl,
           slug: data.slug,
         },
       }),
@@ -351,6 +356,7 @@ export type JournalDetails = Prisma.JournalGetPayload<{
     name: true;
     description: true;
     iconCid: true;
+    imageUrl: true;
     createdAt: true;
     editors: {
       include: {
@@ -392,6 +398,7 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
         slug: true,
         description: true,
         iconCid: true,
+        imageUrl: true,
         createdAt: true,
         aboutArticle: true,
         editorialBoardArticle: true,
@@ -574,6 +581,7 @@ export type ListedJournal = Prisma.JournalGetPayload<{
     name: true;
     description: true;
     iconCid: true;
+    imageUrl: true;
     createdAt: true;
     submissions: {
       select: { id: true };
@@ -602,6 +610,7 @@ async function listJournals(userId?: number): Promise<Result<ListedJournal[], Er
         description: true,
         slug: true,
         iconCid: true,
+        imageUrl: true,
         createdAt: true,
         aboutArticle: true,
         editorialBoardArticle: true,
@@ -823,6 +832,7 @@ async function getJournalProfile(userId: number): Promise<
         name: string;
         description: string;
         iconCid: string;
+        imageUrl: string | null;
       };
     }[],
     Error
@@ -841,6 +851,7 @@ async function getJournalProfile(userId: number): Promise<
           name: true,
           description: true,
           iconCid: true,
+          imageUrl: true,
         },
       },
       role: true,

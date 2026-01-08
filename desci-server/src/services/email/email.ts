@@ -285,6 +285,7 @@ export type EditorInviteDynamicTemplateData = {
     name: string;
     description: string;
     iconCid: string;
+    imageUrl?: string;
   };
   inviter: {
     name: string;
@@ -319,6 +320,7 @@ async function sendInviteEditorEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       inviter: {
         name: inviterName,
@@ -353,6 +355,7 @@ async function sendExternalRefereeInviteEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       inviter: {
         name: inviterName,
@@ -395,6 +398,7 @@ async function sendRefereeDeclinedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       editor: {
         name: editorName,
@@ -433,6 +437,7 @@ async function sendRefereeAcceptedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       editor: {
         name: submission.assignedEditor.name,
@@ -471,6 +476,7 @@ async function sendRefereeReassignedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       referee: {
         name: refereeName,
@@ -508,6 +514,7 @@ async function sendRefereeReviewReminderEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       editor: {
         name: submission.assignedEditor.name,
@@ -543,6 +550,7 @@ async function sendMinorRevisionRequestEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       editor: {
         name: editor.name,
@@ -573,6 +581,7 @@ async function sendMajorRevisionRequestEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       editor: {
         name: editor.name,
@@ -603,6 +612,7 @@ async function sendRevisionSubmittedEmail({ email, journal, submission }: Revisi
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       submission: formatSubmissionForEmail(submission),
     },
@@ -633,6 +643,7 @@ async function sendOverdueAlertEditorEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       submission,
       reviewDeadline,
@@ -662,6 +673,7 @@ async function sendSubmissionAssignedToEditorEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       submission,
       assigner: {
@@ -696,6 +708,7 @@ async function sendSubmissionAcceptedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       author: {
         name: submission.author.name || 'Researcher',
@@ -730,6 +743,7 @@ async function sendSubmissionDeskRejectedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       author: {
         name: submission.author.name || 'Researcher',
@@ -765,6 +779,7 @@ async function sendSubmissionFinalRejectedEmail({
         name: journal.name,
         description: journal.description,
         iconCid: journal.iconCid,
+        imageUrl: journal.imageUrl,
       },
       author: {
         name: submission.author.name || 'Researcher',

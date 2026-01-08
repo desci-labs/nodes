@@ -166,7 +166,7 @@ export const listFeaturedJournalPublicationsController = async (
     }
 
     if (startDate || endDate) {
-      filter.submittedAt = {
+      filter.acceptedAt = {
         ...(startDate && { gte: startDate }),
         ...(endDate && { lte: endDate }),
       };
@@ -176,11 +176,11 @@ export const listFeaturedJournalPublicationsController = async (
     if (sortBy) {
       if (sortBy === 'newest') {
         orderBy = {
-          submittedAt: sortOrder,
+          acceptedAt: sortOrder,
         };
       } else if (sortBy === 'oldest') {
         orderBy = {
-          submittedAt: sortOrder,
+          acceptedAt: sortOrder,
         };
       } else if (sortBy === 'title') {
         orderBy = {

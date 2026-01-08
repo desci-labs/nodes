@@ -140,7 +140,8 @@ export const createJournalSchema = z.object({
     name: z.string().min(1, 'Journal name cannot be empty.'),
     slug: z.string().optional().describe('The slug of the journal'),
     description: z.string().optional(),
-    iconCid: z.string().optional(),
+    iconCid: z.string().optional().describe('Deprecated: use imageUrl instead'),
+    imageUrl: z.string().optional().describe('URL to the journal icon/logo'),
   }),
 });
 
@@ -180,7 +181,8 @@ export const updateJournalSchema = z.object({
     name: z.string().min(1, 'Journal name cannot be empty.').optional(),
     slug: z.string().optional().describe('The slug of the journal'),
     description: z.string().optional(),
-    iconCid: z.string().optional(),
+    iconCid: z.string().optional().describe('Deprecated: use imageUrl instead'),
+    imageUrl: z.string().optional().describe('URL to the journal icon/logo'),
   }),
 });
 

@@ -73,7 +73,7 @@ export enum JournalNotificationType {
 
 export type JournalEditorInvitePayload = {
   type: JournalNotificationType.JOURNAL_EDITOR_INVITE;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   role: EditorRole;
   inviterName: string;
   inviterUserId: number;
@@ -82,7 +82,7 @@ export type JournalEditorInvitePayload = {
 
 export type SubmissionAssignedToEditorPayload = {
   type: JournalNotificationType.SUBMISSION_ASSIGNED_TO_EDITOR;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   managerName: string; // Chief who assigned the submission
@@ -95,7 +95,7 @@ export type SubmissionAssignedToEditorPayload = {
 
 export type SubmissionReassignedToEditorPayload = {
   type: JournalNotificationType.SUBMISSION_REASSIGNED_TO_EDITOR;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   managerName: string; // Chief who assigned the submission
@@ -108,7 +108,7 @@ export type SubmissionReassignedToEditorPayload = {
 
 export type RefereeInvitePayload = {
   type: JournalNotificationType.REFEREE_INVITE;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string; // Editor who invited the referee
@@ -122,7 +122,7 @@ export type RefereeInvitePayload = {
 export type RefereeReassignedPayload = {
   // Audience: New Referee, mentions they were re-assigned.
   type: JournalNotificationType.REFEREE_REASSIGNED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string; // Editor who invited the referee
@@ -134,7 +134,7 @@ export type RefereeReassignedPayload = {
 
 export type RefereeAcceptedPayload = {
   type: JournalNotificationType.REFEREE_ACCEPTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   refereeName: string;
@@ -145,7 +145,7 @@ export type RefereeAcceptedPayload = {
 
 export type RefereeDeclinedPayload = {
   type: JournalNotificationType.REFEREE_DECLINED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   refereeName?: string;
@@ -156,7 +156,7 @@ export type RefereeDeclinedPayload = {
 
 export type RefereeReviewReminderPayload = {
   type: JournalNotificationType.REFEREE_REVIEW_REMINDER;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string; // Editor who invited the referee
@@ -168,7 +168,7 @@ export type RefereeReviewReminderPayload = {
 
 export type MajorRevisionRequestedPayload = {
   type: JournalNotificationType.MAJOR_REVISION_REQUESTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string;
@@ -179,7 +179,7 @@ export type MajorRevisionRequestedPayload = {
 
 export type MinorRevisionRequestedPayload = {
   type: JournalNotificationType.MINOR_REVISION_REQUESTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string;
@@ -190,7 +190,7 @@ export type MinorRevisionRequestedPayload = {
 
 export type RevisionSubmittedPayload = {
   type: JournalNotificationType.REVISION_SUBMITTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string;
@@ -201,7 +201,7 @@ export type RevisionSubmittedPayload = {
 
 export type SubmissionDeskRejectionPayload = {
   type: JournalNotificationType.SUBMISSION_DESK_REJECTION;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string;
@@ -212,7 +212,7 @@ export type SubmissionDeskRejectionPayload = {
 
 export type SubmissionFinalRejectionPayload = {
   type: JournalNotificationType.SUBMISSION_FINAL_REJECTION;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string;
@@ -223,7 +223,7 @@ export type SubmissionFinalRejectionPayload = {
 
 export type SubmissionAcceptedPayload = {
   type: JournalNotificationType.SUBMISSION_ACCEPTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string;
@@ -234,7 +234,7 @@ export type SubmissionAcceptedPayload = {
 
 export type SubmissionOverdueEditorReminderPayload = {
   type: JournalNotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
   editorName: string;
