@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
 
+import { prisma } from '../../client.js';
 import { STRIPE_PRICE_IDS, PLAN_DETAILS } from '../../config/stripe.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
@@ -87,6 +88,21 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
     }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
+
+    // Track this checkout session for abandoned cart emails
+    try {
+      await prisma.abandonedCheckout.create({
+        data: {
+          userId,
+          stripeSessionId: session.id,
+          priceId,
+        },
+      });
+      logger.debug({ userId, sessionId: session.id }, 'Tracked checkout session for abandoned cart emails');
+    } catch (trackError) {
+      // Don't fail the checkout if tracking fails
+      logger.error({ error: trackError, userId, sessionId: session.id }, 'Failed to track checkout session');
+    }
 
     return res.status(200).json({ sessionId: session.id });
   } catch (error: any) {
@@ -173,16 +189,16 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
 
     const { returnUrl } = customerPortalSchema.parse(req.body);
 
-    logger.info('Creating customer portal session', { userId });
+    logger.info({ userId }, 'Creating customer portal session');
 
     // Get user's Stripe customer ID from any subscription (not just active ones)
     const subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
     if (!subscription?.stripeCustomerId) {
-      logger.warn('No customer found for user', { userId });
+      logger.warn({ userId }, 'No customer found for user');
       return res.status(404).json({ error: 'No customer found' });
     }
 
-    logger.info('Found customer for portal', { customerId: subscription.stripeCustomerId });
+    logger.info({ customerId: subscription.stripeCustomerId }, 'Found customer for portal');
 
     // Create portal session
     try {
@@ -192,22 +208,28 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
         return_url: returnUrl || `${req.headers.origin}/settings/subscription`,
       });
 
-      logger.info('Portal session created successfully', { sessionId: portalSession.id });
+      logger.info({ sessionId: portalSession.id }, 'Portal session created successfully');
       return res.status(200).json({ url: portalSession.url });
     } catch (stripeError: any) {
-      logger.error('Stripe portal creation failed', {
-        error: stripeError.message,
-        type: stripeError.type,
-        code: stripeError.code,
-        customerId: subscription.stripeCustomerId,
-      });
+      logger.error(
+        {
+          error: stripeError.message,
+          type: stripeError.type,
+          code: stripeError.code,
+          customerId: subscription.stripeCustomerId,
+        },
+        'Stripe portal creation failed',
+      );
       throw stripeError;
     }
   } catch (error: any) {
-    logger.error('Failed to create customer portal session', {
-      error: error.message,
-      userId: req.user?.id,
-    });
+    logger.error(
+      {
+        error: error.message,
+        userId: req.user?.id,
+      },
+      'Failed to create customer portal session',
+    );
     return res.status(500).json({ error: 'Failed to create customer portal session' });
   }
 };
@@ -219,7 +241,7 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    logger.info('Getting user subscription', { userId });
+    logger.info({ userId }, 'Getting user subscription');
 
     let subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
 
@@ -241,7 +263,7 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
 
       if (!activeSubscription) return res.status(404).json({ error: 'No subscription found' });
 
-      await SubscriptionService.handleSubscriptionCreated(activeSubscription);
+      // await SubscriptionService.handleSubscriptionCreated(activeSubscription); TODO: Tay Review
 
       logger.info(
         { userId, stripeCustomerId, subscriptionId: activeSubscription.id },
@@ -253,10 +275,13 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
 
     return res.status(200).json(subscription);
   } catch (error: any) {
-    logger.error('Failed to get user subscription', {
-      error: error.message,
-      userId: req.user?.id,
-    });
+    logger.error(
+      {
+        error: error.message,
+        userId: req.user?.id,
+      },
+      'Failed to get user subscription',
+    );
     return res.status(500).json({ error: 'Failed to get user subscription' });
   }
 };

@@ -492,7 +492,7 @@ const emitOnJournalEditorInvite = async ({
   role,
   inviteToken,
 }: {
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   editor: User;
   inviter: User;
   inviteToken: string;
@@ -500,7 +500,7 @@ const emitOnJournalEditorInvite = async ({
 }) => {
   const payload: JournalEditorInvitePayload = {
     type: JournalNotificationType.JOURNAL_EDITOR_INVITE,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     role,
     inviterName: inviter.name,
     inviterUserId: inviter.id,
@@ -541,7 +541,7 @@ const emitOnJournalSubmissionAssignedToEditor = async ({
 
   const payload: SubmissionAssignedToEditorPayload = {
     type: JournalNotificationType.SUBMISSION_ASSIGNED_TO_EDITOR,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     managerName: managerUser?.name,
@@ -586,7 +586,7 @@ const emitOnJournalSubmissionReassignedToEditor = async ({
 
   const payload: SubmissionReassignedToEditorPayload = {
     type: JournalNotificationType.SUBMISSION_REASSIGNED_TO_EDITOR,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     managerName: managerUser?.name,
@@ -632,7 +632,7 @@ const emitOnRefereeInvitation = async ({
 
   const payload: RefereeInvitePayload = {
     type: JournalNotificationType.REFEREE_INVITE,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     editorName: editorUser?.name,
@@ -676,7 +676,7 @@ const emitOnRefereeReassignmentInvitation = async ({
 
   const payload: RefereeReassignedPayload = {
     type: JournalNotificationType.REFEREE_REASSIGNED,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     editorName: editorUser?.name,
@@ -723,7 +723,7 @@ const emitOnRefereeAcceptance = async ({
 
   const payload: RefereeAcceptedPayload = {
     type: JournalNotificationType.REFEREE_ACCEPTED,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     refereeName: referee.name,
@@ -770,7 +770,7 @@ const emitOnRefereeDecline = async ({
 
   const payload: RefereeDeclinedPayload = {
     type: JournalNotificationType.REFEREE_DECLINED,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     refereeName,
@@ -812,7 +812,7 @@ const emitOnRefereeReviewReminder = async ({
 
   const payload: RefereeReviewReminderPayload = {
     type: JournalNotificationType.REFEREE_REVIEW_REMINDER,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     refereeName: referee.name,
@@ -853,7 +853,7 @@ const emitOnMajorRevisionRequest = async ({
 
   const payload: MajorRevisionRequestedPayload = {
     type: JournalNotificationType.MAJOR_REVISION_REQUESTED,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     authorName: author.name,
@@ -893,7 +893,7 @@ const emitOnMinorRevisionRequest = async ({
 
   const payload: MinorRevisionRequestedPayload = {
     type: JournalNotificationType.MINOR_REVISION_REQUESTED,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     authorName: author.name,
@@ -933,7 +933,7 @@ const emitOnRevisionSubmittedToEditor = async ({
 
   const payload: RevisionSubmittedPayload = {
     type: JournalNotificationType.REVISION_SUBMITTED,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     authorName: author.name,
@@ -973,7 +973,7 @@ const emitOnSubmissionDeskRejection = async ({
 
   const payload: SubmissionDeskRejectionPayload = {
     type: JournalNotificationType.SUBMISSION_DESK_REJECTION,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, [
       'id',
       'version',
@@ -1021,7 +1021,7 @@ const emitOnSubmissionFinalRejection = async ({
 
   const payload: SubmissionFinalRejectionPayload = {
     type: JournalNotificationType.SUBMISSION_FINAL_REJECTION,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, [
       'id',
       'version',
@@ -1067,7 +1067,7 @@ const emitOnSubmissionAcceptance = async ({
 
   const payload: SubmissionAcceptedPayload = {
     type: JournalNotificationType.SUBMISSION_ACCEPTED,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, [
       'id',
       'version',
@@ -1115,7 +1115,7 @@ const emitOnSubmissionOverdueEditorReminder = async ({
 
   const payload: SubmissionOverdueEditorReminderPayload = {
     type: JournalNotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER,
-    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid', 'imageUrl']),
     submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     submissionTitle,
     editorName: editorUser?.name,

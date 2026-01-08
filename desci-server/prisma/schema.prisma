@@ -281,6 +281,7 @@ model User {
   PaymentMethod          PaymentMethod[]
   Invoice                Invoice[]
   ImportTaskQueue        ImportTaskQueue[]
+  AbandonedCheckout      AbandonedCheckout[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1170,7 +1171,8 @@ model Journal {
   name                  String
   slug                  String?
   description           String?
-  iconCid               String? // URL to icon
+  iconCid               String? // Deprecated: Use imageUrl instead
+  imageUrl              String? // URL to icon (replaces iconCid)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   isCommercial          Boolean  @default(false)
@@ -1566,6 +1568,29 @@ model SentEmail {
   @@index([userId, emailType, createdAt])
 }
 
+// Track Stripe checkout sessions for abandoned cart emails
+model AbandonedCheckout {
+  id                  Int       @id @default(autoincrement())
+  userId              Int
+  stripeSessionId     String    @unique
+  priceId             String? // The price they were checking out
+  completedAt         DateTime? // Set when checkout completes
+  firstEmailSentAt    DateTime? // When SCIWEAVE_CHECKOUT_1_HOUR was sent
+  couponCode          String? // The 7-day coupon code sent
+  couponExpiresAt     DateTime? // When the coupon expires
+  reminderEmailSentAt DateTime? // When SCIWEAVE_CHECKOUT_1_DAY_REMAINING was sent
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([completedAt])
+  @@index([firstEmailSentAt])
+  @@index([couponExpiresAt])
+  @@index([createdAt, completedAt])
+}
+
 enum ImportTaskQueueStatus {
   PENDING
   IN_PROGRESS
@@ -1936,6 +1961,7 @@ enum SentEmailType {
   SCIWEAVE_WELCOME_EMAIL
   SCIWEAVE_UPGRADE_EMAIL
   SCIWEAVE_CANCELLATION_EMAIL
+  SCIWEAVE_SUBSCRIPTION_ENDED
   SCIWEAVE_14_DAY_INACTIVITY
   SCIWEAVE_OUT_OF_CHATS_INITIAL
   SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED
@@ -1943,6 +1969,10 @@ enum SentEmailType {
   SCIWEAVE_PRO_CHAT_REFRESH
   SCIWEAVE_STUDENT_DISCOUNT
   SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED
+  SCIWEAVE_UPGRADE_TEAM_EMAIL
+  SCIWEAVE_ANNUAL_UPSELL
+  SCIWEAVE_CHECKOUT_1_HOUR
+  SCIWEAVE_CHECKOUT_1_DAY_REMAINING
   // Journal/Review emails
   REFEREE_REVIEW_REMINDER
   OVERDUE_REVIEW_ALERT

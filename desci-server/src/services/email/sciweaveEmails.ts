@@ -11,6 +11,10 @@ import {
   WelcomeEmailPayload,
   UpgradeEmailPayload,
   CancellationEmailPayload,
+  SubscriptionEndedEmailPayload,
+  AnnualUpsellEmailPayload,
+  Checkout1HourEmailPayload,
+  Checkout1DayRemainingEmailPayload,
   InactivityEmailPayload,
   OutOfChatsInitialEmailPayload,
   OutOfChatsCtaClickedEmailPayload,
@@ -19,6 +23,7 @@ import {
   StudentDiscountEmailPayload,
   StudentDiscountLimitReachedEmailPayload,
 } from './sciweaveEmailTypes.js';
+import { getRelativeTime } from '../../utils/clock.js';
 
 /**
  * Used to add a prefix to the email subject to indicate the deployment environment
@@ -174,6 +179,140 @@ async function sendCancellationEmail({ email, firstName, lastName }: Cancellatio
         lastName: lastName || '',
         email,
       },
+    },
+  };
+
+  return await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendSubscriptionEndedEmail({ email, firstName, lastName }: SubscriptionEndedEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED];
+
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED}`);
+    return undefined;
+  }
+
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email,
+      },
+    },
+  };
+
+  return await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendAnnualUpsellEmail({ email, firstName, lastName }: AnnualUpsellEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL];
+
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL}`);
+    return undefined;
+  }
+
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email,
+      },
+    },
+  };
+
+  return await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendCheckout1HourEmail({
+  email,
+  firstName,
+  lastName,
+  couponCode,
+  percentOff,
+  expiresAt,
+}: Checkout1HourEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_HOUR];
+
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_HOUR}`);
+    return undefined;
+  }
+
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email,
+      },
+      couponCode,
+      percentOff,
+      expiresAt: expiresAt.toISOString(),
+      expiresAtFormatted: expiresAt.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+      expiresAtRelative: getRelativeTime(expiresAt),
+    },
+  };
+
+  return await sendSciweaveEmail(message, { templateId });
+}
+
+async function sendCheckout1DayRemainingEmail({
+  email,
+  firstName,
+  lastName,
+  couponCode,
+  percentOff,
+  expiresAt,
+}: Checkout1DayRemainingEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_DAY_REMAINING];
+
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_DAY_REMAINING}`);
+    return undefined;
+  }
+
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email,
+      },
+      couponCode,
+      percentOff,
+      expiresAt: expiresAt.toISOString(),
+      expiresAtFormatted: expiresAt.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+      expiresAtRelative: getRelativeTime(expiresAt),
     },
   };
 
@@ -365,6 +504,14 @@ export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
       return sendUpgradeEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL:
       return sendCancellationEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED:
+      return sendSubscriptionEndedEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL:
+      return sendAnnualUpsellEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_HOUR:
+      return sendCheckout1HourEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_DAY_REMAINING:
+      return sendCheckout1DayRemainingEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY:
       return send14DayInactivityEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL:

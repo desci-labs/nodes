@@ -2,6 +2,10 @@ export enum SciweaveEmailTypes {
   SCIWEAVE_WELCOME_EMAIL = 'SCIWEAVE_WELCOME_EMAIL',
   SCIWEAVE_UPGRADE_EMAIL = 'SCIWEAVE_UPGRADE_EMAIL',
   SCIWEAVE_CANCELLATION_EMAIL = 'SCIWEAVE_CANCELLATION_EMAIL',
+  SCIWEAVE_SUBSCRIPTION_ENDED = 'SCIWEAVE_SUBSCRIPTION_ENDED',
+  SCIWEAVE_ANNUAL_UPSELL = 'SCIWEAVE_ANNUAL_UPSELL',
+  SCIWEAVE_CHECKOUT_1_HOUR = 'SCIWEAVE_CHECKOUT_1_HOUR',
+  SCIWEAVE_CHECKOUT_1_DAY_REMAINING = 'SCIWEAVE_CHECKOUT_1_DAY_REMAINING',
   SCIWEAVE_14_DAY_INACTIVITY = 'SCIWEAVE_14_DAY_INACTIVITY',
   SCIWEAVE_OUT_OF_CHATS_INITIAL = 'SCIWEAVE_OUT_OF_CHATS_INITIAL',
   SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED = 'SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED',
@@ -35,6 +39,48 @@ export type CancellationEmailPayload = {
     email: string;
     firstName: string;
     lastName?: string;
+  };
+};
+
+export type SubscriptionEndedEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED;
+  payload: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+  };
+};
+
+export type AnnualUpsellEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL;
+  payload: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+  };
+};
+
+export type Checkout1HourEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_HOUR;
+  payload: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+    couponCode: string;
+    percentOff: number;
+    expiresAt: Date;
+  };
+};
+
+export type Checkout1DayRemainingEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_DAY_REMAINING;
+  payload: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+    couponCode: string;
+    percentOff: number;
+    expiresAt: Date;
   };
 };
 
@@ -115,6 +161,10 @@ export type SciweaveEmailProps =
   | WelcomeEmailPayload
   | UpgradeEmailPayload
   | CancellationEmailPayload
+  | SubscriptionEndedEmailPayload
+  | AnnualUpsellEmailPayload
+  | Checkout1HourEmailPayload
+  | Checkout1DayRemainingEmailPayload
   | InactivityEmailPayload
   | OutOfChatsInitialEmailPayload
   | OutOfChatsCtaClickedEmailPayload

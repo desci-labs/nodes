@@ -5,11 +5,15 @@
  * based on various conditions (deadlines, overdue items, pending actions, etc.)
  */
 
-import { Feature, SentEmailType } from '@prisma/client';
-import { subDays, subHours } from 'date-fns';
+import { Feature, PlanType, SentEmailType } from '@prisma/client';
+import { addDays, subDays, subHours } from 'date-fns';
 
 import { prisma } from '../client.js';
-import { SCIWEAVE_USER_DISCOUNT_PERCENT, SENDGRID_API_KEY } from '../config.js';
+import {
+  SCIWEAVE_USER_DISCOUNT_PERCENT,
+  SCIWEAVE_CHECKOUT_FOLLOW_UP_DISCOUNT_PERCENT,
+  SENDGRID_API_KEY,
+} from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { sendEmail } from '../services/email/email.js';
 import { SciweaveEmailTypes } from '../services/email/sciweaveEmailTypes.js';
@@ -776,12 +780,347 @@ const checkStudentDiscountFollowUp: EmailReminderHandler = {
   },
 };
 
+/**
+ * Send abandoned checkout email 1 hour after user visits checkout but doesn't complete
+ * Creates a 7-day coupon code for the email
+ */
+const checkAbandonedCheckout1Hour: EmailReminderHandler = {
+  name: 'Abandoned Checkout 1 Hour',
+  description: 'Send email with discount 1 hour after user abandons checkout',
+  enabled: true,
+  handler: async () => {
+    let sent = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    try {
+      const oneHourAgo = subHours(new Date(), 1);
+      const twentyFourHoursAgo = subHours(new Date(), 24);
+
+      // Find abandoned checkouts that are 1-24 hours old, not completed, and no email sent yet
+      // Use distinct to only get one checkout per user (the most recent one)
+      const abandonedCheckouts = await prisma.abandonedCheckout.findMany({
+        where: {
+          completedAt: null, // Not completed
+          firstEmailSentAt: null, // Email not sent yet
+          createdAt: {
+            gte: twentyFourHoursAgo,
+            lte: oneHourAgo,
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+              receiveSciweaveMarketingEmails: true,
+            },
+          },
+        },
+        distinct: ['userId'],
+        orderBy: { createdAt: 'desc' },
+      });
+
+      logger.info({ count: abandonedCheckouts.length }, 'Found abandoned checkouts for 1-hour email');
+
+      for (const checkout of abandonedCheckouts) {
+        const { user } = checkout;
+        if (!user || !user.email) continue;
+
+        try {
+          // Skip if user has opted out of marketing emails
+          if (!user.receiveSciweaveMarketingEmails) {
+            logger.debug({ userId: user.id }, 'User opted out of marketing emails, skipping');
+            skipped++;
+            continue;
+          }
+
+          // Check if we've ever sent this email before
+          const existingEmail = await prisma.sentEmail.findFirst({
+            where: {
+              userId: user.id,
+              emailType: SentEmailType.SCIWEAVE_CHECKOUT_1_HOUR,
+            },
+          });
+
+          if (existingEmail) {
+            logger.debug({ userId: user.id }, 'Already sent checkout 1-hour email before, skipping');
+            skipped++;
+            continue;
+          }
+
+          // Check if user already has an active subscription (they completed checkout elsewhere)
+          const activeSubscription = await prisma.subscription.findFirst({
+            where: {
+              userId: user.id,
+              status: 'ACTIVE',
+              planType: { not: PlanType.FREE },
+            },
+          });
+
+          if (activeSubscription) {
+            logger.debug({ userId: user.id }, 'User has active subscription, skipping abandoned checkout email');
+            // Mark as completed so we don't keep checking
+            await prisma.abandonedCheckout.update({
+              where: { id: checkout.id },
+              data: { completedAt: new Date() },
+            });
+            skipped++;
+            continue;
+          }
+
+          if (isDryRunMode()) {
+            recordDryRunEmail({
+              userId: user.id,
+              email: user.email,
+              emailType: 'SCIWEAVE_CHECKOUT_1_HOUR',
+              handlerName: 'Abandoned Checkout 1 Hour',
+              details: { checkoutId: checkout.id, stripeSessionId: checkout.stripeSessionId },
+            });
+            sent++;
+            continue;
+          }
+
+          // Create 7-day coupon
+          const coupon = await StripeCouponService.create7DayCoupon({
+            userId: user.id,
+            email: user.email,
+          });
+
+          const { firstName, lastName } = await getUserNameByUser(user);
+
+          // Send email
+          const emailResult = await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_HOUR,
+            payload: {
+              email: user.email,
+              firstName: firstName || 'Researcher',
+              lastName: lastName,
+              couponCode: coupon.code,
+              percentOff: coupon.percentOff || SCIWEAVE_CHECKOUT_FOLLOW_UP_DISCOUNT_PERCENT,
+              expiresAt: coupon.expiresAt!,
+            },
+          });
+
+          // Update the checkout record
+          if (emailResult && emailResult.success) {
+            await prisma.abandonedCheckout.update({
+              where: { id: checkout.id },
+              data: {
+                firstEmailSentAt: new Date(),
+                couponCode: coupon.code,
+                couponExpiresAt: coupon.expiresAt,
+              },
+            });
+
+            // Also log to SentEmail table
+            await prisma.sentEmail.create({
+              data: {
+                userId: user.id,
+                emailType: SentEmailType.SCIWEAVE_CHECKOUT_1_HOUR,
+                internalTrackingId: emailResult.internalTrackingId,
+                details: {
+                  checkoutId: checkout.id,
+                  stripeSessionId: checkout.stripeSessionId,
+                  couponCode: coupon.code,
+                  couponExpiresAt: coupon.expiresAt?.toISOString(),
+                  ...(emailResult.sgMessageIdPrefix && {
+                    sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                  }),
+                },
+              },
+            });
+          }
+
+          logger.info(
+            {
+              userId: user.id,
+              checkoutId: checkout.id,
+              couponCode: coupon.code,
+            },
+            'Sent abandoned checkout 1-hour email',
+          );
+          sent++;
+        } catch (err) {
+          logger.error({ err, userId: user.id, checkoutId: checkout.id }, 'Failed to process abandoned checkout email');
+          errors++;
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, 'Failed to check abandoned checkouts');
+      errors++;
+    }
+
+    return { sent, skipped, errors };
+  },
+};
+
+/**
+ * Send reminder email 1 day before the abandoned checkout coupon expires
+ */
+const checkAbandonedCheckoutCouponExpiring: EmailReminderHandler = {
+  name: 'Abandoned Checkout Coupon Expiring',
+  description: 'Send reminder email 1 day before checkout discount coupon expires',
+  enabled: true,
+  handler: async () => {
+    let sent = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    try {
+      const now = new Date();
+      const oneDayFromNow = addDays(now, 1);
+      const twoDaysFromNow = addDays(now, 2);
+
+      // Find checkouts with coupons expiring in 1-2 days, reminder not sent yet
+      const expiringCoupons = await prisma.abandonedCheckout.findMany({
+        where: {
+          completedAt: null, // Still not completed
+          firstEmailSentAt: { not: null }, // First email was sent
+          reminderEmailSentAt: null, // Reminder not sent yet
+          couponExpiresAt: {
+            gte: oneDayFromNow,
+            lte: twoDaysFromNow,
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+              receiveSciweaveMarketingEmails: true,
+            },
+          },
+        },
+      });
+
+      logger.info({ count: expiringCoupons.length }, 'Found checkouts with coupons expiring soon');
+
+      for (const checkout of expiringCoupons) {
+        const { user } = checkout;
+        if (!user || !user.email || !checkout.couponCode || !checkout.couponExpiresAt) continue;
+
+        try {
+          // Skip if user has opted out of marketing emails
+          if (!user.receiveSciweaveMarketingEmails) {
+            logger.debug({ userId: user.id }, 'User opted out of marketing emails, skipping');
+            skipped++;
+            continue;
+          }
+
+          // Check if user already has an active subscription
+          const activeSubscription = await prisma.subscription.findFirst({
+            where: {
+              userId: user.id,
+              status: 'ACTIVE',
+            },
+          });
+
+          if (activeSubscription) {
+            logger.debug({ userId: user.id }, 'User has active subscription, skipping reminder email');
+            // Mark as completed
+            await prisma.abandonedCheckout.update({
+              where: { id: checkout.id },
+              data: { completedAt: new Date() },
+            });
+            skipped++;
+            continue;
+          }
+
+          if (isDryRunMode()) {
+            recordDryRunEmail({
+              userId: user.id,
+              email: user.email,
+              emailType: 'SCIWEAVE_CHECKOUT_1_DAY_REMAINING',
+              handlerName: 'Abandoned Checkout Coupon Expiring',
+              details: {
+                checkoutId: checkout.id,
+                couponCode: checkout.couponCode,
+                couponExpiresAt: checkout.couponExpiresAt.toISOString(),
+              },
+            });
+            sent++;
+            continue;
+          }
+
+          const { firstName, lastName } = await getUserNameByUser(user);
+
+          // Send reminder email
+          const emailResult = await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_DAY_REMAINING,
+            payload: {
+              email: user.email,
+              firstName: firstName || 'Researcher',
+              lastName: lastName,
+              couponCode: checkout.couponCode,
+              percentOff: SCIWEAVE_CHECKOUT_FOLLOW_UP_DISCOUNT_PERCENT,
+              expiresAt: checkout.couponExpiresAt,
+            },
+          });
+
+          // Update the checkout record
+          if (emailResult && emailResult.success) {
+            await prisma.abandonedCheckout.update({
+              where: { id: checkout.id },
+              data: { reminderEmailSentAt: new Date() },
+            });
+
+            // Also log to SentEmail table
+            await prisma.sentEmail.create({
+              data: {
+                userId: user.id,
+                emailType: SentEmailType.SCIWEAVE_CHECKOUT_1_DAY_REMAINING,
+                internalTrackingId: emailResult.internalTrackingId,
+                details: {
+                  checkoutId: checkout.id,
+                  couponCode: checkout.couponCode,
+                  couponExpiresAt: checkout.couponExpiresAt.toISOString(),
+                  ...(emailResult.sgMessageIdPrefix && {
+                    sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                  }),
+                },
+              },
+            });
+          }
+
+          logger.info(
+            {
+              userId: user.id,
+              checkoutId: checkout.id,
+              couponCode: checkout.couponCode,
+              expiresAt: checkout.couponExpiresAt,
+            },
+            'Sent abandoned checkout coupon expiring email',
+          );
+          sent++;
+        } catch (err) {
+          logger.error({ err, userId: user.id, checkoutId: checkout.id }, 'Failed to process coupon expiring email');
+          errors++;
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, 'Failed to check expiring coupons');
+      errors++;
+    }
+
+    return { sent, skipped, errors };
+  },
+};
+
 // Export individual handlers for testing
 export {
   checkSciweave14DayInactivity,
   checkProChatRefresh,
   checkOutOfChatsFollowUp,
   checkStudentDiscountFollowUp,
+  checkAbandonedCheckout1Hour,
+  checkAbandonedCheckoutCouponExpiring,
   testEmailHandler,
 };
 
@@ -790,6 +1129,8 @@ export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
   checkProChatRefresh,
   checkOutOfChatsFollowUp,
   checkStudentDiscountFollowUp,
+  checkAbandonedCheckout1Hour,
+  checkAbandonedCheckoutCouponExpiring,
   testEmailHandler, // Auto-skips unless TEST_EMAIL_ADDRESS is set
   // Add more handlers here
 ];

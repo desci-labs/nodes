@@ -210,6 +210,7 @@ describe('Journal Management Service', () => {
         'description',
         'slug',
         'iconCid',
+        'imageUrl',
         'createdAt',
         'submissions',
         'aboutArticle',
@@ -431,6 +432,7 @@ describe('Journal Management Service', () => {
           'slug',
           'description',
           'iconCid',
+          'imageUrl',
           'createdAt',
           'publicationCount',
           'aboutArticle',
@@ -452,6 +454,7 @@ describe('Journal Management Service', () => {
           'slug',
           'description',
           'iconCid',
+          'imageUrl',
           'createdAt',
           'editors',
           'aboutArticle',
@@ -490,7 +493,7 @@ describe('Journal Management Service', () => {
         });
 
         expect(res.status).toBe(200);
-        expect(res.body.data.journal).to.have.all.keys(['id', 'name', 'description', 'iconCid', 'createdAt']);
+        expect(res.body.data.journal).to.have.all.keys(['id', 'name', 'description', 'iconCid', 'imageUrl', 'createdAt']);
         expect(res.body.data.journal.name).toBe('New Journal');
       });
 

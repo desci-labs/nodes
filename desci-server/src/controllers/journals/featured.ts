@@ -5,7 +5,7 @@ import { errWithCause } from 'pino-std-serializers';
 import { sendError, sendSuccess } from '../../core/api.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { delFromCache, getFromCache, setToCache } from '../../redisClient.js';
+import { getFromCache, setToCache } from '../../redisClient.js';
 import { listFeaturedPublicationsSchema } from '../../schemas/journals.schema.js';
 import {
   journalSubmissionService,
@@ -30,8 +30,20 @@ type ListFeaturedJournalPublicationsRequest = ValidatedRequest<
   AuthenticatedRequest
 >;
 
-const featuredPubCackeKey = (journalId?: number, search?: string, startDate?: Date, endDate?: Date) =>
-  `featured-publications-${journalId ?? 'all'}${search ? `-${search}` : ''}${startDate ? `-${startDate.toISOString()}` : ''}${endDate ? `-${endDate.toISOString()}` : ''}`;
+const featuredPubCackeKey = (
+  journalId?: number,
+  search?: string,
+  startDate?: Date,
+  endDate?: Date,
+  limit?: number,
+  offset?: number,
+) =>
+  `featured-publications-${journalId ?? 'all'}${search ? `-${search}` : ''}${startDate ? `-${startDate.toISOString()}` : ''}${endDate ? `-${endDate.toISOString()}` : ''}-limit${limit ?? 20}-offset${offset ?? 0}`;
+
+type CachedFeaturedPublications = {
+  data: FeaturedSubmissionDetails[];
+  totalCount: number;
+};
 
 export const listFeaturedPublicationsController = async (
   req: ListFeaturedJournalPublicationsRequest,
@@ -40,12 +52,18 @@ export const listFeaturedPublicationsController = async (
   try {
     const { limit, offset, startDate, endDate, sortBy, sortOrder, search } = req.validatedData.query;
 
-    const cacheKey = featuredPubCackeKey(undefined, search, startDate, endDate);
+    const cacheKey = featuredPubCackeKey(undefined, search, startDate, endDate, limit, offset);
 
     logger.trace({ cacheKey }, 'listFeaturedPublicationsController::cacheKey');
-    const cachedFeaturedPubs = await getFromCache<FeaturedSubmissionDetails[]>(cacheKey);
+    const cachedFeaturedPubs = await getFromCache<CachedFeaturedPublications>(cacheKey);
     if (cachedFeaturedPubs) {
-      return sendSuccess(res, { data: cachedFeaturedPubs, meta: { count: cachedFeaturedPubs.length, limit, offset } });
+      const { data, totalCount } = cachedFeaturedPubs;
+      const totalPages = Math.ceil(totalCount / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+      return sendSuccess(res, {
+        data,
+        meta: { count: data.length, totalCount, totalPages, currentPage, limit, offset },
+      });
     }
 
     const filter: Prisma.JournalSubmissionWhereInput = {
@@ -84,7 +102,10 @@ export const listFeaturedPublicationsController = async (
       }
     }
 
-    const publications = await journalSubmissionService.getFeaturedJournalPublications(filter, orderBy, offset, limit);
+    const [publications, totalCount] = await Promise.all([
+      journalSubmissionService.getFeaturedJournalPublications(filter, orderBy, offset, limit),
+      journalSubmissionService.countFeaturedJournalPublications(filter),
+    ]);
 
     const data = (
       await asyncMap(publications, async (publication) => {
@@ -96,9 +117,15 @@ export const listFeaturedPublicationsController = async (
       })
     )?.filter((publication) => publication !== null);
 
-    await setToCache(cacheKey, data, data?.length > 0 ? 60 * 60 * 24 : 60); // 24 hours
+    await setToCache(cacheKey, { data, totalCount }, data?.length > 0 ? 60 * 60 * 24 : 60); // 24 hours
 
-    return sendSuccess(res, { data, meta: { count: data?.length ?? 0, limit, offset } });
+    const totalPages = Math.ceil(totalCount / limit);
+    const currentPage = Math.floor(offset / limit) + 1;
+
+    return sendSuccess(res, {
+      data,
+      meta: { count: data?.length ?? 0, totalCount, totalPages, currentPage, limit, offset },
+    });
   } catch (error) {
     logger.error({ error: errWithCause(error) });
     return sendError(res, 'Failed to retrieve featured publications', 500);
@@ -113,12 +140,18 @@ export const listFeaturedJournalPublicationsController = async (
     const { journalId } = req.validatedData.params;
     const { limit, offset, startDate, endDate, sortBy, sortOrder, search } = req.validatedData.query;
 
-    const cacheKey = featuredPubCackeKey(journalId, search, startDate, endDate);
+    const cacheKey = featuredPubCackeKey(journalId, search, startDate, endDate, limit, offset);
 
     logger.trace({ cacheKey }, 'listFeaturedJournalPublicationsController::cacheKey');
-    const cachedFeaturedPubs = await getFromCache<FeaturedSubmissionDetails[]>(cacheKey);
+    const cachedFeaturedPubs = await getFromCache<CachedFeaturedPublications>(cacheKey);
     if (cachedFeaturedPubs) {
-      return sendSuccess(res, { data: cachedFeaturedPubs, meta: { count: cachedFeaturedPubs.length, limit, offset } });
+      const { data, totalCount } = cachedFeaturedPubs;
+      const totalPages = Math.ceil(totalCount / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+      return sendSuccess(res, {
+        data,
+        meta: { count: data.length, totalCount, totalPages, currentPage, limit, offset },
+      });
     }
 
     const filter: Prisma.JournalSubmissionWhereInput = {
@@ -133,7 +166,7 @@ export const listFeaturedJournalPublicationsController = async (
     }
 
     if (startDate || endDate) {
-      filter.submittedAt = {
+      filter.acceptedAt = {
         ...(startDate && { gte: startDate }),
         ...(endDate && { lte: endDate }),
       };
@@ -143,11 +176,11 @@ export const listFeaturedJournalPublicationsController = async (
     if (sortBy) {
       if (sortBy === 'newest') {
         orderBy = {
-          submittedAt: sortOrder,
+          acceptedAt: sortOrder,
         };
       } else if (sortBy === 'oldest') {
         orderBy = {
-          submittedAt: sortOrder,
+          acceptedAt: sortOrder,
         };
       } else if (sortBy === 'title') {
         orderBy = {
@@ -159,7 +192,10 @@ export const listFeaturedJournalPublicationsController = async (
       // TODO: order by impact
     }
 
-    const publications = await journalSubmissionService.getFeaturedJournalPublications(filter, orderBy, offset, limit);
+    const [publications, totalCount] = await Promise.all([
+      journalSubmissionService.getFeaturedJournalPublications(filter, orderBy, offset, limit),
+      journalSubmissionService.countFeaturedJournalPublications(filter),
+    ]);
 
     const data: Partial<JournalSubmission>[] = await asyncMap(publications, async (publication) => {
       const submissionExtended = await journalSubmissionService.getFeaturedPublicationDetails(publication.id);
@@ -169,10 +205,16 @@ export const listFeaturedJournalPublicationsController = async (
       return submissionExtended.value;
     });
 
-    await setToCache(cacheKey, data, data.length > 0 ? 60 * 60 * 24 : 60); // 24 hours
+    await setToCache(cacheKey, { data, totalCount }, data.length > 0 ? 60 * 60 * 24 : 60); // 24 hours
+
+    const totalPages = Math.ceil(totalCount / limit);
+    const currentPage = Math.floor(offset / limit) + 1;
 
     logger.trace({ publications }, 'listFeaturedJournalPublicationsController');
-    return sendSuccess(res, { data, meta: { count: publications.length, limit, offset } });
+    return sendSuccess(res, {
+      data,
+      meta: { count: publications.length, totalCount, totalPages, currentPage, limit, offset },
+    });
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve featured publications', 500);
