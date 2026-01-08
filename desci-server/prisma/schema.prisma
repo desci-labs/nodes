@@ -1171,7 +1171,8 @@ model Journal {
   name                  String
   slug                  String?
   description           String?
-  iconCid               String? // URL to icon
+  iconCid               String? // Deprecated: Use imageUrl instead
+  imageUrl              String? // URL to icon (replaces iconCid)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   isCommercial          Boolean  @default(false)
@@ -1569,17 +1570,17 @@ model SentEmail {
 
 // Track Stripe checkout sessions for abandoned cart emails
 model AbandonedCheckout {
-  id                   Int       @id @default(autoincrement())
-  userId               Int
-  stripeSessionId      String    @unique
-  priceId              String? // The price they were checking out
-  completedAt          DateTime? // Set when checkout completes
-  firstEmailSentAt     DateTime? // When SCIWEAVE_CHECKOUT_1_HOUR was sent
-  couponCode           String? // The 7-day coupon code sent
-  couponExpiresAt      DateTime? // When the coupon expires
-  reminderEmailSentAt  DateTime? // When SCIWEAVE_CHECKOUT_1_DAY_REMAINING was sent
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                  Int       @id @default(autoincrement())
+  userId              Int
+  stripeSessionId     String    @unique
+  priceId             String? // The price they were checking out
+  completedAt         DateTime? // Set when checkout completes
+  firstEmailSentAt    DateTime? // When SCIWEAVE_CHECKOUT_1_HOUR was sent
+  couponCode          String? // The 7-day coupon code sent
+  couponExpiresAt     DateTime? // When the coupon expires
+  reminderEmailSentAt DateTime? // When SCIWEAVE_CHECKOUT_1_DAY_REMAINING was sent
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 

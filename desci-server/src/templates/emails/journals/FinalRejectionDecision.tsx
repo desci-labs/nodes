@@ -6,7 +6,7 @@ import { SubmissionExtended } from '../../../services/email/journalEmailTypes.js
 import MainLayout, { baseStyles } from '../MainLayout.js';
 
 export interface FinalRejectionDecisionEmailProps {
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   editor: {
     name: string;
     userId: number;

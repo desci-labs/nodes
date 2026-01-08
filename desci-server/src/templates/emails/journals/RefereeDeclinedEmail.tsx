@@ -6,7 +6,7 @@ import { SubmissionExtended } from '../../../services/email/journalEmailTypes.js
 import MainLayout, { baseStyles } from '../MainLayout.js';
 
 export interface RefereeDeclinedEmailProps {
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid' | 'imageUrl'>;
   editorName: string;
   refereeName: string;
   refereeEmail: string;
