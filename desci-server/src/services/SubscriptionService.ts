@@ -122,7 +122,7 @@ export class SubscriptionService {
   }
 
   static async handleSubscriptionCreated(subscription: Stripe.Subscription) {
-    logger.info('Handling subscription created', { subscriptionId: subscription.id });
+    logger.info({ subscriptionId: subscription.id }, 'Handling subscription created');
 
     if (subscription.status !== 'active') {
       logger.warn({ subscriptionId: subscription.id }, 'Subscription is not active yet');
@@ -232,6 +232,7 @@ export class SubscriptionService {
     });
 
     const priceId = subscription.items.data[0]?.price.id;
+    logger.info({ priceId }, 'stripe::priceId found');
     const planType = this.mapStripePriceToPlanType(priceId);
     const billingInterval = SubscriptionService.getBillingIntervalFromPriceIdHelper(priceId);
     const sub = subscription as any; // Cast to any to access properties
@@ -731,9 +732,11 @@ export class SubscriptionService {
   }
 
   private static mapStripePriceToPlanType(priceId?: string): PlanType {
+    logger.info({ priceId }, 'Mapping stripe price to plan type');
     if (!priceId) return PlanType.FREE;
 
     const planName = getPlanTypeFromPriceId(priceId);
+    logger.info({ priceId, planName }, 'stripe::planName found');
 
     switch (planName) {
       case 'AI_REFEREE_FINDER':
