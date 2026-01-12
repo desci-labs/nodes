@@ -6,7 +6,7 @@ export const STRIPE_PRICE_IDS = {
   },
   OMNI_CHATS: {
     MONTHLY: process.env.STRIPE_OMNI_CHATS_MONTHLY_PRICE_ID || 'price_1S0rAKAqadM33xzp9x5Rkww1',
-    ANNUAL: process.env.STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID || 'price_1S0sHWAqadM33xzp6wNaaRe3',
+    ANNUAL: process.env.STRIPE_OMNI_CHATS_ANNUAL_PRICE_ID || 'price_1SmxVFAqadM33xzpTGjdBBeA',
   },
   PREMIUM: {
     MONTHLY: process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID || 'price_3GHI789example',
