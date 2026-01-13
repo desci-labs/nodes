@@ -8,7 +8,7 @@ import {
   printNodeInfo,
   symbols,
 } from "../ui.js";
-import { getEnvConfig } from "../config.js";
+import { getEnvConfig, getEnvironment } from "../config.js";
 import { requireApiKey, resolveNodeUuid, getOrPromptPrivateKey, getErrorMessage } from "../helpers.js";
 import {
   getDraftNode,
@@ -85,7 +85,14 @@ export function createPublishCommand(): Command {
           chalk.dim(`\nSigning as: ${signerAddress}`),
         );
 
-        // Perform publish
+        // Perform publish - show which Ceramic mode is being used
+        const env = getEnvironment();
+        let ceramicMode = "Ceramic One";
+        if (env === "prod") {
+          ceramicMode = "Legacy Ceramic";
+        }
+        console.log(chalk.dim(`Using: ${ceramicMode}`));
+        
         console.log();
         const publishSpinner = createSpinner("Publishing to Codex...");
         publishSpinner.start();
