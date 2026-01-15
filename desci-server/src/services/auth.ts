@@ -28,6 +28,15 @@ const registerUser = async (email: string) => {
     },
   });
 
+  // Initialize trial for new user
+  try {
+    const { initializeTrialForNewUser } = await import('./subscription.js');
+    await initializeTrialForNewUser(user.id);
+  } catch (error) {
+    // Log but don't fail registration if trial initialization fails
+    logger.error({ error, userId: user.id }, 'Failed to initialize trial for new user');
+  }
+
   return true;
 };
 

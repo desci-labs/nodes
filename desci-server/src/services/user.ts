@@ -272,6 +272,19 @@ export async function getUserByOrcId(orcid: string): Promise<User | null> {
   }
   const user = await client.user.findFirst({ where: { orcid } });
 
+  // Initialize trial for new users (only if user was just created, not updated)
+  // Check if this was a create (not update) by checking if user was just created
+  const isNewUser = user.createdAt.getTime() === user.updatedAt.getTime();
+  if (isNewUser) {
+    try {
+      const { initializeTrialForNewUser } = await import('./subscription.js');
+      await initializeTrialForNewUser(user.id);
+    } catch (error) {
+      // Log but don't fail user creation if trial initialization fails
+      logger.error({ error, userId: user.id }, 'Failed to initialize trial for new user');
+    }
+  }
+
   return user;
 }
 
@@ -351,6 +364,19 @@ export async function createUser({
       isKeeper,
     },
   });
+
+  // Initialize trial for new users (only if user was just created, not updated)
+  // Check if this was a create (not update) by checking if user was just created
+  const isNewUser = user.createdAt.getTime() === user.updatedAt.getTime();
+  if (isNewUser) {
+    try {
+      const { initializeTrialForNewUser } = await import('../services/subscription.js');
+      await initializeTrialForNewUser(user.id);
+    } catch (error) {
+      // Log but don't fail user creation if trial initialization fails
+      logger.error({ error, userId: user.id }, 'Failed to initialize trial for new user');
+    }
+  }
 
   return user;
 }

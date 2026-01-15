@@ -257,6 +257,8 @@ model User {
   PublishedWallet                PublishedWallet[]
   GuestDataReference             GuestDataReference[]
   DataMigration                  DataMigration[]
+  Subscription                  Subscription?
+  Usage                          Usage[]
 
   // Relationships
   editorRoles            JournalEditor[] // User as editor
@@ -1484,6 +1486,7 @@ model Subscription {
 
   user     User      @relation(fields: [userId], references: [id])
   invoices Invoice[]
+  usage    Usage[]
 
   @@index([userId])
   @@index([stripeCustomerId])
@@ -1976,4 +1979,30 @@ enum SentEmailType {
   // Journal/Review emails
   REFEREE_REVIEW_REMINDER
   OVERDUE_REVIEW_ALERT
+}
+
+// Usage model for tracking trial credits and usage per feature
+model Usage {
+  id                    Int          @id @default(autoincrement())
+  userId                Int
+  subscriptionId        Int?
+  feature               Feature      @default(RESEARCH_ASSISTANT)
+  totalLimit            Int?         // null for unlimited (Pro users)
+  totalUsed             Int          @default(0)
+  totalRemaining        Int?         // null for unlimited
+  planCodename          PlanCodename @default(FREE)
+
+  // Trial-specific fields for 7-day trial model
+  initialTrialCredits   Int?         // Should be 10 for new trial users
+  nextCreditRefreshTime DateTime?    // When next daily credit will be available
+
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription          Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, feature])
+  @@index([userId])
+  @@index([subscriptionId])
 }

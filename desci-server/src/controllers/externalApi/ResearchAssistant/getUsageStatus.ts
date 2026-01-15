@@ -4,7 +4,7 @@ import { Response } from 'express';
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { FeatureLimitsService } from '../../../services/FeatureLimits/FeatureLimitsService.js';
+import { getUserUsageData } from '../../../services/subscription.js';
 
 const logger = parentLogger.child({ module: 'ResearchAssistant::UsageStatusController' });
 
@@ -17,19 +17,24 @@ export const getResearchAssistantUsageStatus = async (req: AuthenticatedRequest,
 
     logger.info({ userId: user.id }, 'Fetching research assistant usage status');
 
-    const limitResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
-    if (limitResult.isErr()) {
-      logger.error({ error: limitResult.error, userId: user.id }, 'Failed to check feature limit status');
-      return sendError(res, 'Failed to retrieve usage status', 500);
+    const usageData = await getUserUsageData(user.id);
+    if (!usageData) {
+      logger.error({ userId: user.id }, 'Usage data not found');
+      return sendError(res, 'Usage data not found', 404);
     }
 
-    const status = limitResult.value;
     const responseData = {
-      totalLimit: status.useLimit,
-      totalUsed: status.currentUsage,
-      totalRemaining: status.remainingUses,
-      planCodename: status.planCodename,
-      isWithinLimit: status.isWithinLimit,
+      totalLimit: usageData.totalLimit,
+      totalUsed: usageData.totalUsed,
+      totalRemaining: usageData.totalRemaining,
+      planCodename: usageData.planCodename,
+      isWithinLimit: usageData.isWithinLimit,
+      trialStart: usageData.trialStart,
+      trialEnd: usageData.trialEnd,
+      isTrialActive: usageData.isTrialActive,
+      isTrialExpired: usageData.isTrialExpired,
+      initialTrialCredits: usageData.initialTrialCredits,
+      nextCreditRefreshTime: usageData.nextCreditRefreshTime,
     };
 
     logger.info({ userId: user.id, ...responseData }, 'Successfully fetched research assistant usage status');
