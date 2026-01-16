@@ -91,13 +91,13 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
       return ok(limit);
     }
 
-    const currentUsage = await prisma.externalApiUsage.count({
-      where: {
-        userId: limit.userId,
-        apiType: ExternalApi.RESEARCH_ASSISTANT,
-        createdAt: { gte: limit.currentPeriodStart },
-      },
-    });
+    // const currentUsage = await prisma.externalApiUsage.count({
+    //   where: {
+    //     userId: limit.userId,
+    //     apiType: ExternalApi.RESEARCH_ASSISTANT,
+    //     createdAt: { gte: limit.currentPeriodStart },
+    //   },
+    // });
 
     // if (currentUsage <= limit.useLimit) {
     //   return ok(limit);
