@@ -5,13 +5,13 @@ import sgMail from '@sendgrid/mail';
 import AWS from 'aws-sdk';
 
 import { prisma as client } from '../client.js';
+import { SHOULD_SEND_EMAIL } from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { MagicCodeEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 import createRandomCode from '../utils/createRandomCode.js';
 import { encryptForLog, hideEmail } from '../utils.js';
 
 import { contributorService } from './Contributors.js';
-import { SHOULD_SEND_EMAIL } from '../config.js';
 import { NODES_SUBJECT_PREFIX } from './email/email.js';
 
 AWS.config.update({ region: 'us-east-2' });
@@ -187,7 +187,7 @@ const sendMagicLinkEmail = async (email: string, ip?: string, isSciweave?: boole
     logger.info({ fn: 'sendMagicLinkEmail', email, isSciweave }, `Sending actual email`);
 
     const subjectPrefix = isSciweave ? '[sciweave.com]' : NODES_SUBJECT_PREFIX;
-    
+
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
     const goodIp = ip?.length > 0 && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost';
     const emailHtml = MagicCodeEmailHtml({ magicCode: token, ip: goodIp ? ip : '', isSciweave });
