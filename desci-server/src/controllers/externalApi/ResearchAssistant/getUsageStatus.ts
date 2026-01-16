@@ -16,8 +16,6 @@ export const getResearchAssistantUsageStatus = async (req: AuthenticatedRequest,
   //     return sendError(res, 'User authentication required', 401);
   //   }
 
-  //   logger.info({ userId: user.id }, 'Fetching research assistant usage status');
-
   //   const usageData = await getUserUsageData(user.id);
   //   if (!usageData) {
   //     logger.error({ userId: user.id }, 'Usage data not found');
@@ -69,6 +67,7 @@ export const getResearchAssistantUsageStatus = async (req: AuthenticatedRequest,
     };
 
     logger.info({ userId: user.id, ...responseData }, 'Successfully fetched research assistant usage status');
+
     return sendSuccess(res, responseData);
   } catch (error) {
     logger.error({ error }, 'Failed to fetch research assistant usage status');

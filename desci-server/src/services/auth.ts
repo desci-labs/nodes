@@ -54,6 +54,16 @@ const magicLinkRedeem = async (email: string, token: string): Promise<{ user: Us
     },
   });
 
+  const linkAsc = await client.magicLink.findFirst({
+    where: {
+      email,
+    },
+    orderBy: {
+      id: 'asc',
+    },
+  });
+  logger.info({ linkAsc, link }, 'Link found');
+
   if (!link) {
     throw Error('No magic link found for the provided email.');
   }
@@ -92,6 +102,7 @@ const magicLinkRedeem = async (email: string, token: string): Promise<{ user: Us
     throw Error('Too many failed attempts. Token invalidated.');
   }
 
+  logger.info({ link, token, expiresAt: link.expiresAt }, 'Checking magic link token');
   if (link.token !== token || new Date() > link.expiresAt) {
     // Increment failedAttempts
     await client.magicLink.update({
@@ -180,6 +191,7 @@ const sendMagicLinkEmail = async (email: string, ip?: string, isSciweave?: boole
     data: {
       token,
       email,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
     },
   });
 
@@ -287,30 +299,7 @@ const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean
     throw Error('A verification code was recently generated. Please wait 30 seconds before requesting another.');
   }
 
-  const user = await client.user.findFirst({
-    where: {
-      email: {
-        equals: email,
-        mode: 'insensitive',
-      },
-    },
-  });
-
-  // if (user) {
-  // check to make sure user doesn't have Login Method associated
-  // Seems unnecessary? why prevent them logging in via email?
-  // const identities = await client.userIdentity.findMany({
-  //   where: {
-  //     userId: user.id,
-  //   },
-  // });
-  // if (identities.length) {
-  //   throw Error('Login Method associated, skipping magic link');
-  // }
-  // }
   return sendMagicLinkEmail(email.toLowerCase(), ip, isSciweave);
-
-  // throw Error('Not found');
 };
 
 const verifyMagicCode = async (email: string, token: string): Promise<boolean> => {
@@ -335,7 +324,7 @@ const verifyMagicCode = async (email: string, token: string): Promise<boolean> =
     }
 
     const logEncryptionKeyPresent = process.env.LOG_ENCRYPTION_KEY && process.env.LOG_ENCRYPTION_KEY.length > 0;
-    logger.trace(
+    logger.info(
       {
         fn: 'verifyMagicCode',
         email: hideEmail(email),

@@ -99,9 +99,9 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
       },
     });
 
-    if (currentUsage <= limit.useLimit) {
-      return ok(limit);
-    }
+    // if (currentUsage <= limit.useLimit) {
+    //   return ok(limit);
+    // }
 
     const updatedLimit = await prisma.userFeatureLimit.update({
       where: { id: limit.id },
