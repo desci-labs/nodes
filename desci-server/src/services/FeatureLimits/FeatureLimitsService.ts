@@ -86,22 +86,16 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
       return ok(limit);
     }
 
+    const nextStartPeriod = calculateNextPeriodStart(limit.currentPeriodStart, limit.period, new Date());
     // if the limit was updated in the last 24 hours, don't add a daily credit
-    if (limit.updatedAt && isAfter(limit.updatedAt, new Date(new Date().setHours(0, 0, 0, 0)))) {
+    // if the next period start is in the future, don't add a daily credit
+    if (
+      limit.updatedAt &&
+      isAfter(nextStartPeriod, new Date()) &&
+      isAfter(limit.updatedAt, new Date(new Date().setHours(0, 0, 0, 0)))
+    ) {
       return ok(limit);
     }
-
-    // const currentUsage = await prisma.externalApiUsage.count({
-    //   where: {
-    //     userId: limit.userId,
-    //     apiType: ExternalApi.RESEARCH_ASSISTANT,
-    //     createdAt: { gte: limit.currentPeriodStart },
-    //   },
-    // });
-
-    // if (currentUsage <= limit.useLimit) {
-    //   return ok(limit);
-    // }
 
     const updatedLimit = await prisma.userFeatureLimit.update({
       where: { id: limit.id },
