@@ -31,7 +31,16 @@ async function checkFeatureLimit(userId: number, feature: Feature): Promise<Resu
     const limit = userLimit.value;
 
     // Check if we need to reset the period (for automatic period rollover)
-    const updatedLimit = await checkAndResetPeriodIfNeeded(limit);
+    let updatedLimit = await checkAndResetPeriodIfNeeded(limit);
+
+    // Add daily credit to the limit for research assistant
+    if (feature === Feature.RESEARCH_ASSISTANT) {
+      const dailyCreditResult = await addDailyCreditToUserFeatureLimit(updatedLimit);
+      if (dailyCreditResult.isErr()) {
+        return err(dailyCreditResult.error);
+      }
+      updatedLimit = dailyCreditResult.value;
+    }
 
     // Get current usage from the fixed period start - delegate to feature-specific services
     let currentUsage = 0;
@@ -68,6 +77,43 @@ async function checkFeatureLimit(userId: number, feature: Feature): Promise<Resu
   } catch (error) {
     logger.error({ error, userId, feature }, 'Failed to check feature limit');
     return err(error instanceof Error ? error : new Error('Failed to check feature limit'));
+  }
+}
+
+async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promise<Result<UserFeatureLimit, Error>> {
+  try {
+    if (limit.feature !== Feature.RESEARCH_ASSISTANT) {
+      return ok(limit);
+    }
+
+    const nextStartPeriod = calculateNextPeriodStart(limit.currentPeriodStart, limit.period, new Date());
+    // if the limit was updated in the last 24 hours, don't add a daily credit
+    // if the next period start is in the future, don't add a daily credit
+    if (
+      limit.updatedAt &&
+      isAfter(nextStartPeriod, new Date()) &&
+      isAfter(limit.updatedAt, new Date(new Date().setHours(0, 0, 0, 0)))
+    ) {
+      return ok(limit);
+    }
+
+    const updatedLimit = await prisma.userFeatureLimit.update({
+      where: { id: limit.id },
+      data: { useLimit: limit.useLimit + 1 },
+    });
+    logger.info(
+      {
+        userId: limit.userId,
+        feature: limit.feature,
+        previousUseLimit: limit.useLimit,
+        newUseLimit: updatedLimit.useLimit,
+      },
+      'Added daily credit to user feature limit',
+    );
+    return ok(updatedLimit);
+  } catch (error) {
+    logger.error({ error, limit }, 'Failed to add daily credit to user feature limit');
+    return err(error instanceof Error ? error : new Error('Failed to add daily credit to user feature limit'));
   }
 }
 
@@ -121,6 +167,11 @@ async function getOrCreateUserFeatureLimit(userId: number, feature: Feature): Pr
  * Maintains the original billing cycle (e.g., if billing started on 5th, keep it on 5th)
  */
 async function checkAndResetPeriodIfNeeded(limit: UserFeatureLimit): Promise<UserFeatureLimit> {
+  // if feature is research assistant, there'll be no period reset, so return the limit as is
+  if (limit.feature === Feature.RESEARCH_ASSISTANT) {
+    return limit;
+  }
+
   const now = new Date();
   const periodStart = new Date(limit.currentPeriodStart);
 
