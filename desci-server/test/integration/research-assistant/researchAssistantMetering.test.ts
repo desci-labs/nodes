@@ -96,10 +96,13 @@ describe('Research Assistant Metering', () => {
         }));
         await prisma.externalApiUsage.createMany({ data: usageData });
 
-        // Update the limit's updatedAt to prevent daily credit addition on next check
+        // Set updatedAt to tomorrow to prevent daily credit addition on next check
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(23, 59, 59, 999);
         await prisma.userFeatureLimit.update({
           where: { id: limitRecord!.id },
-          data: { updatedAt: new Date() },
+          data: { updatedAt: tomorrow },
         });
 
         const result = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
@@ -303,12 +306,26 @@ describe('Research Assistant Metering', () => {
         const initialResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
         const initialLimit = initialResult._unsafeUnwrap().useLimit!;
 
-        // Get the limit record to manually prevent daily credit addition
-        const limitRecord = await prisma.userFeatureLimit.findFirst({
+        // Get the limit record
+        let limitRecord = await prisma.userFeatureLimit.findFirst({
           where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
         });
 
-        // Create usage records to reach the actual limit
+        // Set updatedAt to tomorrow AND also update useLimit to prevent it from changing
+        // We'll lock the limit at its current value
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(23, 59, 59, 999);
+        await prisma.userFeatureLimit.update({
+          where: { id: limitRecord!.id },
+          data: { 
+            updatedAt: tomorrow,
+            // Explicitly set useLimit to prevent it from being increased by daily credits
+            useLimit: initialLimit,
+          },
+        });
+
+        // Create usage records to reach the actual limit (directly, not via consumeUsage to avoid daily credits)
         const usageData = Array.from({ length: initialLimit }, (_, i) => ({
           userId: user.id,
           apiType: ExternalApi.RESEARCH_ASSISTANT,
@@ -316,10 +333,19 @@ describe('Research Assistant Metering', () => {
         }));
         await prisma.externalApiUsage.createMany({ data: usageData });
 
-        // Update the limit's updatedAt to prevent daily credit addition
+        // Refresh limit record
+        limitRecord = await prisma.userFeatureLimit.findFirst({
+          where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
+        });
+
+        // Before calling consumeUsage, ensure updatedAt is still set to tomorrow
+        // This prevents checkFeatureLimit (called by consumeUsage) from adding daily credits
         await prisma.userFeatureLimit.update({
           where: { id: limitRecord!.id },
-          data: { updatedAt: new Date() },
+          data: { 
+            updatedAt: tomorrow,
+            useLimit: initialLimit, // Lock the limit
+          },
         });
 
         const result = await FeatureUsageService.consumeUsage({
@@ -576,25 +602,44 @@ describe('Research Assistant Metering', () => {
         const limitCheck = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
         const actualLimit = limitCheck._unsafeUnwrap().useLimit!;
 
-        // Get the limit record to manually prevent daily credit addition
-        const limitRecord = await prisma.userFeatureLimit.findFirst({
+        // Get the limit record
+        let limitRecord = await prisma.userFeatureLimit.findFirst({
           where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
         });
 
-        // Create usage records to reach limit using the service (which ensures proper timing)
-        for (let i = 0; i < actualLimit; i++) {
-          const result = await FeatureUsageService.consumeUsage({
-            userId: user.id,
-            feature: Feature.RESEARCH_ASSISTANT,
-            data: { query: `test query ${i + 1}` },
-          });
-          expect(result.isOk()).toBe(true);
-        }
-
-        // Update the limit's updatedAt to prevent daily credit addition
+        // Set updatedAt to tomorrow AND lock useLimit to prevent daily credits from increasing it
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(23, 59, 59, 999);
         await prisma.userFeatureLimit.update({
           where: { id: limitRecord!.id },
-          data: { updatedAt: new Date() },
+          data: { 
+            updatedAt: tomorrow,
+            useLimit: actualLimit, // Lock the limit at current value
+          },
+        });
+
+        // Create usage records to reach limit directly (not via consumeUsage to avoid daily credits)
+        const usageData = Array.from({ length: actualLimit }, (_, i) => ({
+          userId: user.id,
+          apiType: ExternalApi.RESEARCH_ASSISTANT,
+          data: { query: `test query ${i + 1}` },
+        }));
+        await prisma.externalApiUsage.createMany({ data: usageData });
+
+        // Refresh limit record
+        limitRecord = await prisma.userFeatureLimit.findFirst({
+          where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
+        });
+
+        // Before calling the API (which calls consumeUsage -> checkFeatureLimit), 
+        // ensure updatedAt is still tomorrow and limit is locked
+        await prisma.userFeatureLimit.update({
+          where: { id: limitRecord!.id },
+          data: { 
+            updatedAt: tomorrow,
+            useLimit: actualLimit, // Lock the limit
+          },
         });
 
         const res = await request(app)

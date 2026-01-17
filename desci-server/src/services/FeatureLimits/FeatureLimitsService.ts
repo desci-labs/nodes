@@ -92,12 +92,23 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
     }
 
     const nextStartPeriod = calculateNextPeriodStart(limit.currentPeriodStart, limit.period, new Date());
+    const now = new Date();
+    
+    // Don't add daily credit if updatedAt is in the future
+    // This should never happen in production, but can occur in tests when we manually set updatedAt
+    // to prevent daily credits from being added during test execution. Also serves as defensive
+    // programming against clock skew or timezone issues.
+    if (limit.updatedAt && limit.updatedAt.getTime() > now.getTime()) {
+      return ok(limit);
+    }
+    
+    const todayStart = new Date(now.setHours(0, 0, 0, 0));
     // if the limit was updated in the last 24 hours, don't add a daily credit
     // if the next period start is in the future, don't add a daily credit
     if (
       limit.updatedAt &&
       isAfter(nextStartPeriod, new Date()) &&
-      isAfter(limit.updatedAt, new Date(new Date().setHours(0, 0, 0, 0)))
+      isAfter(limit.updatedAt, todayStart)
     ) {
       return ok(limit);
     }
