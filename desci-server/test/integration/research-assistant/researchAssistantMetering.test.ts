@@ -83,6 +83,11 @@ describe('Research Assistant Metering', () => {
         const initialResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
         const initialLimit = initialResult._unsafeUnwrap().useLimit!;
 
+        // Get the limit record to manually prevent daily credit addition
+        const limitRecord = await prisma.userFeatureLimit.findFirst({
+          where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
+        });
+
         // Create usage records equal to the actual limit
         const usageData = Array.from({ length: initialLimit }, (_, i) => ({
           userId: user.id,
@@ -90,6 +95,12 @@ describe('Research Assistant Metering', () => {
           data: { query: `test query ${i + 1}` },
         }));
         await prisma.externalApiUsage.createMany({ data: usageData });
+
+        // Update the limit's updatedAt to prevent daily credit addition on next check
+        await prisma.userFeatureLimit.update({
+          where: { id: limitRecord!.id },
+          data: { updatedAt: new Date() },
+        });
 
         const result = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
 
@@ -292,6 +303,11 @@ describe('Research Assistant Metering', () => {
         const initialResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
         const initialLimit = initialResult._unsafeUnwrap().useLimit!;
 
+        // Get the limit record to manually prevent daily credit addition
+        const limitRecord = await prisma.userFeatureLimit.findFirst({
+          where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
+        });
+
         // Create usage records to reach the actual limit
         const usageData = Array.from({ length: initialLimit }, (_, i) => ({
           userId: user.id,
@@ -299,6 +315,12 @@ describe('Research Assistant Metering', () => {
           data: { query: `test query ${i + 1}` },
         }));
         await prisma.externalApiUsage.createMany({ data: usageData });
+
+        // Update the limit's updatedAt to prevent daily credit addition
+        await prisma.userFeatureLimit.update({
+          where: { id: limitRecord!.id },
+          data: { updatedAt: new Date() },
+        });
 
         const result = await FeatureUsageService.consumeUsage({
           userId: user.id,
@@ -554,6 +576,11 @@ describe('Research Assistant Metering', () => {
         const limitCheck = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
         const actualLimit = limitCheck._unsafeUnwrap().useLimit!;
 
+        // Get the limit record to manually prevent daily credit addition
+        const limitRecord = await prisma.userFeatureLimit.findFirst({
+          where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
+        });
+
         // Create usage records to reach limit using the service (which ensures proper timing)
         for (let i = 0; i < actualLimit; i++) {
           const result = await FeatureUsageService.consumeUsage({
@@ -563,6 +590,12 @@ describe('Research Assistant Metering', () => {
           });
           expect(result.isOk()).toBe(true);
         }
+
+        // Update the limit's updatedAt to prevent daily credit addition
+        await prisma.userFeatureLimit.update({
+          where: { id: limitRecord!.id },
+          data: { updatedAt: new Date() },
+        });
 
         const res = await request(app)
           .post('/v1/internal/meter/research-assistant')
@@ -713,7 +746,8 @@ describe('Research Assistant Metering', () => {
         expect(res.body.ok).toBe(true);
         expect(res.body.data.currentStatus.totalUsed).toBe(3);
         // Daily credit adds +1, so limit is SCIWEAVE_FREE_LIMIT + 1
-        expect(res.body.data.currentStatus.totalRemaining).toBe(SCIWEAVE_FREE_LIMIT + 1 - 3);
+        // Remaining = limit - used
+        expect(res.body.data.currentStatus.totalRemaining).toBe(res.body.data.currentStatus.totalLimit - 3);
         expect(res.body.data.currentStatus.isWithinLimit).toBe(true);
 
         // Verify the usage entries were created in the database

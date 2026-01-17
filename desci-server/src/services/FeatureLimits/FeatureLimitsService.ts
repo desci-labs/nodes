@@ -86,6 +86,11 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
       return ok(limit);
     }
 
+    // Don't add daily credit for unlimited plans (null useLimit)
+    if (limit.useLimit === null) {
+      return ok(limit);
+    }
+
     const nextStartPeriod = calculateNextPeriodStart(limit.currentPeriodStart, limit.period, new Date());
     // if the limit was updated in the last 24 hours, don't add a daily credit
     // if the next period start is in the future, don't add a daily credit
