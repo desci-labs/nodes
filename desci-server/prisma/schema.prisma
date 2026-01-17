@@ -257,7 +257,6 @@ model User {
   PublishedWallet                PublishedWallet[]
   GuestDataReference             GuestDataReference[]
   DataMigration                  DataMigration[]
-  Subscription                  Subscription?
   Usage                          Usage[]
 
   // Relationships
