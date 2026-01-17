@@ -272,6 +272,11 @@ export async function getUserByOrcId(orcid: string): Promise<User | null> {
   }
   const user = await client.user.findFirst({ where: { orcid } });
 
+  // Return null if user not found
+  if (!user) {
+    return null;
+  }
+
   // Initialize trial for new users (only if user was just created, not updated)
   // Check if this was a create (not update) by checking if user was just created
   const isNewUser = user.createdAt.getTime() === user.updatedAt.getTime();
