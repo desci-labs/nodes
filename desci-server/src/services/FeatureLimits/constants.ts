@@ -35,7 +35,7 @@ export const FEATURE_LIMIT_DEFAULTS: Record<Feature, Partial<Record<PlanCodename
     [PlanCodename.FREE]: {
       planCodename: PlanCodename.FREE,
       feature: Feature.RESEARCH_ASSISTANT,
-      period: Period.MONTH,
+      period: Period.WEEK,
       useLimit: SCIWEAVE_FREE_LIMIT,
     },
     [PlanCodename.PREMIUM]: {

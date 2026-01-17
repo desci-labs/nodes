@@ -81,6 +81,14 @@ export const googleAuth = async (req: Request, res: Response) => {
         },
       });
       logger.info({ userId: user.id, email: user.email }, 'Created new user from Google OAuth');
+
+      // Initialize trial for new user
+      try {
+        const { initializeTrialForNewUser } = await import('../../services/subscription.js');
+        await initializeTrialForNewUser(user.id);
+      } catch (error) {
+        logger.error({ error, userId: user.id }, 'Failed to initialize trial for new user');
+      }
     } else {
       logger.info({ userId: user.id, email: user.email }, 'Found existing user from Google OAuth');
 
