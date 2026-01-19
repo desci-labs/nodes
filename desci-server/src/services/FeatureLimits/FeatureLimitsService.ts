@@ -93,7 +93,7 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
 
     const nextStartPeriod = calculateNextPeriodStart(limit.currentPeriodStart, limit.period, new Date());
     const now = new Date();
-    
+
     // Don't add daily credit if updatedAt is in the future
     // This should never happen in production, but can occur in tests when we manually set updatedAt
     // to prevent daily credits from being added during test execution. Also serves as defensive
@@ -101,15 +101,11 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
     if (limit.updatedAt && limit.updatedAt.getTime() > now.getTime()) {
       return ok(limit);
     }
-    
+
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
     // if the limit was updated in the last 24 hours, don't add a daily credit
     // if the next period start is in the future, don't add a daily credit
-    if (
-      limit.updatedAt &&
-      isAfter(nextStartPeriod, new Date()) &&
-      isAfter(limit.updatedAt, todayStart)
-    ) {
+    if (limit.updatedAt && isAfter(nextStartPeriod, new Date()) && isAfter(limit.updatedAt, todayStart)) {
       return ok(limit);
     }
 
@@ -135,26 +131,33 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
 
 /**
  * Get or create a user's feature limit record
+ * Uses a transaction to prevent race conditions where concurrent calls could create duplicates
  */
 async function getOrCreateUserFeatureLimit(userId: number, feature: Feature): Promise<Result<UserFeatureLimit, Error>> {
   try {
-    // Try to find an active feature limit for this user and feature
-    let userFeatureLimit = await prisma.userFeatureLimit.findFirst({
-      where: {
-        userId,
-        feature,
-        isActive: true,
-      },
-    });
+    const defaults = FEATURE_LIMIT_DEFAULTS[feature]?.[PlanCodename.FREE];
+    if (!defaults) {
+      return err(new Error('No default limits configured for feature'));
+    }
 
-    // If none exists, create one with defaults
-    if (!userFeatureLimit) {
-      const defaults = FEATURE_LIMIT_DEFAULTS[feature]?.[PlanCodename.FREE];
-      if (!defaults) {
-        return err(new Error('No default limits configured for feature'));
+    // Use a transaction to atomically find-or-create and prevent race conditions
+    const userFeatureLimit = await prisma.$transaction(async (tx) => {
+      // Try to find an active feature limit for this user and feature
+      const existingLimit = await tx.userFeatureLimit.findFirst({
+        where: {
+          userId,
+          feature,
+          isActive: true,
+        },
+      });
+
+      // If found, return it
+      if (existingLimit) {
+        return existingLimit;
       }
 
-      userFeatureLimit = await prisma.userFeatureLimit.create({
+      // Create one with defaults inside the transaction
+      const newLimit = await tx.userFeatureLimit.create({
         data: {
           userId,
           feature: defaults.feature,
@@ -169,10 +172,35 @@ async function getOrCreateUserFeatureLimit(userId: number, feature: Feature): Pr
         { userId, feature, defaults: defaults.planCodename },
         'Created new user feature limit with default settings',
       );
-    }
+
+      return newLimit;
+    });
 
     return ok(userFeatureLimit);
   } catch (error) {
+    // Handle potential race condition: if transaction failed due to a concurrent create,
+    // try to fetch the existing record that was created by the other call
+    if (error instanceof Error && error.message.includes('Transaction failed')) {
+      try {
+        const existingLimit = await prisma.userFeatureLimit.findFirst({
+          where: {
+            userId,
+            feature,
+            isActive: true,
+          },
+        });
+        if (existingLimit) {
+          logger.debug({ userId, feature }, 'Retrieved feature limit after concurrent creation');
+          return ok(existingLimit);
+        }
+      } catch (retryError) {
+        logger.error(
+          { error: retryError, userId, feature },
+          'Failed to retrieve feature limit after transaction failure',
+        );
+      }
+    }
+
     logger.error({ error, userId, feature }, 'Failed to get or create user feature limit');
     return err(error instanceof Error ? error : new Error('Failed to get or create user feature limit'));
   }

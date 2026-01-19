@@ -25,8 +25,8 @@ import { updateSignupDetails } from '../../controllers/auth/updateSignupDetails.
 import { walletLogin, walletNonce } from '../../controllers/users/associateWallet.js';
 import { ensureGuest, ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
-import { updateMarketingConsentSchema } from '../../schemas/users.schema.js';
 import { googleAuthSchema } from '../../schemas/auth.schema.js';
+import { updateMarketingConsentSchema } from '../../schemas/users.schema.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 const router = Router();
 

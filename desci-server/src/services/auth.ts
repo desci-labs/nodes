@@ -102,7 +102,6 @@ const magicLinkRedeem = async (email: string, token: string): Promise<{ user: Us
     throw Error('Too many failed attempts. Token invalidated.');
   }
 
-  logger.info({ link, token, expiresAt: link.expiresAt }, 'Checking magic link token');
   if (link.token !== token || new Date() > link.expiresAt) {
     // Increment failedAttempts
     await client.magicLink.update({

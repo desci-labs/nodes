@@ -69,7 +69,15 @@ export async function initializeTrialForNewUser(userId: number): Promise<void> {
     return;
   }
 
-  await FeatureLimitsService.getOrCreateUserFeatureLimit(userId, Feature.RESEARCH_ASSISTANT);
+  const featureLimitResult = await FeatureLimitsService.getOrCreateUserFeatureLimit(userId, Feature.RESEARCH_ASSISTANT);
+
+  if (featureLimitResult.isErr()) {
+    logger.error(
+      { userId, error: featureLimitResult.error },
+      'Failed to initialize trial - could not create feature limit',
+    );
+    throw featureLimitResult.error;
+  }
 
   logger.info(`Initialized trial for user ${userId}`);
 }
