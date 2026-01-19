@@ -6768,6 +6768,11 @@
   dependencies:
     "@hapi/catbox" "*"
 
+"@types/hapi__catbox@^10.2.6":
+  version "10.2.6"
+  resolved "https://registry.yarnpkg.com/@types/hapi__catbox/-/hapi__catbox-10.2.6.tgz#e516bfb4e461441b4ea7f9be870e48864a289494"
+  integrity sha512-qdMHk4fBlwRfnBBDJaoaxb+fU9Ewi2xqkXD3mNjSPl2v/G/8IJbDpVRBuIcF7oXrcE8YebU5M8cCeKh1NXEn0w==
+
 "@types/hapi__hapi@20.0.9":
   version "20.0.9"
   resolved "https://registry.yarnpkg.com/@types/hapi__hapi/-/hapi__hapi-20.0.9.tgz#9d570846c96268266a14c970c13aeeaccfc8e172"
@@ -6795,6 +6800,13 @@
   integrity sha512-CUxk0AEQRpIT2cx7EYXkqaXm60LP46ZyEhr/7uov7D/ZLysA5DKkfBtPIYnoWvn8qfcFV/7YHLd3U9gThuhb0A==
   dependencies:
     "@hapi/shot" "*"
+
+"@types/hapi__shot@^4.1.6":
+  version "4.1.6"
+  resolved "https://registry.yarnpkg.com/@types/hapi__shot/-/hapi__shot-4.1.6.tgz#ee45d9a4a4e109a8d623e4f5f58ae2d8bd7c0773"
+  integrity sha512-h33NBjx2WyOs/9JgcFeFhkxnioYWQAZxOHdmqDuoJ1Qjxpcs+JGvSjEEoDeWfcrF+1n47kKgqph5IpfmPOnzbg==
+  dependencies:
+    "@types/node" "*"
 
 "@types/http-assert@*":
   version "1.5.6"
