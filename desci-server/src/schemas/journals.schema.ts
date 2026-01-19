@@ -218,8 +218,8 @@ export const listJournalSubmissionsSchema = z.object({
       .optional()
       .default(false)
       .describe('If true, only submissions assigned to the current user as an editor will be returned'),
-    sortBy: z.enum(['date', 'title']).optional().describe('The field to sort the submissions by'),
-    sortOrder: z.enum(['asc', 'desc']).optional().default('asc').describe('The order to sort the submissions by'),
+    sortBy: z.enum(['date', 'title']).optional().default('date').describe('The field to sort the submissions by'),
+    sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('The order to sort the submissions by'),
   }),
 });
 
