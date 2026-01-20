@@ -955,7 +955,7 @@ const getBatchedFeaturedPublicationDetails = async (
   }
 
   // 1. Single batched DB query for all submissions
-  const submissions = await prisma.journalSubmission.findMany({
+  const submissionsUnordered = await prisma.journalSubmission.findMany({
     where: { id: { in: submissionIds } },
     include: {
       journal: {
@@ -979,9 +979,13 @@ const getBatchedFeaturedPublicationDetails = async (
     },
   });
 
-  if (submissions.length === 0) {
+  if (submissionsUnordered.length === 0) {
     return [];
   }
+
+  // Preserve input order: findMany doesn't guarantee order matches submissionIds
+  const submissionsById = new Map(submissionsUnordered.map((s) => [s.id, s]));
+  const submissions = submissionIds.map((id) => submissionsById.get(id)).filter((s) => s !== undefined);
 
   // Handle test environment
   if (process.env.NODE_ENV === 'test') {
@@ -1005,8 +1009,11 @@ const getBatchedFeaturedPublicationDetails = async (
   const uuids = submissions.map((s) => s.node.uuid);
   const { researchObjects } = await getIndexedResearchObjects(uuids);
 
+  // Guard against undefined/null researchObjects
+  const safeResearchObjects = researchObjects ?? [];
+
   // Create a map for quick lookup by hex ID (ro.id is in 0x... hex format)
-  const roById = new Map(researchObjects.map((ro) => [ro.id, ro]));
+  const roById = new Map(safeResearchObjects.map((ro) => [ro.id, ro]));
 
   // 3. Parallel manifest fetches - build the fetch tasks
   const manifestFetchTasks = submissions.map(async (submission) => {
@@ -1035,11 +1042,14 @@ const getBatchedFeaturedPublicationDetails = async (
     } as FeaturedSubmissionDetails;
   });
 
-  // Execute all manifest fetches in parallel
-  const results = await Promise.all(manifestFetchTasks);
+  // Execute all manifest fetches in parallel, allowing individual failures
+  const settledResults = await Promise.allSettled(manifestFetchTasks);
 
-  // Filter out nulls (failed fetches) and return in original order
-  return results.filter((r): r is FeaturedSubmissionDetails => r !== null);
+  // Filter for fulfilled results with non-null values
+  return settledResults
+    .filter((r): r is PromiseFulfilledResult<FeaturedSubmissionDetails | null> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter((r): r is FeaturedSubmissionDetails => r !== null);
 };
 
 /**
