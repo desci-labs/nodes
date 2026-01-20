@@ -3,6 +3,7 @@ import { addDays, addWeeks, addMonths, addYears, isAfter, isBefore } from 'date-
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
+import { SCIWEAVE_FREE_LIMIT } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 
 import { FEATURE_LIMIT_DEFAULTS } from './constants.js';
@@ -33,15 +34,6 @@ async function checkFeatureLimit(userId: number, feature: Feature): Promise<Resu
     // Check if we need to reset the period (for automatic period rollover)
     let updatedLimit = await checkAndResetPeriodIfNeeded(limit);
 
-    // Add daily credit to the limit for research assistant
-    if (feature === Feature.RESEARCH_ASSISTANT) {
-      const dailyCreditResult = await addDailyCreditToUserFeatureLimit(updatedLimit);
-      if (dailyCreditResult.isErr()) {
-        return err(dailyCreditResult.error);
-      }
-      updatedLimit = dailyCreditResult.value;
-    }
-
     // Get current usage from the fixed period start - delegate to feature-specific services
     let currentUsage = 0;
     if (feature === Feature.REFEREE_FINDER) {
@@ -56,6 +48,15 @@ async function checkFeatureLimit(userId: number, feature: Feature): Promise<Resu
           createdAt: { gte: updatedLimit.currentPeriodStart },
         },
       });
+
+      // Add daily credit to the limit for research assistant
+      // if (feature === Feature.RESEARCH_ASSISTANT) {
+      const dailyCreditResult = await addDailyCreditToUserFeatureLimit(updatedLimit, currentUsage);
+      if (dailyCreditResult.isErr()) {
+        return err(dailyCreditResult.error);
+      }
+      updatedLimit = dailyCreditResult.value;
+      // }
     }
 
     // Calculate remaining uses
@@ -80,14 +81,27 @@ async function checkFeatureLimit(userId: number, feature: Feature): Promise<Resu
   }
 }
 
-async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promise<Result<UserFeatureLimit, Error>> {
+async function addDailyCreditToUserFeatureLimit(
+  limit: UserFeatureLimit,
+  currentUsage: number,
+): Promise<Result<UserFeatureLimit, Error>> {
   try {
+    logger.info(
+      {
+        currentUsage,
+        useLimit: limit.useLimit,
+        sciweaveFreeLimit: SCIWEAVE_FREE_LIMIT,
+        currentPeriodStart: limit.currentPeriodStart,
+      },
+      'addDailyCreditToUserFeatureLimit::start',
+    );
+
     if (limit.feature !== Feature.RESEARCH_ASSISTANT) {
       return ok(limit);
     }
 
     // Don't add daily credit for unlimited plans (null useLimit)
-    if (limit.useLimit === null) {
+    if (limit.useLimit === null || currentUsage < SCIWEAVE_FREE_LIMIT) {
       return ok(limit);
     }
 
@@ -97,23 +111,25 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
     // if the limit was updated in the last 24 hours, don't add a daily credit
     // if the next period start is in the future, don't add a daily credit
-    const isBeforeTrialEndDate = isBefore(new Date(), trialEndDate);
+    const isAfterTrialEndDate = isAfter(new Date(), trialEndDate);
     const hasBeenUpdatedToday = isAfter(limit.updatedAt, todayStart);
     logger.info(
       {
         trialEndDate,
         todayStart,
+        useLimit: limit.useLimit,
+        sciweaveFreeLimit: SCIWEAVE_FREE_LIMIT,
         currentPeriodStart: limit.currentPeriodStart,
-        isBeforeTrialEndDate,
+        isAfterTrialEndDate,
         hasBeenUpdatedToday,
       },
       'addDailyCreditToUserFeatureLimit: before check',
     );
-    if (isBeforeTrialEndDate || hasBeenUpdatedToday) {
+    if (isAfterTrialEndDate || hasBeenUpdatedToday) {
       return ok(limit);
     }
 
-    logger.info({ isBeforeTrialEndDate, hasBeenUpdatedToday }, 'addDailyCreditToUserFeatureLimit: after check');
+    logger.info({ isAfterTrialEndDate, hasBeenUpdatedToday }, 'addDailyCreditToUserFeatureLimit: after check');
 
     const updatedLimit = await prisma.userFeatureLimit.update({
       where: { id: limit.id },
@@ -126,7 +142,7 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
         previousUseLimit: limit.useLimit,
         newUseLimit: updatedLimit.useLimit,
       },
-      'Added daily credit to user feature limit',
+      'addDailyCreditToUserFeatureLimit::success',
     );
     return ok(updatedLimit);
   } catch (error) {
