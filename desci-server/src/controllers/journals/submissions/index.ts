@@ -112,19 +112,12 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       filter.assignedEditorId = req.user.id;
     }
 
-    if (startDate) {
+    if (startDate || endDate) {
+      const range = { ...(startDate && { gte: startDate }), ...(endDate && { lte: endDate }) };
       if (status === 'reviewed') {
-        filter.OR = [{ acceptedAt: { gte: startDate } }, { rejectedAt: { gte: startDate } }];
+        filter.OR = [{ acceptedAt: range }, { rejectedAt: range }];
       } else {
-        filter.submittedAt = { gte: startDate };
-      }
-
-      if (endDate) {
-        if (status === 'reviewed') {
-          filter.OR = [{ acceptedAt: { gte: startDate } }, { rejectedAt: { gte: startDate } }];
-        } else {
-          filter.submittedAt = { gte: startDate };
-        }
+        filter.submittedAt = range;
       }
     }
 
