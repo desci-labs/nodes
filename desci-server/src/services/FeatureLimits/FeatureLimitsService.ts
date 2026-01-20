@@ -1,5 +1,5 @@
 import { PlanCodename, Feature, Period, UserFeatureLimit, ExternalApi } from '@prisma/client';
-import { addDays, addWeeks, addMonths, addYears, isAfter } from 'date-fns';
+import { addDays, addWeeks, addMonths, addYears, isAfter, isBefore } from 'date-fns';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
@@ -91,23 +91,29 @@ async function addDailyCreditToUserFeatureLimit(limit: UserFeatureLimit): Promis
       return ok(limit);
     }
 
-    const nextStartPeriod = calculateNextPeriodStart(limit.currentPeriodStart, limit.period, new Date());
+    const trialEndDate = addDays(limit.currentPeriodStart, 7);
     const now = new Date();
-
-    // Don't add daily credit if updatedAt is in the future
-    // This should never happen in production, but can occur in tests when we manually set updatedAt
-    // to prevent daily credits from being added during test execution. Also serves as defensive
-    // programming against clock skew or timezone issues.
-    if (limit.updatedAt && limit.updatedAt.getTime() > now.getTime()) {
-      return ok(limit);
-    }
 
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
     // if the limit was updated in the last 24 hours, don't add a daily credit
     // if the next period start is in the future, don't add a daily credit
-    if (limit.updatedAt && isAfter(nextStartPeriod, new Date()) && isAfter(limit.updatedAt, todayStart)) {
+    const isBeforeTrialEndDate = isBefore(new Date(), trialEndDate);
+    const hasBeenUpdatedToday = isAfter(limit.updatedAt, todayStart);
+    logger.info(
+      {
+        trialEndDate,
+        todayStart,
+        currentPeriodStart: limit.currentPeriodStart,
+        isBeforeTrialEndDate,
+        hasBeenUpdatedToday,
+      },
+      'addDailyCreditToUserFeatureLimit: before check',
+    );
+    if (isBeforeTrialEndDate || hasBeenUpdatedToday) {
       return ok(limit);
     }
+
+    logger.info({ isBeforeTrialEndDate, hasBeenUpdatedToday }, 'addDailyCreditToUserFeatureLimit: after check');
 
     const updatedLimit = await prisma.userFeatureLimit.update({
       where: { id: limit.id },
