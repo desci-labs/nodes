@@ -18,6 +18,8 @@ const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE;
 export const cleanupManifestUrl = (url: string, gateway?: string) => {
   if (url && (PUBLIC_IPFS_PATH || gateway)) {
     const s = url.split('/');
+    logger.info({ gateway, PUBLIC_IPFS_PATH }, 'cleanupManifestUrl');
+    // TODO: revert back to PUBLIC_IPFS_PATH after testing
     const res = `${gateway ? gateway : PUBLIC_IPFS_PATH}/${s[s.length - 1]}`;
     parentLogger.info({ fn: 'cleanupManifestUrl', url, gateway }, `resolving ${url} => ${res}`);
     return res;
