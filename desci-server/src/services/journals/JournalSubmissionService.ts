@@ -943,6 +943,104 @@ const getFeaturedPublicationDetails = async (
 };
 
 /**
+ * Batched version of getFeaturedPublicationDetails for better performance.
+ * Fetches all submissions in a single DB query, batches the research object lookup,
+ * and parallelizes manifest fetches.
+ */
+const getBatchedFeaturedPublicationDetails = async (
+  submissionIds: number[],
+): Promise<FeaturedSubmissionDetails[]> => {
+  if (submissionIds.length === 0) {
+    return [];
+  }
+
+  // 1. Single batched DB query for all submissions
+  const submissions = await prisma.journalSubmission.findMany({
+    where: { id: { in: submissionIds } },
+    include: {
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      node: {
+        select: {
+          uuid: true,
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          id: true,
+          orcid: true,
+        },
+      },
+    },
+  });
+
+  if (submissions.length === 0) {
+    return [];
+  }
+
+  // Handle test environment
+  if (process.env.NODE_ENV === 'test') {
+    return submissions.map((submission) => ({
+      ...submission,
+      researchObject: {
+        ...submission.node,
+        manifest: {
+          version: 'desci-nodes-0.1.0' as const,
+          title: 'Test Title',
+          authors: [{ name: 'Test Author', role: 'author' }],
+          description: 'Test Abstract',
+          components: [],
+        },
+        publishedAt: new Date(),
+      },
+    }));
+  }
+
+  // 2. Single batched call for all UUIDs
+  const uuids = submissions.map((s) => s.node.uuid);
+  const { researchObjects } = await getIndexedResearchObjects(uuids);
+
+  // Create a map for quick lookup by UUID
+  const roByUuid = new Map(researchObjects.map((ro) => [ro.uuid, ro]));
+
+  // 3. Parallel manifest fetches - build the fetch tasks
+  const manifestFetchTasks = submissions.map(async (submission) => {
+    const researchObject = roByUuid.get(submission.node.uuid);
+    if (!researchObject) {
+      logger.warn({ uuid: submission.node.uuid }, 'No research object found for submission');
+      return null;
+    }
+
+    const targetVersionIndex = researchObject.versions.length - submission.version;
+    const targetVersion = researchObject.versions[targetVersionIndex];
+    if (!targetVersion) {
+      logger.warn({ submission: submission.id, version: submission.version }, 'Target version not found');
+      return null;
+    }
+
+    const targetVersionManifestCid = hexToCid(targetVersion.cid);
+    const manifest = await getManifestByCid(targetVersionManifestCid);
+    const publishedAt = targetVersion.time ? new Date(parseInt(targetVersion.time) * 1000) : undefined;
+
+    return {
+      ...submission,
+      researchObject: { ...submission.node, manifest, publishedAt },
+    } as FeaturedSubmissionDetails;
+  });
+
+  // Execute all manifest fetches in parallel
+  const results = await Promise.all(manifestFetchTasks);
+
+  // Filter out nulls (failed fetches) and return in original order
+  return results.filter((r): r is FeaturedSubmissionDetails => r !== null);
+};
+
+/**
  * Check if the submission is desk rejected.
  ** Current criteria is if the submission was rejected before any referee invites are sent.
  */
@@ -983,4 +1081,5 @@ export const journalSubmissionService = {
   getFeaturedJournalPublications,
   countFeaturedJournalPublications,
   getFeaturedPublicationDetails,
+  getBatchedFeaturedPublicationDetails,
 };
