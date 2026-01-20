@@ -7,7 +7,7 @@ import { prisma } from '../../client.js';
 import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
-import { hexToCid } from '../../utils.js';
+import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
 import { getManifestByCid } from '../data/processing.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
 import { SubmissionDetails, SubmissionExtended } from '../email/journalEmailTypes.js';
@@ -1005,12 +1005,14 @@ const getBatchedFeaturedPublicationDetails = async (
   const uuids = submissions.map((s) => s.node.uuid);
   const { researchObjects } = await getIndexedResearchObjects(uuids);
 
-  // Create a map for quick lookup by UUID
-  const roByUuid = new Map(researchObjects.map((ro) => [ro.uuid, ro]));
+  // Create a map for quick lookup by hex ID (ro.id is in 0x... hex format)
+  const roById = new Map(researchObjects.map((ro) => [ro.id, ro]));
 
   // 3. Parallel manifest fetches - build the fetch tasks
   const manifestFetchTasks = submissions.map(async (submission) => {
-    const researchObject = roByUuid.get(submission.node.uuid);
+    // Convert UUID to hex format to match ro.id
+    const hexId = `0x${decodeBase64UrlSafeToHex(submission.node.uuid)}`;
+    const researchObject = roById.get(hexId);
     if (!researchObject) {
       logger.warn({ uuid: submission.node.uuid }, 'No research object found for submission');
       return null;
