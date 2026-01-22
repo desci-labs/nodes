@@ -498,7 +498,15 @@ describe('Research Assistant Metering', () => {
         expect(res.status).toBe(200);
         expect(res.body.ok).toBe(true);
         expect(Object.keys(res.body.data).sort()).toEqual(
-          ['useLimit', 'currentUsage', 'remainingUses', 'planCodename', 'isWithinLimit'].sort(),
+          [
+            'useLimit',
+            'currentUsage',
+            'remainingUses',
+            'planCodename',
+            'isWithinLimit',
+            'trialStartDate',
+            'trialEndDate',
+          ].sort(),
         );
         // Daily credit adds +1 on first check
         console.log('[FeatureLimitsService] checkFeatureLimit result', res.body.data);
@@ -703,7 +711,15 @@ describe('Research Assistant Metering', () => {
         expect(res.status).toBe(200);
         expect(res.body.ok).toBe(true);
         expect(Object.keys(res.body.data).sort()).toEqual(
-          ['totalLimit', 'totalUsed', 'totalRemaining', 'planCodename', 'isWithinLimit'].sort(),
+          [
+            'totalLimit',
+            'totalUsed',
+            'totalRemaining',
+            'planCodename',
+            'isWithinLimit',
+            'trialStartDate',
+            'trialEndDate',
+          ].sort(),
         );
         console.log('[FeatureLimitsService] checkFeatureLimit result', res.body.data);
         // Daily credit adds +1 on first check
