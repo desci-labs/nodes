@@ -208,7 +208,16 @@ export const listJournalSubmissionsSchema = z.object({
     limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
     offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
     status: z
-      .enum(['new', 'assigned', 'under_review', 'reviewed', 'under_revision'])
+      .enum([
+        'new',
+        'assigned',
+        'under_review',
+        'reviewed',
+        'under_revision',
+        'rejected',
+        'published',
+        'awaiting_decision',
+      ])
       .optional()
       .describe('The status of the submissions to return'),
     startDate: z.coerce.date().optional().describe('The start date of the submissions to return'),
