@@ -119,8 +119,8 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       }
 
       if (status === 'awaiting_decision') {
-        filter.acceptedAt = { in: [null, undefined] };
-        filter.rejectedAt = { in: [null, undefined] };
+        filter.acceptedAt = { equals: null };
+        filter.rejectedAt = { equals: null };
       }
     }
 
