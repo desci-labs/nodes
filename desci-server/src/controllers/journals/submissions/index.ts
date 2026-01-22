@@ -112,20 +112,26 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       filter.assignedEditorId = req.user.id;
     }
 
-    if (startDate) {
-      filter.submittedAt = { gte: startDate };
-
-      if (endDate) {
-        filter.submittedAt = { lte: endDate };
+    if (startDate || endDate) {
+      const range = { ...(startDate && { gte: startDate }), ...(endDate && { lte: endDate }) };
+      if (status === 'reviewed') {
+        filter.OR = [{ acceptedAt: range }, { rejectedAt: range }];
+      } else {
+        filter.submittedAt = range;
       }
     }
 
     let orderBy: Prisma.JournalSubmissionOrderByWithRelationInput;
     if (sortBy) {
       if (sortBy === 'date') {
-        orderBy = {
-          submittedAt: sortOrder,
-        };
+        orderBy =
+          status === 'reviewed'
+            ? {
+                acceptedAt: sortOrder,
+              }
+            : {
+                submittedAt: sortOrder,
+              };
       } else if (sortBy === 'title') {
         orderBy = {
           node: {
@@ -135,7 +141,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       }
     }
 
-    logger.trace({ filter, payload: req.validatedData }, 'listJournalSubmissionsController::filter');
+    logger.trace({ filter, orderBy, payload: req.validatedData }, 'listJournalSubmissionsController::filter');
 
     if (role === EditorRole.CHIEF_EDITOR) {
       submissions = await journalSubmissionService.getJournalSubmissions(journalId, filter, orderBy, offset, limit);

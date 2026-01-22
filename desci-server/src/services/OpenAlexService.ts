@@ -29,8 +29,13 @@ function ensureFormattedWorkId(workId: string) {
 }
 
 function ensureFormattedDoi(doi: string) {
-  if (doi.startsWith('doi.org/')) doi = `https://${doi}`;
-  if (!doi.startsWith('https://doi.org/')) doi = `https://${doi}`;
+  // At the time of writing, importer DB uses prefix-less, oa db uses prefixed.
+  // This logic has to be revised depending on which db OPEN_ALEX_DATABASE_URL is set to.
+  // Currently set to importer DB.
+  if (doi.startsWith('https://doi.org/')) doi = doi.replace('https://doi.org/', '');
+  if (doi.startsWith('http://doi.org/')) doi = doi.replace('http://doi.org/', '');
+  if (doi.startsWith('doi.org/')) doi = doi.replace('doi.org/', '');
+  if (doi.startsWith('doi:')) doi = doi.replace('doi:', '');
 
   return doi;
 }

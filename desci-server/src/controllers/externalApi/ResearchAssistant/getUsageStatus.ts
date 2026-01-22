@@ -5,6 +5,7 @@ import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { FeatureLimitsService } from '../../../services/FeatureLimits/FeatureLimitsService.js';
+// import { getUserUsageData } from '../../../services/subscription.js';
 
 const logger = parentLogger.child({ module: 'ResearchAssistant::UsageStatusController' });
 
@@ -33,6 +34,7 @@ export const getResearchAssistantUsageStatus = async (req: AuthenticatedRequest,
     };
 
     logger.info({ userId: user.id, ...responseData }, 'Successfully fetched research assistant usage status');
+
     return sendSuccess(res, responseData);
   } catch (error) {
     logger.error({ error }, 'Failed to fetch research assistant usage status');
