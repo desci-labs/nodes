@@ -106,6 +106,8 @@ export interface RoCrateExportMetadata {
   dpidBaseUrl?: string;
   /** Map of component CID to file size in bytes (for FAIR R1-01M compliance) */
   fileSizes?: Record<string, number>;
+  /** AI-generated keywords as fallback when manifest has no keywords */
+  aiKeywords?: string[];
 }
 
 export class RoCrateTransformer implements BaseTransformer {
@@ -245,7 +247,7 @@ export class RoCrateTransformer implements BaseTransformer {
     rootEntity['dcterms:description'] = descriptionText;
     rootEntity['http://schema.org/description'] = descriptionText; // Full URI
     rootEntity['http://purl.org/dc/terms/description'] = descriptionText;
-    // Add keywords - from manifest, or extract from components, or use defaults
+    // Add keywords - from manifest, component metadata, AI-generated, or defaults
     let keywordsArray: string[] = [];
     if (nodeObject.keywords && nodeObject.keywords.length > 0) {
       keywordsArray = nodeObject.keywords;
@@ -261,7 +263,11 @@ export class RoCrateTransformer implements BaseTransformer {
           }
         }
       });
-      // If still no keywords, add defaults for discoverability
+      // If still no keywords, try AI-generated keywords from metadata
+      if (keywordsArray.length === 0 && metadata?.aiKeywords && metadata.aiKeywords.length > 0) {
+        keywordsArray = metadata.aiKeywords;
+      }
+      // Final fallback to hardcoded defaults for discoverability
       if (keywordsArray.length === 0) {
         keywordsArray = ['research', 'dataset', 'open science', 'FAIR data'];
       }

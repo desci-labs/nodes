@@ -193,4 +193,92 @@ describe('RoCrateTransformer', () => {
     expect(authorWithOrcid).to.not.be.undefined;
     expect(authorWithOrcid['@id']).to.include('https://orcid.org/');
   });
+
+  describe('AI Keywords Fallback', () => {
+    it('Uses aiKeywords from metadata when manifest has no keywords', () => {
+      // Create a research object without keywords
+      const researchObjectWithoutKeywords = { 
+        ...exampleNode, 
+        keywords: undefined 
+      };
+      
+      const roCrate = transformer.exportObject(researchObjectWithoutKeywords, {
+        aiKeywords: ['machine learning', 'neural networks', 'deep learning']
+      });
+      
+      const rootEntity = roCrate['@graph'].find((item: any) => 
+        item['@type']?.includes('Dataset')
+      );
+      
+      expect(rootEntity).to.not.be.undefined;
+      expect(rootEntity.keywords).to.include('machine learning');
+      expect(rootEntity.keywords).to.include('neural networks');
+      expect(rootEntity.keywords).to.include('deep learning');
+      // Should NOT contain hardcoded defaults
+      expect(rootEntity.keywords).to.not.include('FAIR data');
+    });
+
+    it('Prefers manifest keywords over aiKeywords', () => {
+      // Create a research object with explicit keywords
+      const researchObjectWithKeywords = { 
+        ...exampleNode, 
+        keywords: ['genomics', 'bioinformatics'] 
+      };
+      
+      const roCrate = transformer.exportObject(researchObjectWithKeywords, {
+        aiKeywords: ['machine learning', 'neural networks']
+      });
+      
+      const rootEntity = roCrate['@graph'].find((item: any) => 
+        item['@type']?.includes('Dataset')
+      );
+      
+      expect(rootEntity).to.not.be.undefined;
+      expect(rootEntity.keywords).to.include('genomics');
+      expect(rootEntity.keywords).to.include('bioinformatics');
+      // Should NOT contain AI keywords when manifest has keywords
+      expect(rootEntity.keywords).to.not.include('machine learning');
+    });
+
+    it('Falls back to hardcoded defaults when no keywords are available', () => {
+      // Create a research object without keywords and no AI keywords
+      const researchObjectWithoutKeywords = { 
+        ...exampleNode, 
+        keywords: undefined 
+      };
+      
+      const roCrate = transformer.exportObject(researchObjectWithoutKeywords, {
+        // No aiKeywords provided
+      });
+      
+      const rootEntity = roCrate['@graph'].find((item: any) => 
+        item['@type']?.includes('Dataset')
+      );
+      
+      expect(rootEntity).to.not.be.undefined;
+      // Should contain hardcoded defaults
+      expect(rootEntity.keywords).to.include('research');
+      expect(rootEntity.keywords).to.include('FAIR data');
+    });
+
+    it('Falls back to hardcoded defaults when aiKeywords is empty array', () => {
+      const researchObjectWithoutKeywords = { 
+        ...exampleNode, 
+        keywords: undefined 
+      };
+      
+      const roCrate = transformer.exportObject(researchObjectWithoutKeywords, {
+        aiKeywords: []  // Empty array
+      });
+      
+      const rootEntity = roCrate['@graph'].find((item: any) => 
+        item['@type']?.includes('Dataset')
+      );
+      
+      expect(rootEntity).to.not.be.undefined;
+      // Should contain hardcoded defaults
+      expect(rootEntity.keywords).to.include('research');
+      expect(rootEntity.keywords).to.include('FAIR data');
+    });
+  });
 });
