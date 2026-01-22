@@ -16,6 +16,8 @@ export interface FeatureLimitStatus {
   remainingUses: number | null; // null = unlimited
   planCodename: PlanCodename;
   isWithinLimit: boolean;
+  trialStartDate?: Date | null;
+  trialEndDate?: Date | null;
 }
 
 /**
@@ -71,6 +73,19 @@ async function checkFeatureLimit(userId: number, feature: Feature): Promise<Resu
       remainingUses,
       planCodename: updatedLimit.planCodename,
       isWithinLimit,
+      trialStartDate:
+        updatedLimit.feature === Feature.RESEARCH_ASSISTANT &&
+        updatedLimit.period === Period.WEEK &&
+        updatedLimit.isActive
+          ? updatedLimit.currentPeriodStart
+          : null,
+      trialEndDate:
+        updatedLimit.feature === Feature.RESEARCH_ASSISTANT &&
+        updatedLimit.period === Period.WEEK &&
+        updatedLimit.isActive &&
+        updatedLimit.currentPeriodStart
+          ? addDays(updatedLimit.currentPeriodStart, 7)
+          : null,
     };
 
     logger.debug({ userId, feature, period: updatedLimit.period, status }, 'Feature limit check completed');

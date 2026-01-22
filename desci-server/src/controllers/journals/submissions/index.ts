@@ -79,6 +79,9 @@ const statusMap: Record<string, SubmissionStatus[]> = {
   assigned: [SubmissionStatus.SUBMITTED],
   under_review: [SubmissionStatus.UNDER_REVIEW],
   reviewed: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+  published: [SubmissionStatus.ACCEPTED],
+  rejected: [SubmissionStatus.REJECTED],
+  awaiting_decision: [SubmissionStatus.UNDER_REVIEW],
   under_revision: [SubmissionStatus.REVISION_REQUESTED],
 } as const;
 
@@ -105,6 +108,19 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       if (status === 'assigned') {
         filter.status = SubmissionStatus.SUBMITTED;
         filter.assignedEditorId = { not: null };
+      }
+
+      if (status === 'rejected') {
+        filter.rejectedAt = { not: null };
+      }
+
+      if (status === 'published') {
+        filter.acceptedAt = { not: null };
+      }
+
+      if (status === 'awaiting_decision') {
+        filter.acceptedAt = { in: [null, undefined] };
+        filter.rejectedAt = { in: [null, undefined] };
       }
     }
 
@@ -205,7 +221,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
         node: undefined,
       };
     });
-    logger.trace({ data }, 'listJournalSubmissionsController');
+    logger.trace({ submissionsCount: submissions.length }, 'listJournalSubmissionsController');
     return sendSuccess(res, { data, meta: { count: submissions.length, limit, offset } });
   } catch (error) {
     logger.error({ error });

@@ -31,6 +31,8 @@ export const getResearchAssistantUsageStatus = async (req: AuthenticatedRequest,
       totalRemaining: status.remainingUses,
       planCodename: status.planCodename,
       isWithinLimit: status.isWithinLimit,
+      trialStartDate: status.trialStartDate,
+      trialEndDate: status.trialEndDate,
     };
 
     logger.info({ userId: user.id, ...responseData }, 'Successfully fetched research assistant usage status');

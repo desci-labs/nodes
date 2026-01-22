@@ -46,6 +46,8 @@ describe('Research Assistant Metering', () => {
         expect(status.remainingUses).toBe(SCIWEAVE_FREE_LIMIT);
         expect(status.planCodename).toBe(PlanCodename.FREE);
         expect(status.isWithinLimit).toBe(true);
+        expect(status.trialStartDate).toBeDefined();
+        expect(status.trialEndDate).toBeDefined();
       });
 
       it('should return current usage when user has consumed some uses', async () => {
