@@ -219,169 +219,6 @@ const checkSciweave14DayInactivity: EmailReminderHandler = {
 };
 
 /**
- * Send chat refresh notification to PRO/PREMIUM users when:
- * - Their currentPeriodStart is >30 days old (period expired but not refreshed yet), OR
- * - Their currentPeriodStart is 0-1 days old (just refreshed/rolled over)
- * - We haven't sent this email in the last 30 days
- */
-const checkProChatRefresh: EmailReminderHandler = {
-  name: 'Pro Chat Refresh Notification',
-  description: 'Notify PRO users when their chat usage has been reset',
-  enabled: true,
-  handler: async () => {
-    let sent = 0;
-    let skipped = 0;
-    let errors = 0;
-
-    try {
-      const now = new Date();
-      const thirtyDaysAgo = subDays(now, 30);
-      const oneDayAgo = subDays(now, 1);
-
-      // Find active PRO/PREMIUM/STARTER plans with RESEARCH_ASSISTANT feature
-      const proUsers = await prisma.userFeatureLimit.findMany({
-        where: {
-          planCodename: {
-            in: ['PRO', 'PREMIUM', 'STARTER'],
-          },
-          feature: 'RESEARCH_ASSISTANT',
-          isActive: true,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-              firstName: true,
-              lastName: true,
-              receiveSciweaveMarketingEmails: true,
-            },
-          },
-        },
-      });
-
-      logger.info({ count: proUsers.length }, 'Found PRO/PREMIUM users with active plans');
-
-      for (const userLimit of proUsers) {
-        const user = userLimit.user;
-
-        try {
-          // Skip if user has opted out of marketing emails
-          if (!user.receiveSciweaveMarketingEmails) {
-            skipped++;
-            continue;
-          }
-
-          const currentPeriodStart = new Date(userLimit.currentPeriodStart);
-          const daysSinceStart = Math.floor((now.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
-
-          // Check if period is either >30 days old OR 0-1 days old (just refreshed)
-          const isPeriodExpired = daysSinceStart > 30;
-          const isJustRefreshed = daysSinceStart >= 0 && daysSinceStart <= 1;
-
-          if (!isPeriodExpired && !isJustRefreshed) {
-            logger.debug({ userId: user.id, daysSinceStart }, 'Period not expired and not just refreshed, skipping');
-            skipped++;
-            continue;
-          }
-
-          // Check if we've already sent this email in the last 30 days
-          const recentEmail = await prisma.sentEmail.findFirst({
-            where: {
-              userId: user.id,
-              emailType: SentEmailType.SCIWEAVE_PRO_CHAT_REFRESH,
-              createdAt: {
-                gte: thirtyDaysAgo,
-              },
-            },
-          });
-
-          if (recentEmail) {
-            logger.debug({ userId: user.id }, 'Already sent chat refresh email recently, skipping');
-            skipped++;
-            continue;
-          }
-
-          // Send the chat refresh notification (or record for dry run)
-          if (isDryRunMode()) {
-            recordDryRunEmail({
-              userId: user.id,
-              email: user.email,
-              emailType: 'SCIWEAVE_PRO_CHAT_REFRESH',
-              handlerName: 'Pro Chat Refresh Notification',
-              details: {
-                planCodename: userLimit.planCodename,
-                feature: userLimit.feature,
-                daysSinceStart,
-                isPeriodExpired,
-                isJustRefreshed,
-              },
-            });
-          } else {
-            const { firstName, lastName } = await getUserNameByUser(user);
-
-            const emailResult = await sendEmail({
-              type: SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH,
-              payload: {
-                email: user.email,
-                firstName: firstName || undefined,
-                lastName: lastName || undefined,
-              },
-            });
-
-            // Only record if email was actually sent successfully
-            if (emailResult && emailResult.success) {
-              await prisma.sentEmail.create({
-                data: {
-                  userId: user.id,
-                  emailType: SentEmailType.SCIWEAVE_PRO_CHAT_REFRESH,
-                  internalTrackingId: emailResult.internalTrackingId,
-                  details: {
-                    planCodename: userLimit.planCodename,
-                    feature: userLimit.feature,
-                    currentPeriodStart: userLimit.currentPeriodStart
-                      ? userLimit.currentPeriodStart.toISOString()
-                      : null,
-                    daysSinceStart,
-                    isPeriodExpired,
-                    isJustRefreshed,
-                    ...(emailResult.sgMessageIdPrefix && {
-                      sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
-                    }),
-                  },
-                },
-              });
-            }
-          }
-
-          logger.info(
-            {
-              userId: user.id,
-              email: user.email,
-              daysSinceStart,
-              isPeriodExpired,
-              isJustRefreshed,
-              dryRun: isDryRunMode(),
-            },
-            'Sent chat refresh notification',
-          );
-          sent++;
-        } catch (err) {
-          logger.error({ err, userId: user.id }, 'Failed to process chat refresh notification for user');
-          errors++;
-        }
-      }
-    } catch (err) {
-      logger.error({ err }, 'Failed to check pro chat refresh');
-      errors++;
-    }
-
-    return { sent, skipped, errors };
-  },
-};
-
-/**
  * TEST HANDLER - Send a test email to verify the system works
  *
  * Usage:
@@ -1116,7 +953,6 @@ const checkAbandonedCheckoutCouponExpiring: EmailReminderHandler = {
 // Export individual handlers for testing
 export {
   checkSciweave14DayInactivity,
-  checkProChatRefresh,
   checkOutOfChatsFollowUp,
   checkStudentDiscountFollowUp,
   checkAbandonedCheckout1Hour,
@@ -1126,7 +962,6 @@ export {
 
 export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
   checkSciweave14DayInactivity,
-  checkProChatRefresh,
   checkOutOfChatsFollowUp,
   checkStudentDiscountFollowUp,
   checkAbandonedCheckout1Hour,
