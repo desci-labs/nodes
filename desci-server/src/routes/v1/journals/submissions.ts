@@ -11,7 +11,7 @@ import {
   requestRevisionController,
   getJournalSubmissionController,
   getRefereeInvitationsBySubmissionController,
-  getJournalSubmissionsByStatusCountController,
+  getJournalSubmissionsCountByStatusController,
 } from '../../../controllers/journals/submissions/index.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
 import { ensureUser } from '../../../middleware/permissions.js';
@@ -52,7 +52,7 @@ export default function submissionRoutes(router: Router) {
   router.get(
     '/:journalId/submissions/status-count',
     [ensureUser, validateInputs(submissionStatusCountSchema)],
-    asyncHandler(getJournalSubmissionsByStatusCountController),
+    asyncHandler(getJournalSubmissionsCountByStatusController),
   );
 
   router.get(

@@ -233,7 +233,7 @@ type ListJournalSubmissionsByStatusCountRequest = ValidatedRequest<
   typeof submissionStatusCountSchema,
   AuthenticatedRequest
 >;
-export const getJournalSubmissionsByStatusCountController = async (
+export const getJournalSubmissionsCountByStatusController = async (
   req: ListJournalSubmissionsByStatusCountRequest,
   res: Response,
 ) => {
@@ -273,27 +273,43 @@ export const getJournalSubmissionsByStatusCountController = async (
       const inReviewSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.UNDER_REVIEW,
+        rejectedAt: null,
+        acceptedAt: null,
+        refereeAssignments: { every: { completedAssignment: { not: true } } },
+      });
+      const awaitingDecisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.UNDER_REVIEW,
+        rejectedAt: null,
+        acceptedAt: null,
+        refereeAssignments: { some: { completedAssignment: true } },
       });
       const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.REVISION_REQUESTED,
       });
-      const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
-        ...filter,
-        status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
-      });
+      // const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+      //   ...filter,
+      //   status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
+      // });
       const publishedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.ACCEPTED,
+      });
+      const rejectedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.REJECTED,
       });
 
       submissions = {
         new: newSubmissions,
         assigned: assignedSubmissions,
         inReview: inReviewSubmissions,
+        awaitingDecision: awaitingDecisionSubmissions,
         underRevision: underRevisionSubmissions,
-        reviewed: reviewedSubmissions,
+        // reviewed: reviewedSubmissions,
         published: publishedSubmissions,
+        rejected: rejectedSubmissions,
       };
     } else if (role === EditorRole.ASSOCIATE_EDITOR) {
       const assignedEditorId = req.user.id;
@@ -306,20 +322,36 @@ export const getJournalSubmissionsByStatusCountController = async (
         ...filter,
         status: SubmissionStatus.UNDER_REVIEW,
         assignedEditorId,
+        rejectedAt: null,
+        acceptedAt: null,
+        refereeAssignments: { every: { completedAssignment: { not: true } } },
       });
       const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.REVISION_REQUESTED,
         assignedEditorId,
       });
-      const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+      const awaitingDecisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
-        status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
         assignedEditorId,
+        status: SubmissionStatus.UNDER_REVIEW,
+        rejectedAt: null,
+        acceptedAt: null,
+        refereeAssignments: { some: { completedAssignment: true } },
       });
+      // const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+      //   ...filter,
+      //   status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
+      //   assignedEditorId,
+      // });
       const publishedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.ACCEPTED,
+        assignedEditorId,
+      });
+      const rejectedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.REJECTED,
         assignedEditorId,
       });
 
@@ -328,7 +360,9 @@ export const getJournalSubmissionsByStatusCountController = async (
         assigned: 0,
         inReview: inReviewSubmissions,
         underRevision: underRevisionSubmissions,
-        reviewed: reviewedSubmissions,
+        awaitingDecision: awaitingDecisionSubmissions,
+        // reviewed: reviewedSubmissions,
+        rejected: rejectedSubmissions,
         published: publishedSubmissions,
       };
     } else {
