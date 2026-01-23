@@ -79,6 +79,9 @@ const statusMap: Record<string, SubmissionStatus[]> = {
   assigned: [SubmissionStatus.SUBMITTED],
   under_review: [SubmissionStatus.UNDER_REVIEW],
   reviewed: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+  published: [SubmissionStatus.ACCEPTED],
+  rejected: [SubmissionStatus.REJECTED],
+  awaiting_decision: [SubmissionStatus.UNDER_REVIEW],
   under_revision: [SubmissionStatus.REVISION_REQUESTED],
 } as const;
 
@@ -105,6 +108,19 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
       if (status === 'assigned') {
         filter.status = SubmissionStatus.SUBMITTED;
         filter.assignedEditorId = { not: null };
+      }
+
+      if (status === 'rejected') {
+        filter.rejectedAt = { not: null };
+      }
+
+      if (status === 'published') {
+        filter.acceptedAt = { not: null };
+      }
+
+      if (status === 'awaiting_decision') {
+        filter.acceptedAt = { equals: null };
+        filter.rejectedAt = { equals: null };
       }
     }
 
@@ -205,7 +221,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
         node: undefined,
       };
     });
-    logger.trace({ data }, 'listJournalSubmissionsController');
+    logger.trace({ submissionsCount: submissions.length }, 'listJournalSubmissionsController');
     return sendSuccess(res, { data, meta: { count: submissions.length, limit, offset } });
   } catch (error) {
     logger.error({ error });
@@ -217,7 +233,7 @@ type ListJournalSubmissionsByStatusCountRequest = ValidatedRequest<
   typeof submissionStatusCountSchema,
   AuthenticatedRequest
 >;
-export const getJournalSubmissionsByStatusCountController = async (
+export const getJournalSubmissionsCountByStatusController = async (
   req: ListJournalSubmissionsByStatusCountRequest,
   res: Response,
 ) => {
@@ -257,27 +273,43 @@ export const getJournalSubmissionsByStatusCountController = async (
       const inReviewSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.UNDER_REVIEW,
+        rejectedAt: null,
+        acceptedAt: null,
+        refereeAssignments: { every: { completedAssignment: { not: true } } },
+      });
+      const awaitingDecisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.UNDER_REVIEW,
+        rejectedAt: null,
+        acceptedAt: null,
+        refereeAssignments: { some: { completedAssignment: true } },
       });
       const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.REVISION_REQUESTED,
       });
-      const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
-        ...filter,
-        status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
-      });
+      // const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+      //   ...filter,
+      //   status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
+      // });
       const publishedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.ACCEPTED,
+      });
+      const rejectedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.REJECTED,
       });
 
       submissions = {
         new: newSubmissions,
         assigned: assignedSubmissions,
         inReview: inReviewSubmissions,
+        awaitingDecision: awaitingDecisionSubmissions,
         underRevision: underRevisionSubmissions,
-        reviewed: reviewedSubmissions,
+        // reviewed: reviewedSubmissions,
         published: publishedSubmissions,
+        rejected: rejectedSubmissions,
       };
     } else if (role === EditorRole.ASSOCIATE_EDITOR) {
       const assignedEditorId = req.user.id;
@@ -290,20 +322,36 @@ export const getJournalSubmissionsByStatusCountController = async (
         ...filter,
         status: SubmissionStatus.UNDER_REVIEW,
         assignedEditorId,
+        rejectedAt: null,
+        acceptedAt: null,
+        refereeAssignments: { every: { completedAssignment: { not: true } } },
       });
       const underRevisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.REVISION_REQUESTED,
         assignedEditorId,
       });
-      const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+      const awaitingDecisionSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
-        status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
         assignedEditorId,
+        status: SubmissionStatus.UNDER_REVIEW,
+        rejectedAt: null,
+        acceptedAt: null,
+        refereeAssignments: { some: { completedAssignment: true } },
       });
+      // const reviewedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+      //   ...filter,
+      //   status: { in: [SubmissionStatus.REJECTED, SubmissionStatus.ACCEPTED] },
+      //   assignedEditorId,
+      // });
       const publishedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
         ...filter,
         status: SubmissionStatus.ACCEPTED,
+        assignedEditorId,
+      });
+      const rejectedSubmissions = await journalSubmissionService.getJournalSubmissionsCount(journalId, {
+        ...filter,
+        status: SubmissionStatus.REJECTED,
         assignedEditorId,
       });
 
@@ -312,7 +360,9 @@ export const getJournalSubmissionsByStatusCountController = async (
         assigned: 0,
         inReview: inReviewSubmissions,
         underRevision: underRevisionSubmissions,
-        reviewed: reviewedSubmissions,
+        awaitingDecision: awaitingDecisionSubmissions,
+        // reviewed: reviewedSubmissions,
+        rejected: rejectedSubmissions,
         published: publishedSubmissions,
       };
     } else {

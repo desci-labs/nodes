@@ -166,6 +166,106 @@ async function getJournalSubmissions(
   });
 }
 
+// async function getJournalSubmissionsAwaitingDecisionCount(
+//   journalId: number,
+//   filter: Prisma.JournalSubmissionWhereInput,
+// ) {
+//   return await prisma.journalSubmission.count({
+//     where: {
+//       journalId,
+//       ...filter,
+//       rejectedAt: null,
+//       acceptedAt: null,
+//       refereeAssignments: { some: { completedAssignment: true } },
+//     },
+//   });
+// }
+
+// async function getJournalSubmissionsInReviewCount(journalId: number, filter: Prisma.JournalSubmissionWhereInput) {
+//   return await prisma.journalSubmission.count({
+//     where: {
+//       journalId,
+//       ...filter,
+//       rejectedAt: null,
+//       acceptedAt: null,
+//       refereeAssignments: { every: { completedAssignment: { not: true } } },
+//     },
+//   });
+// }
+
+// async function getJournalSubmissionsPublishedCount(
+//   journalId: number,
+//   filter: Prisma.JournalSubmissionWhereInput,
+//   orderBy: Prisma.JournalSubmissionOrderByWithRelationInput,
+//   offset: number,
+//   limit: number,
+// ) {
+//   return await prisma.journalSubmission.count({
+//     where: {
+//       journalId,
+//       ...filter,
+//       acceptedAt: { not: null },
+//     },
+//     orderBy,
+//     skip: offset,
+//     take: limit,
+//     select: {
+//       id: true,
+//       dpid: true,
+//       doi: true,
+//       version: true,
+//       status: true,
+//       submittedAt: true,
+//       acceptedAt: true,
+//       rejectedAt: true,
+//       assignedEditorId: true,
+//       revisionRequestedAt: true,
+//       node: {
+//         select: {
+//           title: true,
+//           uuid: true,
+//         },
+//       },
+//       assignedEditor: {
+//         select: {
+//           name: true,
+//         },
+//       },
+//       author: {
+//         select: {
+//           name: true,
+//           orcid: true,
+//         },
+//       },
+//       refereeAssignments: {
+//         select: {
+//           completedAssignment: true,
+//           dueDate: true,
+//           referee: {
+//             select: {
+//               name: true,
+//             },
+//           },
+//           completedAt: true,
+//         },
+//       },
+//       RefereeInvite: {
+//         select: {
+//           id: true,
+//           accepted: true,
+//           acceptedAt: true,
+//           declined: true,
+//           declinedAt: true,
+//           expiresAt: true,
+//           createdAt: true,
+//           email: true,
+//           name: true,
+//         },
+//       },
+//     },
+//   });
+// }
+
 async function getJournalSubmissionsCount(journalId: number, filter: Prisma.JournalSubmissionWhereInput) {
   return await prisma.journalSubmission.count({
     where: { journalId, ...filter },
