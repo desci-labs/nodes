@@ -303,8 +303,10 @@ describe('Journal Submission Service', () => {
       expect(submissions.new).toBe(1);
       expect(submissions.assigned).toBe(0);
       expect(submissions.inReview).toBe(1);
+      expect(submissions.awaitingDecision).toBe(0);
       expect(submissions.underRevision).toBe(0);
-      expect(submissions.reviewed).toBe(1);
+      expect(submissions.published).toBe(1);
+      expect(submissions.rejected).toBe(0);
     });
 
     it('can assign submissions to associate editors', async () => {
