@@ -80,12 +80,11 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.2
+          image: public.ecr.aws/m3e8d9d6/desci-labs/ceramic-one:0.58.1
           command: [ "bash", "-c" ]
           args:
-            # - echo "Container idling..."; tail --follow /dev/null
-            - ceramic-one daemon
-              --external-swarm-addresses="$(< /config/external-multiaddr)"
+            # - apt-get update && apt-get install --yes curl jq sqlite3 && echo "Container idling..."; tail --follow /dev/null
+            - apt-get update && apt-get install --yes curl jq sqlite3 && ceramic-one daemon --external-swarm-addresses="$(< /config/external-multiaddr)"
           env:
             - name: BASH_ENV
               value: /vault/secrets/config
