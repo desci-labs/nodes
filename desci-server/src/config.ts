@@ -124,3 +124,4 @@ export const npm_package_version = process.env.npm_package_version;
 
 // Feature Limits Configuration (For new users)
 export const SCIWEAVE_FREE_LIMIT = parseInt(process.env.SCIWEAVE_FREE_LIMIT || '10');
+export const SCIWEAVE_TRIAL_DURATION_DAYS = parseInt(process.env.SCIWEAVE_TRIAL_DURATION_DAYS || '7');
