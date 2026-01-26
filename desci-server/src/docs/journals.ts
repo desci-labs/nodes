@@ -62,16 +62,32 @@ export const listJournalsOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            journals: z.array(
-              z.object({
-                id: z.number(),
-                name: z.string(),
-                description: z.string().nullable(),
-                iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
-                imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
-                createdAt: z.string(),
-              }),
-            ),
+            ok: z.literal(true),
+            data: z.object({
+              journals: z.array(
+                z.object({
+                  id: z.number(),
+                  name: z.string(),
+                  description: z.string().nullable(),
+                  slug: z.string().nullable(),
+                  iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                  imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
+                  createdAt: z.string(),
+                  publicationCount: z.number().describe('Number of accepted publications in this journal'),
+                }),
+              ),
+            }),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
           }),
         },
       },
@@ -91,22 +107,31 @@ export const showJournalOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            journal: z.object({
-              id: z.number(),
-              name: z.string(),
-              description: z.string().nullable(),
-              iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
-              imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
-              createdAt: z.string(),
-              editors: z.array(
-                z.object({
-                  id: z.number(),
-                  name: z.string().nullable(),
-                  email: z.string().nullable(),
-                  orcid: z.string().nullable(),
-                }),
-              ),
+            ok: z.literal(true),
+            data: z.object({
+              journal: z.object({
+                id: z.number(),
+                name: z.string(),
+                slug: z.string().nullable(),
+                description: z.string().nullable(),
+                iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
+                createdAt: z.string(),
+                aboutArticle: z.string().nullable(),
+                editorialBoardArticle: z.string().nullable(),
+                authorInstruction: z.string().nullable(),
+                refereeInstruction: z.string().nullable(),
+                editors: z.array(
+                  z.object({
+                    id: z.number(),
+                    name: z.string().nullable(),
+                    email: z.string().nullable(),
+                    orcid: z.string().nullable(),
+                  }),
+                ),
+              }),
             }),
+            message: z.string().optional(),
           }),
         },
       },
@@ -115,11 +140,26 @@ export const showJournalOperation: ZodOpenApiOperationObject = {
       description: 'Journal not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
   },
+  security: [{ BearerAuth: [] }],
 };
 
 // Create Journal
@@ -140,13 +180,17 @@ export const createJournalOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            journal: z.object({
-              id: z.number(),
-              name: z.string(),
-              description: z.string().nullable(),
-              iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
-              imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
-              createdAt: z.string(),
+            ok: z.literal(true),
+            data: z.object({
+              journal: z.object({
+                id: z.number(),
+                name: z.string(),
+                slug: z.string().nullable(),
+                description: z.string().nullable(),
+                iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
+                createdAt: z.string(),
+              }),
             }),
           }),
         },
@@ -156,7 +200,21 @@ export const createJournalOperation: ZodOpenApiOperationObject = {
       description: 'Conflict (journal already exists)',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -183,13 +241,17 @@ export const updateJournalOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            journal: z.object({
-              id: z.number(),
-              name: z.string(),
-              description: z.string().nullable(),
-              iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
-              imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
-              createdAt: z.string(),
+            ok: z.literal(true),
+            data: z.object({
+              journal: z.object({
+                id: z.number(),
+                name: z.string(),
+                slug: z.string().nullable(),
+                description: z.string().nullable(),
+                iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
+                createdAt: z.string(),
+              }),
             }),
           }),
         },
@@ -199,7 +261,10 @@ export const updateJournalOperation: ZodOpenApiOperationObject = {
       description: 'Journal not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -207,7 +272,21 @@ export const updateJournalOperation: ZodOpenApiOperationObject = {
       description: 'Conflict (journal name in use)',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -236,15 +315,19 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            invite: z.object({
-              id: z.number(),
-              journalId: z.number(),
-              email: z.string(),
-              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
-              inviterId: z.number(),
-              expiresAt: z.string(),
-              createdAt: z.string(),
+            ok: z.literal(true),
+            data: z.object({
+              invite: z.object({
+                id: z.number(),
+                journalId: z.number(),
+                email: z.string(),
+                role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+                inviterId: z.number(),
+                expiresAt: z.string(),
+                createdAt: z.string(),
+              }),
             }),
+            message: z.string().optional(),
           }),
         },
       },
@@ -253,7 +336,10 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
       description: 'Invalid input data',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -261,7 +347,10 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
       description: 'Journal not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -269,7 +358,10 @@ export const inviteEditorOperation: ZodOpenApiOperationObject = {
       description: 'Internal server error',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -295,7 +387,21 @@ export const editorInviteDecisionOperation: ZodOpenApiOperationObject = {
       description: 'Invite decision processed',
       content: {
         'application/json': {
-          schema: z.object({ invite: z.object({}) }), // Details omitted for brevity
+          schema: z.object({
+            ok: z.literal(true),
+            data: z.object({
+              invite: z.object({
+                id: z.number(),
+                role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+                inviterId: z.number(),
+                journalId: z.number(),
+                decisionAt: z.string().nullable(),
+                accepted: z.boolean(),
+                declined: z.boolean(),
+              }),
+            }),
+            message: z.string().optional(),
+          }),
         },
       },
     },
@@ -303,7 +409,32 @@ export const editorInviteDecisionOperation: ZodOpenApiOperationObject = {
       description: 'Invalid or expired invite',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '401': {
+      description: 'Authentication required to accept invitation',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -331,15 +462,19 @@ export const resendEditorInviteOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            invite: z.object({
-              id: z.number(),
-              journalId: z.number(),
-              email: z.string(),
-              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
-              inviterId: z.number(),
-              expiresAt: z.string(),
-              createdAt: z.string(),
+            ok: z.literal(true),
+            data: z.object({
+              invite: z.object({
+                id: z.number(),
+                journalId: z.number(),
+                email: z.string(),
+                role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+                inviterId: z.number(),
+                expiresAt: z.string(),
+                createdAt: z.string(),
+              }),
             }),
+            message: z.string().optional(),
           }),
         },
       },
@@ -348,7 +483,10 @@ export const resendEditorInviteOperation: ZodOpenApiOperationObject = {
       description: 'Cannot resend invite that has already been responded to',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -356,7 +494,10 @@ export const resendEditorInviteOperation: ZodOpenApiOperationObject = {
       description: 'Invite not found or journal not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -364,7 +505,10 @@ export const resendEditorInviteOperation: ZodOpenApiOperationObject = {
       description: 'Not authorized to resend invites for this journal',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -372,7 +516,10 @@ export const resendEditorInviteOperation: ZodOpenApiOperationObject = {
       description: 'Internal server error',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -394,25 +541,28 @@ export const listJournalEditorsOperation: ZodOpenApiOperationObject = {
       description: 'Journal editors retrieved successfully',
       content: {
         'application/json': {
-          schema: z.array(
-            z.object({
-              id: z.number(),
-              userId: z.number(),
-              journalId: z.number(),
-              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
-              invitedAt: z.string(),
-              acceptedAt: z.string().nullable(),
-              expertise: z.array(z.string()).nullable(),
-              maxWorkload: z.number().nullable(),
-              currentWorkload: z.number(),
-              available: z.boolean(),
-              user: z.object({
+          schema: z.object({
+            ok: z.literal(true),
+            data: z.array(
+              z.object({
                 id: z.number(),
-                name: z.string().nullable(),
-                orcid: z.string().nullable(),
+                userId: z.number(),
+                journalId: z.number(),
+                role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+                invitedAt: z.string(),
+                acceptedAt: z.string().nullable(),
+                expertise: z.array(z.string()).nullable(),
+                maxWorkload: z.number().nullable(),
+                currentWorkload: z.number(),
+                available: z.boolean(),
+                user: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
               }),
-            }),
-          ),
+            ),
+          }),
         },
       },
     },
@@ -420,7 +570,10 @@ export const listJournalEditorsOperation: ZodOpenApiOperationObject = {
       description: 'Not authorized to view journal editors',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -428,7 +581,10 @@ export const listJournalEditorsOperation: ZodOpenApiOperationObject = {
       description: 'Journal not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -436,7 +592,10 @@ export const listJournalEditorsOperation: ZodOpenApiOperationObject = {
       description: 'Internal server error',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -460,28 +619,31 @@ export const viewJournalEditorsOperation: ZodOpenApiOperationObject = {
       description: 'Journal editors retrieved successfully',
       content: {
         'application/json': {
-          schema: z.array(
-            z.object({
-              id: z.number(),
-              userId: z.number(),
-              journalId: z.number(),
-              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
-              invitedAt: z.string(),
-              acceptedAt: z.string().nullable(),
-              expertise: z.array(z.string()).nullable(),
-              user: z.object({
+          schema: z.object({
+            ok: z.literal(true),
+            data: z.array(
+              z.object({
                 id: z.number(),
-                name: z.string().nullable(),
-                orcid: z.string().nullable(),
-                organizations: z.array(
-                  z.object({
-                    id: z.number(),
-                    name: z.string(),
-                  }),
-                ),
+                userId: z.number(),
+                journalId: z.number(),
+                role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+                invitedAt: z.string(),
+                acceptedAt: z.string().nullable(),
+                expertise: z.array(z.string()).nullable(),
+                user: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                  organizations: z.array(
+                    z.object({
+                      id: z.number(),
+                      name: z.string(),
+                    }),
+                  ),
+                }),
               }),
-            }),
-          ),
+            ),
+          }),
         },
       },
     },
@@ -489,7 +651,10 @@ export const viewJournalEditorsOperation: ZodOpenApiOperationObject = {
       description: 'Journal not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -497,7 +662,10 @@ export const viewJournalEditorsOperation: ZodOpenApiOperationObject = {
       description: 'Internal server error',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -515,7 +683,23 @@ export const removeEditorOperation: ZodOpenApiOperationObject = {
       description: 'Editor removed successfully',
       content: {
         'application/json': {
-          schema: z.object({ message: z.string() }),
+          schema: z.object({
+            ok: z.literal(true),
+            data: z.object({ message: z.string() }),
+            message: z.string().optional(),
+          }),
+        },
+      },
+    },
+    '400': {
+      description: 'Validation failed',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+            errors: z.any().optional(),
+          }),
         },
       },
     },
@@ -523,7 +707,10 @@ export const removeEditorOperation: ZodOpenApiOperationObject = {
       description: 'Editor not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -531,7 +718,21 @@ export const removeEditorOperation: ZodOpenApiOperationObject = {
       description: 'Cannot remove yourself as CHIEF_EDITOR',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -557,7 +758,11 @@ export const updateEditorRoleOperation: ZodOpenApiOperationObject = {
       description: 'Editor role updated successfully',
       content: {
         'application/json': {
-          schema: z.object({ message: z.string() }),
+          schema: z.object({
+            ok: z.literal(true),
+            data: z.object({ message: z.string() }),
+            message: z.string().optional(),
+          }),
         },
       },
     },
@@ -565,7 +770,10 @@ export const updateEditorRoleOperation: ZodOpenApiOperationObject = {
       description: 'Editor not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -573,7 +781,21 @@ export const updateEditorRoleOperation: ZodOpenApiOperationObject = {
       description: 'Cannot demote yourself',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -600,13 +822,17 @@ export const updateEditorOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            editor: z.object({
-              id: z.number(),
-              userId: z.number(),
-              role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
-              expertise: z.array(z.string()).nullable(),
-              maxWorkload: z.number().nullable(),
+            ok: z.literal(true),
+            data: z.object({
+              editor: z.object({
+                id: z.number(),
+                userId: z.number(),
+                role: z.enum(['CHIEF_EDITOR', 'ASSOCIATE_EDITOR']),
+                expertise: z.array(z.string()).nullable(),
+                maxWorkload: z.number().nullable(),
+              }),
             }),
+            message: z.string().optional(),
           }),
         },
       },
@@ -615,7 +841,10 @@ export const updateEditorOperation: ZodOpenApiOperationObject = {
       description: 'Editor not found in this journal',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -623,7 +852,10 @@ export const updateEditorOperation: ZodOpenApiOperationObject = {
       description: 'Internal server error',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -649,7 +881,10 @@ export const createJournalSubmissionOperation: ZodOpenApiOperationObject = {
       description: 'Submission created successfully',
       content: {
         'application/json': {
-          schema: z.object({ submissionId: z.number() }),
+          schema: z.object({
+            ok: z.literal(true),
+            data: z.object({ submissionId: z.number() }),
+          }),
         },
       },
     },
@@ -657,7 +892,10 @@ export const createJournalSubmissionOperation: ZodOpenApiOperationObject = {
       description: 'Node or version not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -665,7 +903,10 @@ export const createJournalSubmissionOperation: ZodOpenApiOperationObject = {
       description: 'Failed to create submission',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -703,56 +944,58 @@ export const listJournalSubmissionsOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            ok: z.boolean(),
-            data: z.array(
-              z.object({
-                id: z.number(),
-                assignedEditorId: z.number().nullable(),
-                dpid: z.number(),
-                version: z.number(),
-                status: z.string(),
-                submittedAt: z.string().nullable(),
-                acceptedAt: z.string().nullable(),
-                rejectedAt: z.string().nullable(),
-                revisionRequestedAt: z.string().nullable(),
-                doi: z.string().nullable(),
-                title: z.string().describe('Title of the research object'),
-                publishedAt: z.string().nullable().describe('Date when the research object was published'),
-                author: z
-                  .object({
-                    id: z.number(),
-                    name: z.string().nullable(),
-                    orcid: z.string().nullable(),
-                  })
-                  .nullable(),
-                assignedEditor: z.string().nullable().describe('Name of the assigned editor'),
-                reviews: z
-                  .array(
-                    z.object({
-                      completed: z.boolean(),
-                      completedAt: z.string().nullable(),
-                      referee: z.string().nullable().describe('Name of the referee'),
-                      dueDate: z.string().nullable(),
-                    }),
-                  )
-                  .describe('Array of completed reviews for this submission'),
-                refereeInvites: z
-                  .array(
-                    z.object({
-                      id: z.number().describe('Unique identifier for the referee invitation'),
-                      name: z.string().nullable().describe('Name of the invited referee'),
-                      accepted: z.boolean().describe('Whether the invitation has been accepted'),
-                      acceptedAt: z.string().nullable().describe('Date when the invitation was accepted'),
-                      declined: z.boolean().describe('Whether the invitation has been declined'),
-                      declinedAt: z.string().nullable().describe('Date when the invitation was declined'),
-                      expiresAt: z.string().describe('Date when the invitation expires'),
-                      invitedAt: z.string().describe('Date when the invitation was sent'),
-                    }),
-                  )
-                  .describe('Array of expired referee invitations for this submission'),
-              }),
-            ),
-            meta: z.object({ count: z.number(), limit: z.number(), offset: z.number() }),
+            ok: z.literal(true),
+            data: z.object({
+              data: z.array(
+                z.object({
+                  id: z.number(),
+                  assignedEditorId: z.number().nullable(),
+                  dpid: z.number(),
+                  version: z.number(),
+                  status: z.string(),
+                  submittedAt: z.string().nullable(),
+                  acceptedAt: z.string().nullable(),
+                  rejectedAt: z.string().nullable(),
+                  revisionRequestedAt: z.string().nullable(),
+                  doi: z.string().nullable(),
+                  title: z.string().describe('Title of the research object'),
+                  publishedAt: z.string().nullable().describe('Date when the research object was published'),
+                  author: z
+                    .object({
+                      id: z.number(),
+                      name: z.string().nullable(),
+                      orcid: z.string().nullable(),
+                    })
+                    .nullable(),
+                  assignedEditor: z.string().nullable().describe('Name of the assigned editor'),
+                  reviews: z
+                    .array(
+                      z.object({
+                        completed: z.boolean(),
+                        completedAt: z.string().nullable(),
+                        referee: z.string().nullable().describe('Name of the referee'),
+                        dueDate: z.string().nullable(),
+                      }),
+                    )
+                    .describe('Array of completed reviews for this submission'),
+                  refereeInvites: z
+                    .array(
+                      z.object({
+                        id: z.number().describe('Unique identifier for the referee invitation'),
+                        name: z.string().nullable().describe('Name of the invited referee'),
+                        accepted: z.boolean().describe('Whether the invitation has been accepted'),
+                        acceptedAt: z.string().nullable().describe('Date when the invitation was accepted'),
+                        declined: z.boolean().describe('Whether the invitation has been declined'),
+                        declinedAt: z.string().nullable().describe('Date when the invitation was declined'),
+                        expiresAt: z.string().describe('Date when the invitation expires'),
+                        invitedAt: z.string().describe('Date when the invitation was sent'),
+                      }),
+                    )
+                    .describe('Array of active referee invitations for this submission (only visible to editors)'),
+                }),
+              ),
+              meta: z.object({ count: z.number(), limit: z.number(), offset: z.number() }),
+            }),
           }),
         },
       },
@@ -832,12 +1075,17 @@ export const getJournalSubmissionsByStatusCountOperation: ZodOpenApiOperationObj
       content: {
         'application/json': {
           schema: z.object({
-            new: z.number().describe('Count of new submissions (submitted but not assigned)'),
-            assigned: z.number().describe('Count of assigned submissions (submitted and assigned to an editor)'),
-            inReview: z.number().describe('Count of submissions currently under review'),
-            underRevision: z.number().describe('Count of submissions with revision requested'),
-            reviewed: z.number().describe('Count of reviewed submissions (accepted or rejected)'),
-            published: z.number().optional().describe('Count of published/accepted submissions'),
+            ok: z.literal(true),
+            data: z.object({
+              new: z.number().describe('Count of new submissions (submitted but not assigned)'),
+              assigned: z.number().describe('Count of assigned submissions (submitted and assigned to an editor)'),
+              inReview: z.number().describe('Count of submissions currently under review'),
+              underRevision: z.number().describe('Count of submissions with revision requested'),
+              awaitingDecision: z.number().optional().describe('Count of submissions awaiting decision'),
+              reviewed: z.number().optional().describe('Count of reviewed submissions (accepted or rejected)'),
+              rejected: z.number().optional().describe('Count of rejected submissions'),
+              published: z.number().optional().describe('Count of published/accepted submissions'),
+            }),
           }),
         },
       },
@@ -846,7 +1094,10 @@ export const getJournalSubmissionsByStatusCountOperation: ZodOpenApiOperationObj
       description: 'Failed to retrieve submission counts',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -869,29 +1120,32 @@ export const getAuthorJournalSubmissionsOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            data: z.array(
-              z.object({
-                journal: z.object({
-                  id: z.number(),
-                  name: z.string(),
-                }),
-                dpid: z.number(),
-                version: z.number(),
-                status: z.string(),
-                id: z.number(),
-                authorId: z.number(),
-                assignedEditorId: z.number().nullable(),
-                assignedEditor: z
-                  .object({
+            ok: z.literal(true),
+            data: z.object({
+              data: z.array(
+                z.object({
+                  journal: z.object({
                     id: z.number(),
-                    name: z.string().nullable(),
-                    email: z.string().nullable(),
-                    orcid: z.string().nullable(),
-                  })
-                  .nullable(),
-              }),
-            ),
-            meta: z.object({ count: z.number(), limit: z.number(), offset: z.number() }),
+                    name: z.string(),
+                  }),
+                  dpid: z.number(),
+                  version: z.number(),
+                  status: z.string(),
+                  id: z.number(),
+                  authorId: z.number(),
+                  assignedEditorId: z.number().nullable(),
+                  assignedEditor: z
+                    .object({
+                      id: z.number(),
+                      name: z.string().nullable(),
+                      email: z.string().nullable(),
+                      orcid: z.string().nullable(),
+                    })
+                    .nullable(),
+                }),
+              ),
+              meta: z.object({ count: z.number(), limit: z.number(), offset: z.number() }),
+            }),
           }),
         },
       },
@@ -900,7 +1154,21 @@ export const getAuthorJournalSubmissionsOperation: ZodOpenApiOperationObject = {
       description: 'Failed to retrieve submissions',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -927,7 +1195,10 @@ export const assignSubmissionToEditorOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            submission: z.object({ id: z.number(), assignedEditorId: z.number(), status: z.string() }),
+            ok: z.literal(true),
+            data: z.object({
+              submission: z.object({ id: z.number(), assignedEditorId: z.number(), status: z.string() }),
+            }),
           }),
         },
       },
@@ -936,7 +1207,10 @@ export const assignSubmissionToEditorOperation: ZodOpenApiOperationObject = {
       description: 'Editor or submission not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -944,7 +1218,10 @@ export const assignSubmissionToEditorOperation: ZodOpenApiOperationObject = {
       description: 'Only chief editor can assign submissions',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -952,7 +1229,10 @@ export const assignSubmissionToEditorOperation: ZodOpenApiOperationObject = {
       description: 'Failed to assign submission',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -1517,7 +1797,7 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            ok: z.boolean(),
+            ok: z.literal(true),
             data: z.object({
               id: z.number(),
               journalId: z.number(),
@@ -1551,6 +1831,7 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
                 title: z.string(),
                 uuid: z.string(),
                 doi: z.string().nullable(),
+                manifestCid: z.string().optional(),
                 manifest: z.object({
                   version: z.string(),
                   title: z.string(),
@@ -1629,7 +1910,10 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
       description: 'Forbidden - User is not authorized to view this submission',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -1637,7 +1921,10 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
       description: 'Submission not found, or published tree not found when includeTree=true',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -1645,7 +1932,10 @@ export const getJournalSubmissionOperation: ZodOpenApiOperationObject = {
       description: 'Failed to get submission details or retrieve tree data',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -1854,19 +2144,22 @@ export const showJournalProfileOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            profiles: z.array(
-              z.object({
-                role: z.string(),
-                journalId: z.number(),
-                journal: z.object({
-                  id: z.number(),
-                  name: z.string(),
-                  description: z.string().nullable(),
-                  iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
-                  imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
+            ok: z.literal(true),
+            data: z.object({
+              profiles: z.array(
+                z.object({
+                  role: z.string(),
+                  journalId: z.number(),
+                  journal: z.object({
+                    id: z.number(),
+                    name: z.string(),
+                    description: z.string().nullable(),
+                    iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
+                    imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
+                  }),
                 }),
-              }),
-            ),
+              ),
+            }),
           }),
         },
       },
@@ -1875,7 +2168,10 @@ export const showJournalProfileOperation: ZodOpenApiOperationObject = {
       description: 'Internal server error',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -3048,61 +3344,67 @@ export const listFeaturedPublicationsOperation: ZodOpenApiOperationObject = {
       content: {
         'application/json': {
           schema: z.object({
-            data: z
-              .array(
-                z.object({
-                  id: z.number().describe('Submission ID'),
-                  dpid: z.number().describe('DPID of the published research object'),
-                  version: z.number().describe('Version of the published research object'),
-                  doi: z.string().nullable().describe('DOI of the published research object'),
-                  submittedAt: z.string().describe('Date when the submission was made'),
-                  researchObject: z
-                    .object({
-                      uuid: z.string().describe('UUID of the research object'),
-                      doi: z.string().describe('DOI of the research object'),
-                      manifest: z
-                        .object({
-                          version: z.string().describe('Manifest version'),
-                          title: z.string().describe('Title of the research object'),
-                          authors: z
-                            .array(
-                              z.object({
-                                name: z.string().describe('Author name'),
-                                role: z.string().describe('Author role'),
-                                orcid: z.string().nullable().describe('Author ORCID'),
-                              }),
-                            )
-                            .describe('List of authors'),
-                          description: z.string().describe('Description/abstract of the research object'),
-                          components: z.array(z.any()).describe('Research object components'),
-                        })
-                        .describe('Research object manifest'),
-                      publishedAt: z.string().describe('Date when the research object was published'),
-                    })
-                    .describe('Research object details'),
-                  journal: z
-                    .object({
-                      id: z.number().describe('Journal ID'),
-                      name: z.string().describe('Journal name'),
-                    })
-                    .describe('Journal information'),
-                  author: z
-                    .object({
-                      name: z.string().describe('Author name'),
-                      id: z.number().describe('Author ID'),
-                      orcid: z.string().describe('Author ORCID'),
-                    })
-                    .describe('Author information'),
-                }),
-              )
-              .describe('Array of featured publications'),
-            meta: z
-              .object({
-                count: z.number().describe('Total number of publications returned'),
-                limit: z.number().describe('Number of publications requested'),
-                offset: z.number().describe('Number of publications skipped'),
-              })
-              .describe('Pagination metadata'),
+            ok: z.literal(true),
+            data: z.object({
+              data: z
+                .array(
+                  z.object({
+                    id: z.number().describe('Submission ID'),
+                    dpid: z.number().describe('DPID of the published research object'),
+                    version: z.number().describe('Version of the published research object'),
+                    doi: z.string().nullable().describe('DOI of the published research object'),
+                    submittedAt: z.string().describe('Date when the submission was made'),
+                    researchObject: z
+                      .object({
+                        uuid: z.string().describe('UUID of the research object'),
+                        doi: z.string().nullable().describe('DOI of the research object'),
+                        manifest: z
+                          .object({
+                            version: z.string().describe('Manifest version'),
+                            title: z.string().describe('Title of the research object'),
+                            authors: z
+                              .array(
+                                z.object({
+                                  name: z.string().describe('Author name'),
+                                  role: z.string().describe('Author role'),
+                                  orcid: z.string().nullable().describe('Author ORCID'),
+                                }),
+                              )
+                              .describe('List of authors'),
+                            description: z.string().describe('Description/abstract of the research object'),
+                            components: z.array(z.any()).describe('Research object components'),
+                          })
+                          .describe('Research object manifest'),
+                        publishedAt: z.string().nullable().describe('Date when the research object was published'),
+                      })
+                      .describe('Research object details'),
+                    journal: z
+                      .object({
+                        id: z.number().describe('Journal ID'),
+                        name: z.string().describe('Journal name'),
+                      })
+                      .describe('Journal information'),
+                    author: z
+                      .object({
+                        name: z.string().nullable().describe('Author name'),
+                        id: z.number().describe('Author ID'),
+                        orcid: z.string().nullable().describe('Author ORCID'),
+                      })
+                      .describe('Author information'),
+                  }),
+                )
+                .describe('Array of featured publications'),
+              meta: z
+                .object({
+                  count: z.number().describe('Total number of publications returned in this page'),
+                  totalCount: z.number().describe('Total number of publications matching the filter'),
+                  totalPages: z.number().describe('Total number of pages'),
+                  currentPage: z.number().describe('Current page number'),
+                  limit: z.number().describe('Number of publications requested'),
+                  offset: z.number().describe('Number of publications skipped'),
+                })
+                .describe('Pagination metadata'),
+            }),
           }),
         },
       },
@@ -3111,7 +3413,10 @@ export const listFeaturedPublicationsOperation: ZodOpenApiOperationObject = {
       description: 'Internal server error',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -3132,61 +3437,67 @@ export const listFeaturedJournalPublicationsOperation: ZodOpenApiOperationObject
       content: {
         'application/json': {
           schema: z.object({
-            data: z
-              .array(
-                z.object({
-                  id: z.number().describe('Submission ID'),
-                  dpid: z.number().describe('DPID of the published research object'),
-                  version: z.number().describe('Version of the published research object'),
-                  doi: z.string().nullable().describe('DOI of the published research object'),
-                  submittedAt: z.string().describe('Date when the submission was made'),
-                  researchObject: z
-                    .object({
-                      uuid: z.string().describe('UUID of the research object'),
-                      doi: z.string().describe('DOI of the research object'),
-                      manifest: z
-                        .object({
-                          version: z.string().describe('Manifest version'),
-                          title: z.string().describe('Title of the research object'),
-                          authors: z
-                            .array(
-                              z.object({
-                                name: z.string().describe('Author name'),
-                                role: z.string().describe('Author role'),
-                                orcid: z.string().nullable().describe('Author ORCID'),
-                              }),
-                            )
-                            .describe('List of authors'),
-                          description: z.string().describe('Description/abstract of the research object'),
-                          components: z.array(z.any()).describe('Research object components'),
-                        })
-                        .describe('Research object manifest'),
-                      publishedAt: z.string().describe('Date when the research object was published'),
-                    })
-                    .describe('Research object details'),
-                  journal: z
-                    .object({
-                      id: z.number().describe('Journal ID'),
-                      name: z.string().describe('Journal name'),
-                    })
-                    .describe('Journal information'),
-                  author: z
-                    .object({
-                      name: z.string().describe('Author name'),
-                      id: z.number().describe('Author ID'),
-                      orcid: z.string().describe('Author ORCID'),
-                    })
-                    .describe('Author information'),
-                }),
-              )
-              .describe('Array of featured publications'),
-            meta: z
-              .object({
-                count: z.number().describe('Total number of publications returned'),
-                limit: z.number().describe('Number of publications requested'),
-                offset: z.number().describe('Number of publications skipped'),
-              })
-              .describe('Pagination metadata'),
+            ok: z.literal(true),
+            data: z.object({
+              data: z
+                .array(
+                  z.object({
+                    id: z.number().describe('Submission ID'),
+                    dpid: z.number().describe('DPID of the published research object'),
+                    version: z.number().describe('Version of the published research object'),
+                    doi: z.string().nullable().describe('DOI of the published research object'),
+                    submittedAt: z.string().nullable().describe('Date when the submission was made'),
+                    researchObject: z
+                      .object({
+                        uuid: z.string().describe('UUID of the research object'),
+                        doi: z.string().nullable().describe('DOI of the research object'),
+                        manifest: z
+                          .object({
+                            version: z.string().describe('Manifest version'),
+                            title: z.string().describe('Title of the research object'),
+                            authors: z
+                              .array(
+                                z.object({
+                                  name: z.string().describe('Author name'),
+                                  role: z.string().describe('Author role'),
+                                  orcid: z.string().nullable().describe('Author ORCID'),
+                                }),
+                              )
+                              .describe('List of authors'),
+                            description: z.string().describe('Description/abstract of the research object'),
+                            components: z.array(z.any()).describe('Research object components'),
+                          })
+                          .describe('Research object manifest'),
+                        publishedAt: z.string().nullable().describe('Date when the research object was published'),
+                      })
+                      .describe('Research object details'),
+                    journal: z
+                      .object({
+                        id: z.number().describe('Journal ID'),
+                        name: z.string().describe('Journal name'),
+                      })
+                      .describe('Journal information'),
+                    author: z
+                      .object({
+                        name: z.string().nullable().describe('Author name'),
+                        id: z.number().describe('Author ID'),
+                        orcid: z.string().nullable().describe('Author ORCID'),
+                      })
+                      .describe('Author information'),
+                  }),
+                )
+                .describe('Array of featured publications'),
+              meta: z
+                .object({
+                  count: z.number().describe('Total number of publications returned in this page'),
+                  totalCount: z.number().describe('Total number of publications matching the filter'),
+                  totalPages: z.number().describe('Total number of pages'),
+                  currentPage: z.number().describe('Current page number'),
+                  limit: z.number().describe('Number of publications requested'),
+                  offset: z.number().describe('Number of publications skipped'),
+                })
+                .describe('Pagination metadata'),
+            }),
           }),
         },
       },
@@ -3195,7 +3506,10 @@ export const listFeaturedJournalPublicationsOperation: ZodOpenApiOperationObject
       description: 'Journal not found',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
@@ -3203,7 +3517,10 @@ export const listFeaturedJournalPublicationsOperation: ZodOpenApiOperationObject
       description: 'Internal server error',
       content: {
         'application/json': {
-          schema: z.object({ error: z.string() }),
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
         },
       },
     },
