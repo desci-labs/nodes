@@ -188,7 +188,7 @@ describe('Research Assistant Metering', () => {
         const status = result._unsafeUnwrap();
         // Note: Research Assistant doesn't reset periods (see FeatureLimitsService line 171-172)
         // So old usage may still count, but daily credit adds to limit
-        expect(status.currentUsage).toBeGreaterThanOrEqual(1); // At least current usage counts
+        expect(status.currentUsage).toEqual(2); // 2 usages: current query and old query
         expect(status.isWithinLimit).toBe(true);
 
         // Verify the limit exists
@@ -886,7 +886,7 @@ describe('Research Assistant Metering', () => {
     });
   });
 
-  describe('Period Rollover Integration Test', () => {
+  describe('Free trial Integration Test', () => {
     it('should handle usage counting correctly (Research Assistant does not reset periods)', async () => {
       // Research Assistant uses WEEK period and doesn't reset periods (see FeatureLimitsService line 171-172)
       // Create a feature limit that started 2 weeks ago
@@ -939,10 +939,11 @@ describe('Research Assistant Metering', () => {
       const statusResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
       expect(statusResult.isOk()).toBe(true);
       const status = statusResult._unsafeUnwrap();
+      console.log('[FeatureLimitsService]::handle usage', status);
 
       // Should count all usage since period start (Research Assistant doesn't reset periods)
       // Daily credit adds +1 to limit
-      expect(status.currentUsage).toBeGreaterThanOrEqual(2); // At least current usage
+      expect(status.currentUsage).toEqual(4); // 4 usages: current query and old query
       expect(status.isWithinLimit).toBe(true);
 
       // Verify the limit exists
@@ -957,7 +958,136 @@ describe('Research Assistant Metering', () => {
         .set('authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.totalUsed).toBeGreaterThanOrEqual(2);
+      expect(res.body.data.totalUsed).toEqual(4);
+      expect(res.body.data.isWithinLimit).toBe(true);
+
+      // Should still be able to consume more usage
+      const consumeResult = await FeatureUsageService.consumeUsage({
+        userId: user.id,
+        feature: Feature.RESEARCH_ASSISTANT,
+        data: { query: 'new query after check' },
+      });
+      expect(consumeResult.isOk()).toBe(true);
+    });
+
+    it('should handle daily credit drip after free trial ends and free credit is used up', async () => {
+      // Research Assistant uses WEEK period and doesn't reset periods (see FeatureLimitsService line 171-172)
+      // Create a feature limit that started 2 weeks ago
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+      await prisma.userFeatureLimit.create({
+        data: {
+          userId: user.id,
+          feature: Feature.RESEARCH_ASSISTANT,
+          planCodename: PlanCodename.FREE,
+          period: Period.WEEK,
+          useLimit: SCIWEAVE_FREE_LIMIT,
+          currentPeriodStart: twoWeeksAgo,
+          isActive: true,
+          updatedAt: twoWeeksAgo,
+        },
+      });
+
+      // Create usage from various periods
+      await prisma.externalApiUsage.createMany({
+        data: Array.from({ length: SCIWEAVE_FREE_LIMIT }, (_, i) => ({
+          userId: user.id,
+          apiType: ExternalApi.RESEARCH_ASSISTANT,
+          data: { query: `query ${i + 1}` },
+          createdAt: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000),
+          updatedAt: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000),
+        })),
+      });
+
+      // Check status - daily credit will be added
+      const statusResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
+      expect(statusResult.isOk()).toBe(true);
+      const status = statusResult._unsafeUnwrap();
+      console.log('[FeatureLimitsService] Drip', status);
+      // Should count all usage since period start (Research Assistant doesn't reset periods)
+      // Daily credit adds +1 to limit
+      expect(status.currentUsage).toEqual(SCIWEAVE_FREE_LIMIT); // 4 usages: current query and old query
+      expect(status.isWithinLimit).toBe(true);
+      expect(status.useLimit).toEqual(SCIWEAVE_FREE_LIMIT + 1);
+
+      // Verify the limit exists
+      const updatedLimit = await prisma.userFeatureLimit.findFirst({
+        where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
+      });
+      expect(updatedLimit).not.toBeNull();
+
+      // Test API endpoint same day shows consistent data with daily credit added
+      const res = await request(app)
+        .get('/v1/services/ai/research-assistant/usage')
+        .set('authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.totalUsed).toEqual(SCIWEAVE_FREE_LIMIT);
+      expect(res.body.data.isWithinLimit).toBe(true);
+
+      // Should still be able to consume more usage
+      const consumeResult = await FeatureUsageService.consumeUsage({
+        userId: user.id,
+        feature: Feature.RESEARCH_ASSISTANT,
+        data: { query: 'new query after check' },
+      });
+      expect(consumeResult.isOk()).toBe(true);
+    });
+
+    it('should handle daily credit drip before trial ends and free credit is used up', async () => {
+      // Research Assistant uses WEEK period and doesn't reset periods (see FeatureLimitsService line 171-172)
+      // Create a feature limit that started 2 weeks ago
+      const USED_CREDITS = 2;
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      await prisma.userFeatureLimit.create({
+        data: {
+          userId: user.id,
+          feature: Feature.RESEARCH_ASSISTANT,
+          planCodename: PlanCodename.FREE,
+          period: Period.WEEK,
+          useLimit: SCIWEAVE_FREE_LIMIT,
+          currentPeriodStart: twoDaysAgo,
+          isActive: true,
+          updatedAt: twoDaysAgo,
+        },
+      });
+
+      // Create usage from various periods
+      await prisma.externalApiUsage.createMany({
+        data: Array.from({ length: SCIWEAVE_FREE_LIMIT }, (_, i) => ({
+          userId: user.id,
+          apiType: ExternalApi.RESEARCH_ASSISTANT,
+          data: { query: `query ${i + 1}` },
+          createdAt: twoDaysAgo,
+          updatedAt: twoDaysAgo,
+        })),
+      });
+
+      // Check status - daily credit will be added
+      const statusResult = await FeatureLimitsService.checkFeatureLimit(user.id, Feature.RESEARCH_ASSISTANT);
+      expect(statusResult.isOk()).toBe(true);
+      const status = statusResult._unsafeUnwrap();
+      console.log('[FeatureLimitsService] Drip', status);
+      // Should count all usage since period start (Research Assistant doesn't reset periods)
+      // Daily credit adds +1 to limit
+      expect(status.currentUsage).toEqual(SCIWEAVE_FREE_LIMIT); // 4 usages: current query and old query
+      expect(status.isWithinLimit).toBe(true);
+      expect(status.useLimit).toEqual(SCIWEAVE_FREE_LIMIT + 1);
+
+      // Verify the limit exists
+      const updatedLimit = await prisma.userFeatureLimit.findFirst({
+        where: { userId: user.id, feature: Feature.RESEARCH_ASSISTANT, isActive: true },
+      });
+      expect(updatedLimit).not.toBeNull();
+
+      // Test API endpoint same day shows consistent data with daily credit added
+      const res = await request(app)
+        .get('/v1/services/ai/research-assistant/usage')
+        .set('authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.totalUsed).toEqual(SCIWEAVE_FREE_LIMIT);
       expect(res.body.data.isWithinLimit).toBe(true);
 
       // Should still be able to consume more usage
