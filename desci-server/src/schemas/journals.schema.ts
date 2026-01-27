@@ -789,6 +789,16 @@ export const updateJournalSettingsSchema = z.object({
               value: z.number().int().min(1).max(10).optional().describe('Number of referees per submission'),
             })
             .optional(),
+          defaultDataLicense: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Default data license for journal submissions (e.g., CC-BY-4.0, CC0-1.0)'),
+          defaultCodeLicense: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Default code license for journal submissions (e.g., MIT, Apache-2.0, GPL-3.0)'),
         })
         .optional(),
     })

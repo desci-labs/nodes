@@ -73,7 +73,34 @@ export const listJournalsOperation: ZodOpenApiOperationObject = {
                   iconCid: z.string().nullable().describe('Deprecated: Use imageUrl instead'),
                   imageUrl: z.string().nullable().describe('URL to the journal icon/logo'),
                   createdAt: z.string(),
+                  aboutArticle: z.string().nullable(),
+                  editorialBoardArticle: z.string().nullable(),
+                  authorInstruction: z.string().nullable(),
+                  refereeInstruction: z.string().nullable(),
                   publicationCount: z.number().describe('Number of accepted publications in this journal'),
+                  settings: z.object({
+                    reviewDueHours: z.object({
+                      min: z.number().describe('Minimum review due hours'),
+                      max: z.number().describe('Maximum review due hours'),
+                      default: z.number().describe('Default review due hours'),
+                    }),
+                    refereeInviteExpiryHours: z.object({
+                      min: z.number().describe('Minimum referee invite expiry hours'),
+                      max: z.number().describe('Maximum referee invite expiry hours'),
+                      default: z.number().describe('Default referee invite expiry hours'),
+                    }),
+                    refereeCount: z.object({
+                      value: z.number().describe('Number of referees per submission'),
+                    }),
+                    defaultDataLicense: z
+                      .string()
+                      .nullable()
+                      .describe('Default data license for journal submissions (e.g., CC-BY-4.0, CC0-1.0)'),
+                    defaultCodeLicense: z
+                      .string()
+                      .nullable()
+                      .describe('Default code license for journal submissions (e.g., MIT, Apache-2.0, GPL-3.0)'),
+                  }),
                 }),
               ),
             }),
@@ -121,6 +148,29 @@ export const showJournalOperation: ZodOpenApiOperationObject = {
                 editorialBoardArticle: z.string().nullable(),
                 authorInstruction: z.string().nullable(),
                 refereeInstruction: z.string().nullable(),
+                settings: z.object({
+                  reviewDueHours: z.object({
+                    min: z.number().describe('Minimum review due hours'),
+                    max: z.number().describe('Maximum review due hours'),
+                    default: z.number().describe('Default review due hours'),
+                  }),
+                  refereeInviteExpiryHours: z.object({
+                    min: z.number().describe('Minimum referee invite expiry hours'),
+                    max: z.number().describe('Maximum referee invite expiry hours'),
+                    default: z.number().describe('Default referee invite expiry hours'),
+                  }),
+                  refereeCount: z.object({
+                    value: z.number().describe('Number of referees per submission'),
+                  }),
+                  defaultDataLicense: z
+                    .string()
+                    .nullable()
+                    .describe('Default data license for journal submissions (e.g., CC-BY-4.0, CC0-1.0)'),
+                  defaultCodeLicense: z
+                    .string()
+                    .nullable()
+                    .describe('Default code license for journal submissions (e.g., MIT, Apache-2.0, GPL-3.0)'),
+                }),
                 editors: z.array(
                   z.object({
                     id: z.number(),
@@ -3558,6 +3608,14 @@ export const getJournalSettingsOperation: ZodOpenApiOperationObject = {
               refereeCount: z.object({
                 value: z.number().describe('Number of referees per submission'),
               }),
+              defaultDataLicense: z
+                .string()
+                .nullable()
+                .describe('Default data license for journal submissions (e.g., CC-BY-4.0, CC0-1.0)'),
+              defaultCodeLicense: z
+                .string()
+                .nullable()
+                .describe('Default code license for journal submissions (e.g., MIT, Apache-2.0, GPL-3.0)'),
             }),
           }),
         },
@@ -3621,6 +3679,14 @@ export const updateJournalSettingsOperation: ZodOpenApiOperationObject = {
               refereeCount: z.object({
                 value: z.number().describe('Number of referees per submission'),
               }),
+              defaultDataLicense: z
+                .string()
+                .nullable()
+                .describe('Default data license for journal submissions (e.g., CC-BY-4.0, CC0-1.0)'),
+              defaultCodeLicense: z
+                .string()
+                .nullable()
+                .describe('Default code license for journal submissions (e.g., MIT, Apache-2.0, GPL-3.0)'),
             }),
           }),
         },

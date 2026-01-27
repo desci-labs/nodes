@@ -47,7 +47,7 @@
     "lint-staged-husky": "lint-staged",
     "lint-prettier": "prettier --config .prettierrc --list-different '{src,test}/**/*.{ts,js,css,scss}'",
     "prettier": "prettier --config .prettierrc --write './**/*.{ts,js,css,scss,json,md}'",
-    "test": "vitest --run --config vitest.config.ts",
+    "test": "vitest --run --config vitest.config.ts -t 'Journal Settings'",
     "test:debug": "vitest --run --config vitest.config.ts --inspect-brk",
     "db:forward": "kubectl run --env REMOTE_HOST=$REMOTE_HOST --env REMOTE_PORT=5432 --env LOCAL_PORT=8080 --port 8080 --image marcnuri/port-forward test-port-forward ;  kubectl port-forward test-port-forward 8080:8080",
     "docker:dev": "../dockerDev.sh",
