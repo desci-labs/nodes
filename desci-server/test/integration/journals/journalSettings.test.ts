@@ -93,6 +93,8 @@ describe('Journal Settings', () => {
         expect(settings.reviewDueHours).toEqual(customSettings.reviewDueHours);
         expect(settings.refereeInviteExpiryHours).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours);
         expect(settings.refereeCount).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeCount);
+        expect(settings.defaultDataLicense).toBeNull();
+        expect(settings.defaultCodeLicense).toBeNull();
       });
 
       it('should handle partial custom settings', () => {
@@ -112,6 +114,35 @@ describe('Journal Settings', () => {
         expect(settings.reviewDueHours.max).toBe(DEFAULT_JOURNAL_SETTINGS.reviewDueHours.max);
         expect(settings.reviewDueHours.default).toBe(DEFAULT_JOURNAL_SETTINGS.reviewDueHours.default);
         expect(settings.refereeCount.value).toBe(3);
+        expect(settings.defaultDataLicense).toBeNull();
+        expect(settings.defaultCodeLicense).toBeNull();
+      });
+
+      it('should handle custom license settings', () => {
+        const customSettings = {
+          defaultDataLicense: 'CC-BY-4.0',
+          defaultCodeLicense: 'MIT',
+        };
+
+        const settings = getJournalSettingsWithDefaults(customSettings);
+
+        expect(settings.defaultDataLicense).toBe('CC-BY-4.0');
+        expect(settings.defaultCodeLicense).toBe('MIT');
+        expect(settings.reviewDueHours).toEqual(DEFAULT_JOURNAL_SETTINGS.reviewDueHours);
+        expect(settings.refereeInviteExpiryHours).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours);
+        expect(settings.refereeCount).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeCount);
+      });
+
+      it('should handle null license settings', () => {
+        const customSettings = {
+          defaultDataLicense: null,
+          defaultCodeLicense: null,
+        };
+
+        const settings = getJournalSettingsWithDefaults(customSettings);
+
+        expect(settings.defaultDataLicense).toBeNull();
+        expect(settings.defaultCodeLicense).toBeNull();
       });
     });
 
@@ -169,6 +200,8 @@ describe('Journal Settings', () => {
             expect(settings.reviewDueHours).toEqual(customSettings.reviewDueHours);
             expect(settings.refereeInviteExpiryHours).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours);
             expect(settings.refereeCount).toEqual(customSettings.refereeCount);
+            expect(settings.defaultDataLicense).toBeNull();
+            expect(settings.defaultCodeLicense).toBeNull();
           },
           (error) => {
             throw error;
@@ -230,6 +263,8 @@ describe('Journal Settings', () => {
           refereeCount: {
             value: 3,
           },
+          defaultDataLicense: 'CC-BY-4.0',
+          defaultCodeLicense: 'MIT',
         };
 
         // Update journal with custom settings
@@ -269,6 +304,8 @@ describe('Journal Settings', () => {
             refereeCount: {
               value: 3,
             },
+            defaultDataLicense: 'CC-BY-4.0',
+            defaultCodeLicense: 'MIT',
           },
         };
 
@@ -286,7 +323,10 @@ describe('Journal Settings', () => {
           where: { id: journal.id },
         });
         expect(updatedJournal?.description).toBe(updateData.description);
-        expect(updatedJournal?.settings).toEqual(updateData.settings);
+        // Check that settings include license fields
+        const settings = updatedJournal?.settings as any;
+        expect(settings.defaultDataLicense).toBe('CC-BY-4.0');
+        expect(settings.defaultCodeLicense).toBe('MIT');
       });
 
       it('should deny access to associate editors', async () => {
@@ -421,10 +461,65 @@ describe('Journal Settings', () => {
         expect(res.body.data.description).toBe('A test journal for settings');
         expect(res.body.data.settings.refereeCount.value).toBe(4);
         expect(res.body.data.settings.reviewDueHours).toEqual(DEFAULT_JOURNAL_SETTINGS.reviewDueHours);
+        expect(res.body.data.settings.defaultDataLicense).toBeNull();
+        expect(res.body.data.settings.defaultCodeLicense).toBeNull();
         expect(res.body.data.aboutArticle).toBeNull();
         expect(res.body.data.editorialBoardArticle).toBeNull();
         expect(res.body.data.authorInstruction).toBeNull();
         expect(res.body.data.refereeInstruction).toBeNull();
+      });
+
+      it('should update license settings independently', async () => {
+        const updateData = {
+          settings: {
+            defaultDataLicense: 'CC-BY-4.0',
+            defaultCodeLicense: 'Apache-2.0',
+          },
+        };
+
+        const res = await request(app)
+          .patch(`/v1/journals/${journal.id}/settings`)
+          .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+          .send(updateData);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.settings.defaultDataLicense).toBe('CC-BY-4.0');
+        expect(res.body.data.settings.defaultCodeLicense).toBe('Apache-2.0');
+        expect(res.body.data.settings.reviewDueHours).toEqual(DEFAULT_JOURNAL_SETTINGS.reviewDueHours);
+        expect(res.body.data.settings.refereeInviteExpiryHours).toEqual(
+          DEFAULT_JOURNAL_SETTINGS.refereeInviteExpiryHours,
+        );
+        expect(res.body.data.settings.refereeCount).toEqual(DEFAULT_JOURNAL_SETTINGS.refereeCount);
+      });
+
+      it('should allow setting license fields to null', async () => {
+        // First set some license values
+        await prisma.journal.update({
+          where: { id: journal.id },
+          data: {
+            settings: {
+              defaultDataLicense: 'CC-BY-4.0',
+              defaultCodeLicense: 'MIT',
+            },
+          },
+        });
+
+        // Then set them to null
+        const updateData = {
+          settings: {
+            defaultDataLicense: null,
+            defaultCodeLicense: null,
+          },
+        };
+
+        const res = await request(app)
+          .patch(`/v1/journals/${journal.id}/settings`)
+          .set('authorization', `Bearer ${chiefEditorAuthToken}`)
+          .send(updateData);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.settings.defaultDataLicense).toBeNull();
+        expect(res.body.data.settings.defaultCodeLicense).toBeNull();
       });
 
       it('should return 403 for non-existent journal', async () => {

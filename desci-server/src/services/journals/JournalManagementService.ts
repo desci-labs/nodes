@@ -36,6 +36,8 @@ export const DEFAULT_JOURNAL_SETTINGS = {
   refereeCount: {
     value: 2,
   },
+  defaultDataLicense: null as string | null,
+  defaultCodeLicense: null as string | null,
 } as const;
 
 export type JournalSettings = {
@@ -52,6 +54,8 @@ export type JournalSettings = {
   refereeCount: {
     value: number;
   };
+  defaultDataLicense: string | null;
+  defaultCodeLicense: string | null;
 };
 
 export function getJournalSettingsWithDefaults(settings: Prisma.JsonValue): JournalSettings {
@@ -72,6 +76,14 @@ export function getJournalSettingsWithDefaults(settings: Prisma.JsonValue): Jour
     refereeCount: {
       value: parsedSettings.refereeCount?.value ?? DEFAULT_JOURNAL_SETTINGS.refereeCount.value,
     },
+    defaultDataLicense:
+      parsedSettings.defaultDataLicense !== undefined
+        ? parsedSettings.defaultDataLicense
+        : DEFAULT_JOURNAL_SETTINGS.defaultDataLicense,
+    defaultCodeLicense:
+      parsedSettings.defaultCodeLicense !== undefined
+        ? parsedSettings.defaultCodeLicense
+        : DEFAULT_JOURNAL_SETTINGS.defaultCodeLicense,
   };
 }
 
@@ -354,10 +366,16 @@ export type JournalDetails = Prisma.JournalGetPayload<{
   select: {
     id: true;
     name: true;
+    slug: true;
     description: true;
     iconCid: true;
     imageUrl: true;
     createdAt: true;
+    aboutArticle: true;
+    editorialBoardArticle: true;
+    authorInstruction: true;
+    refereeInstruction: true;
+    settings: true;
     editors: {
       include: {
         user: {
@@ -372,6 +390,7 @@ export type JournalDetails = Prisma.JournalGetPayload<{
     };
   };
 }> & {
+  settings: JournalSettings;
   editors: Array<
     Prisma.JournalEditorGetPayload<{
       include: {
@@ -404,6 +423,7 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
         editorialBoardArticle: true,
         authorInstruction: true,
         refereeInstruction: true,
+        settings: true,
         editors: {
           include: {
             user: {
@@ -448,6 +468,7 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
 
     const journalWithWorkload = {
       ...journal,
+      settings: getJournalSettingsWithDefaults(journal.settings),
       editors: editorsWithWorkload,
     };
 
@@ -580,9 +601,15 @@ export type ListedJournal = Prisma.JournalGetPayload<{
     id: true;
     name: true;
     description: true;
+    slug: true;
     iconCid: true;
     imageUrl: true;
     createdAt: true;
+    aboutArticle: true;
+    editorialBoardArticle: true;
+    authorInstruction: true;
+    refereeInstruction: true;
+    settings: true;
     submissions: {
       select: { id: true };
       where: {
@@ -590,7 +617,9 @@ export type ListedJournal = Prisma.JournalGetPayload<{
       };
     };
   };
-}>;
+}> & {
+  settings: JournalSettings;
+};
 
 /**
  * @param userId - The user ID to filter journals by. If not provided, all journals will be returned.
@@ -616,6 +645,7 @@ async function listJournals(userId?: number): Promise<Result<ListedJournal[], Er
         editorialBoardArticle: true,
         authorInstruction: true,
         refereeInstruction: true,
+        settings: true,
         submissions: {
           select: { id: true },
           where: {
@@ -625,7 +655,13 @@ async function listJournals(userId?: number): Promise<Result<ListedJournal[], Er
       },
       where: whereClause,
     });
-    return ok(journals);
+
+    const journalsWithProcessedSettings = journals.map((journal) => ({
+      ...journal,
+      settings: getJournalSettingsWithDefaults(journal.settings),
+    }));
+
+    return ok(journalsWithProcessedSettings);
   } catch (error) {
     logger.error({ error }, 'Failed to list journals in service');
     return err(error instanceof Error ? error : new Error('An unexpected error occurred while listing journals'));
@@ -948,6 +984,8 @@ interface JournalSettingsInput {
     refereeCount?: {
       value?: number;
     };
+    defaultDataLicense?: string | null;
+    defaultCodeLicense?: string | null;
   };
 }
 
@@ -1097,6 +1135,24 @@ async function updateJournalSettings(
         if (JSON.stringify(oldRefereeCount) !== JSON.stringify(newRefereeCount)) {
           newSettings.refereeCount = newRefereeCount;
           changes.refereeCount = { old: oldRefereeCount, new: newRefereeCount };
+        }
+      }
+
+      if (data.settings.defaultDataLicense !== undefined) {
+        const oldDefaultDataLicense = currentSettings.defaultDataLicense;
+        const newDefaultDataLicense = data.settings.defaultDataLicense;
+        if (oldDefaultDataLicense !== newDefaultDataLicense) {
+          newSettings.defaultDataLicense = newDefaultDataLicense;
+          changes.defaultDataLicense = { old: oldDefaultDataLicense, new: newDefaultDataLicense };
+        }
+      }
+
+      if (data.settings.defaultCodeLicense !== undefined) {
+        const oldDefaultCodeLicense = currentSettings.defaultCodeLicense;
+        const newDefaultCodeLicense = data.settings.defaultCodeLicense;
+        if (oldDefaultCodeLicense !== newDefaultCodeLicense) {
+          newSettings.defaultCodeLicense = newDefaultCodeLicense;
+          changes.defaultCodeLicense = { old: oldDefaultCodeLicense, new: newDefaultCodeLicense };
         }
       }
     }

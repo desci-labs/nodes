@@ -217,6 +217,7 @@ describe('Journal Management Service', () => {
         'editorialBoardArticle',
         'authorInstruction',
         'refereeInstruction',
+        'settings',
       ]);
     });
   });
@@ -439,6 +440,7 @@ describe('Journal Management Service', () => {
           'editorialBoardArticle',
           'authorInstruction',
           'refereeInstruction',
+          'settings',
         ]);
       });
     });
@@ -461,6 +463,7 @@ describe('Journal Management Service', () => {
           'editorialBoardArticle',
           'authorInstruction',
           'refereeInstruction',
+          'settings',
         ]);
         expect(res.body.data.journal.editors).to.be.an('array');
       });
@@ -493,7 +496,14 @@ describe('Journal Management Service', () => {
         });
 
         expect(res.status).toBe(200);
-        expect(res.body.data.journal).to.have.all.keys(['id', 'name', 'description', 'iconCid', 'imageUrl', 'createdAt']);
+        expect(res.body.data.journal).to.have.all.keys([
+          'id',
+          'name',
+          'description',
+          'iconCid',
+          'imageUrl',
+          'createdAt',
+        ]);
         expect(res.body.data.journal.name).toBe('New Journal');
       });
 
