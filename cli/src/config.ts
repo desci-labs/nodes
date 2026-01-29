@@ -110,28 +110,13 @@ export function clearPrivateKey(): void {
 
 /**
  * Get the nodes-lib config for the given environment.
- * For production, ceramicOneRpcUrl is unset to ensure publishing uses
- * the legacy Ceramic node instead of Ceramic One (which may have issues).
  */
 function getNodesLibConfigForEnv(env: Environment) {
-  const baseConfig = NODESLIB_CONFIGS[env];
-  
-  if (env === "prod") {
-    // Unset ceramicOneRpcUrl for production to make publishing work correctly
-    // This forces the use of the legacy Ceramic node for prod publishing
-    return {
-      ...baseConfig,
-      ceramicOneRpcUrl: undefined,
-      ceramicOneFlightUrl: undefined,
-    };
-  }
-  
-  return baseConfig;
+  return NODESLIB_CONFIGS[env];
 }
 
 export function setEnvironment(env: Environment): void {
   config.set("environment", env);
-  // Also update nodes-lib config (with prod-specific overrides)
   setNodesLibConfig(getNodesLibConfigForEnv(env));
 }
 
@@ -154,7 +139,6 @@ export function initializeNodesLib(): void {
   const env = getEnvironment();
   const apiKey = getApiKey();
   
-  // Use the env-specific config (with prod overrides for ceramicOneRpcUrl)
   setNodesLibConfig(getNodesLibConfigForEnv(env));
   if (apiKey) {
     setNodesLibApiKey(apiKey);
