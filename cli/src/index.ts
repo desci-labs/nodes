@@ -68,6 +68,9 @@ program
     const loginCmd = configCmd.commands.find((c) => c.name() === "login");
     if (loginCmd) {
       await loginCmd.parseAsync([], { from: "user" });
+    } else {
+      console.error(chalk.red("Error: Login subcommand not found. This is a bug in the CLI."));
+      process.exit(1);
     }
   });
 

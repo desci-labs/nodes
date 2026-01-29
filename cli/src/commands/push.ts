@@ -633,6 +633,8 @@ export function createPushCommand(): Command {
                 `Upload failed after ${Math.round(duration / 1000)}s`,
               );
               process.exitCode = 1;
+              // Exit early to skip post-upload logic (PDF assignment, prepublish)
+              return;
             }
           }
 
@@ -682,6 +684,7 @@ export function createPushCommand(): Command {
               );
             } catch {
               prepubSpinner.fail("Prepublish failed");
+              process.exitCode = 1;
             }
           }
 
