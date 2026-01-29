@@ -63,6 +63,15 @@ export const NODESLIB_CONFIGS = {
 // Config storage - starts undefined
 let config: NodesLibConfig | undefined;
 let hasLoggedInitialization = false;
+let quietMode = false;
+
+/**
+ * Enable or disable quiet mode to suppress config logging.
+ * Useful for CLI applications where verbose logging is unwanted.
+ */
+export const setQuietMode = (quiet: boolean): void => {
+  quietMode = quiet;
+};
 
 /**
  * Initialize config with default if not already set
@@ -70,7 +79,7 @@ let hasLoggedInitialization = false;
 const ensureConfig = (): NodesLibConfig => {
   if (!config) {
     config = NODESLIB_CONFIGS.dev;
-    if (!hasLoggedInitialization) {
+    if (!hasLoggedInitialization && !quietMode) {
       hasLoggedInitialization = true;
       console.log(
         `[nodes-lib::config] initialising with nodes-dev config. Use setConfig and setApiKey to change this: \n${JSON.stringify(NODESLIB_CONFIGS.dev, undefined, 2)}`,
@@ -89,9 +98,11 @@ const ensureConfig = (): NodesLibConfig => {
  * `https://nodes-dev.desci.com`.
  */
 export const setApiKey = (apiKey: string) => {
-  console.log(
-    `[nodes-lib::config] setting new apiKey: \n${apiKey.slice(0, 5) + "..."}`,
-  );
+  if (!quietMode) {
+    console.log(
+      `[nodes-lib::config] setting new apiKey: \n${apiKey.slice(0, 5) + "..."}`,
+    );
+  }
   ensureConfig().apiKey = apiKey;
 };
 
@@ -99,23 +110,25 @@ export const setApiKey = (apiKey: string) => {
  * Set a new configuration. You likely want a preset from the `CONFIGS` object.
  */
 export const setNodesLibConfig = (newConfig: NodesLibConfig): void => {
-  const confWithRedactedKey = JSON.stringify(
-    {
-      ...newConfig,
-      apiKey: newConfig.apiKey
-        ? newConfig.apiKey?.slice(0, 5) + "..."
-        : "[unset]",
-    },
-    undefined,
-    2,
-  );
-  console.log(
-    `[nodes-lib::config] setting new config: \n${confWithRedactedKey}`,
-  );
-  if (!newConfig.apiKey) {
-    console.log(
-      "[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!",
+  if (!quietMode) {
+    const confWithRedactedKey = JSON.stringify(
+      {
+        ...newConfig,
+        apiKey: newConfig.apiKey
+          ? newConfig.apiKey?.slice(0, 5) + "..."
+          : "[unset]",
+      },
+      undefined,
+      2,
     );
+    console.log(
+      `[nodes-lib::config] setting new config: \n${confWithRedactedKey}`,
+    );
+    if (!newConfig.apiKey) {
+      console.log(
+        "[nodes-lib::config] config.apiKey is unset; non-public API requests WILL fail unless running in browser with auth cookies!",
+      );
+    }
   }
 
   config = newConfig;
