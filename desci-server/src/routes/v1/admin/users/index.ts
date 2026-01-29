@@ -3,7 +3,11 @@ import { Request } from 'express';
 
 import { prisma } from '../../../../client.js';
 import { updateAmplitudeIdentity, updateAmplitudeIdentitySchema } from '../../../../controllers/admin/amplitude.js';
-import { getMarketingConsentUsersCsv, searchUserProfiles } from '../../../../controllers/admin/users.js';
+import {
+  getMarketingConsentUsersCsv,
+  getSciweaveMarketingConsentUsersCsv,
+  searchUserProfiles,
+} from '../../../../controllers/admin/users.js';
 import { SuccessMessageResponse } from '../../../../core/ApiResponse.js';
 import { ensureAdmin, ensureUserIsAdmin } from '../../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../../middleware/permissions.js';
@@ -31,6 +35,12 @@ router.get(
   '/export-marketing-consent',
   [ensureUser, ensureUserIsAdmin, validateInputs(exportMarketingConsentSchema)],
   getMarketingConsentUsersCsv,
+);
+
+router.get(
+  '/export-sciweave-marketing-consent',
+  [ensureUser, ensureUserIsAdmin, validateInputs(exportMarketingConsentSchema)],
+  getSciweaveMarketingConsentUsersCsv,
 );
 
 /**
