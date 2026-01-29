@@ -156,6 +156,7 @@ program
   .argument("[node]", "Node UUID (optional - will show picker if not provided)")
   .option("--dry-run", "Show what would be synced without making changes")
   .option("--no-clean", "Don't remove remote files that don't exist locally")
+  .option("-y, --yes", "Skip confirmation prompts (for scripted use)")
   .option("--prepublish", "Prepare node for publishing after sync")
   .action(async (path: string, node: string | undefined, options) => {
     // Build args for push command
@@ -172,6 +173,10 @@ program
     
     if (options.dryRun) {
       args.push("--dry-run");
+    }
+    
+    if (options.yes) {
+      args.push("--yes");
     }
     
     if (options.prepublish) {

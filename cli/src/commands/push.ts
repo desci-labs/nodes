@@ -210,6 +210,7 @@ export function createPushCommand(): Command {
     .option("--include-hidden", "Include hidden files (dotfiles) in upload")
     .option("--dry-run", "Show what would be changed without making changes")
     .option("--prepublish", "Prepare node for publishing after upload")
+    .option("-y, --yes", "Skip confirmation prompts (for scripted use)")
     .option("-v, --verbose", "Show detailed output")
     .action(async (path: string, options) => {
       try {
@@ -427,37 +428,61 @@ export function createPushCommand(): Command {
 
         // Delete remote files that don't exist locally (if --clean)
         if (filesToDelete.length > 0 && !options.dryRun) {
-          const deleteSpinner = createSpinner(
-            `Removing ${filesToDelete.length} old files...`,
+          // Show warning and require confirmation before deleting files
+          console.log(
+            chalk.yellow(`\n${symbols.warning} ${filesToDelete.length} remote file(s) will be deleted:`),
           );
-          deleteSpinner.start();
+          filesToDelete
+            .slice(0, 5)
+            .forEach((f) => console.log(chalk.red(`  - ${f}`)));
+          if (filesToDelete.length > 5) {
+            console.log(chalk.dim(`  ... and ${filesToDelete.length - 5} more`));
+          }
+          console.log();
 
-          let deleted = 0;
-          let deleteFailed = 0;
-          const failedDeletes: string[] = [];
-
-          for (const filePath of filesToDelete) {
-            try {
-              await deleteData({ uuid: targetUuid, path: `root/${filePath}` });
-              deleted++;
-              deleteSpinner.text = `Removing old files... (${deleted}/${filesToDelete.length})`;
-            } catch (err) {
-              // File might already be deleted or have problematic characters
-              deleteFailed++;
-              failedDeletes.push(filePath);
-              if (options.verbose) {
-                console.log(chalk.yellow(`\n  Warning: Failed to delete ${filePath}: ${getErrorMessage(err)}`));
-              }
-            }
+          let confirmDelete = options.yes;
+          if (!options.yes) {
+            confirmDelete = await confirm({
+              message: `Delete ${filesToDelete.length} file(s) from remote node?`,
+              default: false,
+            });
           }
 
-          if (deleteFailed > 0) {
-            deleteSpinner.warn(`Removed ${deleted} files, ${deleteFailed} failed to delete`);
-            if (!options.verbose && failedDeletes.length > 0) {
-              console.log(chalk.dim("  Use --verbose to see which files failed"));
-            }
+          if (!confirmDelete) {
+            console.log(chalk.dim("Skipping file deletions. Continuing with upload..."));
           } else {
-            deleteSpinner.succeed(`Removed ${deleted} old files`);
+            const deleteSpinner = createSpinner(
+              `Removing ${filesToDelete.length} old files...`,
+            );
+            deleteSpinner.start();
+
+            let deleted = 0;
+            let deleteFailed = 0;
+            const failedDeletes: string[] = [];
+
+            for (const filePath of filesToDelete) {
+              try {
+                await deleteData({ uuid: targetUuid, path: `root/${filePath}` });
+                deleted++;
+                deleteSpinner.text = `Removing old files... (${deleted}/${filesToDelete.length})`;
+              } catch (err) {
+                // File might already be deleted or have problematic characters
+                deleteFailed++;
+                failedDeletes.push(filePath);
+                if (options.verbose) {
+                  console.log(chalk.yellow(`\n  Warning: Failed to delete ${filePath}: ${getErrorMessage(err)}`));
+                }
+              }
+            }
+
+            if (deleteFailed > 0) {
+              deleteSpinner.warn(`Removed ${deleted} files, ${deleteFailed} failed to delete`);
+              if (!options.verbose && failedDeletes.length > 0) {
+                console.log(chalk.dim("  Use --verbose to see which files failed"));
+              }
+            } else {
+              deleteSpinner.succeed(`Removed ${deleted} old files`);
+            }
           }
         }
 
