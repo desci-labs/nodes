@@ -783,6 +783,29 @@ export const getUsersWithMarketingConsent = async (range?: { from: Date; to: Dat
 };
 
 /**
+ * Get users who opted-in to receive Sciweave marketing emails
+ */
+export const getUsersWithSciweaveMarketingConsent = async (range?: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getUsersWithSciweaveMarketingConsent' }, 'user::getUsersWithSciweaveMarketingConsent');
+
+  const users = await client.user.findMany({
+    where: {
+      receiveSciweaveMarketingEmails: true,
+      isGuest: false,
+      ...(range && { createdAt: { gte: range.from, lt: range.to } }),
+    },
+    select: {
+      email: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  return users;
+};
+
+/**
  * Names weren't always stored in separated fName+lName format, this helper is to handle both cases.
  */
 export const getUserNameById = async (

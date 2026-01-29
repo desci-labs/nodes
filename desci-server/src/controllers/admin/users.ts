@@ -10,7 +10,7 @@ import { emailRegex } from '../../core/helper.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { exportMarketingConsentSchema } from '../../schemas/users.schema.js';
-import { getUsersWithMarketingConsent } from '../../services/user.js';
+import { getUsersWithMarketingConsent, getUsersWithSciweaveMarketingConsent } from '../../services/user.js';
 import { formatOrcidString, orcidRegex } from '../../utils.js';
 
 export type SearchProfilesRequest = Request<never, never, never, { name?: string; orcid?: string }> & {
@@ -161,5 +161,48 @@ export const getMarketingConsentUsersCsv = async (req: ExportMarketingConsentReq
   } catch (error) {
     logger.error({ error }, 'Failed to export marketing consent users');
     res.status(500).json({ error: 'Failed to export marketing consent users' });
+  }
+};
+
+export const getSciweaveMarketingConsentUsersCsv = async (req: ExportMarketingConsentRequest, res: Response) => {
+  const user = req.user;
+  const logger = parentLogger.child({
+    module: 'Users::getSciweaveMarketingConsentUsersCsv',
+    userId: user.id,
+  });
+
+  logger.info(
+    { fn: 'getSciweaveMarketingConsentUsersCsv' },
+    `GET getSciweaveMarketingConsentUsersCsv called by ${user.email}`,
+  );
+
+  try {
+    // Get validated query parameters
+    const format = req.validatedData.query.format;
+    const users = await getUsersWithSciweaveMarketingConsent();
+
+    if (format === 'xlsx') {
+      // Create Excel workbook
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(users.map((user) => ({ email: user.email })));
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sciweave Marketing Consent Users');
+
+      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+      res.setHeader('Content-disposition', 'attachment; filename=sciweave-marketing-consent-emails.xlsx');
+      res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.status(200).send(excelBuffer);
+    } else {
+      // Default CSV format
+      const csv = ['email', ...users.map((user) => user.email)].join('\n');
+
+      res.setHeader('Content-disposition', 'attachment; filename=sciweave-marketing-consent-emails.csv');
+      res.set('Content-Type', 'text/csv');
+      res.status(200).send(csv);
+    }
+  } catch (error) {
+    logger.error({ error }, 'Failed to export Sciweave marketing consent users');
+    res.status(500).json({ error: 'Failed to export Sciweave marketing consent users' });
   }
 };
