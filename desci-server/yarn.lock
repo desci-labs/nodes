@@ -4553,6 +4553,13 @@
     "@babel/runtime" "^7.16.3"
     "@polkadot/x-global" "7.9.2"
 
+"@posthog/core@1.15.0":
+  version "1.15.0"
+  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.15.0.tgz#fecaf9d48d3c6f00bc587a4274b6d07a4fc94385"
+  integrity sha512-n2/Yy0+qc8xhmlcOFiYqTcGHBZuuaQjVolfFXk7yTCynzdMe8Fx1zYvPPUrbdQK5tWwXyilkzybpqhK6I7aV4Q==
+  dependencies:
+    cross-spawn "^7.0.6"
+
 "@prisma/client@4.10.1":
   version "4.10.1"
   resolved "https://registry.yarnpkg.com/@prisma/client/-/client-4.10.1.tgz#c47fd54661ee74b174cee63e9dc418ecf57a6ccd"
@@ -14066,6 +14073,13 @@ postgres-interval@^1.1.0:
   integrity sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==
   dependencies:
     xtend "^4.0.0"
+
+posthog-node@^5.24.5:
+  version "5.24.5"
+  resolved "https://registry.yarnpkg.com/posthog-node/-/posthog-node-5.24.5.tgz#e4fc910051dbc19562902bef6259e36ec4e294a4"
+  integrity sha512-FCo0k7OJPYohXIVD2yLuyHSm7nGN+kHIGLnOalDIZYhhsojy9XQXADqq6i+3emcr8wz6Vc0n4IkmLkCFa0Uoyw==
+  dependencies:
+    "@posthog/core" "1.15.0"
 
 prebuild-install@^7.1.1:
   version "7.1.3"
