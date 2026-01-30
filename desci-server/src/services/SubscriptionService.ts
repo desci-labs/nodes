@@ -22,6 +22,7 @@ import { sendEmail } from './email/email.js';
 import { hasEmailBeenSent, recordSentEmail } from './email/helpers.js';
 import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
 import { FEATURE_LIMIT_DEFAULTS } from './FeatureLimits/constants.js';
+import { capturePostHogEvent } from '../lib/PostHog.js';
 
 const logger = parentLogger.child({
   module: 'SUBSCRIPTION_SERVICE',
@@ -321,6 +322,35 @@ export class SubscriptionService {
     const newCancelAtPeriodEnd = sub.cancel_at_period_end ?? false;
 
     if (!previousCancelAtPeriodEnd && newCancelAtPeriodEnd) {
+      // Track subscription cancelled event
+      try {
+        const billingCycle = billingInterval === BillingInterval.ANNUAL ? 'annually' : 'monthly';
+        const planDisplayName = this.getPlanDisplayName(planType);
+        const cancellationReason = sub.cancellation_details?.reason || sub.cancel_at_period_end_reason || undefined;
+
+        capturePostHogEvent(userId, 'subscription_cancelled', {
+          billing_cycle: billingCycle,
+          plan_name: planDisplayName,
+          cancellation_date: new Date().toISOString(),
+          cancellation_reason: cancellationReason,
+          subscription_id: subscription.id,
+          cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : undefined,
+        });
+
+        logger.info('Tracked subscription cancelled event', {
+          userId,
+          subscriptionId: subscription.id,
+          billingCycle,
+          planName: planDisplayName,
+        });
+      } catch (trackingError) {
+        logger.error('Failed to track subscription cancelled event', {
+          error: trackingError,
+          userId,
+          subscriptionId: subscription.id,
+        });
+      }
+
       try {
         const user = await this.getUserForEmail(userId);
         if (user) {
@@ -470,10 +500,80 @@ export class SubscriptionService {
       },
     });
 
+    // Track subscription renewal for recurring payments (not the first invoice)
+    await this.trackSubscriptionRenewal(invoice);
+
     // Check for annual upsell opportunity (after 3rd monthly payment)
     await this.checkAndSendAnnualUpsellEmail(invoice);
 
     logger.info('Invoice payment succeeded processed', { invoiceId: invoice.id });
+  }
+
+  /**
+   * Tracks subscription renewal event for recurring payments
+   * Only fires for renewals (payments after the first invoice)
+   */
+  private static async trackSubscriptionRenewal(invoice: Stripe.Invoice) {
+    try {
+      const subscription = await prisma.subscription.findFirst({
+        where: { stripeCustomerId: invoice.customer as string },
+      });
+
+      if (!subscription) {
+        return;
+      }
+
+      // Count previously paid invoices for this subscription
+      const paidInvoiceCount = await prisma.invoice.count({
+        where: {
+          subscriptionId: subscription.id,
+          status: StripeInvoiceStatus.PAID,
+        },
+      });
+
+      // Only track renewals (when there was at least one previous paid invoice)
+      // paidInvoiceCount includes the current invoice we just marked as paid
+      if (paidInvoiceCount <= 1) {
+        return;
+      }
+
+      const billingCycle = subscription.billingInterval === BillingInterval.ANNUAL ? 'annually' : 'monthly';
+      const planName = this.getPlanDisplayName(subscription.planType);
+
+      capturePostHogEvent(subscription.userId, 'subscription_renewed', {
+        billing_cycle: billingCycle,
+        plan_name: planName,
+        renewal_date: new Date().toISOString(),
+        amount: invoice.amount_paid || invoice.amount_due || 0,
+        currency: invoice.currency,
+        subscription_id: subscription.stripeSubscriptionId,
+      });
+
+      logger.info('Tracked subscription renewal event', {
+        userId: subscription.userId,
+        subscriptionId: subscription.stripeSubscriptionId,
+        billingCycle,
+        planName,
+      });
+    } catch (error) {
+      logger.error('Failed to track subscription renewal', { error, invoiceId: invoice.id });
+    }
+  }
+
+  /**
+   * Maps PlanType to display name for analytics
+   */
+  private static getPlanDisplayName(planType: PlanType): string {
+    switch (planType) {
+      case PlanType.PREMIUM:
+        return 'Premium';
+      case PlanType.OMNI_CHATS:
+        return 'Premium'; // OMNI_CHATS is the Premium plan
+      case PlanType.AI_REFEREE_FINDER:
+        return 'AI Referee Finder';
+      default:
+        return 'Free';
+    }
   }
 
   /**
