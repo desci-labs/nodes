@@ -247,7 +247,7 @@ export class RoCrateTransformer implements BaseTransformer {
     rootEntity['dcterms:description'] = descriptionText;
     rootEntity['http://schema.org/description'] = descriptionText; // Full URI
     rootEntity['http://purl.org/dc/terms/description'] = descriptionText;
-    // Add keywords - from manifest, component metadata, AI-generated, or defaults
+    // Add keywords - from manifest, component metadata, or AI-generated (no hardcoded fallback)
     let keywordsArray: string[] = [];
     if (nodeObject.keywords && nodeObject.keywords.length > 0) {
       keywordsArray = nodeObject.keywords;
@@ -267,18 +267,17 @@ export class RoCrateTransformer implements BaseTransformer {
       if (keywordsArray.length === 0 && metadata?.aiKeywords && metadata.aiKeywords.length > 0) {
         keywordsArray = metadata.aiKeywords;
       }
-      // Final fallback to hardcoded defaults for discoverability
-      if (keywordsArray.length === 0) {
-        keywordsArray = ['research', 'dataset', 'open science', 'FAIR data'];
-      }
     }
-    // Deduplicate and set keywords
-    keywordsArray = [...new Set(keywordsArray)];
-    const keywordsStr = keywordsArray.join(', ');
-    rootEntity.keywords = keywordsStr;
-    rootEntity['schema:keywords'] = keywordsStr;
-    rootEntity['http://schema.org/keywords'] = keywordsStr; // Full URI
-    rootEntity['dcterms:subject'] = keywordsArray;
+    // Only set keywords if we have any (no hardcoded fallback)
+    if (keywordsArray.length > 0) {
+      // Deduplicate and set keywords
+      keywordsArray = [...new Set(keywordsArray)];
+      const keywordsStr = keywordsArray.join(', ');
+      rootEntity.keywords = keywordsStr;
+      rootEntity['schema:keywords'] = keywordsStr;
+      rootEntity['http://schema.org/keywords'] = keywordsStr; // Full URI
+      rootEntity['dcterms:subject'] = keywordsArray;
+    }
     if (authors && authors.length > 0) {
       const creatorRefs = authors
         .filter((a) => a['@id'])

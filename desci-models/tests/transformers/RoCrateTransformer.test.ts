@@ -240,7 +240,7 @@ describe('RoCrateTransformer', () => {
       expect(rootEntity.keywords).to.not.include('machine learning');
     });
 
-    it('Falls back to hardcoded defaults when no keywords are available', () => {
+    it('Leaves keywords empty when no keywords are available', () => {
       // Create a research object without keywords and no AI keywords
       const researchObjectWithoutKeywords = { 
         ...exampleNode, 
@@ -256,12 +256,12 @@ describe('RoCrateTransformer', () => {
       );
       
       expect(rootEntity).to.not.be.undefined;
-      // Should contain hardcoded defaults
-      expect(rootEntity.keywords).to.include('research');
-      expect(rootEntity.keywords).to.include('FAIR data');
+      // Should NOT have keywords property when none are available
+      expect(rootEntity.keywords).to.be.undefined;
+      expect(rootEntity['schema:keywords']).to.be.undefined;
     });
 
-    it('Falls back to hardcoded defaults when aiKeywords is empty array', () => {
+    it('Leaves keywords empty when aiKeywords is empty array', () => {
       const researchObjectWithoutKeywords = { 
         ...exampleNode, 
         keywords: undefined 
@@ -276,9 +276,9 @@ describe('RoCrateTransformer', () => {
       );
       
       expect(rootEntity).to.not.be.undefined;
-      // Should contain hardcoded defaults
-      expect(rootEntity.keywords).to.include('research');
-      expect(rootEntity.keywords).to.include('FAIR data');
+      // Should NOT have keywords property when aiKeywords is empty
+      expect(rootEntity.keywords).to.be.undefined;
+      expect(rootEntity['schema:keywords']).to.be.undefined;
     });
   });
 });
