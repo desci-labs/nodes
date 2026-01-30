@@ -35,10 +35,7 @@ export const capturePostHogEvent = (
   });
 };
 
-export const updatePostHogUserProperties = (
-  userId: string | number,
-  properties: Record<string, unknown>,
-): void => {
+export const updatePostHogUserProperties = (userId: string | number, properties: Record<string, unknown>): void => {
   if (!client) return;
 
   client.identify({
