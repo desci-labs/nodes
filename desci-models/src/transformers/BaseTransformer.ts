@@ -3,7 +3,7 @@ interface ImportFunc {
   (input: any): ResearchObject;
 }
 interface ExportFunc {
-  (input: ResearchObject): any;
+  (input: ResearchObject, metadata?: any): any;
 }
 export interface BaseTransformer {
   importObject: ImportFunc;
