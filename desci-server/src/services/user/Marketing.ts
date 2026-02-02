@@ -13,6 +13,8 @@ export interface UpdateMarketingConsentInput {
   userId: number;
   receiveMarketingEmails: boolean;
   appType?: AppType;
+  /** Optional source identifier - only present for webhook-based unsubscribes (e.g. 'sendgrid_webhook') */
+  source?: string;
 }
 
 /**
@@ -21,9 +23,9 @@ export interface UpdateMarketingConsentInput {
 async function updateMarketingConsent(
   input: UpdateMarketingConsentInput,
 ): Promise<Result<{ receiveMarketingEmails: boolean }, Error>> {
-  const { userId, receiveMarketingEmails, appType = AppType.PUBLISH } = input;
+  const { userId, receiveMarketingEmails, appType = AppType.PUBLISH, source = 'app' } = input;
 
-  logger.info({ userId, receiveMarketingEmails, appType }, 'Updating marketing consent preference');
+  logger.info({ userId, receiveMarketingEmails, appType, source }, 'Updating marketing consent preference');
 
   const isSciweaveApp = appType === AppType.SCIWEAVE;
   const fieldName = isSciweaveApp ? 'receiveSciweaveMarketingEmails' : 'receiveMarketingEmails';
@@ -78,6 +80,7 @@ async function updateMarketingConsent(
         receiveMarketingEmails,
         previousValue: currentValue,
         appType,
+        source,
       },
       userId,
       submitToMixpanel: true,

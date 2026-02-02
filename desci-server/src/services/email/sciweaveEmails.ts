@@ -67,10 +67,11 @@ async function sendSciweaveEmail(
 
       message.subject = `${subjectPrefix} ${message.subject}`;
 
-      // Add internal tracking ID
+      // Add internal tracking ID and app type for webhook processing
       message.customArgs = {
         ...message.customArgs,
         internal_tracking_id: internalTrackingId,
+        app_type: 'SCIWEAVE',
       };
 
       const response = await sgMail.send(message);
