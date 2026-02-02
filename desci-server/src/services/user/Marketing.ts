@@ -4,6 +4,7 @@ import { ok, err, Result } from 'neverthrow';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { saveInteractionWithoutReq, AppType } from '../interactionLog.js';
+import { SendGridAsmService } from '../email/SendGridAsmService.js';
 
 const logger = parentLogger.child({
   module: 'Services::User::Marketing',
@@ -86,8 +87,21 @@ async function updateMarketingConsent(
       submitToMixpanel: true,
     });
 
+    // Sync with SendGrid ASM suppression groups (skip if change came from SendGrid webhook)
+    if (source !== 'sendgrid_webhook') {
+      const sendGridAppType = isSciweaveApp ? 'SCIWEAVE' : 'PUBLISH';
+
+      if (receiveMarketingEmails) {
+        // User opted IN - remove from suppression group so they receive emails
+        await SendGridAsmService.removeFromSuppressionGroup(updatedUser.email, sendGridAppType);
+      } else {
+        // User opted OUT - add to suppression group
+        await SendGridAsmService.addToSuppressionGroup(updatedUser.email, sendGridAppType);
+      }
+    }
+
     logger.info(
-      { userId, receiveMarketingEmails, previousValue: currentValue, appType },
+      { userId, receiveMarketingEmails, previousValue: currentValue, appType, source },
       'Successfully updated marketing consent preference',
     );
 
