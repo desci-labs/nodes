@@ -3,8 +3,8 @@ import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { saveInteractionWithoutReq, AppType } from '../interactionLog.js';
 import { SendGridAsmService } from '../email/SendGridAsmService.js';
+import { saveInteractionWithoutReq, AppType } from '../interactionLog.js';
 
 const logger = parentLogger.child({
   module: 'Services::User::Marketing',
