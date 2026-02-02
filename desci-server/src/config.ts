@@ -50,6 +50,14 @@ export const SENDGRID_TEMPLATE_ID_MAP = process.env.SENDGRID_TEMPLATE_ID_MAP;
 export const SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP = process.env.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP;
 export const SHOULD_SEND_EMAIL = process.env.SHOULD_SEND_EMAIL;
 
+// SendGrid ASM (Advanced Suppression Management) Group IDs
+export const SENDGRID_ASM_GROUP_IDS = {
+  SCIWEAVE_MARKETING: 28817,
+  PUBLISH_MARKETING: 28818,
+  SCIWEAVE_TRANSACTIONAL: 28819,
+  PUBLISH_TRANSACTIONAL: 28820,
+} as const;
+
 // URL Configuration
 export const SERVER_URL = process.env.SERVER_URL;
 export const DAPP_URL = process.env.DAPP_URL;

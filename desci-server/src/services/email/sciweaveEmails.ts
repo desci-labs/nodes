@@ -1,6 +1,11 @@
 import sgMail from '@sendgrid/mail';
 
-import { SENDGRID_API_KEY, SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP, SHOULD_SEND_EMAIL } from '../../config.js';
+import {
+  SENDGRID_API_KEY,
+  SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP,
+  SHOULD_SEND_EMAIL,
+  SENDGRID_ASM_GROUP_IDS,
+} from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 
 sgMail.setApiKey(SENDGRID_API_KEY);
@@ -43,12 +48,40 @@ const sciweaveTemplateIdMap = SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP
 const logger = parentLogger.child({ module: 'SciweaveEmailService' });
 
 /**
+ * Marketing email types that users can unsubscribe from
+ * All other Sciweave emails are considered transactional
+ */
+const SCIWEAVE_MARKETING_EMAIL_TYPES = new Set<SciweaveEmailTypes>([
+  SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL,
+  SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_HOUR,
+  SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_DAY_REMAINING,
+  SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY,
+  SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL,
+  SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED,
+  SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
+  SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT,
+  SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED,
+]);
+
+/**
+ * Get the appropriate SendGrid ASM group ID for a Sciweave email type
+ */
+function getAsmGroupId(emailType: SciweaveEmailTypes): number {
+  return SCIWEAVE_MARKETING_EMAIL_TYPES.has(emailType)
+    ? SENDGRID_ASM_GROUP_IDS.SCIWEAVE_MARKETING
+    : SENDGRID_ASM_GROUP_IDS.SCIWEAVE_TRANSACTIONAL;
+}
+
+/**
  * Sends an email using SendGrid for Sciweave
+ * @param message - The SendGrid message to send
+ * @param emailType - The type of Sciweave email being sent (used to determine ASM group)
  * @param devLog - Optional object with additional information to log in dev mode
  * @returns Object containing SendGrid message ID prefix and internal tracking ID
  */
 async function sendSciweaveEmail(
   message: sgMail.MailDataRequired,
+  emailType: SciweaveEmailTypes,
   devLog?: Record<string, string>,
 ): Promise<{ sgMessageIdPrefix?: string; internalTrackingId: string; success: boolean }> {
   // Generate tracking ID outside try block so it's always available
@@ -72,6 +105,11 @@ async function sendSciweaveEmail(
         ...message.customArgs,
         internal_tracking_id: internalTrackingId,
         app_type: 'SCIWEAVE',
+      };
+
+      // Add ASM group for unsubscribe management
+      message.asm = {
+        groupId: getAsmGroupId(emailType),
       };
 
       const response = await sgMail.send(message);
@@ -133,7 +171,7 @@ async function sendWelcomeEmail({ email, firstName, lastName }: WelcomeEmailPayl
     },
   };
 
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL, { templateId });
 }
 
 async function sendUpgradeEmail({ email, firstName, lastName }: UpgradeEmailPayload['payload']) {
@@ -158,7 +196,7 @@ async function sendUpgradeEmail({ email, firstName, lastName }: UpgradeEmailPayl
     },
   };
 
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL, { templateId });
 }
 
 async function sendCancellationEmail({ email, firstName, lastName }: CancellationEmailPayload['payload']) {
@@ -183,7 +221,7 @@ async function sendCancellationEmail({ email, firstName, lastName }: Cancellatio
     },
   };
 
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_CANCELLATION_EMAIL, { templateId });
 }
 
 async function sendSubscriptionEndedEmail({ email, firstName, lastName }: SubscriptionEndedEmailPayload['payload']) {
@@ -208,7 +246,7 @@ async function sendSubscriptionEndedEmail({ email, firstName, lastName }: Subscr
     },
   };
 
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_SUBSCRIPTION_ENDED, { templateId });
 }
 
 async function sendAnnualUpsellEmail({ email, firstName, lastName }: AnnualUpsellEmailPayload['payload']) {
@@ -233,7 +271,7 @@ async function sendAnnualUpsellEmail({ email, firstName, lastName }: AnnualUpsel
     },
   };
 
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_ANNUAL_UPSELL, { templateId });
 }
 
 async function sendCheckout1HourEmail({
@@ -275,7 +313,7 @@ async function sendCheckout1HourEmail({
     },
   };
 
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_HOUR, { templateId });
 }
 
 async function sendCheckout1DayRemainingEmail({
@@ -317,7 +355,7 @@ async function sendCheckout1DayRemainingEmail({
     },
   };
 
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_CHECKOUT_1_DAY_REMAINING, { templateId });
 }
 
 async function send14DayInactivityEmail({ email, firstName, lastName }: InactivityEmailPayload['payload']) {
@@ -342,7 +380,7 @@ async function send14DayInactivityEmail({ email, firstName, lastName }: Inactivi
     },
   };
 
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_14_DAY_INACTIVITY, { templateId });
 }
 
 async function sendOutOfChatsInitialEmail({ email, firstName, lastName }: OutOfChatsInitialEmailPayload['payload']) {
@@ -360,7 +398,7 @@ async function sendOutOfChatsInitialEmail({ email, firstName, lastName }: OutOfC
       user: { firstName: firstName || '', lastName: lastName || '', email },
     },
   };
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL, { templateId });
 }
 
 async function sendOutOfChatsCtaClickedEmail({
@@ -388,7 +426,7 @@ async function sendOutOfChatsCtaClickedEmail({
       expiresAt: expiresAt.toISOString(),
     },
   };
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_CTA_CLICKED, { templateId });
 }
 
 async function sendOutOfChatsNoCtaEmail({
@@ -424,7 +462,7 @@ async function sendOutOfChatsNoCtaEmail({
       }),
     },
   };
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA, { templateId });
 }
 
 async function sendProChatRefreshEmail({ email, firstName, lastName }: ProChatRefreshEmailPayload['payload']) {
@@ -442,7 +480,7 @@ async function sendProChatRefreshEmail({ email, firstName, lastName }: ProChatRe
       user: { firstName: firstName || '', lastName: lastName || '', email },
     },
   };
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_PRO_CHAT_REFRESH, { templateId });
 }
 
 async function sendStudentDiscountEmail({
@@ -468,7 +506,7 @@ async function sendStudentDiscountEmail({
       percentOff: percentOff || 0,
     },
   };
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT, { templateId });
 }
 
 async function sendStudentDiscountLimitReachedEmail({
@@ -494,7 +532,7 @@ async function sendStudentDiscountLimitReachedEmail({
       percentOff: percentOff || 0,
     },
   };
-  return await sendSciweaveEmail(message, { templateId });
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED, { templateId });
 }
 
 export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
