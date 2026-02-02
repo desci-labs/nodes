@@ -19,9 +19,9 @@ import { sendEmail } from '../services/email/email.js';
 import { SciweaveEmailTypes } from '../services/email/sciweaveEmailTypes.js';
 import { isUserStudentSciweave } from '../services/interactionLog.js';
 import { StripeCouponService } from '../services/StripeCouponService.js';
+import { getUserNameByUser } from '../services/user.js';
 
 import { isDryRunMode, recordDryRunEmail } from './emailDryRun.js';
-import { getUserNameByUser } from '../services/user.js';
 
 const logger = parentLogger.child({ module: 'EmailReminderConfig' });
 
