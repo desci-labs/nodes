@@ -13,6 +13,7 @@ export enum SciweaveEmailTypes {
   SCIWEAVE_PRO_CHAT_REFRESH = 'SCIWEAVE_PRO_CHAT_REFRESH',
   SCIWEAVE_STUDENT_DISCOUNT = 'SCIWEAVE_STUDENT_DISCOUNT',
   SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED = 'SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED',
+  SCIWEAVE_NEW_USER_3_DAY = 'SCIWEAVE_NEW_USER_3_DAY',
 }
 
 export type WelcomeEmailPayload = {
@@ -157,6 +158,15 @@ export type StudentDiscountLimitReachedEmailPayload = {
   };
 };
 
+export type NewUser3DayEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY;
+  payload: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+};
+
 export type SciweaveEmailProps =
   | WelcomeEmailPayload
   | UpgradeEmailPayload
@@ -171,4 +181,5 @@ export type SciweaveEmailProps =
   | OutOfChatsNoCtaEmailPayload
   | ProChatRefreshEmailPayload
   | StudentDiscountEmailPayload
-  | StudentDiscountLimitReachedEmailPayload;
+  | StudentDiscountLimitReachedEmailPayload
+  | NewUser3DayEmailPayload;

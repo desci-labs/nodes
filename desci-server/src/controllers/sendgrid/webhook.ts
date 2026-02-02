@@ -5,6 +5,8 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { SENDGRID_WEBHOOK_VERIFY_KEY } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
+import { AppType } from '../../services/interactionLog.js';
+import { MarketingConsentService } from '../../services/user/Marketing.js';
 
 const logger = parentLogger.child({
   module: 'SENDGRID_WEBHOOK',
@@ -27,6 +29,7 @@ interface SendGridEvent {
   };
   // Custom args we added
   internal_tracking_id?: string;
+  app_type?: 'SCIWEAVE' | 'PUBLISH';
   [key: string]: any;
 }
 
@@ -95,12 +98,7 @@ export const handleSendGridWebhook = async (req: Request, res: Response): Promis
 };
 
 async function processEvent(event: SendGridEvent) {
-  const { event: eventType, sg_message_id, internal_tracking_id, timestamp } = event;
-
-  if (!internal_tracking_id) {
-    // Skip events without our tracking ID
-    return;
-  }
+  const { event: eventType, sg_message_id, internal_tracking_id, timestamp, email, app_type } = event;
 
   logger.info(
     {
@@ -108,9 +106,23 @@ async function processEvent(event: SendGridEvent) {
       sg_message_id,
       internal_tracking_id,
       timestamp,
+      email,
+      app_type,
     },
     'Processing SendGrid event',
   );
+
+  // Handle unsubscribe events
+  if (eventType === 'unsubscribe' || eventType === 'group_unsubscribe') {
+    await processUnsubscribeEvent(event);
+    return;
+  }
+
+  // For click events, we need the tracking ID
+  if (!internal_tracking_id) {
+    // Skip events without our tracking ID
+    return;
+  }
 
   // Only process click events for the email types we care about
   if (eventType !== 'click') {
@@ -160,5 +172,74 @@ async function processEvent(event: SendGridEvent) {
       emailRecordId: emailRecord.id,
     },
     'Successfully processed SendGrid click event',
+  );
+}
+
+/**
+ * Process unsubscribe events from SendGrid webhook
+ * Updates the user's marketing consent preference based on the app_type
+ */
+async function processUnsubscribeEvent(event: SendGridEvent) {
+  const { email, app_type, sg_event_id } = event;
+
+  if (!email) {
+    logger.warn({ sg_event_id }, 'Unsubscribe event missing email address');
+    return;
+  }
+
+  // Find user by email
+  const user = await prisma.user.findFirst({
+    where: { email },
+    select: { id: true },
+  });
+
+  if (!user) {
+    logger.warn({ email, sg_event_id }, 'User not found for unsubscribe event');
+    return;
+  }
+
+  // Determine which app's marketing preference to update
+  // Default to SCIWEAVE if app_type is not specified (for backwards compatibility)
+  const appType = app_type === 'PUBLISH' ? AppType.PUBLISH : AppType.SCIWEAVE;
+
+  logger.info(
+    {
+      email,
+      userId: user.id,
+      app_type,
+      appType,
+      sg_event_id,
+    },
+    'Processing SendGrid unsubscribe event',
+  );
+
+  const result = await MarketingConsentService.updateMarketingConsent({
+    userId: user.id,
+    receiveMarketingEmails: false,
+    appType,
+    source: 'sendgrid_webhook',
+  });
+
+  if (result.isErr()) {
+    logger.warn(
+      {
+        email,
+        userId: user.id,
+        error: result.error.message,
+        sg_event_id,
+      },
+      'Failed to process unsubscribe event',
+    );
+    return;
+  }
+
+  logger.info(
+    {
+      email,
+      userId: user.id,
+      appType,
+      sg_event_id,
+    },
+    'Successfully processed SendGrid unsubscribe event',
   );
 }
