@@ -7,6 +7,7 @@ import {
   SENDGRID_ASM_GROUP_IDS,
 } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getRelativeTime } from '../../utils/clock.js';
 
 sgMail.setApiKey(SENDGRID_API_KEY);
 
@@ -27,8 +28,8 @@ import {
   ProChatRefreshEmailPayload,
   StudentDiscountEmailPayload,
   StudentDiscountLimitReachedEmailPayload,
+  NewUser3DayEmailPayload,
 } from './sciweaveEmailTypes.js';
-import { getRelativeTime } from '../../utils/clock.js';
 
 /**
  * Used to add a prefix to the email subject to indicate the deployment environment
@@ -61,6 +62,7 @@ const SCIWEAVE_MARKETING_EMAIL_TYPES = new Set<SciweaveEmailTypes>([
   SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_NO_CTA,
   SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT,
   SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED,
+  SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY,
 ]);
 
 /**
@@ -535,6 +537,24 @@ async function sendStudentDiscountLimitReachedEmail({
   return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED, { templateId });
 }
 
+async function sendNewUser3DayEmail({ email, firstName, lastName }: NewUser3DayEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY];
+  if (!templateId) {
+    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY}`);
+    return undefined;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || '', lastName: lastName || '', email },
+    },
+  };
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY, { templateId });
+}
+
 export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
   switch (props.type) {
     case SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL:
@@ -565,6 +585,8 @@ export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
       return sendStudentDiscountEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED:
       return sendStudentDiscountLimitReachedEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY:
+      return sendNewUser3DayEmail(props.payload);
     default:
       return assertNever(props);
   }
