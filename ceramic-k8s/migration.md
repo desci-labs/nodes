@@ -3,7 +3,7 @@
 ## If running in `ceramic-recon` pod:
 ```bash
 apt-get update
-apt-get install curl unzip groff less jq
+apt-get install --yes curl unzip groff less jq
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
 unzip awscliv2.zip
 ./aws/install
@@ -28,11 +28,20 @@ Sync the blockstore (not much data, but 600k+ files):
 cd $CERAMIC_ONE_STORE_DIR
 mkdir kubo-blockstore
 
+## DEV
 # If initial copy (faster but dumb)
 aws s3 cp --recursive s3://public-ceramic-ipfs-dev/public-ceramic-ipfs-dev-1 kubo-blockstore
 
 # If topping up (slower but only transfers the delta)
 aws s3 sync s3://public-ceramic-ipfs-dev/public-ceramic-ipfs-dev-1 kubo-blockstore
+
+## PROD
+# If initial copy (faster but dumb)
+aws s3 cp --recursive s3://public-ceramic-ipfs-prod/public-ceramic-ipfs-prod-1 kubo-blockstore
+
+# If topping up (slower but only transfers the delta)
+aws s3 sync s3://public-ceramic-ipfs-prod/public-ceramic-ipfs-prod-1 kubo-blockstore
+
 ```
 
 This is OK to cancel and resume, and follow-up runs will only transfer the delta.
@@ -49,6 +58,7 @@ Copy the tarball to the pod with `kubectl cp` and extract to `$CERAMIC_ONE_STORE
 
 ## Run the block import
 
+Clay:
 ```bash
 # Snapshot which blocks are are importing, so we can import deltas later
 find $CERAMIC_ONE_STORE_DIR/kubo-blockstore -type f \
@@ -60,7 +70,7 @@ ceramic-one migrations from-ipfs \
   --input-file-list-path $CERAMIC_ONE_STORE_DIR/migration-info/blocks_run_1.txt \
   --non-sharded-paths \
   --output-store-path $CERAMIC_ONE_STORE_DIR \
-  --network testnet-clay \
+  --network [NETWORK) \
   --log-format json \
   > "$CERAMIC_ONE_STORE_DIR/migration-info/log_$(date --iso-8601=minutes | sed 's|+00:00||').json" 2>&1
 
@@ -71,7 +81,7 @@ ceramic-one migrations from-ipfs \
     --input-file-list-path $CERAMIC_ONE_STORE_DIR/migration-info/blocks_run_1.txt \
     --non-sharded-paths \
     --output-store-path $CERAMIC_ONE_STORE_DIR \
-    --network testnet-clay \
+    --network [NETWORK) \
     --validate-signatures \
     --model-filter='kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0,kh4q0ozorrgaq2mezktnrmdwleo1d' \
     --log-format json \
