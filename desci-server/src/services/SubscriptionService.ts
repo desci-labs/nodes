@@ -15,6 +15,7 @@ import Stripe from 'stripe';
 
 import { getPlanTypeFromPriceId, getBillingIntervalFromPriceId } from '../config/stripe.js';
 import { SCIWEAVE_FREE_LIMIT } from '../config.js';
+import { capturePostHogEvent } from '../lib/PostHog.js';
 import { logger as parentLogger } from '../logger.js';
 import { getStripe, isStripeEnabled } from '../utils/stripe.js';
 
@@ -22,7 +23,6 @@ import { sendEmail } from './email/email.js';
 import { hasEmailBeenSent, recordSentEmail } from './email/helpers.js';
 import { SciweaveEmailTypes } from './email/sciweaveEmailTypes.js';
 import { FEATURE_LIMIT_DEFAULTS } from './FeatureLimits/constants.js';
-import { capturePostHogEvent } from '../lib/PostHog.js';
 
 const logger = parentLogger.child({
   module: 'SUBSCRIPTION_SERVICE',

@@ -950,6 +950,122 @@ const checkAbandonedCheckoutCouponExpiring: EmailReminderHandler = {
   },
 };
 
+/**
+ * Send welcome follow-up email to new users 3 days after signup
+ * Targets users who:
+ * - Created account between 72 hours and 5 days ago (buffer for cron downtime)
+ * - Haven't received this email before
+ * - Have marketing emails enabled
+ */
+const checkNewUser3Day: EmailReminderHandler = {
+  name: 'New User 3-Day Follow-Up',
+  description: 'Send follow-up email to new users 3 days after signup',
+  enabled: true,
+  handler: async () => {
+    let sent = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    try {
+      const seventyTwoHoursAgo = subHours(new Date(), 72);
+      const fiveDaysAgo = subDays(new Date(), 5);
+
+      // Find users who created accounts between 72 hours and 5 days ago
+      const newUsers = await prisma.user.findMany({
+        where: {
+          createdAt: {
+            gte: fiveDaysAgo,
+            lte: seventyTwoHoursAgo,
+          },
+          // Only non-guest users who have marketing emails enabled
+          isGuest: { not: true },
+          receiveSciweaveMarketingEmails: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          createdAt: true,
+        },
+      });
+
+      logger.info({ count: newUsers.length }, 'Found new users for 3-day follow-up email');
+
+      for (const user of newUsers) {
+        try {
+          // Check if we've already sent this email before
+          const existingEmail = await prisma.sentEmail.findFirst({
+            where: {
+              userId: user.id,
+              emailType: SentEmailType.SCIWEAVE_NEW_USER_3_DAY,
+            },
+          });
+
+          if (existingEmail) {
+            logger.debug({ userId: user.id }, 'Already sent new user 3-day email, skipping');
+            skipped++;
+            continue;
+          }
+
+          if (isDryRunMode()) {
+            recordDryRunEmail({
+              userId: user.id,
+              email: user.email,
+              emailType: 'SCIWEAVE_NEW_USER_3_DAY',
+              handlerName: 'New User 3-Day Follow-Up',
+              details: { createdAt: user.createdAt.toISOString() },
+            });
+            sent++;
+            continue;
+          }
+
+          const { firstName, lastName } = await getUserNameByUser(user);
+
+          // Send the new user 3-day email
+          const emailResult = await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY,
+            payload: {
+              email: user.email,
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+            },
+          });
+
+          // Only record if email was actually sent successfully
+          if (emailResult && emailResult.success) {
+            await prisma.sentEmail.create({
+              data: {
+                userId: user.id,
+                emailType: SentEmailType.SCIWEAVE_NEW_USER_3_DAY,
+                internalTrackingId: emailResult.internalTrackingId,
+                details: {
+                  createdAt: user.createdAt.toISOString(),
+                  ...(emailResult.sgMessageIdPrefix && {
+                    sgMessageIdPrefix: emailResult.sgMessageIdPrefix,
+                  }),
+                },
+              },
+            });
+          }
+
+          logger.info({ userId: user.id, email: user.email, dryRun: isDryRunMode() }, 'Sent new user 3-day email');
+          sent++;
+        } catch (err) {
+          logger.error({ err, userId: user.id }, 'Failed to process new user 3-day email for user');
+          errors++;
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, 'Failed to check new user 3-day follow-up');
+      errors++;
+    }
+
+    return { sent, skipped, errors };
+  },
+};
+
 // Export individual handlers for testing
 export {
   checkSciweave14DayInactivity,
@@ -957,6 +1073,7 @@ export {
   checkStudentDiscountFollowUp,
   checkAbandonedCheckout1Hour,
   checkAbandonedCheckoutCouponExpiring,
+  checkNewUser3Day,
   testEmailHandler,
 };
 
@@ -966,6 +1083,7 @@ export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
   checkStudentDiscountFollowUp,
   checkAbandonedCheckout1Hour,
   checkAbandonedCheckoutCouponExpiring,
+  checkNewUser3Day,
   testEmailHandler, // Auto-skips unless TEST_EMAIL_ADDRESS is set
   // Add more handlers here
 ];
