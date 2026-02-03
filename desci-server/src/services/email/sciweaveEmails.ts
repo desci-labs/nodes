@@ -110,8 +110,11 @@ async function sendSciweaveEmail(
       };
 
       // Add ASM group for unsubscribe management
+      // groupsToDisplay limits which groups users can see/unsubscribe from
+      // For Sciweave emails, only show Sciweave marketing group
       message.asm = {
         groupId: getAsmGroupId(emailType),
+        groupsToDisplay: [SENDGRID_ASM_GROUP_IDS.SCIWEAVE_MARKETING],
       };
 
       const response = await sgMail.send(message);

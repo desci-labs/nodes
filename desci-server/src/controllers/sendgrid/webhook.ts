@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
-import { SENDGRID_WEBHOOK_VERIFY_KEY } from '../../config.js';
+import { SENDGRID_WEBHOOK_VERIFY_KEY, SENDGRID_ASM_GROUP_IDS } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 import { AppType } from '../../services/interactionLog.js';
 import { MarketingConsentService } from '../../services/user/Marketing.js';
@@ -30,6 +30,8 @@ interface SendGridEvent {
   // Custom args we added
   internal_tracking_id?: string;
   app_type?: 'SCIWEAVE' | 'PUBLISH';
+  // ASM group unsubscribe info
+  asm_group_id?: number;
   [key: string]: any;
 }
 
@@ -176,14 +178,48 @@ async function processEvent(event: SendGridEvent) {
 }
 
 /**
+ * Determine which app type based on ASM group ID
+ * Returns null if the group ID is not a marketing group we care about
+ */
+function getAppTypeFromAsmGroupId(asmGroupId: number | undefined): AppType | null {
+  if (asmGroupId === SENDGRID_ASM_GROUP_IDS.SCIWEAVE_MARKETING) {
+    return AppType.SCIWEAVE;
+  }
+  if (asmGroupId === SENDGRID_ASM_GROUP_IDS.PUBLISH_MARKETING) {
+    return AppType.PUBLISH;
+  }
+  // Transactional groups or unknown - don't update marketing preferences
+  return null;
+}
+
+/**
  * Process unsubscribe events from SendGrid webhook
- * Updates the user's marketing consent preference based on the app_type
+ * Updates the user's marketing consent preference based on the ASM group ID
  */
 async function processUnsubscribeEvent(event: SendGridEvent) {
-  const { email, app_type, sg_event_id } = event;
+  const { email, asm_group_id, app_type, sg_event_id } = event;
 
   if (!email) {
     logger.warn({ sg_event_id }, 'Unsubscribe event missing email address');
+    return;
+  }
+
+  // Determine app type from ASM group ID (preferred) or fall back to app_type custom arg
+  let appType: AppType | null = getAppTypeFromAsmGroupId(asm_group_id);
+
+  // If no ASM group ID or it's not a marketing group, fall back to app_type custom arg
+  if (!appType && app_type) {
+    appType = app_type === 'PUBLISH' ? AppType.PUBLISH : AppType.SCIWEAVE;
+  }
+
+  // If still no app type, default to SCIWEAVE for backwards compatibility
+  if (!appType) {
+    appType = AppType.SCIWEAVE;
+  }
+
+  // Skip if unsubscribe was from a transactional group (not marketing)
+  if (asm_group_id && !getAppTypeFromAsmGroupId(asm_group_id)) {
+    logger.info({ email, asm_group_id, sg_event_id }, 'Ignoring unsubscribe from transactional ASM group');
     return;
   }
 
@@ -198,14 +234,11 @@ async function processUnsubscribeEvent(event: SendGridEvent) {
     return;
   }
 
-  // Determine which app's marketing preference to update
-  // Default to SCIWEAVE if app_type is not specified (for backwards compatibility)
-  const appType = app_type === 'PUBLISH' ? AppType.PUBLISH : AppType.SCIWEAVE;
-
   logger.info(
     {
       email,
       userId: user.id,
+      asm_group_id,
       app_type,
       appType,
       sg_event_id,
@@ -238,6 +271,7 @@ async function processUnsubscribeEvent(event: SendGridEvent) {
       email,
       userId: user.id,
       appType,
+      asm_group_id,
       sg_event_id,
     },
     'Successfully processed SendGrid unsubscribe event',
