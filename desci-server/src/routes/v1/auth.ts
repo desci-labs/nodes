@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { appleLogin } from '../../controllers/auth/apple.js';
 import { convertGuestToUser } from '../../controllers/auth/convertGuest.js';
 import { convertGuestToUserGoogle } from '../../controllers/auth/convertGuestGoogle.js';
 import { convertGuestToUserOrcid } from '../../controllers/auth/convertGuestOrcid.js';
@@ -24,8 +25,8 @@ import { updateMarketingConsentController } from '../../controllers/auth/marketi
 import { updateSignupDetails } from '../../controllers/auth/updateSignupDetails.js';
 import { walletLogin, walletNonce } from '../../controllers/users/associateWallet.js';
 import { ensureGuest, ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
-import { validate } from '../../middleware/validator.js';
-import { googleAuthSchema } from '../../schemas/auth.schema.js';
+import { validate, validateInputs } from '../../middleware/validator.js';
+import { appleLoginSchema, googleAuthSchema } from '../../schemas/auth.schema.js';
 import { updateMarketingConsentSchema } from '../../schemas/users.schema.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 const router = Router();
@@ -48,7 +49,8 @@ router.get('/orcid/connect', orcidConnect);
 router.get('/orcid/connect/close', orcidConnectClose);
 router.get('/orcid/validate', validateOrcid);
 router.get('/orcid/validate', validateOrcid);
-router.post('/google/login', [validate(googleAuthSchema)], asyncHandler(googleAuth));
+router.post('/google/login', [validateInputs(googleAuthSchema)], asyncHandler(googleAuth));
+router.post('/apple/login', [validateInputs(appleLoginSchema)], asyncHandler(appleLogin));
 router.post('/magic', magic);
 router.post('/apiKey/issue', [ensureUser], issueApiKey);
 router.delete('/apiKey/revoke', [ensureUser], revokeApiKey);
