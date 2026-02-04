@@ -16,4 +16,26 @@ export const googleAuthSchema = z.object({
   }),
 });
 
+export const appleLoginSchema = z.object({
+  body: z.object({
+    authorizationCode: z.string(),
+    email: z.string().email().optional().nullable(),
+    fullName: z
+      .object({
+        familyName: z.string().optional().nullable(),
+        givenName: z.string().optional().nullable(),
+        middleName: z.string().optional().nullable(),
+        namePrefix: z.string().optional().nullable(),
+        nameSuffix: z.string().optional().nullable(),
+        nickname: z.string().optional().nullable(),
+      })
+      .optional()
+      .nullable(),
+    identityToken: z.string(),
+    realUserStatus: z.number(),
+    state: z.string().optional().nullable(),
+    user: z.string(),
+  }),
+});
+
 export type GoogleAuthRequest = z.infer<typeof googleAuthSchema>;
