@@ -1,7 +1,7 @@
 import { ActionType } from '@prisma/client';
 import { Request, Response } from 'express';
-import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
+import jwksRsa from 'jwks-rsa';
 
 import { prisma } from '../../client.js';
 import { ValidatedRequest } from '../../core/types.js';
@@ -14,21 +14,84 @@ import { splitName } from '../../utils.js';
 
 import { generateAccessToken } from './magic.js';
 
-interface AppleIdentityTokenData {
-  header: { kid: string; alg: string };
-  payload: {
-    iss: string;
-    aud: string;
-    exp: number;
-    iat: number;
-    sub: string;
-    c_hash: string;
-    email: string;
-    email_verified: boolean;
-    auth_time: number;
-    nonce_supported: boolean;
-  };
-  signature: string;
+const APPLE_ISSUER = 'https://appleid.apple.com';
+const APPLE_JWKS_URI = 'https://appleid.apple.com/auth/keys';
+
+/** Cached Apple JWKS client for verifying identity token signatures */
+const appleJwksClient = jwksRsa({
+  jwksUri: APPLE_JWKS_URI,
+  cache: true,
+  cacheMaxAge: 600000, // 10 minutes
+});
+
+export interface AppleVerifiedClaims {
+  sub: string;
+  email: string | null;
+}
+
+/**
+ * Fetches Apple's JWKS, verifies the identity token signature, and validates claims.
+ * Returns authoritative sub (uid) and email from the verified token payload, or null if invalid.
+ */
+export async function verifyAppleIdentityToken(identityToken: string): Promise<AppleVerifiedClaims | null> {
+  const appleClientId = process.env.APPLE_CLIENT_ID ?? 'com.desci.research';
+  if (!appleClientId) {
+    parentLogger.child({ module: 'AUTH::AppleOAuthController' }).error('APPLE_CLIENT_ID is not set');
+    return null;
+  }
+  try {
+    const decoded = await new Promise<jwt.JwtPayload>((resolve, reject) => {
+      const getKey = (header: jwt.JwtHeader, callback: jwt.SigningKeyCallback) => {
+        if (!header.kid) {
+          callback(new Error('JWT header missing kid'));
+          return;
+        }
+        appleJwksClient.getSigningKey(header.kid, (err, key) => {
+          if (err) {
+            callback(err);
+            return;
+          }
+          const signingKey = key ? key.getPublicKey() : null;
+          callback(null, signingKey ?? undefined);
+        });
+      };
+      jwt.verify(
+        identityToken,
+        getKey,
+        {
+          algorithms: ['RS256'],
+          audience: appleClientId,
+          issuer: APPLE_ISSUER,
+        },
+        (err, payload) => {
+          if (err) reject(err);
+          else resolve((payload ?? {}) as jwt.JwtPayload);
+        },
+      );
+    });
+
+    const emailVerified = decoded.email_verified;
+    const tokenEmail = typeof decoded.email === 'string' ? decoded.email : null;
+    if (tokenEmail != null && emailVerified !== true && emailVerified !== 'true') {
+      parentLogger
+        .child({ module: 'AUTH::AppleOAuthController' })
+        .warn({ sub: decoded.sub }, 'Apple identity token email_verified claim not true when email present');
+      return null;
+    }
+
+    return {
+      sub: decoded.sub as string,
+      email: tokenEmail,
+    };
+  } catch (error) {
+    parentLogger
+      .child({ module: 'AUTH::AppleOAuthController' })
+      .error(
+        { error, identityTokenPrefix: identityToken?.substring(0, 30) },
+        'Apple identity token verification failed',
+      );
+    return null;
+  }
 }
 
 type AppleLoginRequest = ValidatedRequest<typeof appleLoginSchema, Request>;
@@ -57,42 +120,54 @@ export const appleLogin = async (req: AppleLoginRequest, res: Response) => {
     user: !!appleUserId,
   });
   try {
-    logger.info(
-      {
-        authorizationCode: authorizationCode?.substring(0, 20) + '...',
-        email: emailParam?.substring(0, 20) + '...',
-        fullName: `${fullName?.givenName ?? ''} ${fullName?.familyName ?? ''}`.trim().substring(0, 20) + '...',
-        identityToken: identityToken?.substring(0, 20) + '...',
-        realUserStatus: realUserStatus,
-        state: state?.substring(0, 20) + '...',
-        user: appleUserId?.substring(0, 20) + '...',
-      },
-      'Apple OAuth login attempt',
-    );
-
-    let email = emailParam;
-    if (!email) {
-      // returning user, decode identity token (jwt)
-      const decoded = jwt.decode(identityToken, {
-        complete: true,
-      }) as AppleIdentityTokenData;
-      email = decoded.payload.email;
+    const verified = await verifyAppleIdentityToken(identityToken);
+    if (!verified) {
+      logger.warn('Apple identity token verification failed or claims invalid');
+      return res.status(401).send({ ok: false, message: 'Authentication failed' });
     }
 
-    // Find or create user
-    let user = await prisma.user.findFirst({
-      where: { email: email.toLowerCase() },
-    });
-    let isNewUser = false;
+    if (appleUserId !== verified.sub) {
+      logger.warn(
+        { appleUserId, verifiedSub: verified.sub },
+        'Client-sent user (appleUserId) does not match verified token sub',
+      );
+      return res.status(401).send({ ok: false, message: 'Authentication failed' });
+    }
+    if (emailParam != null && emailParam !== '' && (verified.email == null || emailParam !== verified.email)) {
+      logger.warn(
+        { emailParam: emailParam?.substring(0, 20), verifiedEmail: verified.email?.substring(0, 20) },
+        'Client-sent email does not match verified token email',
+      );
+      return res.status(401).send({ ok: false, message: 'Authentication failed' });
+    }
+
+    const email = verified.email ? verified.email.toLowerCase() : null;
     const name = `${fullName?.givenName ?? ''} ${fullName?.familyName ?? ''}`.trim();
 
+    let user: Awaited<ReturnType<typeof prisma.user.findFirst>>;
+    if (email) {
+      user = await prisma.user.findFirst({
+        where: { email },
+      });
+    } else {
+      const identity = await prisma.userIdentity.findFirst({
+        where: { provider: 'apple', uid: verified.sub },
+        include: { user: true },
+      });
+      user = identity?.user ?? null;
+    }
+
+    let isNewUser = false;
     if (!user) {
+      if (!email) {
+        logger.warn('No verified email in token and no existing user for this Apple sub');
+        return res.status(401).send({ ok: false, message: 'Authentication failed' });
+      }
       isNewUser = true;
       const { firstName, lastName } = splitName(name);
-      // Create new user
       user = await prisma.user.create({
         data: {
-          email: email.toLowerCase(),
+          email,
           name,
           firstName,
           lastName,
@@ -100,7 +175,6 @@ export const appleLogin = async (req: AppleLoginRequest, res: Response) => {
       });
       logger.info({ userId: user.id, email: user.email }, 'Created new user from Apple OAuth');
 
-      // Initialize trial for new user
       try {
         const { initializeTrialForNewUser } = await import('../../services/subscription.js');
         await initializeTrialForNewUser(user.id);
@@ -108,9 +182,6 @@ export const appleLogin = async (req: AppleLoginRequest, res: Response) => {
         logger.error({ error, userId: user.id }, 'Failed to initialize trial for new user');
       }
     } else {
-      logger.info({ userId: user.id, email: user.email }, 'Found existing user from Google OAuth');
-
-      // Check if the user has a name set, if not use the one from Google.
       if (!user.name) {
         const { firstName, lastName } = splitName(name);
         user = await prisma.user.update({
@@ -129,12 +200,14 @@ export const appleLogin = async (req: AppleLoginRequest, res: Response) => {
         submitToMixpanel: true,
       });
 
-    // Store Google identity if not already stored
+    const authoritativeUid = verified.sub;
+    const authoritativeEmail = (verified.email ?? user.email).toLowerCase();
+
     const existingIdentity = await prisma.userIdentity.findFirst({
       where: {
         userId: user.id,
         provider: 'apple',
-        uid: appleUserId,
+        uid: authoritativeUid,
       },
     });
 
@@ -145,8 +218,8 @@ export const appleLogin = async (req: AppleLoginRequest, res: Response) => {
             connect: { id: user.id },
           },
           provider: 'apple',
-          uid: appleUserId,
-          email: email.toLowerCase(),
+          uid: authoritativeUid,
+          email: authoritativeEmail,
           name,
         },
       });
