@@ -34,7 +34,7 @@ export interface AppleVerifiedClaims {
  * Returns authoritative sub (uid) and email from the verified token payload, or null if invalid.
  */
 export async function verifyAppleIdentityToken(identityToken: string): Promise<AppleVerifiedClaims | null> {
-  const appleClientId = process.env.APPLE_CLIENT_ID ?? 'com.desci.research';
+  const appleClientId = process.env.APPLE_CLIENT_ID;
   if (!appleClientId) {
     parentLogger.child({ module: 'AUTH::AppleOAuthController' }).error('APPLE_CLIENT_ID is not set');
     return null;
