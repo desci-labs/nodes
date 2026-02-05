@@ -120,6 +120,12 @@ async function processEvent(event: SendGridEvent) {
     return;
   }
 
+  // Handle resubscribe events (user toggled back on via preferences page)
+  if (eventType === 'group_resubscribe') {
+    await processResubscribeEvent(event);
+    return;
+  }
+
   // For click events, we need the tracking ID
   if (!internal_tracking_id) {
     // Skip events without our tracking ID
@@ -275,5 +281,80 @@ async function processUnsubscribeEvent(event: SendGridEvent) {
       sg_event_id,
     },
     'Successfully processed SendGrid unsubscribe event',
+  );
+}
+
+/**
+ * Process resubscribe events from SendGrid webhook
+ * Updates the user's marketing consent preference when they re-enable via preferences page
+ */
+async function processResubscribeEvent(event: SendGridEvent) {
+  const { email, asm_group_id, sg_event_id } = event;
+
+  if (!email) {
+    logger.warn({ sg_event_id }, 'Resubscribe event missing email address');
+    return;
+  }
+
+  // Determine app type from ASM group ID
+  const appType = getAppTypeFromAsmGroupId(asm_group_id);
+
+  // Only process resubscribes for marketing groups
+  if (!appType) {
+    logger.info({ email, asm_group_id, sg_event_id }, 'Ignoring resubscribe from non-marketing ASM group');
+    return;
+  }
+
+  // Find user by email
+  const user = await prisma.user.findFirst({
+    where: { email },
+    select: { id: true },
+  });
+
+  if (!user) {
+    logger.warn({ email, sg_event_id }, 'User not found for resubscribe event');
+    return;
+  }
+
+  logger.info(
+    {
+      email,
+      userId: user.id,
+      asm_group_id,
+      appType,
+      sg_event_id,
+    },
+    'Processing SendGrid resubscribe event',
+  );
+
+  const result = await MarketingConsentService.updateMarketingConsent({
+    userId: user.id,
+    receiveMarketingEmails: true,
+    appType,
+    source: 'sendgrid_webhook',
+  });
+
+  if (result.isErr()) {
+    logger.warn(
+      {
+        email,
+        userId: user.id,
+        error: result.error.message,
+        sg_event_id,
+      },
+      'Failed to process resubscribe event',
+    );
+    return;
+  }
+
+  logger.info(
+    {
+      email,
+      userId: user.id,
+      appType,
+      asm_group_id,
+      sg_event_id,
+    },
+    'Successfully processed SendGrid resubscribe event',
   );
 }
