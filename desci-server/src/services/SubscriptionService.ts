@@ -510,6 +510,26 @@ export class SubscriptionService {
   }
 
   /**
+   * Handles initial purchase for mobile subscriptions
+   */
+  static async handleMobileSubscriptionCreated(userId: number) {
+    logger.info({ userId }, 'Handling mobile subscription created');
+    const planType = PlanType.OMNI_CHATS;
+    return await this.updateUserFeatureLimits(userId, planType);
+  }
+
+  static async handleMobileSubscriptionRenewed(userId: number) {
+    logger.info({ userId }, 'Handling mobile subscription renewed');
+    const planType = PlanType.OMNI_CHATS;
+    return await this.updateUserFeatureLimits(userId, planType);
+  }
+
+  static async handleMobileSubscriptionCancelled(userId: number) {
+    logger.info({ userId }, 'Handling mobile subscription cancelled');
+    return await this.updateFeatureLimitsAfterCancellation(userId);
+  }
+
+  /**
    * Tracks subscription renewal event for recurring payments
    * Only fires for renewals (payments after the first invoice)
    */
