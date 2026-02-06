@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "SentEmailType" ADD VALUE 'SCIWEAVE_NEW_USER_3_DAY';

@@ -127,6 +127,7 @@
     "pino-http": "^8.3.3",
     "pino-pretty": "^10.0.0",
     "pino-std-serializers": "^7.0.0",
+    "posthog-node": "^5.24.5",
     "prisma": "4.10.1",
     "qs": "^6.12.0",
     "react-email": "2.1.0",

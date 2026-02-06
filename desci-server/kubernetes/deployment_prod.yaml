@@ -133,6 +133,9 @@ spec:
           export SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP='{{ .Data.SCIWEAVE_SENDGRID_TEMPLATE_ID_MAP }}'
           export ENABLE_IMPORT_QUEUE="{{ .Data.ENABLE_IMPORT_QUEUE }}"
           export AMPLITUDE_API_KEY_SCIWEAVE="{{ .Data.AMPLITUDE_API_KEY_SCIWEAVE }}"
+          export POSTHOG_API_KEY="{{ .Data.POSTHOG_API_KEY }}"
+          export POSTHOG_HOST="{{ .Data.POSTHOG_HOST }}"
+          export APPLE_CLIENT_ID="{{ .Data.APPLE_CLIENT_ID }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";

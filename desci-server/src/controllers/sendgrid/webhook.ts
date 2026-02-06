@@ -3,8 +3,10 @@ import crypto from 'crypto';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
-import { SENDGRID_WEBHOOK_VERIFY_KEY } from '../../config.js';
+import { SENDGRID_WEBHOOK_VERIFY_KEY, SENDGRID_ASM_GROUP_IDS } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
+import { AppType } from '../../services/interactionLog.js';
+import { MarketingConsentService } from '../../services/user/Marketing.js';
 
 const logger = parentLogger.child({
   module: 'SENDGRID_WEBHOOK',
@@ -27,6 +29,9 @@ interface SendGridEvent {
   };
   // Custom args we added
   internal_tracking_id?: string;
+  app_type?: 'SCIWEAVE' | 'PUBLISH';
+  // ASM group unsubscribe info
+  asm_group_id?: number;
   [key: string]: any;
 }
 
@@ -95,12 +100,7 @@ export const handleSendGridWebhook = async (req: Request, res: Response): Promis
 };
 
 async function processEvent(event: SendGridEvent) {
-  const { event: eventType, sg_message_id, internal_tracking_id, timestamp } = event;
-
-  if (!internal_tracking_id) {
-    // Skip events without our tracking ID
-    return;
-  }
+  const { event: eventType, sg_message_id, internal_tracking_id, timestamp, email, app_type } = event;
 
   logger.info(
     {
@@ -108,9 +108,29 @@ async function processEvent(event: SendGridEvent) {
       sg_message_id,
       internal_tracking_id,
       timestamp,
+      email,
+      app_type,
     },
     'Processing SendGrid event',
   );
+
+  // Handle unsubscribe events
+  if (eventType === 'unsubscribe' || eventType === 'group_unsubscribe') {
+    await processUnsubscribeEvent(event);
+    return;
+  }
+
+  // Handle resubscribe events (user toggled back on via preferences page)
+  if (eventType === 'group_resubscribe') {
+    await processResubscribeEvent(event);
+    return;
+  }
+
+  // For click events, we need the tracking ID
+  if (!internal_tracking_id) {
+    // Skip events without our tracking ID
+    return;
+  }
 
   // Only process click events for the email types we care about
   if (eventType !== 'click') {
@@ -160,5 +180,181 @@ async function processEvent(event: SendGridEvent) {
       emailRecordId: emailRecord.id,
     },
     'Successfully processed SendGrid click event',
+  );
+}
+
+/**
+ * Determine which app type based on ASM group ID
+ * Returns null if the group ID is not a marketing group we care about
+ */
+function getAppTypeFromAsmGroupId(asmGroupId: number | undefined): AppType | null {
+  if (asmGroupId === SENDGRID_ASM_GROUP_IDS.SCIWEAVE_MARKETING) {
+    return AppType.SCIWEAVE;
+  }
+  if (asmGroupId === SENDGRID_ASM_GROUP_IDS.PUBLISH_MARKETING) {
+    return AppType.PUBLISH;
+  }
+  // Transactional groups or unknown - don't update marketing preferences
+  return null;
+}
+
+/**
+ * Process unsubscribe events from SendGrid webhook
+ * Updates the user's marketing consent preference based on the ASM group ID
+ */
+async function processUnsubscribeEvent(event: SendGridEvent) {
+  const { email, asm_group_id, app_type, sg_event_id } = event;
+
+  if (!email) {
+    logger.warn({ sg_event_id }, 'Unsubscribe event missing email address');
+    return;
+  }
+
+  // Determine app type from ASM group ID (preferred) or fall back to app_type custom arg
+  let appType: AppType | null = getAppTypeFromAsmGroupId(asm_group_id);
+
+  // If no ASM group ID or it's not a marketing group, fall back to app_type custom arg
+  if (!appType && app_type) {
+    appType = app_type === 'PUBLISH' ? AppType.PUBLISH : AppType.SCIWEAVE;
+  }
+
+  // If still no app type, default to SCIWEAVE for backwards compatibility
+  if (!appType) {
+    appType = AppType.SCIWEAVE;
+  }
+
+  // Skip if unsubscribe was from a transactional group (not marketing)
+  if (asm_group_id && !getAppTypeFromAsmGroupId(asm_group_id)) {
+    logger.info({ email, asm_group_id, sg_event_id }, 'Ignoring unsubscribe from transactional ASM group');
+    return;
+  }
+
+  // Find user by email
+  const user = await prisma.user.findFirst({
+    where: { email },
+    select: { id: true },
+  });
+
+  if (!user) {
+    logger.warn({ email, sg_event_id }, 'User not found for unsubscribe event');
+    return;
+  }
+
+  logger.info(
+    {
+      email,
+      userId: user.id,
+      asm_group_id,
+      app_type,
+      appType,
+      sg_event_id,
+    },
+    'Processing SendGrid unsubscribe event',
+  );
+
+  const result = await MarketingConsentService.updateMarketingConsent({
+    userId: user.id,
+    receiveMarketingEmails: false,
+    appType,
+    source: 'sendgrid_webhook',
+  });
+
+  if (result.isErr()) {
+    logger.warn(
+      {
+        email,
+        userId: user.id,
+        error: result.error.message,
+        sg_event_id,
+      },
+      'Failed to process unsubscribe event',
+    );
+    return;
+  }
+
+  logger.info(
+    {
+      email,
+      userId: user.id,
+      appType,
+      asm_group_id,
+      sg_event_id,
+    },
+    'Successfully processed SendGrid unsubscribe event',
+  );
+}
+
+/**
+ * Process resubscribe events from SendGrid webhook
+ * Updates the user's marketing consent preference when they re-enable via preferences page
+ */
+async function processResubscribeEvent(event: SendGridEvent) {
+  const { email, asm_group_id, sg_event_id } = event;
+
+  if (!email) {
+    logger.warn({ sg_event_id }, 'Resubscribe event missing email address');
+    return;
+  }
+
+  // Determine app type from ASM group ID
+  const appType = getAppTypeFromAsmGroupId(asm_group_id);
+
+  // Only process resubscribes for marketing groups
+  if (!appType) {
+    logger.info({ email, asm_group_id, sg_event_id }, 'Ignoring resubscribe from non-marketing ASM group');
+    return;
+  }
+
+  // Find user by email
+  const user = await prisma.user.findFirst({
+    where: { email },
+    select: { id: true },
+  });
+
+  if (!user) {
+    logger.warn({ email, sg_event_id }, 'User not found for resubscribe event');
+    return;
+  }
+
+  logger.info(
+    {
+      email,
+      userId: user.id,
+      asm_group_id,
+      appType,
+      sg_event_id,
+    },
+    'Processing SendGrid resubscribe event',
+  );
+
+  const result = await MarketingConsentService.updateMarketingConsent({
+    userId: user.id,
+    receiveMarketingEmails: true,
+    appType,
+    source: 'sendgrid_webhook',
+  });
+
+  if (result.isErr()) {
+    logger.warn(
+      {
+        email,
+        userId: user.id,
+        error: result.error.message,
+        sg_event_id,
+      },
+      'Failed to process resubscribe event',
+    );
+    return;
+  }
+
+  logger.info(
+    {
+      email,
+      userId: user.id,
+      appType,
+      asm_group_id,
+      sg_event_id,
+    },
+    'Successfully processed SendGrid resubscribe event',
   );
 }
