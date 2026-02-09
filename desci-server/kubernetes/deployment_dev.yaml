@@ -135,6 +135,7 @@ spec:
           export POSTHOG_API_KEY="{{ .Data.POSTHOG_API_KEY }}"
           export POSTHOG_HOST="{{ .Data.POSTHOG_HOST }}"
           export APPLE_CLIENT_ID="{{ .Data.APPLE_CLIENT_ID }}"
+          export STRIPE_SCIWEAVE_LIFETIME_PRICE_ID="{{ .Data.STRIPE_SCIWEAVE_LIFETIME_PRICE_ID }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
