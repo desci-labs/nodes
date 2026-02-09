@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "PlanType" ADD VALUE 'SCIWEAVE_LIFETIME';
+
+-- AlterEnum
+ALTER TYPE "BillingInterval" ADD VALUE 'LIFETIME';

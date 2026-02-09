@@ -286,7 +286,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const activeSubscription = subscriptions.data.find((subscription) => subscription.status === 'active');
   logger.info({ activeSubscription }, 'stripe::Active subscription found');
   if (!activeSubscription) {
-    logger.error({ paymentIntentId: paymentIntent.id }, 'No active subscription found');
+    logger.info({ paymentIntentId: paymentIntent.id }, 'No active subscription found (possible one-time checkout)');
     return;
   }
   logger.info('Handling subscription created', { subscriptionId: activeSubscription.id });
@@ -305,7 +305,7 @@ async function handleCustomerUpdated(customer: Stripe.Customer) {
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  logger.info('Processing checkout session completed', { sessionId: session.id });
+  logger.info('Processing checkout session completed', { sessionId: session.id, mode: session.mode });
 
   // Mark the checkout as completed to prevent abandoned cart emails
   try {
@@ -318,7 +318,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     logger.error({ error, sessionId: session.id }, 'Failed to mark checkout session as completed');
   }
 
-  // The subscription creation will be handled by the subscription.created event
+  // Recurring subscriptions are handled by customer.subscription.* webhooks
+  // One-time lifetime purchases are handled here
+  if (session.mode === 'payment') {
+    await SubscriptionService.handleCheckoutSessionCompleted(session);
+  }
 }
 
 async function handleInvoiceFinalized(invoice: Stripe.Invoice) {
