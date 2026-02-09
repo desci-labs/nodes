@@ -46,12 +46,17 @@ const DPID_ENV_MAPPING = {
 const DPID_RESOLVER_URL =
   process.env.DPID_URL_OVERRIDE || DPID_ENV_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
 
-async function indexResearchObject(nodeUuid: string) {
+type IndexResearchObjectContext = {
+  manifest: ResearchObjectV1;
+  dpid?: string | number;
+};
+
+async function indexResearchObject(nodeUuid: string, indexContext?: IndexResearchObjectContext) {
   nodeUuid = unpadUuid(nodeUuid);
   try {
     const workId = NODES_ID_PREFIX + nodeUuid;
 
-    const workData = await fillNodeData(nodeUuid);
+    const workData = await fillNodeData(nodeUuid, indexContext);
 
     await elasticWriteClient.index({
       index: NATIVE_WORKS_INDEX,
@@ -75,22 +80,50 @@ async function indexResearchObject(nodeUuid: string) {
   }
 }
 
-async function fillNodeData(nodeUuid: string) {
+async function fillNodeData(nodeUuid: string, indexContext?: IndexResearchObjectContext) {
   const node = await prisma.node.findFirst({
     where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
     include: { DoiRecord: true },
   });
-  const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
-  const researchObject = researchObjects[0];
-  const versions = researchObject.versions;
-  const firstVersion = versions.at(-1);
-  let firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
-  const { manifest } = await getManifestFromNode(node);
+  if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
+
+  const manifest = indexContext?.manifest ?? (await getManifestFromNode(node)).manifest;
+  let latestManifest = manifest;
+  let firstVersionTime = new Date();
+
+  if (indexContext) {
+    const firstPublishedNodeVersion = await prisma.nodeVersion.findFirst({
+      where: {
+        nodeId: node.id,
+        OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    if (firstPublishedNodeVersion?.createdAt) {
+      firstVersionTime = firstPublishedNodeVersion.createdAt || new Date();
+    }
+  } else {
+    const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
+    const researchObject = researchObjects[0];
+    if (!researchObject) {
+      throw new Error(`No resolver history found for node ${nodeUuid}`);
+    }
+    const versions = researchObject.versions;
+    const firstVersion = versions.at(-1);
+    firstVersionTime = new Date(parseInt(firstVersion?.time) * 1000);
+    const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
+    latestManifest = await getManifestByCid(latestPublishedManifestCid);
+  }
+
   const firstManuscript = getFirstManuscript(manifest);
   if (!firstManuscript) throw 'Manifest does not contain a manuscript';
-  const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
-  const latestManifest = await getManifestByCid(latestPublishedManifestCid);
-  let dpid = await getDpidFromNode(node);
+  let dpid = indexContext?.dpid ?? (await getDpidFromNode(node, manifest));
 
   // To prevent collisions on dpid 500 with other devs, we add a namespace to the dpid
   // as the index for local-dev is shared.

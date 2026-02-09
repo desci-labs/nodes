@@ -188,9 +188,10 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     );
 
     // Index on ES
-    void ElasticNodesService.indexResearchObject(node.uuid).catch((err) =>
-      logger.warn(err, 'Error: Indexing published node in ElasticSearch failed'),
-    );
+    void ElasticNodesService.indexResearchObject(node.uuid, {
+      manifest,
+      dpid: dpidAlias ?? manifest.dpid?.id,
+    }).catch((err) => logger.warn(err, 'Error: Indexing published node in ElasticSearch failed'));
 
     return res.status(200).send({
       ok: true,
