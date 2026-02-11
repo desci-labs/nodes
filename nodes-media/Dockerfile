@@ -10,10 +10,16 @@ RUN pixi -V
 
 VOLUME /root/.yarn
 
+# Build args for optional heavy packages (controlled via nodes/.env, check .env.example)
+ARG INSTALL_TEXLIVE=true
+ARG INSTALL_CHROMIUM=true
+ARG INSTALL_INKSCAPE=true
+
 RUN apt-get -qy update && apt-get -qy install openssl firefox-esr libasound2
 
 # Install Chrome/Chromium and its dependencies for Puppeteer
-RUN apt-get -qy update && apt-get install -y \
+RUN if [ "$INSTALL_CHROMIUM" = "true" ]; then \
+    apt-get -qy update && apt-get install -y \
     chromium \
     fonts-liberation \
     fonts-font-awesome \
@@ -51,32 +57,36 @@ RUN apt-get -qy update && apt-get install -y \
     libxtst6 \
     lsb-release \
     wget \
-    xdg-utils
-
-RUN apt-get -qy update && apt-get install -y    inkscape 
-RUN apt-get -qy update && apt-get install -y    texlive-full  --fix-missing
-RUN apt-get -qy update && apt-get install -y    texlive-latex-recommended
-RUN apt-get -qy update && apt-get install -y     texlive-xetex 
-RUN apt-get -qy update && apt-get install -y    unzip \
-    curl
-
-# install imagemagick
-RUN apt-get update && apt-get install imagemagick
-
-# update imagemagick security policy to allow pdf
-RUN sed '/"PDF"/d' /etc/ImageMagick-6/policy.xml > /etc/ImageMagick-6/policy.xml
+    xdg-utils; \
+    else echo "Skipping Chromium install (INSTALL_CHROMIUM=false)"; fi
 
 # Set Puppeteer to use installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV CHROME_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install xzdec - a tool for decompressing .xz files, needed by tlmgr (TeX Live package manager)
-RUN apt-get install -y xzdec
+# Inkscape - SVG processing
+RUN if [ "$INSTALL_INKSCAPE" = "true" ]; then \
+    apt-get -qy update && apt-get install -y inkscape; \
+    else echo "Skipping Inkscape install (INSTALL_INKSCAPE=false)"; fi
 
-RUN mkdir -p /root/texmf
-RUN tlmgr init-usertree
+# TeXLive Full - LaTeX to PDF conversion (~5GB)
+RUN if [ "$INSTALL_TEXLIVE" = "true" ]; then \
+    apt-get -qy update && apt-get install -y texlive-full --fix-missing && \
+    apt-get -qy update && apt-get install -y texlive-latex-recommended && \
+    apt-get -qy update && apt-get install -y texlive-xetex && \
+    apt-get install -y xzdec && \
+    mkdir -p /root/texmf && \
+    tlmgr init-usertree && \
+    which latexmk; \
+    else echo "Skipping TeXLive install (INSTALL_TEXLIVE=false)"; fi
 
-RUN which latexmk
+RUN apt-get -qy update && apt-get install -y unzip curl
+
+# install imagemagick
+RUN apt-get update && apt-get install -y imagemagick
+
+# update imagemagick security policy to allow pdf
+RUN sed '/"PDF"/d' /etc/ImageMagick-6/policy.xml > /etc/ImageMagick-6/policy.xml
 
 # install ghostscript
 RUN apt-get install -y ghostscript

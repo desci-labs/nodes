@@ -3,7 +3,12 @@ version: "3"
 services:
   nodes_media:
     container_name: 'nodes_media'
-    build: ./nodes-media
+    build:
+      context: ./nodes-media
+      args:
+        INSTALL_TEXLIVE: ${INSTALL_TEXLIVE:-true}
+        INSTALL_CHROMIUM: ${INSTALL_CHROMIUM:-true}
+        INSTALL_INKSCAPE: ${INSTALL_INKSCAPE:-true}
     restart: on-failure
     entrypoint: /bin/sh './scripts/nodes-media-dev.sh'
     env_file:
