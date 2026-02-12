@@ -100,7 +100,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     /*
      ** Add PublishStatus entry
      */
-    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
+    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid, commitId);
     await PublishServices.updatePublishStatusEntry({
       publishStatusId: publishStatusEntry.id,
       data: {

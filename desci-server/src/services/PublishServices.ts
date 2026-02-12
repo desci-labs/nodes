@@ -1,8 +1,8 @@
 import { DataType, EmailType, Node, NodeContribution, NodeVersion, Prisma, PublishStatus, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
-import { SENDGRID_API_KEY, SHOULD_SEND_EMAIL } from '../config.js';
 import { prisma } from '../client.js';
+import { SENDGRID_API_KEY, SHOULD_SEND_EMAIL } from '../config.js';
 import { getNodeVersion } from '../controllers/communities/util.js';
 import { createOrUpgradeDpidAlias, handlePublicDataRefs } from '../controllers/nodes/publish.js';
 import { logger as parentLogger } from '../logger.js';
@@ -13,9 +13,9 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 import { attestationService } from './Attestation.js';
 import { contributorService } from './Contributors.js';
 import { getManifestFromNode } from './data/processing.js';
+import { NODES_SUBJECT_PREFIX } from './email/email.js';
 import { getLatestManifestFromNode } from './manifestRepo.js';
 import { NotificationService } from './Notifications/NotificationService.js';
-import { NODES_SUBJECT_PREFIX } from './email/email.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -200,11 +200,9 @@ async function handleDeferredEmails(
   logger.info({ fn: 'handleDeferredEmails', uuid, dpid, publishStatusId }, 'Init deferred emails');
 
   try {
-    const normalizedUuid = ensureUuidEndsWithDot(uuid);
-
     const deferred = await prisma.deferredEmails.findMany({
       where: {
-        nodeUuid: normalizedUuid,
+        nodeUuid: ensureUuidEndsWithDot(uuid),
       },
       include: {
         User: true,
@@ -229,14 +227,14 @@ async function handleDeferredEmails(
           try {
             // Legacy behavior: use resolver-backed version/publish state first.
             const [nodeVersionCountFromResolver, indexed] = await Promise.all([
-              getNodeVersion(normalizedUuid),
-              getIndexedResearchObjects([normalizedUuid]),
+              getNodeVersion(ensureUuidEndsWithDot(uuid)),
+              getIndexedResearchObjects([ensureUuidEndsWithDot(uuid)]),
             ]);
             const resolverIsPublished = indexed?.researchObjects?.length > 0;
 
             if (nodeVersionCountFromResolver === 0 && !resolverIsPublished) {
               // Resolver can lag behind ceramic/DB writes; fallback to DB to avoid false negatives.
-              const dbPublishedVersionCount = await getPublishedVersionCount(normalizedUuid);
+              const dbPublishedVersionCount = await getPublishedVersionCount(ensureUuidEndsWithDot(uuid));
               publishedVersionCount = dbPublishedVersionCount;
               if (typeof isNodePublished !== 'boolean') {
                 isNodePublished = dbPublishedVersionCount > 0;
@@ -254,7 +252,7 @@ async function handleDeferredEmails(
               { fn: 'handleDeferredEmails', uuid, dpid, resolverError },
               'Resolver publish-state lookup failed, falling back to DB.',
             );
-            publishedVersionCount = await getPublishedVersionCount(normalizedUuid);
+            publishedVersionCount = await getPublishedVersionCount(ensureUuidEndsWithDot(uuid));
             if (typeof isNodePublished !== 'boolean') {
               isNodePublished = publishedVersionCount > 0;
             }
@@ -281,7 +279,7 @@ async function handleDeferredEmails(
               latestPublishedVersionIndex, // 0-indexed total expected
               dpid,
               entry.User,
-              normalizedUuid,
+              ensureUuidEndsWithDot(uuid),
             );
           }),
         );
@@ -410,14 +408,35 @@ async function updateAssociatedAttestations(nodeUuid: string, dpid: string, publ
   return;
 }
 
-async function createPublishStatusEntry(nodeUuid: string) {
+async function createPublishStatusEntry(nodeUuid: string, commitId?: string) {
   try {
-    const result = await getIndexedResearchObjects([nodeUuid]);
+    if (commitId) {
+      const existingEntryForCommit = await prisma.publishStatus.findUnique({
+        where: {
+          commitId,
+        },
+      });
+      if (existingEntryForCommit) {
+        logger.info(
+          {
+            module: 'PublishServices::createPublishStatusEntry',
+            nodeUuid: ensureUuidEndsWithDot(nodeUuid),
+            commitId,
+            existingEntryId: existingEntryForCommit.id,
+          },
+          'Publish status entry already exists for commit',
+        );
+        return existingEntryForCommit;
+      }
+    }
 
-    const version = result?.researchObjects?.length ? result.researchObjects?.[0]?.versions.length : 1;
+    const publishedVersionCount = await getPublishedVersionCount(ensureUuidEndsWithDot(nodeUuid));
+    const version = publishedVersionCount + 1;
     logger.info({
       module: 'PublishServices::createPublishStatusEntry',
-      result,
+      nodeUuid: ensureUuidEndsWithDot(nodeUuid),
+      commitId,
+      publishedVersionCount,
       version,
     });
 
@@ -433,7 +452,7 @@ async function createPublishStatusEntry(nodeUuid: string) {
       logger.info(
         {
           module: 'PublishServices::createPublishStatusEntry',
-          nodeUuid,
+          nodeUuid: ensureUuidEndsWithDot(nodeUuid),
           version,
           existingEntryId: existingEntry.id,
         },
@@ -446,6 +465,7 @@ async function createPublishStatusEntry(nodeUuid: string) {
       data: {
         nodeUuid: ensureUuidEndsWithDot(nodeUuid),
         version,
+        ...(commitId ? { commitId } : {}),
       },
     });
     return newEntry;
