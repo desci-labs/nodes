@@ -12,9 +12,13 @@ export const STRIPE_PRICE_IDS = {
     MONTHLY: process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID || 'price_3GHI789example',
     ANNUAL: process.env.STRIPE_PREMIUM_ANNUAL_PRICE_ID || 'price_3GHI789example_annual',
   },
+  SCIWEAVE_LIFETIME: {
+    LIFETIME: process.env.STRIPE_SCIWEAVE_LIFETIME_PRICE_ID || 'price_1SxHnFAqadM33xzpc9tBFWsQ',
+  },
 } as const;
 
 export const PLAN_DETAILS = {
+  // Doesn't determine actual prices, placeholders in place to avoid breaking changes.
   AI_REFEREE_FINDER: {
     name: 'Referee Finder Pro',
     planType: 'AI_REFEREE_FINDER' as const,
@@ -42,18 +46,27 @@ export const PLAN_DETAILS = {
       annual: { price: '$990', interval: 'year', savings: '17%' }, // ~2 months free
     },
   },
+  SCIWEAVE_LIFETIME: {
+    name: 'SciWeave Lifetime',
+    planType: 'SCIWEAVE_LIFETIME' as const,
+    features: ['Lifetime access to SciWeave chats', 'Unlimited chat conversations', 'No recurring billing'],
+    pricing: {
+      lifetime: { price: '$999', interval: 'once' },
+    },
+  },
 } as const;
 
 export type PlanType = keyof typeof PLAN_DETAILS;
 
 // Helper to get all price IDs in a flat array
-export const ALL_STRIPE_PRICE_IDS = Object.values(STRIPE_PRICE_IDS).flatMap((plan) => [plan.MONTHLY, plan.ANNUAL]);
+export const ALL_STRIPE_PRICE_IDS = Object.values(STRIPE_PRICE_IDS).flatMap((plan) => Object.values(plan));
 
 // Helper to determine billing interval from price ID
-export function getBillingIntervalFromPriceId(priceId: string): 'monthly' | 'annual' | null {
-  for (const [planName, prices] of Object.entries(STRIPE_PRICE_IDS)) {
-    if (prices.MONTHLY === priceId) return 'monthly';
-    if (prices.ANNUAL === priceId) return 'annual';
+export function getBillingIntervalFromPriceId(priceId: string): 'monthly' | 'annual' | 'lifetime' | null {
+  for (const prices of Object.values(STRIPE_PRICE_IDS)) {
+    if ('MONTHLY' in prices && prices.MONTHLY === priceId) return 'monthly';
+    if ('ANNUAL' in prices && prices.ANNUAL === priceId) return 'annual';
+    if ('LIFETIME' in prices && prices.LIFETIME === priceId) return 'lifetime';
   }
   return null;
 }
@@ -61,7 +74,7 @@ export function getBillingIntervalFromPriceId(priceId: string): 'monthly' | 'ann
 // Helper to get plan type from price ID
 export function getPlanTypeFromPriceId(priceId: string): keyof typeof PLAN_DETAILS | null {
   for (const [planName, prices] of Object.entries(STRIPE_PRICE_IDS)) {
-    if (prices.MONTHLY === priceId || prices.ANNUAL === priceId) {
+    if (Object.values(prices).includes(priceId)) {
       return planName as keyof typeof PLAN_DETAILS;
     }
   }

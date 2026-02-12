@@ -5,7 +5,6 @@ import {
   StripeInvoiceStatus,
   PaymentMethodType,
   BillingInterval,
-  Prisma,
   Feature,
   PlanCodename,
   Period,
@@ -14,10 +13,9 @@ import {
 import Stripe from 'stripe';
 
 import { getPlanTypeFromPriceId, getBillingIntervalFromPriceId } from '../config/stripe.js';
-import { SCIWEAVE_FREE_LIMIT } from '../config.js';
 import { capturePostHogEvent } from '../lib/PostHog.js';
 import { logger as parentLogger } from '../logger.js';
-import { getStripe, isStripeEnabled } from '../utils/stripe.js';
+import { getStripe } from '../utils/stripe.js';
 
 import { sendEmail } from './email/email.js';
 import { hasEmailBeenSent, recordSentEmail } from './email/helpers.js';
@@ -324,7 +322,7 @@ export class SubscriptionService {
     if (!previousCancelAtPeriodEnd && newCancelAtPeriodEnd) {
       // Track subscription cancelled event
       try {
-        const billingCycle = billingInterval === BillingInterval.ANNUAL ? 'annually' : 'monthly';
+        const billingCycle = this.getBillingCycleLabel(billingInterval);
         const planDisplayName = this.getPlanDisplayName(planType);
         const cancellationReason = sub.cancellation_details?.reason || sub.cancel_at_period_end_reason || undefined;
 
@@ -537,7 +535,7 @@ export class SubscriptionService {
         return;
       }
 
-      const billingCycle = subscription.billingInterval === BillingInterval.ANNUAL ? 'annually' : 'monthly';
+      const billingCycle = this.getBillingCycleLabel(subscription.billingInterval);
       const planName = this.getPlanDisplayName(subscription.planType);
 
       capturePostHogEvent(subscription.userId, 'subscription_renewed', {
@@ -569,10 +567,24 @@ export class SubscriptionService {
         return 'Premium';
       case PlanType.OMNI_CHATS:
         return 'Premium'; // OMNI_CHATS is the Premium plan
+      case PlanType.SCIWEAVE_LIFETIME:
+        return 'Sciweave Lifetime';
       case PlanType.AI_REFEREE_FINDER:
         return 'AI Referee Finder';
       default:
         return 'Free';
+    }
+  }
+
+  private static getBillingCycleLabel(billingInterval: BillingInterval): 'monthly' | 'annually' | 'lifetime' {
+    switch (billingInterval) {
+      case BillingInterval.ANNUAL:
+        return 'annually';
+      case BillingInterval.LIFETIME:
+        return 'lifetime';
+      case BillingInterval.MONTHLY:
+      default:
+        return 'monthly';
     }
   }
 
@@ -704,15 +716,163 @@ export class SubscriptionService {
     logger.info('Trial will end processed', { subscriptionId: subscription.id });
   }
 
+  static async handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+    logger.info(
+      { sessionId: session.id, mode: session.mode, customerId: session.customer, metadata: session.metadata },
+      'Handling checkout session completed',
+    );
+
+    if (session.mode !== 'payment') {
+      logger.debug({ sessionId: session.id, mode: session.mode }, 'Skipping non-payment checkout completion');
+      return;
+    }
+
+    let priceId = session.metadata?.priceId;
+    if (!priceId) {
+      const stripe = getStripe();
+      const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
+        expand: ['line_items.data.price'],
+      });
+      const lineItemPrice = expandedSession.line_items?.data?.[0]?.price;
+      priceId = typeof lineItemPrice === 'string' ? lineItemPrice : lineItemPrice?.id;
+    }
+
+    if (!priceId) {
+      throw new Error(`Unable to determine checkout price for session ${session.id}`);
+    }
+
+    const planType = this.mapStripePriceToPlanType(priceId);
+    if (planType !== PlanType.SCIWEAVE_LIFETIME) {
+      logger.info({ sessionId: session.id, priceId, planType }, 'Payment checkout is not a lifetime plan, skipping');
+      return;
+    }
+
+    const customerId = typeof session.customer === 'string' ? session.customer : (session.customer?.id ?? null);
+    const metadataUserId = session.metadata?.userId ? Number.parseInt(session.metadata.userId, 10) : null;
+    let userId = metadataUserId && Number.isFinite(metadataUserId) ? metadataUserId : null;
+
+    if (!userId && customerId) {
+      userId = await this.getUserIdFromCustomer(customerId);
+    }
+
+    if (!userId) {
+      throw new Error(`Unable to resolve user for checkout session ${session.id}`);
+    }
+
+    const syntheticSubscriptionId = `lifetime_checkout_${session.id}`;
+    const now = new Date();
+
+    const createdNewLifetime = await prisma.$transaction(async (tx) => {
+      const existingLifetime = await tx.subscription.findFirst({
+        where: {
+          userId,
+          planType: PlanType.SCIWEAVE_LIFETIME,
+          status: SubscriptionStatus.ACTIVE,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existingLifetime) {
+        await tx.subscription.update({
+          where: { id: existingLifetime.id },
+          data: {
+            stripeCustomerId: customerId ?? existingLifetime.stripeCustomerId,
+            stripePriceId: priceId,
+            stripeSubscriptionId: existingLifetime.stripeSubscriptionId ?? syntheticSubscriptionId,
+            status: SubscriptionStatus.ACTIVE,
+            planType: PlanType.SCIWEAVE_LIFETIME,
+            billingInterval: BillingInterval.LIFETIME,
+            currentPeriodStart: existingLifetime.currentPeriodStart ?? now,
+            currentPeriodEnd: null,
+            cancelAtPeriodEnd: false,
+            canceledAt: null,
+            trialStart: null,
+            trialEnd: null,
+          },
+        });
+        return false;
+      }
+
+      await tx.subscription.upsert({
+        where: { stripeSubscriptionId: syntheticSubscriptionId },
+        create: {
+          userId,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: syntheticSubscriptionId,
+          stripePriceId: priceId,
+          status: SubscriptionStatus.ACTIVE,
+          planType: PlanType.SCIWEAVE_LIFETIME,
+          billingInterval: BillingInterval.LIFETIME,
+          currentPeriodStart: now,
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          trialStart: null,
+          trialEnd: null,
+        },
+        update: {
+          stripeCustomerId: customerId,
+          stripePriceId: priceId,
+          status: SubscriptionStatus.ACTIVE,
+          planType: PlanType.SCIWEAVE_LIFETIME,
+          billingInterval: BillingInterval.LIFETIME,
+          currentPeriodStart: now,
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          trialStart: null,
+          trialEnd: null,
+        },
+      });
+
+      return true;
+    });
+
+    await this.updateUserFeatureLimits(userId, PlanType.SCIWEAVE_LIFETIME);
+
+    if (customerId) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { stripeUserId: customerId },
+      });
+    }
+
+    if (createdNewLifetime) {
+      try {
+        const user = await this.getUserForEmail(userId);
+        if (user) {
+          await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL,
+            payload: {
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            },
+          });
+          logger.info({ userId, sessionId: session.id, planType }, 'Upgrade email sent for lifetime checkout');
+        }
+      } catch (emailError) {
+        logger.error({ error: emailError, userId, sessionId: session.id }, 'Failed to send lifetime upgrade email');
+      }
+    }
+
+    logger.info(
+      { userId, sessionId: session.id, priceId, planType, createdNewLifetime },
+      'Processed lifetime checkout completion successfully',
+    );
+  }
+
   static async getUserActiveSubscription(userId: number) {
     return await prisma.subscription.findFirst({
       where: { userId, status: SubscriptionStatus.ACTIVE },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   static async getUserSubscriptionWithDetails(userId: number) {
-    const subscription = await prisma.subscription.findFirst({
-      where: { userId },
+    let subscription = await prisma.subscription.findFirst({
+      where: { userId, status: SubscriptionStatus.ACTIVE },
+      orderBy: { createdAt: 'desc' },
       include: {
         invoices: {
           orderBy: { createdAt: 'desc' },
@@ -720,6 +880,19 @@ export class SubscriptionService {
         },
       },
     });
+
+    if (!subscription) {
+      subscription = await prisma.subscription.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          invoices: {
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          },
+        },
+      });
+    }
 
     if (!subscription) {
       return null;
@@ -748,6 +921,15 @@ export class SubscriptionService {
 
   static async cancelSubscription(userId: number) {
     const subscription = await this.getUserActiveSubscription(userId);
+
+    if (
+      subscription &&
+      (subscription.planType === PlanType.SCIWEAVE_LIFETIME ||
+        subscription.billingInterval === BillingInterval.LIFETIME)
+    ) {
+      throw new Error('Lifetime subscription cannot be canceled');
+    }
+
     if (!subscription?.stripeSubscriptionId) {
       throw new Error('No active subscription found');
     }
@@ -845,6 +1027,8 @@ export class SubscriptionService {
         return PlanType.OMNI_CHATS;
       case 'PREMIUM':
         return PlanType.PREMIUM;
+      case 'SCIWEAVE_LIFETIME':
+        return PlanType.SCIWEAVE_LIFETIME;
       default:
         return PlanType.FREE;
     }
@@ -858,6 +1042,8 @@ export class SubscriptionService {
     switch (interval) {
       case 'annual':
         return BillingInterval.ANNUAL;
+      case 'lifetime':
+        return BillingInterval.LIFETIME;
       case 'monthly':
       default:
         return BillingInterval.MONTHLY;
@@ -1093,6 +1279,16 @@ export class SubscriptionService {
             planCodename: PlanCodename.PRO,
             period: Period.MONTH,
             useLimit: 50, // or null for unlimited if PREMIUM should be truly unlimited
+          },
+        ];
+
+      case PlanType.SCIWEAVE_LIFETIME:
+        return [
+          {
+            feature: Feature.RESEARCH_ASSISTANT,
+            planCodename: PlanCodename.PREMIUM,
+            period: Period.MONTH, // sciweave subs no longer reset, period is irrelevant
+            useLimit: null, // unlimited
           },
         ];
 

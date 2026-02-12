@@ -20,6 +20,7 @@ const createSubscriptionSchema = z.object({
   cancelUrl: z.string().optional(),
   allowPromotionCodes: z.boolean().optional(),
   coupon: z.string().optional(),
+  checkoutMode: z.enum(['subscription', 'payment']).default('subscription').optional(),
 });
 
 const customerPortalSchema = z.object({
@@ -33,9 +34,14 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { priceId, successUrl, cancelUrl, allowPromotionCodes, coupon } = createSubscriptionSchema.parse(req.body);
+    const { priceId, successUrl, cancelUrl, allowPromotionCodes, coupon, checkoutMode } =
+      createSubscriptionSchema.parse(req.body);
+    const resolvedCheckoutMode = checkoutMode ?? 'subscription';
 
-    logger.info({ userId, priceId, allowPromotionCodes, coupon }, 'Creating subscription checkout');
+    logger.info(
+      { userId, priceId, allowPromotionCodes, coupon, checkoutMode: resolvedCheckoutMode },
+      'Creating subscription checkout',
+    );
 
     // Get or create Stripe customer
     const customer = await SubscriptionService.getOrCreateStripeCustomer(userId);
@@ -51,11 +57,13 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
           quantity: 1,
         },
       ],
-      mode: 'subscription',
+      mode: resolvedCheckoutMode,
       success_url: successUrl || `${req.headers.origin}/settings/subscription?success=true`,
       cancel_url: cancelUrl || `${req.headers.origin}/settings/subscription?canceled=true`,
       metadata: {
         userId: userId.toString(),
+        priceId,
+        checkoutMode: resolvedCheckoutMode,
       },
     };
 
@@ -304,6 +312,9 @@ export const cancelSubscription = async (req: RequestWithUser, res: Response): P
 
     return res.status(200).json({ success: true });
   } catch (error: any) {
+    if (error instanceof Error && error.message === 'Lifetime subscription cannot be canceled') {
+      return res.status(400).json({ error: error.message });
+    }
     logger.error({ err: error, userId: req.user?.id }, 'Failed to cancel subscription');
     return res.status(500).json({ error: 'Failed to cancel subscription' });
   }

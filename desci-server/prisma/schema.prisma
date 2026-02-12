@@ -1938,11 +1938,13 @@ enum PlanType {
   AI_REFEREE_FINDER
   OMNI_CHATS
   PREMIUM
+  SCIWEAVE_LIFETIME
 }
 
 enum BillingInterval {
   MONTHLY
   ANNUAL
+  LIFETIME
 }
 
 enum PaymentMethodType {
