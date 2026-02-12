@@ -172,16 +172,39 @@ async function retrieveBlockTimeByManifestCid(uuid: string, manifestCid: string)
   return timestamp ?? Date.now().toString();
 }
 
+type HandleDeferredEmailsContext = {
+  isNodePublished?: boolean;
+  publishedVersionCount?: number;
+};
+
+async function getPublishedVersionCount(nodeUuid: string): Promise<number> {
+  return prisma.nodeVersion.count({
+    where: {
+      node: {
+        uuid: ensureUuidEndsWithDot(nodeUuid),
+      },
+      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+    },
+  });
+}
+
 /**
  * Some emails are deferred until the node is published. This function will handle those deferred emails.
  */
-async function handleDeferredEmails(uuid: string, dpid: string, publishStatusId: number) {
+async function handleDeferredEmails(
+  uuid: string,
+  dpid: string,
+  publishStatusId: number,
+  context?: HandleDeferredEmailsContext,
+) {
   logger.info({ fn: 'handleDeferredEmails', uuid, dpid, publishStatusId }, 'Init deferred emails');
 
   try {
+    const normalizedUuid = ensureUuidEndsWithDot(uuid);
+
     const deferred = await prisma.deferredEmails.findMany({
       where: {
-        nodeUuid: ensureUuidEndsWithDot(uuid),
+        nodeUuid: normalizedUuid,
       },
       include: {
         User: true,
@@ -195,24 +218,70 @@ async function handleDeferredEmails(uuid: string, dpid: string, publishStatusId:
     logger.info({ fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails }, 'Init deferred emails, step 3');
 
     if (protectedAttestationEmails.length) {
-      // Handle the emails related to protected attestation claims
-      const nodeVersion = await getNodeVersion(uuid);
+      // `publishedVersionCount` means number of published revisions, not NodeVersion row id.
+      let publishedVersionCount = context?.publishedVersionCount;
+      let isNodePublished = context?.isNodePublished;
+      let publishStateSource: 'context' | 'resolver' | 'db-fallback' = 'context';
+      if (publishedVersionCount == null) {
+        if (isNodePublished === false) {
+          publishedVersionCount = 0;
+        } else {
+          try {
+            // Legacy behavior: use resolver-backed version/publish state first.
+            const [nodeVersionCountFromResolver, indexed] = await Promise.all([
+              getNodeVersion(normalizedUuid),
+              getIndexedResearchObjects([normalizedUuid]),
+            ]);
+            const resolverIsPublished = indexed?.researchObjects?.length > 0;
 
-      const indexed = await getIndexedResearchObjects([uuid]);
-      const isNodePublished = indexed?.researchObjects?.length > 0;
+            if (nodeVersionCountFromResolver === 0 && !resolverIsPublished) {
+              // Resolver can lag behind ceramic/DB writes; fallback to DB to avoid false negatives.
+              const dbPublishedVersionCount = await getPublishedVersionCount(normalizedUuid);
+              publishedVersionCount = dbPublishedVersionCount;
+              if (typeof isNodePublished !== 'boolean') {
+                isNodePublished = dbPublishedVersionCount > 0;
+              }
+              publishStateSource = 'db-fallback';
+            } else {
+              publishedVersionCount = nodeVersionCountFromResolver;
+              if (typeof isNodePublished !== 'boolean') {
+                isNodePublished = resolverIsPublished;
+              }
+              publishStateSource = 'resolver';
+            }
+          } catch (resolverError) {
+            logger.warn(
+              { fn: 'handleDeferredEmails', uuid, dpid, resolverError },
+              'Resolver publish-state lookup failed, falling back to DB.',
+            );
+            publishedVersionCount = await getPublishedVersionCount(normalizedUuid);
+            if (typeof isNodePublished !== 'boolean') {
+              isNodePublished = publishedVersionCount > 0;
+            }
+            publishStateSource = 'db-fallback';
+          }
+        }
+      }
+      if (typeof isNodePublished !== 'boolean') {
+        isNodePublished = publishedVersionCount > 0;
+      }
 
-      logger.info({ fn: 'handleDeferredEmails', uuid, dpid, indexed, isNodePublished }, 'Init deferred emails, step 4');
+      logger.info(
+        { fn: 'handleDeferredEmails', uuid, dpid, publishedVersionCount, isNodePublished, context, publishStateSource },
+        'Init deferred emails, step 4',
+      );
 
       if (isNodePublished) {
+        const latestPublishedVersionIndex = Math.max(publishedVersionCount - 1, 0);
         await Promise.allSettled(
           protectedAttestationEmails.map((entry) => {
             return attestationService.emailProtectedAttestationCommunityMembers(
               entry.attestationId,
               entry.attestationVersionId,
-              nodeVersion - 1, // 0-indexed total expected
+              latestPublishedVersionIndex, // 0-indexed total expected
               dpid,
               entry.User,
-              ensureUuidEndsWithDot(uuid),
+              normalizedUuid,
             );
           }),
         );

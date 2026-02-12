@@ -299,12 +299,19 @@ const syncPublish = async (
   logger.trace('[publish promises fulfilled]');
 
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
+  const publishedVersionCount = await prisma.nodeVersion.count({
+    where: {
+      nodeId: node.id,
+      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+    },
+  });
 
   // Intentionally above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  void PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId).catch((err) =>
-    logger.warn(err, 'Error: Handling deferred emails failed'),
-  );
+  void PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId, {
+    isNodePublished: publishedVersionCount > 0,
+    publishedVersionCount,
+  }).catch((err) => logger.warn(err, 'Error: Handling deferred emails failed'));
 
   /*
    * Emit notification on publish
