@@ -21,7 +21,7 @@ import { getDpidFromNode, NoveltyScoreConfig } from './node.js';
 import { OpenAlexService } from './OpenAlexService.js';
 
 export const NODES_INDEX = 'works_nodes_v1';
-const NODES_ID_PREFIX = 'nodes/';
+const NODES_ID_PREFIX = 'nodes:';
 
 const logger = parentLogger.child({ module: 'Services::ElasticNodesService' });
 
@@ -60,7 +60,7 @@ async function indexResearchObject(nodeUuid: string, indexContext?: IndexResearc
 
     await elasticWriteClient.index({
       index: NATIVE_WORKS_INDEX,
-      id: encodeURIComponent(workId),
+      id: workId,
       document: {
         work_id: workId,
         ...workData,
@@ -503,7 +503,7 @@ async function updateIndexedResearchObject(nodeUuid: string, updates: Record<str
   try {
     await elasticWriteClient.update({
       index: NATIVE_WORKS_INDEX,
-      id: encodeURIComponent(workId),
+      id: workId,
       doc: updates,
       refresh: true,
       doc_as_upsert: false, // don't create if doesnt exist
@@ -545,7 +545,7 @@ async function removeFieldsFromIndexedResearchObject(nodeUuid: string, fieldsToR
   try {
     await elasticWriteClient.update({
       index: NATIVE_WORKS_INDEX,
-      id: encodeURIComponent(workId),
+      id: workId,
       script: {
         source: 'for (field in params.fields) { ctx._source.remove(field) }',
         lang: 'painless',
