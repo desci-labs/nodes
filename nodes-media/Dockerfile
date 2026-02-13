@@ -86,7 +86,7 @@ RUN apt-get -qy update && apt-get install -y unzip curl
 RUN apt-get update && apt-get install -y imagemagick
 
 # update imagemagick security policy to allow pdf
-RUN sed '/"PDF"/d' /etc/ImageMagick-6/policy.xml > /etc/ImageMagick-6/policy.xml
+RUN sed -i '/"PDF"/d' /etc/ImageMagick-6/policy.xml
 
 # install ghostscript
 RUN apt-get install -y ghostscript

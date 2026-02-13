@@ -106,7 +106,7 @@ async function fillNodeData(nodeUuid: string, indexContext?: IndexResearchObject
     });
 
     if (firstPublishedNodeVersion?.createdAt) {
-      firstVersionTime = firstPublishedNodeVersion.createdAt || new Date();
+      firstVersionTime = firstPublishedNodeVersion.createdAt;
     }
   } else {
     const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
@@ -116,7 +116,10 @@ async function fillNodeData(nodeUuid: string, indexContext?: IndexResearchObject
     }
     const versions = researchObject.versions;
     const firstVersion = versions.at(-1);
-    firstVersionTime = new Date(parseInt(firstVersion?.time) * 1000);
+    if (!firstVersion?.time) {
+      throw new Error(`No version timestamp found for node ${nodeUuid}`);
+    }
+    firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
     const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
     latestManifest = await getManifestByCid(latestPublishedManifestCid);
   }
