@@ -4,6 +4,7 @@ import { errWithCause } from 'pino-std-serializers';
 import { logger as parentLogger } from '../../logger.js';
 import { setToCache } from '../../redisClient.js';
 import { SubscriptionService } from '../../services/SubscriptionService.js';
+import { getUserById } from '../../services/user.js';
 
 const logger = parentLogger.child({
   module: 'REVENUECAT_WEBHOOK',
@@ -167,7 +168,14 @@ export const handleRevenueCatWebhook = async (req: Request, res: Response) => {
   try {
     const payload = req.body as RevenueCatWebhookPayload;
     logger.info({ payload: payload }, 'Received RevenueCat webhook');
-    const userId = payload.event.subscriber_attributes['userId'].value;
+    const userId = payload.event.subscriber_attributes['userId']?.value;
+    // check if user exists
+    const user = userId ? await getUserById(Number(userId)) : null;
+    if (!user) {
+      logger.error({ userId }, 'User not found');
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
     // const email = payload.event.subscriber_attributes['email'].value;
     const appUserId = payload.event.app_user_id;
 
