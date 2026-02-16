@@ -100,7 +100,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     /*
      ** Add PublishStatus entry
      */
-    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
+    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid, commitId);
     await PublishServices.updatePublishStatusEntry({
       publishStatusId: publishStatusEntry.id,
       data: {
@@ -188,9 +188,10 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     );
 
     // Index on ES
-    void ElasticNodesService.indexResearchObject(node.uuid).catch((err) =>
-      logger.warn(err, 'Error: Indexing published node in ElasticSearch failed'),
-    );
+    void ElasticNodesService.indexResearchObject(node.uuid, {
+      manifest,
+      dpid: dpidAlias?.toString() ?? manifest.dpid?.id,
+    }).catch((err) => logger.warn(err, 'Error: Indexing published node in ElasticSearch failed'));
 
     return res.status(200).send({
       ok: true,
@@ -298,12 +299,19 @@ const syncPublish = async (
   logger.trace('[publish promises fulfilled]');
 
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
+  const publishedVersionCount = await prisma.nodeVersion.count({
+    where: {
+      nodeId: node.id,
+      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+    },
+  });
 
   // Intentionally above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  void PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId).catch((err) =>
-    logger.warn(err, 'Error: Handling deferred emails failed'),
-  );
+  void PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId, {
+    isNodePublished: publishedVersionCount > 0,
+    publishedVersionCount,
+  }).catch((err) => logger.warn(err, 'Error: Handling deferred emails failed'));
 
   /*
    * Emit notification on publish
