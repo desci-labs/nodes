@@ -319,7 +319,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   // Recurring subscriptions are handled by customer.subscription.* webhooks
-  // One-time lifetime purchases are handled here
+  // One-time payment checkouts (e.g. lifetime and bundles) are handled here
   if (session.mode === 'payment') {
     await SubscriptionService.handleCheckoutSessionCompleted(session);
   }
