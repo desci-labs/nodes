@@ -3,6 +3,8 @@ import {
   EditorRole,
   JournalEventLogAction,
   Journal,
+  JournalApplicationStatus,
+  JournalApplication,
   Prisma,
   JournalEditor,
   SubmissionStatus,
@@ -14,6 +16,7 @@ import slugifyModule from 'slugify';
 
 import { logger } from '../../logger.js';
 import { FormStructure } from '../../schemas/journalsForm.schema.js';
+import { EmailTypes, sendEmail } from '../email/email.js';
 
 import { JournalFormService } from './JournalFormService.js';
 
@@ -1216,6 +1219,256 @@ async function updateJournalSettings(
   }
 }
 
+// --- Journal Application (journal creation approval flow) ---
+
+interface ApplyForJournalInput {
+  name: string;
+  description: string;
+  iconCid?: string;
+  editorialBoard: { name: string; email: string; role: string }[];
+  instructionsForAuthors: string;
+  instructionsForReviewers: string;
+  applicantId: number;
+}
+
+async function applyForJournal(data: ApplyForJournalInput): Promise<Result<JournalApplication, Error>> {
+  try {
+    const applicant = await prisma.user.findUnique({
+      where: { id: data.applicantId },
+      select: { name: true, email: true },
+    });
+
+    const application = await prisma.journalApplication.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        editorialBoard: data.editorialBoard,
+        instructionsForAuthors: data.instructionsForAuthors,
+        instructionsForReviewers: data.instructionsForReviewers,
+        applicantId: data.applicantId,
+      },
+    });
+
+    // Send notification email to admin
+    const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || 'no-reply@desci.com';
+    sendEmail({
+      type: EmailTypes.JOURNAL_APPLICATION_SUBMITTED,
+      payload: {
+        to: ADMIN_NOTIFICATION_EMAIL,
+        applicantName: applicant?.name || 'Unknown',
+        applicantEmail: applicant?.email || 'Unknown',
+        journalName: data.name,
+        journalDescription: data.description,
+      },
+    }).catch((err) => {
+      logger.error({ err, applicationId: application.id }, 'Failed to send journal application notification email');
+    });
+
+    logger.info({ applicationId: application.id, applicantId: data.applicantId }, 'Journal application created');
+    return ok(application);
+  } catch (error) {
+    logger.error({ error, data }, 'Failed to create journal application');
+    return err(error instanceof Error ? error : new Error('Failed to create journal application'));
+  }
+}
+
+type JournalApplicationWithApplicant = JournalApplication & {
+  applicant: Pick<User, 'id' | 'name' | 'email'>;
+};
+
+async function listJournalApplications(
+  status?: JournalApplicationStatus,
+): Promise<Result<JournalApplicationWithApplicant[], Error>> {
+  try {
+    const whereClause: Prisma.JournalApplicationWhereInput = {};
+    if (status) {
+      whereClause.status = status;
+    }
+
+    const applications = await prisma.journalApplication.findMany({
+      where: whereClause,
+      include: {
+        applicant: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return ok(applications);
+  } catch (error) {
+    logger.error({ error, status }, 'Failed to list journal applications');
+    return err(error instanceof Error ? error : new Error('Failed to list journal applications'));
+  }
+}
+
+async function approveJournalApplication(applicationId: number, adminUserId: number): Promise<Result<Journal, Error>> {
+  try {
+    const application = await prisma.journalApplication.findUnique({
+      where: { id: applicationId },
+    });
+
+    if (!application) {
+      return err(new Error('Journal application not found.'));
+    }
+
+    if (application.status !== JournalApplicationStatus.PENDING) {
+      return err(new Error(`Application has already been ${application.status.toLowerCase()}.`));
+    }
+
+    // Create the journal using the existing createJournal method
+    const journalResult = await createJournal({
+      name: application.name,
+      description: application.description,
+      ownerId: application.applicantId,
+    });
+
+    if (journalResult.isErr()) {
+      return err(journalResult.error);
+    }
+
+    const journal = journalResult.value;
+
+    // Update the journal with instructions from the application
+    await prisma.journal.update({
+      where: { id: journal.id },
+      data: {
+        authorInstruction: application.instructionsForAuthors,
+        refereeInstruction: application.instructionsForReviewers,
+      },
+    });
+
+    // Update the application status to APPROVED
+    await prisma.journalApplication.update({
+      where: { id: applicationId },
+      data: { status: JournalApplicationStatus.APPROVED },
+    });
+
+    logger.info({ applicationId, journalId: journal.id, adminUserId }, 'Journal application approved');
+    return ok(journal);
+  } catch (error) {
+    logger.error({ error, applicationId, adminUserId }, 'Failed to approve journal application');
+    return err(error instanceof Error ? error : new Error('Failed to approve journal application'));
+  }
+}
+
+async function rejectJournalApplication(
+  applicationId: number,
+  adminUserId: number,
+): Promise<Result<JournalApplication, Error>> {
+  try {
+    const application = await prisma.journalApplication.findUnique({
+      where: { id: applicationId },
+    });
+
+    if (!application) {
+      return err(new Error('Journal application not found.'));
+    }
+
+    if (application.status !== JournalApplicationStatus.PENDING) {
+      return err(new Error(`Application has already been ${application.status.toLowerCase()}.`));
+    }
+
+    const updatedApplication = await prisma.journalApplication.update({
+      where: { id: applicationId },
+      data: { status: JournalApplicationStatus.REJECTED },
+    });
+
+    logger.info({ applicationId, adminUserId }, 'Journal application rejected');
+    return ok(updatedApplication);
+  } catch (error) {
+    logger.error({ error, applicationId, adminUserId }, 'Failed to reject journal application');
+    return err(error instanceof Error ? error : new Error('Failed to reject journal application'));
+  }
+}
+
+async function getMyJournalApplications(userId: number): Promise<Result<JournalApplication[], Error>> {
+  try {
+    const applications = await prisma.journalApplication.findMany({
+      where: { applicantId: userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return ok(applications);
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to get user journal applications');
+    return err(error instanceof Error ? error : new Error('Failed to get user journal applications'));
+  }
+}
+
+interface ResubmitJournalApplicationInput {
+  applicationId: number;
+  applicantId: number;
+  name: string;
+  description: string;
+  iconCid?: string;
+  editorialBoard: { name: string; email: string; role: string }[];
+  instructionsForAuthors: string;
+  instructionsForReviewers: string;
+}
+
+async function resubmitJournalApplication(
+  data: ResubmitJournalApplicationInput,
+): Promise<Result<JournalApplication, Error>> {
+  try {
+    const existing = await prisma.journalApplication.findUnique({
+      where: { id: data.applicationId },
+    });
+
+    if (!existing) {
+      return err(new Error('Journal application not found.'));
+    }
+
+    if (existing.applicantId !== data.applicantId) {
+      return err(new Error('You can only resubmit your own applications.'));
+    }
+
+    if (existing.status !== JournalApplicationStatus.REJECTED) {
+      return err(new Error('Only rejected applications can be resubmitted.'));
+    }
+
+    const updated = await prisma.journalApplication.update({
+      where: { id: data.applicationId },
+      data: {
+        name: data.name,
+        description: data.description,
+        editorialBoard: data.editorialBoard,
+        instructionsForAuthors: data.instructionsForAuthors,
+        instructionsForReviewers: data.instructionsForReviewers,
+        status: JournalApplicationStatus.PENDING,
+      },
+    });
+
+    // Send notification email to admin
+    const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || 'no-reply@desci.com';
+    const applicant = await prisma.user.findUnique({
+      where: { id: data.applicantId },
+      select: { name: true, email: true },
+    });
+    sendEmail({
+      type: EmailTypes.JOURNAL_APPLICATION_SUBMITTED,
+      payload: {
+        to: ADMIN_NOTIFICATION_EMAIL,
+        applicantName: applicant?.name || 'Unknown',
+        applicantEmail: applicant?.email || 'Unknown',
+        journalName: data.name,
+        journalDescription: data.description,
+      },
+    }).catch((emailErr) => {
+      logger.error({ emailErr, applicationId: updated.id }, 'Failed to send resubmission notification email');
+    });
+
+    logger.info({ applicationId: updated.id, applicantId: data.applicantId }, 'Journal application resubmitted');
+    return ok(updated);
+  } catch (error) {
+    logger.error({ error, data }, 'Failed to resubmit journal application');
+    return err(error instanceof Error ? error : new Error('Failed to resubmit journal application'));
+  }
+}
+
 export const JournalManagementService = {
   createJournal,
   updateJournal,
@@ -1230,4 +1483,10 @@ export const JournalManagementService = {
   getJournalSettings,
   updateJournalSettings,
   getJournalEditorialBoardById,
+  applyForJournal,
+  listJournalApplications,
+  approveJournalApplication,
+  rejectJournalApplication,
+  getMyJournalApplications,
+  resubmitJournalApplication,
 };
