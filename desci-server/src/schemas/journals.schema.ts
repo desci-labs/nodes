@@ -1,4 +1,4 @@
-import { EditorRole, ReviewDecision } from '@prisma/client';
+import { EditorRole, JournalApplicationStatus, ReviewDecision } from '@prisma/client';
 import { z } from 'zod';
 
 export const listJournalsSchema = z.object({
@@ -840,4 +840,46 @@ export const updateJournalSettingsSchema = z.object({
         message: 'Default must be between min and max',
       },
     ),
+});
+
+// Journal Application Schemas (journal creation approval flow)
+export const journalApplicationSchema = z.object({
+  body: z.object({
+    name: z.string().min(1, 'Journal name cannot be empty.'),
+    description: z.string().min(1, 'Journal description cannot be empty.'),
+    iconCid: z.string().optional().describe('IPFS CID of the journal icon'),
+    editorialBoard: z
+      .array(
+        z.object({
+          name: z.string(),
+          email: z.string(),
+          role: z.string(),
+        }),
+      )
+      .default([]),
+    instructionsForAuthors: z.string().min(1, 'Instructions for authors cannot be empty.'),
+    instructionsForReviewers: z.string().min(1, 'Instructions for reviewers cannot be empty.'),
+  }),
+});
+
+export const listJournalApplicationsSchema = z.object({
+  query: z.object({
+    status: z.nativeEnum(JournalApplicationStatus).optional().describe('Filter by application status'),
+  }),
+});
+
+export const journalApplicationActionSchema = z.object({
+  params: z.object({
+    id: z.string().transform((val, ctx) => {
+      const id = parseInt(val, 10);
+      if (isNaN(id) || id <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Application ID must be a positive integer.',
+        });
+        return z.NEVER;
+      }
+      return id;
+    }),
+  }),
 });

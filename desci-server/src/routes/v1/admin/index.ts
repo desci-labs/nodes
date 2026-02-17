@@ -24,6 +24,7 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 import communities from './communities/index.js';
 import doiRouter from './doi.js';
+import journalsRouter from './journals.js';
 import metricsRouter from './metrics/index.js';
 import nodesRouter from './nodes.js';
 import usersRouter from './users/index.js';
@@ -73,6 +74,7 @@ router.use('/users', usersRouter);
 // router.use('/nodes', [ensureUser, ensureAdmin], usersRouter);
 
 router.use('/doi', doiRouter);
+router.use('/journals', journalsRouter);
 router.use('/nodes', nodesRouter);
 router.use('/metrics', metricsRouter);
 // router.use('/users', usersRouter);
