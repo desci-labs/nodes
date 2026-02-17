@@ -2,17 +2,22 @@ import { Router } from 'express';
 
 import { getUserSubmissions } from '../../controllers/communities/submissions.js';
 import { consentSciweave } from '../../controllers/nodes/consent.js';
+import { cancelAccountDeletion } from '../../controllers/users/cancelAccountDeletion.js';
 import { list, associateWallet, updateProfile, associateOrcidWallet } from '../../controllers/users/index.js';
 import { addPublishedWallet } from '../../controllers/users/publishedWallets/create.js';
 import { getUserPublishedWallets } from '../../controllers/users/publishedWallets/index.js';
+import {
+  requestAccountDeletion,
+  requestAccountDeletionSchema,
+} from '../../controllers/users/requestAccountDeletion.js';
+import { updateSciweaveMarketingConsentController } from '../../controllers/users/sciweaveMarketingConsent.js';
 import { searchProfiles } from '../../controllers/users/search.js';
 import { submitQuestionnaire } from '../../controllers/users/submitQuestionnaire.js';
 import { submitSciweaveQuestionnaire } from '../../controllers/users/submitSciweaveQuestionnaire.js';
-import { updateSciweaveMarketingConsentController } from '../../controllers/users/sciweaveMarketingConsent.js';
 import { usage } from '../../controllers/users/usage.js';
 import { ensureAdmin } from '../../middleware/ensureAdmin.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
-import { validate } from '../../middleware/validator.js';
+import { validate, validateInputs } from '../../middleware/validator.js';
 import { submitQuestionnaireSchema, updateMarketingConsentSchema } from '../../schemas/users.schema.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
@@ -22,6 +27,12 @@ const router = Router();
 
 router.get('/usage', [ensureGuestOrUser], usage);
 router.get('/', [ensureUser, ensureAdmin], list);
+router.post(
+  '/me/account-deletion-request',
+  [ensureUser, validateInputs(requestAccountDeletionSchema)],
+  asyncHandler(requestAccountDeletion),
+);
+router.post('/me/account-deletion-cancel', [ensureUser], asyncHandler(cancelAccountDeletion));
 router.post('/associate', [ensureUser], associateWallet);
 router.post('/orcid/associate', [ensureUser], associateOrcidWallet);
 router.patch('/updateProfile', [ensureUser], updateProfile);

@@ -14,6 +14,9 @@ export enum SciweaveEmailTypes {
   SCIWEAVE_STUDENT_DISCOUNT = 'SCIWEAVE_STUDENT_DISCOUNT',
   SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED = 'SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED',
   SCIWEAVE_NEW_USER_3_DAY = 'SCIWEAVE_NEW_USER_3_DAY',
+  SCIWEAVE_ACCOUNT_DELETION_SCHEDULED = 'SCIWEAVE_ACCOUNT_DELETION_SCHEDULED',
+  SCIWEAVE_ACCOUNT_DELETION_REACTIVATED = 'SCIWEAVE_ACCOUNT_DELETION_REACTIVATED',
+  SCIWEAVE_ACCOUNT_DELETION_FINALIZED = 'SCIWEAVE_ACCOUNT_DELETION_FINALIZED',
 }
 
 export type WelcomeEmailPayload = {
@@ -167,6 +170,34 @@ export type NewUser3DayEmailPayload = {
   };
 };
 
+export type AccountDeletionScheduledEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED;
+  payload: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    scheduledDeletionAt: Date;
+  };
+};
+
+export type AccountDeletionReactivatedEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED;
+  payload: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+};
+
+export type AccountDeletionFinalizedEmailPayload = {
+  type: SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED;
+  payload: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+};
+
 export type SciweaveEmailProps =
   | WelcomeEmailPayload
   | UpgradeEmailPayload
@@ -182,4 +213,7 @@ export type SciweaveEmailProps =
   | ProChatRefreshEmailPayload
   | StudentDiscountEmailPayload
   | StudentDiscountLimitReachedEmailPayload
-  | NewUser3DayEmailPayload;
+  | NewUser3DayEmailPayload
+  | AccountDeletionScheduledEmailPayload
+  | AccountDeletionReactivatedEmailPayload
+  | AccountDeletionFinalizedEmailPayload;

@@ -5,8 +5,12 @@ import jwt from 'jsonwebtoken';
 import { prisma as prismaClient } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
-import { saveInteraction } from '../../services/interactionLog.js';
-import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../services/user.js';
+import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
+import {
+  checkIfUserAcceptedTerms,
+  connectOrcidToUserIfPossible,
+  getAccountDeletionRequest,
+} from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { getOrcidRecord } from './orcid.js';
@@ -43,10 +47,33 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
   if (!code) {
     // we are sending the magic code
-
     try {
+      const userByEmail = await prismaClient.user.findUnique({
+        where: { email: cleanEmail },
+        select: { id: true },
+      });
+      if (userByEmail) {
+        const pendingDeletion = await getAccountDeletionRequest(userByEmail.id);
+        if (pendingDeletion) {
+          await saveInteractionWithoutReq({
+            action: ActionType.ACCOUNT_DELETION_LOGIN_BLOCKED,
+            userId: userByEmail.id,
+            data: {
+              scheduledDeletionAt: pendingDeletion.scheduledDeletionAt.toISOString(),
+              ip: req.ip,
+              userAgent: req.headers['user-agent'],
+            },
+          });
+          logger.info({ userId: userByEmail.id }, 'Magic code blocked: account scheduled for deletion');
+          res.status(200).send({
+            ok: true,
+            accountDisabled: true,
+            scheduledDeletionAt: pendingDeletion.scheduledDeletionAt.toISOString(),
+          });
+          return;
+        }
+      }
       const ip = req.ip;
-      // debugger;
       const ok = await sendMagicLink(cleanEmail, ip, undefined, isSciweave);
       logger.info({ ok }, 'Magic link sent');
       res.send({ ok: !!ok });
