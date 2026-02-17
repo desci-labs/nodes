@@ -27,6 +27,7 @@ const logger = parentLogger.child({
 });
 
 const prisma = new PrismaClient();
+const BUNDLE_ENTITLEMENT_TYPE = 'bundle_chats';
 
 export class SubscriptionService {
   static async getOrCreateStripeCustomer(userId: number) {
@@ -727,18 +728,81 @@ export class SubscriptionService {
       return;
     }
 
-    let priceId = session.metadata?.priceId;
-    if (!priceId) {
-      const stripe = getStripe();
-      const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
-        expand: ['line_items.data.price'],
-      });
-      const lineItemPrice = expandedSession.line_items?.data?.[0]?.price;
-      priceId = typeof lineItemPrice === 'string' ? lineItemPrice : lineItemPrice?.id;
-    }
+    const stripe = getStripe();
+    const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
+      expand: ['line_items.data.price'],
+    });
+    const lineItem = expandedSession.line_items?.data?.[0];
+    const lineItemPrice = lineItem?.price;
+    const quantity = Math.max(1, lineItem?.quantity ?? 1);
+
+    const priceId =
+      expandedSession.metadata?.priceId || (typeof lineItemPrice === 'string' ? lineItemPrice : lineItemPrice?.id);
 
     if (!priceId) {
       throw new Error(`Unable to determine checkout price for session ${session.id}`);
+    }
+
+    const price =
+      typeof lineItemPrice !== 'string' && lineItemPrice?.id === priceId
+        ? lineItemPrice
+        : await stripe.prices.retrieve(priceId);
+
+    const entitlementType = price.metadata?.entitlement_type || expandedSession.metadata?.entitlementType;
+    const bundleChatsMetadata = price.metadata?.bundle_chats || expandedSession.metadata?.bundleChats;
+
+    const customerId =
+      typeof expandedSession.customer === 'string' ? expandedSession.customer : (expandedSession.customer?.id ?? null);
+    const metadataUserId = expandedSession.metadata?.userId
+      ? Number.parseInt(expandedSession.metadata.userId, 10)
+      : null;
+    let userId = metadataUserId && Number.isFinite(metadataUserId) ? metadataUserId : null;
+
+    if (!userId && customerId) {
+      userId = await this.getUserIdFromCustomer(customerId);
+    }
+
+    if (!userId) {
+      throw new Error(`Unable to resolve user for checkout session ${expandedSession.id}`);
+    }
+
+    if (entitlementType === BUNDLE_ENTITLEMENT_TYPE) {
+      const bundleChatsPerUnit = Number.parseInt(bundleChatsMetadata || '', 10);
+      if (!Number.isFinite(bundleChatsPerUnit) || bundleChatsPerUnit <= 0) {
+        throw new Error(`Invalid bundle_chats metadata for checkout session ${expandedSession.id}`);
+      }
+
+      const paymentIntentId =
+        typeof expandedSession.payment_intent === 'string'
+          ? expandedSession.payment_intent
+          : (expandedSession.payment_intent?.id ?? null);
+
+      const fulfillment = await this.handleBundleCheckoutFulfillment({
+        sessionId: expandedSession.id,
+        userId,
+        customerId,
+        priceId,
+        paymentIntentId,
+        quantity,
+        bundleChatsPerUnit,
+      });
+
+      logger.info(
+        {
+          userId,
+          sessionId: expandedSession.id,
+          priceId,
+          entitlementType,
+          quantity,
+          bundleChatsPerUnit,
+          totalChats: fulfillment.totalChats,
+          grantedChats: fulfillment.grantedChats,
+          skipReason: fulfillment.skipReason,
+          alreadyFulfilled: fulfillment.alreadyFulfilled,
+        },
+        'Processed bundle checkout completion',
+      );
+      return;
     }
 
     const planType = this.mapStripePriceToPlanType(priceId);
@@ -747,19 +811,7 @@ export class SubscriptionService {
       return;
     }
 
-    const customerId = typeof session.customer === 'string' ? session.customer : (session.customer?.id ?? null);
-    const metadataUserId = session.metadata?.userId ? Number.parseInt(session.metadata.userId, 10) : null;
-    let userId = metadataUserId && Number.isFinite(metadataUserId) ? metadataUserId : null;
-
-    if (!userId && customerId) {
-      userId = await this.getUserIdFromCustomer(customerId);
-    }
-
-    if (!userId) {
-      throw new Error(`Unable to resolve user for checkout session ${session.id}`);
-    }
-
-    const syntheticSubscriptionId = `lifetime_checkout_${session.id}`;
+    const syntheticSubscriptionId = `lifetime_checkout_${expandedSession.id}`;
     const now = new Date();
 
     const createdNewLifetime = await prisma.$transaction(async (tx) => {
@@ -860,6 +912,120 @@ export class SubscriptionService {
       { userId, sessionId: session.id, priceId, planType, createdNewLifetime },
       'Processed lifetime checkout completion successfully',
     );
+  }
+
+  private static async handleBundleCheckoutFulfillment({
+    sessionId,
+    userId,
+    customerId,
+    priceId,
+    paymentIntentId,
+    quantity,
+    bundleChatsPerUnit,
+  }: {
+    sessionId: string;
+    userId: number;
+    customerId: string | null;
+    priceId: string;
+    paymentIntentId: string | null;
+    quantity: number;
+    bundleChatsPerUnit: number;
+  }): Promise<{
+    alreadyFulfilled: boolean;
+    grantedChats: number;
+    totalChats: number;
+    skipReason: string | null;
+  }> {
+    const totalChats = bundleChatsPerUnit * quantity;
+
+    const { FeatureLimitsService } = await import('./FeatureLimits/FeatureLimitsService.js');
+    const limitResult = await FeatureLimitsService.getOrCreateUserFeatureLimit(userId, Feature.RESEARCH_ASSISTANT);
+    if (limitResult.isErr()) {
+      throw limitResult.error;
+    }
+
+    const fulfillment = await prisma.$transaction(async (tx) => {
+      const existingFulfillment = await tx.stripeCheckoutFulfillment.findUnique({
+        where: { stripeSessionId: sessionId },
+      });
+
+      if (existingFulfillment) {
+        return {
+          alreadyFulfilled: true,
+          grantedChats: existingFulfillment.grantedUnits,
+          totalChats: existingFulfillment.purchasedUnits,
+          skipReason: existingFulfillment.skipReason,
+        };
+      }
+
+      const activeLimit = await tx.userFeatureLimit.findFirst({
+        where: {
+          userId,
+          feature: Feature.RESEARCH_ASSISTANT,
+          isActive: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!activeLimit) {
+        throw new Error(`Active RESEARCH_ASSISTANT feature limit not found for user ${userId}`);
+      }
+
+      let grantedChats = 0;
+      let skipReason: string | null = null;
+
+      if (activeLimit.useLimit === null) {
+        skipReason = 'user_has_unlimited_chat_access';
+      } else {
+        grantedChats = totalChats;
+        await tx.userFeatureLimit.update({
+          where: { id: activeLimit.id },
+          data: { useLimit: activeLimit.useLimit + totalChats },
+        });
+      }
+
+      await tx.stripeCheckoutFulfillment.create({
+        data: {
+          userId,
+          stripeSessionId: sessionId,
+          stripePriceId: priceId,
+          stripePaymentIntentId: paymentIntentId,
+          stripeCustomerId: customerId,
+          fulfillmentType: 'BUNDLE_CHATS',
+          purchasedUnits: totalChats,
+          grantedUnits: grantedChats,
+          skipReason,
+          details: {
+            entitlementType: BUNDLE_ENTITLEMENT_TYPE,
+            bundleChatsPerUnit,
+            lineItemQuantity: quantity,
+          },
+        },
+      });
+
+      return {
+        alreadyFulfilled: false,
+        grantedChats,
+        totalChats,
+        skipReason,
+      };
+    });
+
+    if (customerId) {
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { stripeUserId: customerId },
+        });
+      } catch (error) {
+        logger.error(
+          { error, userId, sessionId, customerId },
+          'Failed to persist stripeUserId after bundle fulfillment',
+        );
+      }
+    }
+
+    return fulfillment;
   }
 
   static async getUserActiveSubscription(userId: number) {

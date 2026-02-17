@@ -1,4 +1,4 @@
-import { SubscriptionStatus } from '@prisma/client';
+import { Feature, PlanType, SubscriptionStatus } from '@prisma/client';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
@@ -48,6 +48,52 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
 
     // Create checkout session
     const stripe = getStripe();
+    const stripePrice = await stripe.prices.retrieve(priceId);
+    const entitlementType = stripePrice.metadata?.entitlement_type;
+    const bundleChatsMetadata = stripePrice.metadata?.bundle_chats;
+    const isBundleCheckout = entitlementType === 'bundle_chats';
+
+    if (isBundleCheckout && resolvedCheckoutMode !== 'payment') {
+      return res.status(400).json({
+        error: 'Bundle checkout must use payment mode',
+      });
+    }
+
+    if (isBundleCheckout) {
+      const bundleChats = Number.parseInt(bundleChatsMetadata || '', 10);
+      if (!Number.isFinite(bundleChats) || bundleChats <= 0) {
+        return res.status(400).json({
+          error: 'Invalid bundle configuration for selected price',
+        });
+      }
+
+      const [activePaidSubscription, activeResearchAssistantLimit] = await Promise.all([
+        prisma.subscription.findFirst({
+          where: {
+            userId,
+            status: SubscriptionStatus.ACTIVE,
+            planType: { not: PlanType.FREE },
+          },
+          select: { id: true, planType: true },
+        }),
+        prisma.userFeatureLimit.findFirst({
+          where: {
+            userId,
+            feature: Feature.RESEARCH_ASSISTANT,
+            isActive: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { useLimit: true },
+        }),
+      ]);
+
+      if (activePaidSubscription || activeResearchAssistantLimit?.useLimit === null) {
+        return res.status(409).json({
+          error: 'Bundles are only available for users without an active subscription',
+        });
+      }
+    }
+
     const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       customer: customer.id,
       payment_method_types: ['card'],
@@ -64,6 +110,8 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
         userId: userId.toString(),
         priceId,
         checkoutMode: resolvedCheckoutMode,
+        ...(entitlementType ? { entitlementType } : {}),
+        ...(bundleChatsMetadata ? { bundleChats: bundleChatsMetadata } : {}),
       },
     };
 
