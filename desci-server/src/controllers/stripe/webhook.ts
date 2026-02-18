@@ -19,22 +19,22 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
 
   try {
     if (!endpointSecret) {
-      logger.error('STRIPE_WEBHOOK_SECRET not configured');
+      logger.error({}, 'STRIPE_WEBHOOK_SECRET not configured');
       return res.status(500).json({ error: 'Webhook secret not configured' });
     }
 
     if (!sig) {
-      logger.error('No stripe-signature header found');
+      logger.error({}, 'No stripe-signature header found');
       return res.status(400).json({ error: 'Missing stripe-signature header' });
     }
 
     // Verify webhook signature
     const stripe = getStripe();
     event = stripe.webhooks.constructEvent(req.body, sig as string, endpointSecret);
-    logger.info(`Received Stripe webhook: ${event.type}`, { eventId: event.id });
+    logger.info({ eventId: event.id }, `Received Stripe webhook: ${event.type}`);
   } catch (err: any) {
     const errorDetails = {
-      error: err.message,
+      errorMessage: err.message,
       hasBody: !!req.body,
       bodyType: typeof req.body,
       bodyLength: req.body ? req.body.length : 0,
@@ -45,7 +45,7 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
       signatureLength: sig ? sig.length : 0,
       secretLength: endpointSecret ? endpointSecret.length : 0,
     };
-    logger.error('Webhook signature verification failed', errorDetails);
+    logger.error({ err, ...errorDetails }, 'Webhook signature verification failed');
     console.error('WEBHOOK DEBUG:', JSON.stringify(errorDetails, null, 2));
     return res.status(400).json({ error: 'Webhook signature verification failed' });
   }
@@ -120,12 +120,12 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
         break;
 
       default:
-        logger.warn(`Unhandled event type: ${event.type}`);
+        logger.warn({}, `Unhandled event type: ${event.type}`);
     }
 
     return res.status(200).json({ received: true });
-  } catch (error: any) {
-    logger.error('Error processing webhook', { error: error.message, eventType: event!.type });
+  } catch (err: any) {
+    logger.error({ err, eventType: event!.type }, 'Error processing webhook');
     return res.status(500).json({ error: 'Error processing webhook' });
   }
 };
@@ -135,12 +135,12 @@ async function handleCustomerCreated(customer: Stripe.Customer) {
 
   try {
     await SubscriptionService.handleCustomerCreated(customer);
-  } catch (error: any) {
-    logger.error('Failed to handle customer created', {
+  } catch (err: any) {
+    logger.error({
       customerId: customer.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle customer created');
+    throw err;
   }
 }
 
@@ -149,12 +149,12 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
   try {
     await SubscriptionService.handleSubscriptionCreated(subscription);
-  } catch (error: any) {
-    logger.error('Failed to handle subscription created', {
+  } catch (err: any) {
+    logger.error({
       subscriptionId: subscription.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle subscription created');
+    throw err;
   }
 }
 
@@ -163,26 +163,26 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   try {
     await SubscriptionService.handleSubscriptionUpdated(subscription);
-  } catch (error: any) {
-    logger.error('Failed to handle subscription updated', {
+  } catch (err: any) {
+    logger.error({
       subscriptionId: subscription.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle subscription updated');
+    throw err;
   }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  logger.info('Processing subscription deleted', { subscriptionId: subscription.id });
+  logger.info({ subscriptionId: subscription.id }, 'Processing subscription deleted');
 
   try {
     await SubscriptionService.handleSubscriptionDeleted(subscription);
-  } catch (error: any) {
-    logger.error('Failed to handle subscription deleted', {
+  } catch (err: any) {
+    logger.error({
       subscriptionId: subscription.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle subscription deleted');
+    throw err;
   }
 }
 
@@ -191,12 +191,12 @@ async function handleInvoiceCreated(invoice: Stripe.Invoice) {
 
   try {
     await SubscriptionService.handleInvoiceCreated(invoice);
-  } catch (error: any) {
-    logger.error('Failed to handle invoice created', {
+  } catch (err: any) {
+    logger.error({
       invoiceId: invoice.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle invoice created');
+    throw err;
   }
 }
 
@@ -205,12 +205,12 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
   try {
     await SubscriptionService.handleInvoicePaymentSucceeded(invoice);
-  } catch (error: any) {
-    logger.error('Failed to handle invoice payment succeeded', {
+  } catch (err: any) {
+    logger.error({
       invoiceId: invoice.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle invoice payment succeeded');
+    throw err;
   }
 }
 
@@ -219,12 +219,12 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
   try {
     await SubscriptionService.handleInvoicePaymentFailed(invoice);
-  } catch (error: any) {
-    logger.error('Failed to handle invoice payment failed', {
+  } catch (err: any) {
+    logger.error({
       invoiceId: invoice.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle invoice payment failed');
+    throw err;
   }
 }
 
@@ -233,12 +233,12 @@ async function handlePaymentMethodAttached(paymentMethod: Stripe.PaymentMethod) 
 
   try {
     await SubscriptionService.handlePaymentMethodAttached(paymentMethod);
-  } catch (error: any) {
-    logger.error('Failed to handle payment method attached', {
+  } catch (err: any) {
+    logger.error({
       paymentMethodId: paymentMethod.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle payment method attached');
+    throw err;
   }
 }
 
@@ -247,12 +247,12 @@ async function handlePaymentMethodDetached(paymentMethod: Stripe.PaymentMethod) 
 
   try {
     await SubscriptionService.handlePaymentMethodDetached(paymentMethod);
-  } catch (error: any) {
-    logger.error('Failed to handle payment method detached', {
+  } catch (err: any) {
+    logger.error({
       paymentMethodId: paymentMethod.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle payment method detached');
+    throw err;
   }
 }
 
@@ -261,12 +261,12 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
 
   try {
     await SubscriptionService.handleTrialWillEnd(subscription);
-  } catch (error: any) {
-    logger.error('Failed to handle trial will end', {
+  } catch (err: any) {
+    logger.error({
       subscriptionId: subscription.id,
-      error: error.message,
-    });
-    throw error;
+      err,
+    }, 'Failed to handle trial will end');
+    throw err;
   }
 }
 
@@ -289,23 +289,23 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     logger.info({ paymentIntentId: paymentIntent.id }, 'No active subscription found (possible one-time checkout)');
     return;
   }
-  logger.info('Handling subscription created', { subscriptionId: activeSubscription.id });
+  logger.info({ subscriptionId: activeSubscription.id }, 'Handling subscription created');
   await SubscriptionService.handleSubscriptionCreated(activeSubscription);
 }
 
 async function handleChargeSucceeded(charge: Stripe.Charge) {
-  logger.info('Processing charge succeeded', { chargeId: charge.id });
+  logger.info({ chargeId: charge.id }, 'Processing charge succeeded');
   // Charges are handled via invoice events, no action needed
 }
 
 async function handleCustomerUpdated(customer: Stripe.Customer) {
-  logger.info('Processing customer updated', { customerId: customer.id });
+  logger.info({ customerId: customer.id }, 'Processing customer updated');
   // Customer updates like email/name changes can be handled if needed
   // For now, just log the event
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  logger.info('Processing checkout session completed', { sessionId: session.id, mode: session.mode });
+  logger.info({ sessionId: session.id, mode: session.mode }, 'Processing checkout session completed');
 
   // Mark the checkout as completed to prevent abandoned cart emails
   try {
@@ -314,8 +314,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       data: { completedAt: new Date() },
     });
     logger.debug({ sessionId: session.id }, 'Marked checkout session as completed');
-  } catch (error) {
-    logger.error({ error, sessionId: session.id }, 'Failed to mark checkout session as completed');
+  } catch (err) {
+    logger.error({ err, sessionId: session.id }, 'Failed to mark checkout session as completed');
   }
 
   // Recurring subscriptions are handled by customer.subscription.* webhooks
@@ -326,7 +326,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 }
 
 async function handleInvoiceFinalized(invoice: Stripe.Invoice) {
-  logger.info('Processing invoice finalized', { invoiceId: invoice.id });
+  logger.info({ invoiceId: invoice.id }, 'Processing invoice finalized');
   // Invoice finalization is handled by invoice.created and invoice.payment_succeeded
   // No additional action needed
 }
