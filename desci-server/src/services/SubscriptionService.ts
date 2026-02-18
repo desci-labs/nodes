@@ -767,10 +767,7 @@ export class SubscriptionService {
       throw new Error(`Unable to determine checkout price for session ${session.id}`);
     }
 
-    const price =
-      typeof lineItemPrice !== 'string' && lineItemPrice?.id === priceId
-        ? lineItemPrice
-        : await stripe.prices.retrieve(priceId);
+    const price = await this.getStripePriceWithExpandedProduct(stripe, priceId, lineItemPrice);
 
     const entitlementType = price.metadata?.entitlement_type || expandedSession.metadata?.entitlementType;
     const bundleChatsMetadata = price.metadata?.bundle_chats || expandedSession.metadata?.bundleChats;
@@ -829,9 +826,19 @@ export class SubscriptionService {
       return;
     }
 
-    const planType = this.mapStripePriceToPlanType(priceId);
+    const {
+      planType,
+      source: checkoutPlanTypeSource,
+      metadataPlanType,
+    } = this.resolvePlanTypeFromMetadataOrFallback({
+      priceId,
+      price,
+    });
     if (planType !== PlanType.SCIWEAVE_LIFETIME) {
-      logger.info({ sessionId: session.id, priceId, planType }, 'Payment checkout is not a lifetime plan, skipping');
+      logger.info(
+        { sessionId: session.id, priceId, planType, checkoutPlanTypeSource, metadataPlanType },
+        'Payment checkout is not a lifetime plan, skipping',
+      );
       return;
     }
 
@@ -1247,18 +1254,19 @@ export class SubscriptionService {
       const stripePrice = await stripe.prices.retrieve(priceId, {
         expand: ['product'],
       });
-
-      const metadataPlanType = this.extractPlanTypeMetadataFromPrice(stripePrice);
-      const mappedPlanType = this.mapPlanTypeMetadataToPlanType(metadataPlanType);
+      const {
+        planType: resolvedPlanType,
+        source: planTypeSource,
+        metadataPlanType,
+      } = this.resolvePlanTypeFromMetadataOrFallback({
+        priceId,
+        price: stripePrice,
+      });
       const billingIntervalFromRecurring = this.mapRecurringIntervalToBillingInterval(stripePrice.recurring?.interval);
 
-      if (metadataPlanType && !mappedPlanType) {
-        logger.warn({ priceId, metadataPlanType }, 'Unsupported plan_type metadata on Stripe price/product');
-      }
-
-      if (mappedPlanType) {
+      if (planTypeSource === 'stripe_metadata') {
         return {
-          planType: mappedPlanType,
+          planType: resolvedPlanType,
           billingInterval: billingIntervalFromRecurring ?? fallbackBillingInterval,
           planResolutionSource: 'stripe_metadata',
           metadataPlanType,
@@ -1322,6 +1330,8 @@ export class SubscriptionService {
       case 'PREMIUM':
         return PlanType.PREMIUM;
       case 'SCIWEAVE_LIFETIME':
+      case 'SCIWEAVE_LIFETIME_PASS':
+      case 'LIFETIME':
         return PlanType.SCIWEAVE_LIFETIME;
       case 'FREE':
         return PlanType.FREE;
@@ -1341,6 +1351,54 @@ export class SubscriptionService {
       default:
         return null;
     }
+  }
+
+  private static async getStripePriceWithExpandedProduct(
+    stripe: Stripe,
+    priceId: string,
+    candidatePrice?: Stripe.Price | string | null,
+  ): Promise<Stripe.Price> {
+    if (candidatePrice && typeof candidatePrice !== 'string' && candidatePrice.id === priceId) {
+      const candidateProduct = candidatePrice.product;
+      if (
+        candidateProduct &&
+        typeof candidateProduct !== 'string' &&
+        !('deleted' in candidateProduct && candidateProduct.deleted)
+      ) {
+        return candidatePrice;
+      }
+    }
+
+    return await stripe.prices.retrieve(priceId, {
+      expand: ['product'],
+    });
+  }
+
+  private static resolvePlanTypeFromMetadataOrFallback({ priceId, price }: { priceId: string; price: Stripe.Price }): {
+    planType: PlanType;
+    source: 'stripe_metadata' | 'price_id_fallback';
+    metadataPlanType: string | null;
+  } {
+    const metadataPlanType = this.extractPlanTypeMetadataFromPrice(price);
+    const mappedPlanType = this.mapPlanTypeMetadataToPlanType(metadataPlanType);
+
+    if (metadataPlanType && mappedPlanType) {
+      return {
+        planType: mappedPlanType,
+        source: 'stripe_metadata',
+        metadataPlanType,
+      };
+    }
+
+    if (metadataPlanType && !mappedPlanType) {
+      logger.warn({ priceId, metadataPlanType }, 'Unsupported plan_type metadata on Stripe price/product');
+    }
+
+    return {
+      planType: this.mapStripePriceToPlanType(priceId),
+      source: 'price_id_fallback',
+      metadataPlanType,
+    };
   }
 
   private static getBillingIntervalFromPriceIdHelper(priceId?: string): BillingInterval {
