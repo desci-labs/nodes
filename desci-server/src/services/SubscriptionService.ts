@@ -135,8 +135,8 @@ export class SubscriptionService {
     }
 
     const priceId = subscription.items.data[0]?.price.id;
-    const planType = this.mapStripePriceToPlanType(priceId);
-    const billingInterval = SubscriptionService.getBillingIntervalFromPriceIdHelper(priceId);
+    const { planType, billingInterval, planResolutionSource, metadataPlanType } =
+      await this.resolveRecurringPlanDetails(priceId);
     const sub = subscription as any; // Cast to any to access properties
 
     const subscriptionItem = subscription?.items?.data?.[0];
@@ -151,7 +151,18 @@ export class SubscriptionService {
         ? new Date(sub.current_period_end * 1000)
         : null;
 
-    logger.info({ priceId, planType, userId, subscriptionId: subscription.id }, 'Handle subscription created');
+    logger.info(
+      {
+        priceId,
+        planType,
+        billingInterval,
+        planResolutionSource,
+        metadataPlanType,
+        userId,
+        subscriptionId: subscription.id,
+      },
+      'Handle subscription created',
+    );
     // Use upsert to make subscription creation idempotent
     await prisma.subscription.upsert({
       where: { stripeSubscriptionId: subscription.id },
@@ -233,8 +244,8 @@ export class SubscriptionService {
 
     const priceId = subscription.items.data[0]?.price.id;
     logger.info({ priceId }, 'stripe::priceId found');
-    const planType = this.mapStripePriceToPlanType(priceId);
-    const billingInterval = SubscriptionService.getBillingIntervalFromPriceIdHelper(priceId);
+    const { planType, billingInterval, planResolutionSource, metadataPlanType } =
+      await this.resolveRecurringPlanDetails(priceId);
     const sub = subscription as any; // Cast to any to access properties
 
     const subscriptionItem = subscription?.items?.data?.[0];
@@ -248,6 +259,19 @@ export class SubscriptionService {
       : sub.current_period_end
         ? new Date(sub.current_period_end * 1000)
         : null;
+
+    logger.info(
+      {
+        priceId,
+        planType,
+        billingInterval,
+        planResolutionSource,
+        metadataPlanType,
+        subscriptionId: subscription.id,
+        userId,
+      },
+      'Resolved subscription plan details',
+    );
 
     const updatedSubscription = await prisma.subscription.upsert({
       where: { stripeSubscriptionId: subscription.id },
@@ -743,10 +767,7 @@ export class SubscriptionService {
       throw new Error(`Unable to determine checkout price for session ${session.id}`);
     }
 
-    const price =
-      typeof lineItemPrice !== 'string' && lineItemPrice?.id === priceId
-        ? lineItemPrice
-        : await stripe.prices.retrieve(priceId);
+    const price = await this.getStripePriceWithExpandedProduct(stripe, priceId, lineItemPrice);
 
     const entitlementType = price.metadata?.entitlement_type || expandedSession.metadata?.entitlementType;
     const bundleChatsMetadata = price.metadata?.bundle_chats || expandedSession.metadata?.bundleChats;
@@ -805,9 +826,19 @@ export class SubscriptionService {
       return;
     }
 
-    const planType = this.mapStripePriceToPlanType(priceId);
+    const {
+      planType,
+      source: checkoutPlanTypeSource,
+      metadataPlanType,
+    } = this.resolvePlanTypeFromMetadataOrFallback({
+      priceId,
+      price,
+    });
     if (planType !== PlanType.SCIWEAVE_LIFETIME) {
-      logger.info({ sessionId: session.id, priceId, planType }, 'Payment checkout is not a lifetime plan, skipping');
+      logger.info(
+        { sessionId: session.id, priceId, planType, checkoutPlanTypeSource, metadataPlanType },
+        'Payment checkout is not a lifetime plan, skipping',
+      );
       return;
     }
 
@@ -1198,6 +1229,176 @@ export class SubscriptionService {
       default:
         return PlanType.FREE;
     }
+  }
+
+  private static async resolveRecurringPlanDetails(priceId?: string): Promise<{
+    planType: PlanType;
+    billingInterval: BillingInterval;
+    planResolutionSource: 'missing_price_id' | 'stripe_metadata' | 'price_id_fallback' | 'stripe_lookup_error_fallback';
+    metadataPlanType: string | null;
+  }> {
+    const fallbackPlanType = this.mapStripePriceToPlanType(priceId);
+    const fallbackBillingInterval = this.getBillingIntervalFromPriceIdHelper(priceId);
+
+    if (!priceId) {
+      return {
+        planType: fallbackPlanType,
+        billingInterval: fallbackBillingInterval,
+        planResolutionSource: 'missing_price_id',
+        metadataPlanType: null,
+      };
+    }
+
+    try {
+      const stripe = getStripe();
+      const stripePrice = await stripe.prices.retrieve(priceId, {
+        expand: ['product'],
+      });
+      const {
+        planType: resolvedPlanType,
+        source: planTypeSource,
+        metadataPlanType,
+      } = this.resolvePlanTypeFromMetadataOrFallback({
+        priceId,
+        price: stripePrice,
+      });
+      const billingIntervalFromRecurring = this.mapRecurringIntervalToBillingInterval(stripePrice.recurring?.interval);
+
+      if (planTypeSource === 'stripe_metadata') {
+        return {
+          planType: resolvedPlanType,
+          billingInterval: billingIntervalFromRecurring ?? fallbackBillingInterval,
+          planResolutionSource: 'stripe_metadata',
+          metadataPlanType,
+        };
+      }
+
+      return {
+        planType: fallbackPlanType,
+        billingInterval: billingIntervalFromRecurring ?? fallbackBillingInterval,
+        planResolutionSource: 'price_id_fallback',
+        metadataPlanType,
+      };
+    } catch (error) {
+      logger.error(
+        { error, priceId },
+        'Failed to resolve Stripe recurring plan metadata, falling back to price ID map',
+      );
+      return {
+        planType: fallbackPlanType,
+        billingInterval: fallbackBillingInterval,
+        planResolutionSource: 'stripe_lookup_error_fallback',
+        metadataPlanType: null,
+      };
+    }
+  }
+
+  private static extractPlanTypeMetadataFromPrice(price: Stripe.Price): string | null {
+    const pricePlanType = price.metadata?.plan_type || price.metadata?.planType;
+    if (pricePlanType) {
+      return pricePlanType;
+    }
+
+    const priceProduct = price.product;
+    if (!priceProduct || typeof priceProduct === 'string') {
+      return null;
+    }
+
+    if ('deleted' in priceProduct && priceProduct.deleted) {
+      return null;
+    }
+
+    const expandedProduct = priceProduct as Stripe.Product;
+    return expandedProduct.metadata?.plan_type || expandedProduct.metadata?.planType || null;
+  }
+
+  private static mapPlanTypeMetadataToPlanType(metadataPlanType?: string | null): PlanType | null {
+    if (!metadataPlanType) return null;
+
+    const normalizedMetadataPlanType = metadataPlanType
+      .trim()
+      .toUpperCase()
+      .replace(/[\s-]+/g, '_');
+
+    switch (normalizedMetadataPlanType) {
+      case 'AI_REFEREE_FINDER':
+        return PlanType.AI_REFEREE_FINDER;
+      case 'OMNI_CHATS':
+      case 'SCIWEAVE_CHATS':
+      case 'SCIWEAVE_PREMIUM':
+        return PlanType.OMNI_CHATS;
+      case 'PREMIUM':
+        return PlanType.PREMIUM;
+      case 'SCIWEAVE_LIFETIME':
+      case 'SCIWEAVE_LIFETIME_PASS':
+      case 'LIFETIME':
+        return PlanType.SCIWEAVE_LIFETIME;
+      case 'FREE':
+        return PlanType.FREE;
+      default:
+        return null;
+    }
+  }
+
+  private static mapRecurringIntervalToBillingInterval(
+    recurringInterval?: Stripe.Price.Recurring.Interval | null,
+  ): BillingInterval | null {
+    switch (recurringInterval) {
+      case 'year':
+        return BillingInterval.ANNUAL;
+      case 'month':
+        return BillingInterval.MONTHLY;
+      default:
+        return null;
+    }
+  }
+
+  private static async getStripePriceWithExpandedProduct(
+    stripe: Stripe,
+    priceId: string,
+    candidatePrice?: Stripe.Price | string | null,
+  ): Promise<Stripe.Price> {
+    if (candidatePrice && typeof candidatePrice !== 'string' && candidatePrice.id === priceId) {
+      const candidateProduct = candidatePrice.product;
+      if (
+        candidateProduct &&
+        typeof candidateProduct !== 'string' &&
+        !('deleted' in candidateProduct && candidateProduct.deleted)
+      ) {
+        return candidatePrice;
+      }
+    }
+
+    return await stripe.prices.retrieve(priceId, {
+      expand: ['product'],
+    });
+  }
+
+  private static resolvePlanTypeFromMetadataOrFallback({ priceId, price }: { priceId: string; price: Stripe.Price }): {
+    planType: PlanType;
+    source: 'stripe_metadata' | 'price_id_fallback';
+    metadataPlanType: string | null;
+  } {
+    const metadataPlanType = this.extractPlanTypeMetadataFromPrice(price);
+    const mappedPlanType = this.mapPlanTypeMetadataToPlanType(metadataPlanType);
+
+    if (metadataPlanType && mappedPlanType) {
+      return {
+        planType: mappedPlanType,
+        source: 'stripe_metadata',
+        metadataPlanType,
+      };
+    }
+
+    if (metadataPlanType && !mappedPlanType) {
+      logger.warn({ priceId, metadataPlanType }, 'Unsupported plan_type metadata on Stripe price/product');
+    }
+
+    return {
+      planType: this.mapStripePriceToPlanType(priceId),
+      source: 'price_id_fallback',
+      metadataPlanType,
+    };
   }
 
   private static getBillingIntervalFromPriceIdHelper(priceId?: string): BillingInterval {
