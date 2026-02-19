@@ -6,7 +6,6 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 
 const router = Router();
 
-// Webhook endpoint - needs raw body for signature verification and Stripe config
-router.post('/webhook', [raw({ type: 'application/json' })], asyncHandler(handleRevenueCatWebhook));
+router.post('/webhook', asyncHandler(handleRevenueCatWebhook));
 
 export default router;

@@ -11,8 +11,13 @@ const logger = parentLogger.child({
 });
 
 const endpointSecret = process.env.REVENUECAT_WEBHOOK_SECRET ?? 'test-jwt-header';
-const REVENUECAT_API_KEY = 'sk_bvBINEhKMOnpaFaXWNxaoXSOcXLDX'; // process.env.REVENUECAT_API_KEY ??
+const REVENUECAT_API_KEY = process.env.REVENUECAT_API_KEY;
 const REVENUECAT_API_URL = 'https://api.revenuecat.com/v1';
+
+if (!REVENUECAT_API_KEY?.trim()) {
+  logger.error('REVENUECAT_API_KEY is required but not set. Set the environment variable and restart.');
+  process.exit(1);
+}
 
 interface RevenueCatWebhookPayload {
   api_version: '1.0' | '2.0' | (string & object);
@@ -128,20 +133,31 @@ const cacheMobileSubscription = async (userId: number, customerInfo: CustomerInf
   const cacheKey = `${REVENUECAT_SUBSCRIPTION_CACHE_PREFIX}${userId}`;
   const productId = customerInfo.subscriber.entitlements[REVENUECAT_ENTITLEMENT_ID]?.product_identifier;
   if (!productId) {
-    logger.error('REVENUECAT_ENTITLEMENT_ID not found');
+    logger.error(
+      { userId, entitlements: customerInfo.subscriber.entitlements, REVENUECAT_ENTITLEMENT_ID },
+      'User entitlement not supported',
+    );
     return;
   }
+  const subscriptions = customerInfo.subscriber.subscriptions;
+  const subscription = subscriptions[productId];
+  if (!subscription) {
+    logger.error({ productId, userId }, 'Subscription not found for product');
+    return;
+  }
+  const expires_date = subscription.expires_date;
   const mobileSubscriptionDetails: MobileSubscriptionDetails = {
     userId,
     productId,
-    price: customerInfo.subscriber.subscriptions[productId].price,
-    expirationDate: customerInfo.subscriber.subscriptions[productId].expires_date,
-    purchaseDate: customerInfo.subscriber.subscriptions[productId].purchase_date,
-    store: customerInfo.subscriber.subscriptions[productId].store,
-    storeTransactionId: customerInfo.subscriber.subscriptions[productId].store_transaction_id,
-    unsubscribeDetectedAt: customerInfo.subscriber.subscriptions[productId].unsubscribe_detected_at,
+    price: subscription.price,
+    expirationDate: expires_date ?? '',
+    purchaseDate: subscription.purchase_date,
+    store: subscription.store,
+    storeTransactionId: subscription.store_transaction_id,
+    unsubscribeDetectedAt: subscription.unsubscribe_detected_at,
   };
-  const cacheDuration = Math.round((new Date(mobileSubscriptionDetails.expirationDate).getTime() - Date.now()) / 1000); // in seconds
+  const expirationMs = expires_date ? new Date(expires_date).getTime() : 0;
+  const cacheDuration = expirationMs ? Math.max(0, Math.floor((expirationMs - Date.now()) / 1000)) : 0;
   logger.info({ cacheDuration, mobileSubscriptionDetails }, 'Caching mobile subscription details');
   await setToCache(cacheKey, mobileSubscriptionDetails, cacheDuration);
 };
@@ -157,8 +173,8 @@ export const handleRevenueCatWebhook = async (req: Request, res: Response) => {
       return;
     }
 
+    // send response early to acknowledge receipt
     res.status(200).json({ received: true });
-    // return;
   } catch (err: any) {
     logger.error({ error: err.message }, 'Webhook signature verification failed');
     res.status(400).json({ error: 'Webhook signature verification failed' });
