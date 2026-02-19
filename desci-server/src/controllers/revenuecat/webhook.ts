@@ -10,10 +10,14 @@ const logger = parentLogger.child({
   module: 'REVENUECAT_WEBHOOK',
 });
 
-const endpointSecret = process.env.REVENUECAT_WEBHOOK_SECRET ?? 'test-jwt-header';
+const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET;
 const REVENUECAT_API_KEY = process.env.REVENUECAT_API_KEY;
 const REVENUECAT_API_URL = 'https://api.revenuecat.com/v1';
 
+if (!REVENUECAT_WEBHOOK_SECRET?.trim()) {
+  logger.error('REVENUECAT_WEBHOOK_SECRET is required but not set. Set the environment variable and restart.');
+  process.exit(1);
+}
 if (!REVENUECAT_API_KEY?.trim()) {
   logger.error('REVENUECAT_API_KEY is required but not set. Set the environment variable and restart.');
   process.exit(1);
@@ -167,18 +171,13 @@ export const handleRevenueCatWebhook = async (req: Request, res: Response) => {
   const sig = req.headers['authorization'];
 
   try {
-    if (endpointSecret !== sig) {
-      logger.error('REVENUECAT_WEBHOOK_SECRET not configured');
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+    if (REVENUECAT_WEBHOOK_SECRET !== sig) {
+      logger.error('Invalid or missing webhook authorization');
+      return res.status(401).json({ error: 'Unauthorized' });
     }
-
-    // send response early to acknowledge receipt
-    res.status(200).json({ received: true });
   } catch (err: any) {
     logger.error({ error: err.message }, 'Webhook signature verification failed');
-    res.status(400).json({ error: 'Webhook signature verification failed' });
-    return;
+    return res.status(400).json({ error: 'Webhook signature verification failed' });
   }
 
   try {
@@ -189,8 +188,7 @@ export const handleRevenueCatWebhook = async (req: Request, res: Response) => {
     const user = userId ? await getUserById(Number(userId)) : null;
     if (!user) {
       logger.error({ userId }, 'User not found');
-      res.status(404).json({ error: 'User not found' });
-      return;
+      return res.status(404).json({ error: 'User not found' });
     }
     // const email = payload.event.subscriber_attributes['email'].value;
     const appUserId = payload.event.app_user_id;
@@ -201,7 +199,7 @@ export const handleRevenueCatWebhook = async (req: Request, res: Response) => {
       },
     });
     const customerInfo = (await getCustomerInfo.json()) as CustomerInfoV1;
-    logger.info({ customerInfo: customerInfo }, 'Customer info');
+    logger.info({ originalAppUserId: customerInfo.subscriber.original_app_user_id, appUserId }, 'Customer info');
 
     switch (payload.event.type) {
       case 'INITIAL_PURCHASE':
@@ -222,7 +220,11 @@ export const handleRevenueCatWebhook = async (req: Request, res: Response) => {
         logger.warn({ eventType: payload.event.type }, 'Unknown event type');
         break;
     }
+
+    // send response to acknowledge receipt
+    return res.status(200).json({ received: true });
   } catch (err: any) {
     logger.error({ err: errWithCause(err) }, 'Error handling RevenueCat webhook');
+    return res.status(500).send({ err: errWithCause(err) });
   }
 };
