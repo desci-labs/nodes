@@ -30,6 +30,7 @@
     ]
   },
   "resolutions": {
+    "brace-expansion": "^2.0.1",
     "cliui": "^8.0.1",
     "pg-cloudflare": "1.1.1"
   },
