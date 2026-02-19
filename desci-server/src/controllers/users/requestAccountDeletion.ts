@@ -50,7 +50,7 @@ export const requestAccountDeletion = async (
       });
     }
 
-    const scheduledDeletionAt = addDays(new Date(), 30); // addMinutes(new Date(), 1);
+    const scheduledDeletionAt = addDays(new Date(), 30);
     await createAccountDeletionRequest(userId, scheduledDeletionAt, reason);
 
     if (user?.email) {

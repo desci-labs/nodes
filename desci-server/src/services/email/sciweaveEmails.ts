@@ -10,7 +10,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { getRelativeTime } from '../../utils/clock.js';
 
 sgMail.setApiKey(SENDGRID_API_KEY);
-
+parentLogger.info({ SENDGRID_API_KEY }, 'set sciweave api key');
 import {
   SciweaveEmailTypes,
   SciweaveEmailProps,
@@ -95,6 +95,7 @@ async function sendSciweaveEmail(
   let success = false;
 
   try {
+    logger.info({ SHOULD_SEND_EMAIL, SENDGRID_API_KEY }, 'SEND SCIWEAVE EMAIL');
     if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
         process.env.SERVER_URL === 'https://nodes-api.desci.com'
@@ -569,7 +570,7 @@ async function sendAccountDeletionScheduledEmail({
 }: AccountDeletionScheduledEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED];
   if (!templateId) {
-    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED}`);
+    logger.error({ templateId }, ` No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED}`);
     return undefined;
   }
   const message = {
@@ -578,15 +579,15 @@ async function sendAccountDeletionScheduledEmail({
     templateId,
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
-      user: { firstName: firstName || '', lastName: lastName || '', email },
-      scheduledDeletionAt: scheduledDeletionAt.toISOString(),
-      scheduledDeletionAtFormatted: scheduledDeletionAt.toLocaleDateString('en-US', {
+      user: { firstName: firstName || 'Stranger', lastName: lastName || '', email },
+      // scheduledDeletionAt: scheduledDeletionAt.toISOString(),
+      deletionDate: scheduledDeletionAt.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       }),
-      scheduledDeletionAtRelative: getRelativeTime(scheduledDeletionAt),
+      // scheduledDeletionAtRelative: getRelativeTime(scheduledDeletionAt),
     },
   };
   return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED, { templateId });
@@ -599,7 +600,10 @@ async function sendAccountDeletionReactivatedEmail({
 }: AccountDeletionReactivatedEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED];
   if (!templateId) {
-    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED}`);
+    logger.error(
+      { templateId },
+      `No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED}`,
+    );
     return undefined;
   }
   const message = {
@@ -608,7 +612,13 @@ async function sendAccountDeletionReactivatedEmail({
     templateId,
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
-      user: { firstName: firstName || '', lastName: lastName || '', email },
+      user: { firstName: firstName || 'Stranger', lastName: lastName || '', email },
+      reactivationDate: new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
     },
   };
   return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED, { templateId });
@@ -621,7 +631,7 @@ async function sendAccountDeletionFinalizedEmail({
 }: AccountDeletionFinalizedEmailPayload['payload']) {
   const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED];
   if (!templateId) {
-    logger.error(`No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED}`);
+    logger.error({ templateId }, `No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED}`);
     return undefined;
   }
   const message = {
@@ -630,7 +640,7 @@ async function sendAccountDeletionFinalizedEmail({
     templateId,
     dynamicTemplateData: {
       envUrlPrefix: deploymentEnvironmentString,
-      user: { firstName: firstName || '', lastName: lastName || '', email },
+      user: { firstName: firstName || 'Stranger', lastName: lastName || '', email },
     },
   };
   return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED, { templateId });

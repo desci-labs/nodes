@@ -64,6 +64,11 @@ export const DAPP_URL = process.env.DAPP_URL;
 export const NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 export const NODES_MEDIA_SERVER_URL = process.env.NODES_MEDIA_SERVER_URL;
 
+// RevenueCat Configuration
+export const REVENUECAT_API_KEY = process.env.REVENUECAT_API_KEY;
+export const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET;
+export const REVENUECAT_ENTITLEMENT_ID = process.env.REVENUECAT_ENTITLEMENT_ID ?? 'Sciweave Pro';
+
 // Stripe Configuration
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;

@@ -1,8 +1,8 @@
 /**
  * Account Deletion Runner
  *
- * Runs as a daily CronJob to process users whose scheduled deletion date has passed.
- * For each: cancel Stripe (and TODO RevenueCat), log ACCOUNT_HARD_DELETED, then hard-delete user data.
+ * Runs as a CronJob to process users whose scheduled deletion date has passed.
+ * For each: cancel RevenueCat, cancel Stripe, send finalized email, log ACCOUNT_HARD_DELETED, then hard-delete user data.
  *
  * Usage:
  *   NODE_PATH=./dist node ./dist/workers/accountDeletionRunner.js
@@ -18,6 +18,7 @@ import { hardDeleteUser } from '../services/accountDeletion.js';
 import { sendSciweaveEmailService } from '../services/email/sciweaveEmails.js';
 import { SciweaveEmailTypes } from '../services/email/sciweaveEmailTypes.js';
 import { saveInteractionWithoutReq } from '../services/interactionLog.js';
+import { cancelSubscriptionForUser } from '../services/RevenueCatService.js';
 import { SubscriptionService } from '../services/SubscriptionService.js';
 import { getDueAccountDeletionRequests } from '../services/user.js';
 
@@ -36,8 +37,8 @@ async function runAccountDeletions(): Promise<{ processed: number; errors: numbe
     try {
       const taskLock = await lockService.aquireLock(`accountDeletion:${accountDeletionRequestId}`);
       if (!taskLock) return { processed, errors };
-      // TODO(RevenueCat): Cancel RevenueCat subscription for userId; implementation in separate branch.
-      await SubscriptionService.cancelSubscriptionImmediately(userId);
+
+      await Promise.all([cancelSubscriptionForUser(userId), SubscriptionService.cancelSubscriptionImmediately(userId)]);
 
       const user = await prisma.user.findUnique({
         where: { id: userId },
