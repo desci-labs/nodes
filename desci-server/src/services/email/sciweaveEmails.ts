@@ -10,7 +10,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { getRelativeTime } from '../../utils/clock.js';
 
 sgMail.setApiKey(SENDGRID_API_KEY);
-parentLogger.info({ SENDGRID_API_KEY }, 'set sciweave api key');
+parentLogger.info('sciweave API key set');
 import {
   SciweaveEmailTypes,
   SciweaveEmailProps,
@@ -95,7 +95,7 @@ async function sendSciweaveEmail(
   let success = false;
 
   try {
-    logger.info({ SHOULD_SEND_EMAIL, SENDGRID_API_KEY }, 'SEND SCIWEAVE EMAIL');
+    logger.info({ SHOULD_SEND_EMAIL }, 'SEND SCIWEAVE EMAIL');
     if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
         process.env.SERVER_URL === 'https://nodes-api.desci.com'

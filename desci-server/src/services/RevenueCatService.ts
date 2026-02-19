@@ -1,6 +1,8 @@
 /**
  * RevenueCat service: customer info, subscription checks, cancel/delete for account lifecycle and webhooks.
  */
+import crypto from 'node:crypto';
+
 import { REVENUECAT_API_KEY, REVENUECAT_ENTITLEMENT_ID, REVENUECAT_WEBHOOK_SECRET } from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { delFromCache, getFromCache, setToCache } from '../redisClient.js';
@@ -279,21 +281,20 @@ export async function handleWebhookEvent(
     );
   }
 
-  const numUserId = Number(userId);
   switch (payload.event.type) {
     case 'INITIAL_PURCHASE':
-      await SubscriptionService.handleMobileSubscriptionCreated(numUserId);
-      if (customerInfo) await cacheMobileSubscriptionFromCustomerInfo(numUserId, customerInfo);
+      await SubscriptionService.handleMobileSubscriptionCreated(userId);
+      if (customerInfo) await cacheMobileSubscriptionFromCustomerInfo(userId, customerInfo);
       break;
     case 'RENEWAL':
-      await SubscriptionService.handleMobileSubscriptionRenewed(numUserId);
-      if (customerInfo) await cacheMobileSubscriptionFromCustomerInfo(numUserId, customerInfo);
+      await SubscriptionService.handleMobileSubscriptionRenewed(userId);
+      if (customerInfo) await cacheMobileSubscriptionFromCustomerInfo(userId, customerInfo);
       break;
     case 'CANCELLATION':
-      await SubscriptionService.handleMobileSubscriptionCancelled(numUserId);
+      await SubscriptionService.handleMobileSubscriptionCancelled(userId);
       break;
     case 'EXPIRATION':
-      await SubscriptionService.handleMobileSubscriptionCancelled(numUserId);
+      await SubscriptionService.handleMobileSubscriptionCancelled(userId);
       break;
     default:
       logger.warn({ eventType: payload.event.type }, 'RevenueCat webhook: unknown event type');
@@ -305,13 +306,23 @@ export async function handleWebhookEvent(
 
 /**
  * Verify webhook authorization header. Returns true if valid.
+ * Uses constant-time comparison to avoid timing attacks.
  */
 export function verifyWebhookSecret(authorizationHeader: string | undefined): boolean {
   if (!REVENUECAT_WEBHOOK_SECRET?.trim()) {
     logger.error('REVENUECAT_WEBHOOK_SECRET is not set');
     return false;
   }
-  return authorizationHeader === REVENUECAT_WEBHOOK_SECRET;
+  const secret = REVENUECAT_WEBHOOK_SECRET;
+  if (!authorizationHeader?.trim()) {
+    return false;
+  }
+  const secretBuf = Buffer.from(secret, 'utf8');
+  const headerBuf = Buffer.from(authorizationHeader, 'utf8');
+  if (secretBuf.length !== headerBuf.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(secretBuf, headerBuf);
 }
 
 /**

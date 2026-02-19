@@ -1,7 +1,6 @@
 import { ActionType } from '@prisma/client';
 import { Response } from 'express';
 
-import { prisma } from '../../client.js';
 import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { sendMagicLink } from '../../services/auth.js';
@@ -23,6 +22,7 @@ export const cancelAccountDeletion = async (req: AuthenticatedRequest, res: Resp
     if (!existing) {
       return res.status(200).json({
         ok: true,
+        cancelled: false,
         message: 'No deletion scheduled',
       });
     }

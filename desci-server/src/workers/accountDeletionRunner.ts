@@ -34,9 +34,12 @@ async function runAccountDeletions(): Promise<{ processed: number; errors: numbe
   for (const record of due) {
     const { userId, scheduledDeletionAt, id: accountDeletionRequestId } = record;
 
+    let taskLock = false;
     try {
-      const taskLock = await lockService.aquireLock(`accountDeletion:${accountDeletionRequestId}`);
-      if (!taskLock) return { processed, errors };
+      taskLock = await lockService.aquireLock(`accountDeletion:${accountDeletionRequestId}`);
+      if (!taskLock) {
+        continue;
+      }
 
       await Promise.all([cancelSubscriptionForUser(userId), SubscriptionService.cancelSubscriptionImmediately(userId)]);
 
@@ -77,7 +80,9 @@ async function runAccountDeletions(): Promise<{ processed: number; errors: numbe
       logger.error({ err, userId }, 'Failed to process account deletion');
       errors++;
     } finally {
-      await lockService.freeLock(`accountDeletion:${accountDeletionRequestId}`);
+      if (taskLock) {
+        await lockService.freeLock(`accountDeletion:${accountDeletionRequestId}`);
+      }
     }
   }
 

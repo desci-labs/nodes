@@ -39,6 +39,6 @@ export const handleRevenueCatWebhook = async (req: Request, res: Response) => {
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error({ err: errWithCause(error) }, 'Error handling RevenueCat webhook');
-    return res.status(500).send({ err: errWithCause(error) });
+    return res.status(500).send({ error: 'Internal server error' });
   }
 };

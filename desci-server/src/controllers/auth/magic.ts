@@ -45,6 +45,30 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     logger.info({ fn: 'magic', reqBody: req.body }, `magic link`);
   }
 
+  const rejectDeactivatedAccounts = async ({
+    userId,
+    scheduledDeletionAt,
+  }: {
+    userId: number;
+    scheduledDeletionAt: string;
+  }) => {
+    await saveInteractionWithoutReq({
+      action: ActionType.ACCOUNT_DELETION_LOGIN_BLOCKED,
+      userId,
+      data: {
+        scheduledDeletionAt,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+    logger.info({ userId }, 'Magic code blocked: account scheduled for deletion');
+    res.status(200).send({
+      ok: true,
+      accountDisabled: true,
+      scheduledDeletionAt,
+    });
+  };
+
   if (!code) {
     // we are sending the magic code
     try {
@@ -55,22 +79,10 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       if (userByEmail) {
         const pendingDeletion = await getAccountDeletionRequest(userByEmail.id);
         if (pendingDeletion) {
-          await saveInteractionWithoutReq({
-            action: ActionType.ACCOUNT_DELETION_LOGIN_BLOCKED,
+          return rejectDeactivatedAccounts({
             userId: userByEmail.id,
-            data: {
-              scheduledDeletionAt: pendingDeletion.scheduledDeletionAt.toISOString(),
-              ip: req.ip,
-              userAgent: req.headers['user-agent'],
-            },
-          });
-          logger.info({ userId: userByEmail.id }, 'Magic code blocked: account scheduled for deletion');
-          res.status(200).send({
-            ok: true,
-            accountDisabled: true,
             scheduledDeletionAt: pendingDeletion.scheduledDeletionAt.toISOString(),
           });
-          return;
         }
       }
       const ip = req.ip;
@@ -87,6 +99,14 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       const { user, isNewUser } = await magicLinkRedeem(cleanEmail, code);
 
       if (!user) throw new Error('User not found');
+
+      const pendingDeletion = await getAccountDeletionRequest(user.id);
+      if (pendingDeletion) {
+        return rejectDeactivatedAccounts({
+          userId: user.id,
+          scheduledDeletionAt: pendingDeletion.scheduledDeletionAt.toISOString(),
+        });
+      }
 
       if (orcid && user) {
         logger.trace(
