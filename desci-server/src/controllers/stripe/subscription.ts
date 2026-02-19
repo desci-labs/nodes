@@ -108,6 +108,7 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       cancel_url: cancelUrl || `${req.headers.origin}/settings/subscription?canceled=true`,
       metadata: {
         userId: userId.toString(),
+        email: req.user?.email,
         priceId,
         checkoutMode: resolvedCheckoutMode,
         ...(entitlementType ? { entitlementType } : {}),
