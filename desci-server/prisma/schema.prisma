@@ -284,6 +284,7 @@ model User {
   Invoice                Invoice[]
   ImportTaskQueue        ImportTaskQueue[]
   AbandonedCheckout      AbandonedCheckout[]
+  StripeCheckoutFulfillment StripeCheckoutFulfillment[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1594,11 +1595,39 @@ model AbandonedCheckout {
   @@index([createdAt, completedAt])
 }
 
+// Track fulfilled one-time Stripe Checkout purchases
+model StripeCheckoutFulfillment {
+  id                    Int      @id @default(autoincrement())
+  userId                Int
+  stripeSessionId       String   @unique
+  stripePriceId         String
+  stripePaymentIntentId String?
+  stripeCustomerId      String?
+  fulfillmentType       StripeCheckoutFulfillmentType
+  purchasedUnits        Int
+  grantedUnits          Int
+  skipReason            String?
+  details               Json?
+  fulfilledAt           DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([stripePriceId])
+  @@index([fulfilledAt])
+}
+
 enum ImportTaskQueueStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
   FAILED
+}
+
+enum StripeCheckoutFulfillmentType {
+  BUNDLE_CHATS
 }
 
 enum Feature {
@@ -1938,11 +1967,13 @@ enum PlanType {
   AI_REFEREE_FINDER
   OMNI_CHATS
   PREMIUM
+  SCIWEAVE_LIFETIME
 }
 
 enum BillingInterval {
   MONTHLY
   ANNUAL
+  LIFETIME
 }
 
 enum PaymentMethodType {

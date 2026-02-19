@@ -1,4 +1,4 @@
-import { SubscriptionStatus } from '@prisma/client';
+import { Feature, PlanType, SubscriptionStatus } from '@prisma/client';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
@@ -20,6 +20,7 @@ const createSubscriptionSchema = z.object({
   cancelUrl: z.string().optional(),
   allowPromotionCodes: z.boolean().optional(),
   coupon: z.string().optional(),
+  checkoutMode: z.enum(['subscription', 'payment']).default('subscription').optional(),
 });
 
 const customerPortalSchema = z.object({
@@ -33,15 +34,66 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { priceId, successUrl, cancelUrl, allowPromotionCodes, coupon } = createSubscriptionSchema.parse(req.body);
+    const { priceId, successUrl, cancelUrl, allowPromotionCodes, coupon, checkoutMode } =
+      createSubscriptionSchema.parse(req.body);
+    const resolvedCheckoutMode = checkoutMode ?? 'subscription';
 
-    logger.info('Creating subscription checkout', { userId, priceId, allowPromotionCodes, coupon });
+    logger.info(
+      { userId, priceId, allowPromotionCodes, coupon, checkoutMode: resolvedCheckoutMode },
+      'Creating subscription checkout',
+    );
 
     // Get or create Stripe customer
     const customer = await SubscriptionService.getOrCreateStripeCustomer(userId);
 
     // Create checkout session
     const stripe = getStripe();
+    const stripePrice = await stripe.prices.retrieve(priceId);
+    const entitlementType = stripePrice.metadata?.entitlement_type;
+    const bundleChatsMetadata = stripePrice.metadata?.bundle_chats;
+    const isBundleCheckout = entitlementType === 'bundle_chats';
+
+    if (isBundleCheckout && resolvedCheckoutMode !== 'payment') {
+      return res.status(400).json({
+        error: 'Bundle checkout must use payment mode',
+      });
+    }
+
+    if (isBundleCheckout) {
+      const bundleChats = Number.parseInt(bundleChatsMetadata || '', 10);
+      if (!Number.isFinite(bundleChats) || bundleChats <= 0) {
+        return res.status(400).json({
+          error: 'Invalid bundle configuration for selected price',
+        });
+      }
+
+      const [activePaidSubscription, activeResearchAssistantLimit] = await Promise.all([
+        prisma.subscription.findFirst({
+          where: {
+            userId,
+            status: SubscriptionStatus.ACTIVE,
+            planType: { not: PlanType.FREE },
+          },
+          select: { id: true, planType: true },
+        }),
+        prisma.userFeatureLimit.findFirst({
+          where: {
+            userId,
+            feature: Feature.RESEARCH_ASSISTANT,
+            isActive: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { useLimit: true },
+        }),
+      ]);
+
+      if (activePaidSubscription || activeResearchAssistantLimit?.useLimit === null) {
+        return res.status(409).json({
+          error: 'Bundles are only available for users without an active subscription',
+        });
+      }
+    }
+
     const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       customer: customer.id,
       payment_method_types: ['card'],
@@ -51,12 +103,16 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
           quantity: 1,
         },
       ],
-      mode: 'subscription',
+      mode: resolvedCheckoutMode,
       success_url: successUrl || `${req.headers.origin}/settings/subscription?success=true`,
       cancel_url: cancelUrl || `${req.headers.origin}/settings/subscription?canceled=true`,
       metadata: {
         userId: userId.toString(),
         email: req.user?.email,
+        priceId,
+        checkoutMode: resolvedCheckoutMode,
+        ...(entitlementType ? { entitlementType } : {}),
+        ...(bundleChatsMetadata ? { bundleChats: bundleChatsMetadata } : {}),
       },
     };
 
@@ -75,14 +131,14 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
         if (promotionCodes.data.length > 0) {
           // Found the promotion code, use its ID
           sessionConfig.discounts = [{ promotion_code: promotionCodes.data[0].id }];
-          logger.info('Applied promotion code', { code: coupon, promotionCodeId: promotionCodes.data[0].id });
+          logger.info({ code: coupon, promotionCodeId: promotionCodes.data[0].id }, 'Applied promotion code');
         } else {
           // Not found as promotion code, try as coupon ID (fallback for direct coupon IDs)
           sessionConfig.discounts = [{ coupon }];
-          logger.info('Applied as coupon ID', { coupon });
+          logger.info({ coupon }, 'Applied as coupon ID');
         }
       } catch (error) {
-        logger.error('Failed to look up promotion code, trying as coupon ID', { error, coupon });
+        logger.error({ err: error, coupon }, 'Failed to look up promotion code, trying as coupon ID');
         // Fallback to treating it as a coupon ID
         sessionConfig.discounts = [{ coupon }];
       }
@@ -102,15 +158,12 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       logger.debug({ userId, sessionId: session.id }, 'Tracked checkout session for abandoned cart emails');
     } catch (trackError) {
       // Don't fail the checkout if tracking fails
-      logger.error({ error: trackError, userId, sessionId: session.id }, 'Failed to track checkout session');
+      logger.error({ err: trackError, userId, sessionId: session.id }, 'Failed to track checkout session');
     }
 
     return res.status(200).json({ sessionId: session.id });
   } catch (error: any) {
-    logger.error('Failed to create subscription checkout', {
-      error: error.message,
-      userId: req.user?.id,
-    });
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to create subscription checkout');
     return res.status(500).json({ error: 'Failed to create subscription checkout' });
   }
 };
@@ -214,7 +267,7 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
     } catch (stripeError: any) {
       logger.error(
         {
-          error: stripeError.message,
+          err: stripeError,
           type: stripeError.type,
           code: stripeError.code,
           customerId: subscription.stripeCustomerId,
@@ -224,13 +277,7 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
       throw stripeError;
     }
   } catch (error: any) {
-    logger.error(
-      {
-        error: error.message,
-        userId: req.user?.id,
-      },
-      'Failed to create customer portal session',
-    );
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to create customer portal session');
     return res.status(500).json({ error: 'Failed to create customer portal session' });
   }
 };
@@ -276,13 +323,7 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
 
     return res.status(200).json(subscription);
   } catch (error: any) {
-    logger.error(
-      {
-        error: error.message,
-        userId: req.user?.id,
-      },
-      'Failed to get user subscription',
-    );
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to get user subscription');
     return res.status(500).json({ error: 'Failed to get user subscription' });
   }
 };
@@ -296,16 +337,13 @@ export const updateSubscription = async (req: RequestWithUser, res: Response): P
 
     const { planType } = z.object({ planType: z.string() }).parse(req.body);
 
-    logger.info('Updating subscription', { userId, planType });
+    logger.info({ userId, planType }, 'Updating subscription');
 
     await SubscriptionService.updateSubscriptionPlan(userId, planType);
 
     return res.status(200).json({ success: true });
   } catch (error: any) {
-    logger.error('Failed to update subscription', {
-      error: error.message,
-      userId: req.user?.id,
-    });
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to update subscription');
     return res.status(500).json({ error: 'Failed to update subscription' });
   }
 };
@@ -317,16 +355,16 @@ export const cancelSubscription = async (req: RequestWithUser, res: Response): P
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    logger.info('Canceling subscription', { userId });
+    logger.info({ userId }, 'Canceling subscription');
 
     await SubscriptionService.cancelSubscription(userId);
 
     return res.status(200).json({ success: true });
   } catch (error: any) {
-    logger.error('Failed to cancel subscription', {
-      error: error.message,
-      userId: req.user?.id,
-    });
+    if (error instanceof Error && error.message === 'Lifetime subscription cannot be canceled') {
+      return res.status(400).json({ error: error.message });
+    }
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to cancel subscription');
     return res.status(500).json({ error: 'Failed to cancel subscription' });
   }
 };
@@ -346,7 +384,7 @@ export const getPricingOptions = async (req: Request, res: Response): Promise<Re
 
     return res.status(200).json({ plans: pricingOptions });
   } catch (error: any) {
-    logger.error('Failed to get pricing options', { error: error.message });
+    logger.error({ err: error }, 'Failed to get pricing options');
     return res.status(500).json({ error: 'Failed to get pricing options' });
   }
 };
