@@ -261,30 +261,31 @@ model User {
   // Usage                          Usage[]
 
   // Relationships
-  editorRoles            JournalEditor[] // User as editor
-  authoredSubmissions    JournalSubmission[]   @relation("AuthorSubmission")
-  assignedSubmissions    JournalSubmission[]   @relation("EditorSubmission")
-  refereeAssignments     RefereeAssignment[]
-  invitedEditors         JournalEditor[]       @relation("InviterRelation")
-  inviteCredits          Int                   @default(0)
-  JournalEventLogs       JournalEventLog[]
-  EditorInvite           EditorInvite[]
+  editorRoles               JournalEditor[] // User as editor
+  authoredSubmissions       JournalSubmission[]         @relation("AuthorSubmission")
+  assignedSubmissions       JournalSubmission[]         @relation("EditorSubmission")
+  refereeAssignments        RefereeAssignment[]
+  invitedEditors            JournalEditor[]             @relation("InviterRelation")
+  inviteCredits             Int                         @default(0)
+  JournalEventLogs          JournalEventLog[]
+  EditorInvite              EditorInvite[]
   // messagesSent        Message[]           @relation("MessageSender")
   // messagesReceived    Message[]           @relation("MessageReceiver")
   // Message             Message[]
   // JournalSubmissionMessage JournalSubmissionMessage[]
-  refereeInvitesSent     RefereeInvite[]       @relation("InvitedBy")
-  refereeInvitesReceived RefereeInvite[]       @relation("RefereeUser")
-  journalFormTemplates   JournalFormTemplate[]
-  ExternalApiUsage       ExternalApiUsage[]
-  UserFeatureLimit       UserFeatureLimit[]
-  Subscription           Subscription[]
-  SentEmail              SentEmail[]
-  PaymentMethod          PaymentMethod[]
-  Invoice                Invoice[]
-  ImportTaskQueue        ImportTaskQueue[]
-  AbandonedCheckout      AbandonedCheckout[]
-  accountDeletionRequest AccountDeletionRequest?
+  refereeInvitesSent        RefereeInvite[]             @relation("InvitedBy")
+  refereeInvitesReceived    RefereeInvite[]             @relation("RefereeUser")
+  journalFormTemplates      JournalFormTemplate[]
+  ExternalApiUsage          ExternalApiUsage[]
+  UserFeatureLimit          UserFeatureLimit[]
+  Subscription              Subscription[]
+  SentEmail                 SentEmail[]
+  PaymentMethod             PaymentMethod[]
+  Invoice                   Invoice[]
+  ImportTaskQueue           ImportTaskQueue[]
+  AbandonedCheckout         AbandonedCheckout[]
+  accountDeletionRequest    AccountDeletionRequest?
+  StripeCheckoutFulfillment StripeCheckoutFulfillment[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1608,11 +1609,39 @@ model AccountDeletionRequest {
   @@index([scheduledDeletionAt])
 }
 
+// Track fulfilled one-time Stripe Checkout purchases
+model StripeCheckoutFulfillment {
+  id                    Int                           @id @default(autoincrement())
+  userId                Int
+  stripeSessionId       String                        @unique
+  stripePriceId         String
+  stripePaymentIntentId String?
+  stripeCustomerId      String?
+  fulfillmentType       StripeCheckoutFulfillmentType
+  purchasedUnits        Int
+  grantedUnits          Int
+  skipReason            String?
+  details               Json?
+  fulfilledAt           DateTime                      @default(now())
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([stripePriceId])
+  @@index([fulfilledAt])
+}
+
 enum ImportTaskQueueStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
   FAILED
+}
+
+enum StripeCheckoutFulfillmentType {
+  BUNDLE_CHATS
 }
 
 enum Feature {
