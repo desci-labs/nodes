@@ -241,7 +241,7 @@ export class RoCrateTransformer implements BaseTransformer {
 
     // Add optional metadata fields for FAIR compliance with explicit schema.org
     // Use description from manifest, or fall back to a generic description
-    const descriptionText = nodeObject.description || `Research Object published on DeSci Labs`;
+    const descriptionText = nodeObject.description || `Research Object published on DeSci Codex`;
     rootEntity.description = descriptionText;
     rootEntity['schema:description'] = descriptionText;
     rootEntity['dcterms:description'] = descriptionText;
