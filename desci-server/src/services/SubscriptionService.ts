@@ -812,6 +812,8 @@ export class SubscriptionService {
       if (!Number.isFinite(bundleChatsPerUnit) || bundleChatsPerUnit <= 0) {
         throw new Error(`Invalid bundle_chats metadata for checkout session ${expandedSession.id}`);
       }
+      const amountPaid = expandedSession.amount_total ?? null;
+      const currency = expandedSession.currency ?? price.currency ?? null;
 
       const paymentIntentId =
         typeof expandedSession.payment_intent === 'string'
@@ -824,6 +826,8 @@ export class SubscriptionService {
         customerId,
         priceId,
         paymentIntentId,
+        amountPaid,
+        currency,
         quantity,
         bundleChatsPerUnit,
       });
@@ -838,6 +842,8 @@ export class SubscriptionService {
           bundleChatsPerUnit,
           totalChats: fulfillment.totalChats,
           grantedChats: fulfillment.grantedChats,
+          amountPaid,
+          currency,
           skipReason: fulfillment.skipReason,
           alreadyFulfilled: fulfillment.alreadyFulfilled,
         },
@@ -971,6 +977,8 @@ export class SubscriptionService {
     customerId,
     priceId,
     paymentIntentId,
+    amountPaid,
+    currency,
     quantity,
     bundleChatsPerUnit,
   }: {
@@ -979,6 +987,8 @@ export class SubscriptionService {
     customerId: string | null;
     priceId: string;
     paymentIntentId: string | null;
+    amountPaid: number | null;
+    currency: string | null;
     quantity: number;
     bundleChatsPerUnit: number;
   }): Promise<{
@@ -1042,6 +1052,8 @@ export class SubscriptionService {
           stripePriceId: priceId,
           stripePaymentIntentId: paymentIntentId,
           stripeCustomerId: customerId,
+          amountPaid,
+          currency,
           fulfillmentType: 'BUNDLE_CHATS',
           purchasedUnits: totalChats,
           grantedUnits: grantedChats,

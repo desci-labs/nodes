@@ -360,6 +360,8 @@ export const getUserStripePurchases = async (req: RequestWithUser, res: Response
         fulfillmentType: true,
         purchasedUnits: true,
         grantedUnits: true,
+        amountPaid: true,
+        currency: true,
         fulfilledAt: true,
       },
     });
