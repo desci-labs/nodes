@@ -11,8 +11,8 @@ export class RdfTransformer implements BaseTransformer {
     throw new Error('importObject method not implemented.');
   }
 
-  async exportObject(input: ResearchObject): Promise<any> {
-    const jsonLdData = new RoCrateTransformer().exportObject(input);
+  async exportObject(input: ResearchObject, metadata?: any): Promise<any> {
+    const jsonLdData = new RoCrateTransformer().exportObject(input, metadata);
 
     console.log('jsonLdData', jsonLdData);
 

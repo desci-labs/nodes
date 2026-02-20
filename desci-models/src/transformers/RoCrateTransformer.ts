@@ -180,12 +180,11 @@ export class RoCrateTransformer implements BaseTransformer {
     };
 
     // Add dPID as persistent identifier (FAIR F1.2)
+    // Root @id stays as "./" per RO-Crate v1.1 spec; dPID is exposed via url/identifier
     const dpidBaseUrl = metadata?.dpidBaseUrl || 'https://dpid.org';
     if (metadata?.dpid !== undefined) {
       const dpidUrl = `${dpidBaseUrl}/${metadata.dpid}`;
-      rootEntity['@id'] = dpidUrl; // Use dPID URL as the root identifier
       rootEntity.url = dpidUrl;
-      // Add multiple identifier formats for maximum compatibility
       rootEntity.identifier = [
         {
           '@type': 'PropertyValue',
@@ -193,29 +192,45 @@ export class RoCrateTransformer implements BaseTransformer {
           value: `${metadata.dpid}`,
           url: dpidUrl,
         },
-        dpidUrl, // Simple URL format as fallback
+        dpidUrl,
       ];
     } else if (nodeObject.dpid) {
-      // Fallback to legacy dpid format if available
-      rootEntity.url = `https://${nodeObject.dpid.prefix}.dpid.org/${nodeObject.dpid.id}`;
-      rootEntity.identifier = `dpid://${nodeObject.dpid.prefix}/${nodeObject.dpid.id}`;
+      const legacyDpidUrl = `${dpidBaseUrl}/${nodeObject.dpid.id}`;
+      rootEntity.url = legacyDpidUrl;
+      rootEntity.identifier = [
+        {
+          '@type': 'PropertyValue',
+          propertyID: 'dpid',
+          value: `${nodeObject.dpid.id}`,
+          url: legacyDpidUrl,
+        },
+        legacyDpidUrl,
+      ];
     }
 
     // Add datePublished (FAIR F2.1 core metadata)
     if (metadata?.datePublished) {
-      const timestamp = typeof metadata.datePublished === 'number' 
-        ? metadata.datePublished 
-        : parseInt(metadata.datePublished, 10);
-      // Convert Unix timestamp to ISO date if it looks like a timestamp
-      if (!isNaN(timestamp) && timestamp > 1000000000) {
-        const isoDate = new Date(timestamp * 1000).toISOString().split('T')[0];
+      const raw = metadata.datePublished;
+      const timestamp = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+
+      if (!isNaN(timestamp) && timestamp > 0) {
+        // Distinguish seconds vs milliseconds by magnitude
+        let ms: number;
+        if (timestamp > 1e12) {
+          ms = timestamp;
+        } else if (timestamp > 1e9) {
+          ms = timestamp * 1000;
+        } else {
+          ms = timestamp;
+        }
+        const isoDate = new Date(ms).toISOString().split('T')[0];
         rootEntity.datePublished = isoDate;
-        rootEntity['schema:datePublished'] = isoDate; // Explicit schema.org
-        rootEntity['dcterms:date'] = isoDate; // Dublin Core
-      } else if (typeof metadata.datePublished === 'string') {
-        rootEntity.datePublished = metadata.datePublished;
-        rootEntity['schema:datePublished'] = metadata.datePublished;
-        rootEntity['dcterms:date'] = metadata.datePublished;
+        rootEntity['schema:datePublished'] = isoDate;
+        rootEntity['dcterms:date'] = isoDate;
+      } else if (typeof raw === 'string' && isNaN(timestamp)) {
+        rootEntity.datePublished = raw;
+        rootEntity['schema:datePublished'] = raw;
+        rootEntity['dcterms:date'] = raw;
       }
     }
 
@@ -391,7 +406,7 @@ export class RoCrateTransformer implements BaseTransformer {
             '@id': 'https://w3id.org/ro/crate/1.1',
           },
           about: {
-            '@id': rootEntity['@id'] || './',
+            '@id': './',
           },
         },
         rootEntity,
@@ -406,18 +421,18 @@ export class RoCrateTransformer implements BaseTransformer {
         {
           '@id': '#publication-activity',
           '@type': ['prov:Activity', 'http://www.w3.org/ns/prov#Activity'],
-          'prov:generated': { '@id': rootEntity['@id'] || './' },
+          'prov:generated': { '@id': './' },
           'prov:wasAssociatedWith': { '@id': 'https://desci.com' },
-          'http://www.w3.org/ns/prov#generated': { '@id': rootEntity['@id'] || './' },
+          'http://www.w3.org/ns/prov#generated': { '@id': './' },
         },
         // Add Research Object entity using RO vocabulary (satisfies I2.1)
         {
           '@id': '#research-object',
           '@type': ['ro:ResearchObject', 'http://purl.org/wf4ever/ro#ResearchObject'],
-          'ro:rootFolder': { '@id': rootEntity['@id'] || './' },
-          'http://purl.org/wf4ever/ro#rootFolder': { '@id': rootEntity['@id'] || './' },
+          'ro:rootFolder': { '@id': './' },
+          'http://purl.org/wf4ever/ro#rootFolder': { '@id': './' },
         },
-      ].concat(authors || [{}]),
+      ].concat(Array.isArray(authors) && authors.length ? authors : []),
     };
 
     nodeObject.components.forEach((component) => {
