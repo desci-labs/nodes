@@ -1162,6 +1162,36 @@ export class SubscriptionService {
     });
   }
 
+  /**
+   * Cancel subscription immediately (no period end). Used only by account-deletion worker.
+   * For lifetime plans we still mark local subscription as canceled and cancel in Stripe if present.
+   */
+  static async cancelSubscriptionImmediately(userId: number): Promise<void> {
+    logger.info({ userId }, 'stripe::cancelSubscriptionImmediately started');
+
+    const subscription = await this.getUserActiveSubscription(userId);
+    if (!subscription) {
+      return;
+    }
+    const stripe = getStripe();
+    if (subscription.stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.cancel(subscription.stripeSubscriptionId, { invoice_now: true, prorate: true });
+      } catch (err) {
+        logger.warn({ err, userId, subscriptionId: subscription.stripeSubscriptionId }, 'Stripe cancel failed');
+      }
+    }
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: SubscriptionStatus.CANCELED,
+        cancelAtPeriodEnd: false,
+        canceledAt: new Date(),
+      },
+    });
+    logger.info({ userId, subscriptionId: subscription.id }, 'Subscription canceled immediately');
+  }
+
   // Helper methods
   private static async getUserIdFromCustomer(customerId: string): Promise<number | null> {
     // First try local DB lookup

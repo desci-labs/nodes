@@ -261,29 +261,30 @@ model User {
   // Usage                          Usage[]
 
   // Relationships
-  editorRoles            JournalEditor[] // User as editor
-  authoredSubmissions    JournalSubmission[]   @relation("AuthorSubmission")
-  assignedSubmissions    JournalSubmission[]   @relation("EditorSubmission")
-  refereeAssignments     RefereeAssignment[]
-  invitedEditors         JournalEditor[]       @relation("InviterRelation")
-  inviteCredits          Int                   @default(0)
-  JournalEventLogs       JournalEventLog[]
-  EditorInvite           EditorInvite[]
+  editorRoles               JournalEditor[] // User as editor
+  authoredSubmissions       JournalSubmission[]         @relation("AuthorSubmission")
+  assignedSubmissions       JournalSubmission[]         @relation("EditorSubmission")
+  refereeAssignments        RefereeAssignment[]
+  invitedEditors            JournalEditor[]             @relation("InviterRelation")
+  inviteCredits             Int                         @default(0)
+  JournalEventLogs          JournalEventLog[]
+  EditorInvite              EditorInvite[]
   // messagesSent        Message[]           @relation("MessageSender")
   // messagesReceived    Message[]           @relation("MessageReceiver")
   // Message             Message[]
   // JournalSubmissionMessage JournalSubmissionMessage[]
-  refereeInvitesSent     RefereeInvite[]       @relation("InvitedBy")
-  refereeInvitesReceived RefereeInvite[]       @relation("RefereeUser")
-  journalFormTemplates   JournalFormTemplate[]
-  ExternalApiUsage       ExternalApiUsage[]
-  UserFeatureLimit       UserFeatureLimit[]
-  Subscription           Subscription[]
-  SentEmail              SentEmail[]
-  PaymentMethod          PaymentMethod[]
-  Invoice                Invoice[]
-  ImportTaskQueue        ImportTaskQueue[]
-  AbandonedCheckout      AbandonedCheckout[]
+  refereeInvitesSent        RefereeInvite[]             @relation("InvitedBy")
+  refereeInvitesReceived    RefereeInvite[]             @relation("RefereeUser")
+  journalFormTemplates      JournalFormTemplate[]
+  ExternalApiUsage          ExternalApiUsage[]
+  UserFeatureLimit          UserFeatureLimit[]
+  Subscription              Subscription[]
+  SentEmail                 SentEmail[]
+  PaymentMethod             PaymentMethod[]
+  Invoice                   Invoice[]
+  ImportTaskQueue           ImportTaskQueue[]
+  AbandonedCheckout         AbandonedCheckout[]
+  accountDeletionRequest    AccountDeletionRequest?
   StripeCheckoutFulfillment StripeCheckoutFulfillment[]
 
   @@index([orcid])
@@ -1595,11 +1596,24 @@ model AbandonedCheckout {
   @@index([createdAt, completedAt])
 }
 
+model AccountDeletionRequest {
+  id                  Int      @id @default(autoincrement())
+  userId              Int      @unique
+  scheduledDeletionAt DateTime
+  reason              String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([scheduledDeletionAt])
+}
+
 // Track fulfilled one-time Stripe Checkout purchases
 model StripeCheckoutFulfillment {
-  id                    Int      @id @default(autoincrement())
+  id                    Int                           @id @default(autoincrement())
   userId                Int
-  stripeSessionId       String   @unique
+  stripeSessionId       String                        @unique
   stripePriceId         String
   stripePaymentIntentId String?
   stripeCustomerId      String?
@@ -1608,9 +1622,9 @@ model StripeCheckoutFulfillment {
   grantedUnits          Int
   skipReason            String?
   details               Json?
-  fulfilledAt           DateTime @default(now())
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  fulfilledAt           DateTime                      @default(now())
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 
@@ -1779,6 +1793,10 @@ enum ActionType {
   MYST_REPO_JOB_CANCELLED
   SCIWEAVE_MARKETING_EMAIL_OPT_IN
   SCIWEAVE_MARKETING_EMAIL_OPT_OUT
+  ACCOUNT_DELETION_REQUESTED
+  ACCOUNT_DELETION_CANCELLED
+  ACCOUNT_DELETION_LOGIN_BLOCKED
+  ACCOUNT_HARD_DELETED
 }
 
 enum ChainTransactionType {
