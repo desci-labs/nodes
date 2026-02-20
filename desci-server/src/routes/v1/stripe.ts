@@ -5,6 +5,7 @@ import {
   createSubscriptionCheckout,
   createCustomerPortal,
   getUserSubscription,
+  getUserStripePurchases,
   updateSubscription,
   cancelSubscription,
   getPricingOptions,
@@ -25,6 +26,7 @@ router.post('/subscription/payment-intent', [requireStripe, ensureUser], asyncHa
 router.post('/subscription/checkout', [requireStripe, ensureUser], asyncHandler(createSubscriptionCheckout));
 router.post('/subscription/portal', [requireStripe, ensureUser], asyncHandler(createCustomerPortal));
 router.get('/subscription', [requireStripe, ensureUser], asyncHandler(getUserSubscription));
+router.get('/subscription/purchases', [requireStripe, ensureUser], asyncHandler(getUserStripePurchases));
 router.put('/subscription', [requireStripe, ensureUser], asyncHandler(updateSubscription));
 router.delete('/subscription', [requireStripe, ensureUser], asyncHandler(cancelSubscription));
 

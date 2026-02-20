@@ -1,4 +1,4 @@
-import { Feature, PlanType, SubscriptionStatus } from '@prisma/client';
+import { Feature, PlanType, StripeCheckoutFulfillmentType, SubscriptionStatus } from '@prisma/client';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
@@ -25,6 +25,13 @@ const createSubscriptionSchema = z.object({
 
 const customerPortalSchema = z.object({
   returnUrl: z.string().optional(),
+});
+
+const getUserStripePurchasesSchema = z.object({
+  query: z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(50).optional(),
+    fulfillmentType: z.nativeEnum(StripeCheckoutFulfillmentType).optional(),
+  }),
 });
 
 export const createSubscriptionCheckout = async (req: RequestWithUser, res: Response): Promise<Response> => {
@@ -325,6 +332,44 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
   } catch (error: any) {
     logger.error({ err: error, userId: req.user?.id }, 'Failed to get user subscription');
     return res.status(500).json({ error: 'Failed to get user subscription' });
+  }
+};
+
+export const getUserStripePurchases = async (req: RequestWithUser, res: Response): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const {
+      query: { limit = 50, fulfillmentType },
+    } = getUserStripePurchasesSchema.parse(req);
+
+    const purchases = await prisma.stripeCheckoutFulfillment.findMany({
+      where: {
+        userId,
+        grantedUnits: {
+          gt: 0,
+        },
+        ...(fulfillmentType ? { fulfillmentType } : {}),
+      },
+      orderBy: { fulfilledAt: 'desc' },
+      take: limit,
+      select: {
+        fulfillmentType: true,
+        purchasedUnits: true,
+        grantedUnits: true,
+        fulfilledAt: true,
+      },
+    });
+
+    return res.status(200).json({
+      purchases,
+    });
+  } catch (error: any) {
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to get user stripe purchases');
+    return res.status(500).json({ error: 'Failed to get user stripe purchases' });
   }
 };
 
