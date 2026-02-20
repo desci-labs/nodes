@@ -1,7 +1,7 @@
-import { Feature, PlanType, SubscriptionStatus } from '@prisma/client';
+import { Feature, PlanType, StripeCheckoutFulfillmentType, SubscriptionStatus } from '@prisma/client';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
-import { z } from 'zod';
+import { ZodError, z } from 'zod';
 
 import { prisma } from '../../client.js';
 import { STRIPE_PRICE_IDS, PLAN_DETAILS } from '../../config/stripe.js';
@@ -26,6 +26,19 @@ const createSubscriptionSchema = z.object({
 const customerPortalSchema = z.object({
   returnUrl: z.string().optional(),
 });
+
+const getUserStripePurchasesSchema = z.object({
+  query: z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(50).optional(),
+    fulfillmentType: z.nativeEnum(StripeCheckoutFulfillmentType).optional(),
+  }),
+});
+
+const formatZodIssues = (error: ZodError) =>
+  error.issues.map((issue) => ({
+    path: issue.path.join('.'),
+    message: issue.message,
+  }));
 
 export const createSubscriptionCheckout = async (req: RequestWithUser, res: Response): Promise<Response> => {
   try {
@@ -328,6 +341,53 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
   }
 };
 
+export const getUserStripePurchases = async (req: RequestWithUser, res: Response): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const {
+      query: { limit = 50, fulfillmentType },
+    } = getUserStripePurchasesSchema.parse(req);
+
+    const purchases = await prisma.stripeCheckoutFulfillment.findMany({
+      where: {
+        userId,
+        grantedUnits: {
+          gt: 0,
+        },
+        ...(fulfillmentType ? { fulfillmentType } : {}),
+      },
+      orderBy: { fulfilledAt: 'desc' },
+      take: limit,
+      select: {
+        fulfillmentType: true,
+        purchasedUnits: true,
+        grantedUnits: true,
+        amountPaid: true,
+        currency: true,
+        fulfilledAt: true,
+      },
+    });
+
+    return res.status(200).json({
+      purchases,
+    });
+  } catch (error: any) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid request parameters',
+        details: formatZodIssues(error),
+      });
+    }
+
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to get user stripe purchases');
+    return res.status(500).json({ error: 'Failed to get user stripe purchases' });
+  }
+};
+
 export const updateSubscription = async (req: RequestWithUser, res: Response): Promise<Response> => {
   try {
     const userId = req.user?.id;
@@ -343,6 +403,13 @@ export const updateSubscription = async (req: RequestWithUser, res: Response): P
 
     return res.status(200).json({ success: true });
   } catch (error: any) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: formatZodIssues(error),
+      });
+    }
+
     logger.error({ err: error, userId: req.user?.id }, 'Failed to update subscription');
     return res.status(500).json({ error: 'Failed to update subscription' });
   }

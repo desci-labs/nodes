@@ -1603,6 +1603,8 @@ model StripeCheckoutFulfillment {
   stripePriceId         String
   stripePaymentIntentId String?
   stripeCustomerId      String?
+  amountPaid            Int? // Amount paid in the currency's smallest unit (e.g. cents)
+  currency              String?
   fulfillmentType       StripeCheckoutFulfillmentType
   purchasedUnits        Int
   grantedUnits          Int
