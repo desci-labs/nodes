@@ -141,51 +141,50 @@ export async function hardDeleteUser(userId: number): Promise<void> {
             where: { userId, action: { not: ActionType.ACCOUNT_HARD_DELETED } },
           });
           // 10. Node-dependent tables then nodes (only run when there are nodes; Prisma in:[] would be unsafe)
-          if (nodeIds.length > 0) {
-            await tx.authorInvite.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.chainTransaction.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.nodeVote.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.nodeVersion.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.dataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.publicDataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.cidPruneList.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.nodeCover.deleteMany({ where: { node: { id: { in: nodeIds } } } });
-            await tx.uploadJobs.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.draftNodeTree.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.nodeAttestation.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.nodeThumbnails.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.publishTaskQueue.deleteMany({ where: { uuid: { in: nodeUuids } } });
-            await tx.nodeContribution.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.privateShare.deleteMany({ where: { nodeUUID: { in: nodeUuids } } });
-            await tx.distributionPdfs.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.pdfPreviews.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.doiRecord.deleteMany({ where: { uuid: { in: nodeUuids } } });
-            await tx.doiSubmissionQueue.deleteMany({ where: { uuid: { in: nodeUuids } } });
-            await tx.deferredEmails.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.userNotifications.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.annotation.deleteMany({ where: { uuid: { in: nodeUuids } } });
-            await tx.publishStatus.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.externalPublications.deleteMany({ where: { uuid: { in: nodeUuids } } });
-            await tx.communityRadarEntry.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.nodeLike.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.communitySubmission.deleteMany({ where: { nodeId: { in: nodeUuids } } });
-            await tx.publishedWallet.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.guestDataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            if (nodeDpids.length > 0) {
-              const nodeLinkedSubmissionIds = (
-                await tx.journalSubmission.findMany({
-                  where: { dpid: { in: nodeDpids } },
-                  select: { id: true },
-                })
-              ).map((s) => s.id);
-              await deleteSubmissionsAndChildren(tx, nodeLinkedSubmissionIds);
-              await tx.journalSubmission.deleteMany({ where: { dpid: { in: nodeDpids } } });
-            }
-            await tx.importTaskQueue.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.interactionLog.deleteMany({ where: { nodeId: { in: nodeIds } } });
-            await tx.bookmarkedNode.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-            await tx.node.deleteMany({ where: { ownerId: userId } });
+          await tx.authorInvite.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.chainTransaction.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.nodeVote.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.nodeVersion.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.dataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.publicDataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.cidPruneList.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.nodeCover.deleteMany({ where: { node: { id: { in: nodeIds } } } });
+          await tx.uploadJobs.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.draftNodeTree.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.nodeAttestation.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.nodeThumbnails.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.publishTaskQueue.deleteMany({ where: { uuid: { in: nodeUuids } } });
+          await tx.nodeContribution.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.privateShare.deleteMany({ where: { nodeUUID: { in: nodeUuids } } });
+          await tx.distributionPdfs.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.pdfPreviews.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.doiRecord.deleteMany({ where: { uuid: { in: nodeUuids } } });
+          await tx.doiSubmissionQueue.deleteMany({ where: { uuid: { in: nodeUuids } } });
+          await tx.deferredEmails.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.userNotifications.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.annotation.deleteMany({ where: { uuid: { in: nodeUuids } } });
+          await tx.publishStatus.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.externalPublications.deleteMany({ where: { uuid: { in: nodeUuids } } });
+          await tx.communityRadarEntry.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.nodeLike.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.communitySubmission.deleteMany({ where: { nodeId: { in: nodeUuids } } });
+          await tx.publishedWallet.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.guestDataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          if (nodeDpids.length > 0) {
+            const nodeLinkedSubmissionIds = (
+              await tx.journalSubmission.findMany({
+                where: { dpid: { in: nodeDpids } },
+                select: { id: true },
+              })
+            ).map((s) => s.id);
+            await deleteSubmissionsAndChildren(tx, nodeLinkedSubmissionIds);
+            await tx.journalSubmission.deleteMany({ where: { dpid: { in: nodeDpids } } });
           }
+          await tx.importTaskQueue.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.interactionLog.deleteMany({ where: { nodeId: { in: nodeIds } } });
+          await tx.bookmarkedNode.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+          await tx.node.deleteMany({ where: { ownerId: userId } });
+
           await tx.user.delete({ where: { id: userId } });
         }
 
