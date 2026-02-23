@@ -17,6 +17,9 @@ export const POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD;
 export const POSTGRES_DB = process.env.POSTGRES_DB;
 export const OPEN_ALEX_DATABASE_URL = process.env.OPEN_ALEX_DATABASE_URL;
 
+// Sciweave separate DB (chats/messages in search_logs)
+export const SCIWEAVE_DATABASE_URL = process.env.SCIWEAVE_DATABASE_URL;
+
 // JWT Configuration
 export const JWT_SECRET = process.env.JWT_SECRET;
 export const JWT_EXPIRATION = process.env.JWT_EXPIRATION;

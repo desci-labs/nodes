@@ -5,7 +5,11 @@ import jwt from 'jsonwebtoken';
 import { prisma as prismaClient } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
-import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
+import {
+  saveInteraction,
+  saveInteractionWithoutReq,
+  trackDeletedSciweaveUserReturnedIfNeeded,
+} from '../../services/interactionLog.js';
 import {
   checkIfUserAcceptedTerms,
   connectOrcidToUserIfPossible,
@@ -162,6 +166,13 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         data: { userId: user.id, method: 'magic', isSciweave },
         userId: user.id,
         submitToMixpanel: true,
+      });
+
+      await trackDeletedSciweaveUserReturnedIfNeeded({
+        req,
+        userId: user.id,
+        email: user.email,
+        isSciweave: !!isSciweave,
       });
 
       if (isNewUser) {

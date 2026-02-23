@@ -19,6 +19,7 @@ import { sendSciweaveEmailService } from '../services/email/sciweaveEmails.js';
 import { SciweaveEmailTypes } from '../services/email/sciweaveEmailTypes.js';
 import { saveInteractionWithoutReq } from '../services/interactionLog.js';
 import { cancelSubscriptionForUser } from '../services/RevenueCatService.js';
+import { deleteSciweaveSearchLogsByEmail } from '../services/sciweaveSearchLogs.js';
 import { SubscriptionService } from '../services/SubscriptionService.js';
 import { getDueAccountDeletionRequests } from '../services/user.js';
 
@@ -55,8 +56,20 @@ async function runAccountDeletions(): Promise<{ processed: number; errors: numbe
         data: {
           scheduledDeletionAt: scheduledDeletionAt.toISOString(),
           processedAt: processedAt.toISOString(),
+          email: user?.email ?? null,
         },
       });
+
+      if (user?.email) {
+        try {
+          await deleteSciweaveSearchLogsByEmail(user.email);
+        } catch (err) {
+          logger.warn(
+            { err, userId, email: user.email },
+            'Failed to delete Sciweave search_logs; continuing with account deletion',
+          );
+        }
+      }
 
       await hardDeleteUser(userId);
       processed++;
@@ -96,7 +109,7 @@ async function onTick() {
 
 export const AccountDeletionRunnerJob = new CronJob(
   // schedule cron to run every hour
-  // '* * * * *', // 10 seconds (for local test)
+  // '* * * * *', // every minute (for local test)
   '0 * * * *', // 1 hour
   onTick, // onTick
   null, // onComplete

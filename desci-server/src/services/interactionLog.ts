@@ -72,6 +72,48 @@ export const saveInteractionWithoutReq = async ({
   });
 };
 
+/**
+ * Returns true if this email was previously associated with an ACCOUNT_HARD_DELETED event
+ * (used to detect deleted Sciweave users who sign up or log in again).
+ */
+export const wasEmailHardDeleted = async (email: string): Promise<boolean> => {
+  const normalized = email?.toLowerCase()?.trim();
+  if (!normalized) return false;
+  const result = await prisma.$queryRaw<{ exists: number }[]>`
+    SELECT 1 AS exists FROM "InteractionLog"
+    WHERE action = 'ACCOUNT_HARD_DELETED'
+    AND LOWER(TRIM(COALESCE(extra::jsonb->>'email', ''))) = ${normalized}
+    LIMIT 1
+  `;
+  return result.length > 0;
+};
+
+export interface TrackDeletedSciweaveUserReturnedArgs {
+  req: Request;
+  userId: number;
+  email: string;
+  isSciweave: boolean;
+}
+
+/**
+ * If this is a Sciweave login and the email was previously hard-deleted, logs DELETED_SCIWEAVE_USER_RETURNED.
+ */
+export const trackDeletedSciweaveUserReturnedIfNeeded = async (
+  args: TrackDeletedSciweaveUserReturnedArgs,
+): Promise<void> => {
+  const { req, userId, email, isSciweave } = args;
+  if (!isSciweave) return;
+  const deleted = await wasEmailHardDeleted(email);
+  if (!deleted) return;
+  await saveInteraction({
+    req,
+    action: ActionType.DELETED_SCIWEAVE_USER_RETURNED,
+    data: { userId, email: email.toLowerCase().trim() },
+    userId,
+  });
+  logger.info({ userId, email }, 'Logged DELETED_SCIWEAVE_USER_RETURNED');
+};
+
 export enum AppType {
   PUBLISH = 'PUBLISH',
   SCIWEAVE = 'SCIWEAVE',

@@ -119,12 +119,7 @@ export async function hardDeleteUser(userId: number): Promise<void> {
         await tx.cidPruneList.deleteMany({ where: { userId } });
         // DraftNodeTree has nodeId only; deleted per-node below
 
-        // 9. InteractionLog (references User); keep ACCOUNT_HARD_DELETED audit entry
-        await tx.interactionLog.deleteMany({
-          where: { userId, action: { not: ActionType.ACCOUNT_HARD_DELETED } },
-        });
-
-        // 10. Nodes owned by user: delete node-dependent tables then nodes
+        // 9. Nodes owned by user (fetch to decide whether to skip node/resources/user/InteractionLog deletion)
         const nodes = await tx.node.findMany({
           where: { ownerId: userId },
           select: { id: true, uuid: true, dpidAlias: true },
@@ -132,57 +127,67 @@ export async function hardDeleteUser(userId: number): Promise<void> {
         const nodeIds = nodes.map((n) => n.id);
         const nodeUuids = nodes.map((n) => n.uuid).filter((u): u is string => u != null);
         const nodeDpids = nodes.map((n) => n.dpidAlias).filter((d): d is number => d != null);
+        const userHasNodes = nodes.length > 0;
 
-        if (nodeIds.length > 0) {
-          await tx.authorInvite.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.chainTransaction.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.nodeVote.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.nodeVersion.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.dataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.publicDataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.cidPruneList.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.nodeCover.deleteMany({ where: { node: { id: { in: nodeIds } } } });
-          await tx.uploadJobs.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.draftNodeTree.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.nodeAttestation.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.nodeThumbnails.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.publishTaskQueue.deleteMany({ where: { uuid: { in: nodeUuids } } });
-          await tx.nodeContribution.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.privateShare.deleteMany({ where: { nodeUUID: { in: nodeUuids } } });
-          await tx.distributionPdfs.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.pdfPreviews.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.doiRecord.deleteMany({ where: { uuid: { in: nodeUuids } } });
-          await tx.doiSubmissionQueue.deleteMany({ where: { uuid: { in: nodeUuids } } });
-          await tx.deferredEmails.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.userNotifications.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.annotation.deleteMany({ where: { uuid: { in: nodeUuids } } });
-          await tx.publishStatus.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.externalPublications.deleteMany({ where: { uuid: { in: nodeUuids } } });
-          await tx.communityRadarEntry.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.nodeLike.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.communitySubmission.deleteMany({ where: { nodeId: { in: nodeUuids } } });
-          await tx.publishedWallet.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.guestDataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          // DataMigration is user-scoped only (deleted above by userId)
-          // Journal submissions linked to these nodes (by dpid): delete children then submissions
-          if (nodeDpids.length > 0) {
-            const nodeLinkedSubmissionIds = (
-              await tx.journalSubmission.findMany({
-                where: { dpid: { in: nodeDpids } },
-                select: { id: true },
-              })
-            ).map((s) => s.id);
-            await deleteSubmissionsAndChildren(tx, nodeLinkedSubmissionIds);
-            await tx.journalSubmission.deleteMany({ where: { dpid: { in: nodeDpids } } });
+        if (userHasNodes) {
+          // Skip deletion of node-related resources, user account, and InteractionLog when user has nodes
+          logger.info(
+            { userId, nodeCount: nodes.length },
+            'Retaining node-related resources, user account, and InteractionLog (user has nodes)',
+          );
+        } else {
+          // No nodes: delete all node-related resources, InteractionLog (except audit), and User
+          await tx.interactionLog.deleteMany({
+            where: { userId, action: { not: ActionType.ACCOUNT_HARD_DELETED } },
+          });
+          // 10. Node-dependent tables then nodes (only run when there are nodes; Prisma in:[] would be unsafe)
+          if (nodeIds.length > 0) {
+            await tx.authorInvite.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.chainTransaction.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.nodeVote.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.nodeVersion.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.dataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.publicDataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.cidPruneList.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.nodeCover.deleteMany({ where: { node: { id: { in: nodeIds } } } });
+            await tx.uploadJobs.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.draftNodeTree.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.nodeAttestation.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.nodeThumbnails.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.publishTaskQueue.deleteMany({ where: { uuid: { in: nodeUuids } } });
+            await tx.nodeContribution.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.privateShare.deleteMany({ where: { nodeUUID: { in: nodeUuids } } });
+            await tx.distributionPdfs.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.pdfPreviews.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.doiRecord.deleteMany({ where: { uuid: { in: nodeUuids } } });
+            await tx.doiSubmissionQueue.deleteMany({ where: { uuid: { in: nodeUuids } } });
+            await tx.deferredEmails.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.userNotifications.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.annotation.deleteMany({ where: { uuid: { in: nodeUuids } } });
+            await tx.publishStatus.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.externalPublications.deleteMany({ where: { uuid: { in: nodeUuids } } });
+            await tx.communityRadarEntry.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.nodeLike.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.communitySubmission.deleteMany({ where: { nodeId: { in: nodeUuids } } });
+            await tx.publishedWallet.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.guestDataReference.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            if (nodeDpids.length > 0) {
+              const nodeLinkedSubmissionIds = (
+                await tx.journalSubmission.findMany({
+                  where: { dpid: { in: nodeDpids } },
+                  select: { id: true },
+                })
+              ).map((s) => s.id);
+              await deleteSubmissionsAndChildren(tx, nodeLinkedSubmissionIds);
+              await tx.journalSubmission.deleteMany({ where: { dpid: { in: nodeDpids } } });
+            }
+            await tx.importTaskQueue.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.interactionLog.deleteMany({ where: { nodeId: { in: nodeIds } } });
+            await tx.bookmarkedNode.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
+            await tx.node.deleteMany({ where: { ownerId: userId } });
           }
-          await tx.importTaskQueue.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.interactionLog.deleteMany({ where: { nodeId: { in: nodeIds } } });
-          await tx.bookmarkedNode.deleteMany({ where: { nodeUuid: { in: nodeUuids } } });
-          await tx.node.deleteMany({ where: { ownerId: userId } });
+          await tx.user.delete({ where: { id: userId } });
         }
-
-        // 11. User
-        await tx.user.delete({ where: { id: userId } });
 
         logger.info(
           { userId, durationMs: new Date().getTime() - start.getTime() },
