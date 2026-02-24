@@ -139,6 +139,7 @@ spec:
           export REVENUECAT_API_KEY="{{ .Data.REVENUECAT_API_KEY }}"
           export REVENUECAT_ENTITLEMENT_ID="{{ .Data.REVENUECAT_ENTITLEMENT_ID }}"
           export REVENUECAT_WEBHOOK_SECRET="{{ .Data.REVENUECAT_WEBHOOK_SECRET }}"
+          export SCIWEAVE_DATABASE_URL="{{ .Data.SCIWEAVE_DATABASE_URL }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}

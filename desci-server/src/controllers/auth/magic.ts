@@ -5,8 +5,16 @@ import jwt from 'jsonwebtoken';
 import { prisma as prismaClient } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
-import { saveInteraction } from '../../services/interactionLog.js';
-import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../services/user.js';
+import {
+  saveInteraction,
+  saveInteractionWithoutReq,
+  trackDeletedSciweaveUserReturnedIfNeeded,
+} from '../../services/interactionLog.js';
+import {
+  checkIfUserAcceptedTerms,
+  connectOrcidToUserIfPossible,
+  getAccountDeletionRequest,
+} from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { getOrcidRecord } from './orcid.js';
@@ -41,12 +49,47 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     logger.info({ fn: 'magic', reqBody: req.body }, `magic link`);
   }
 
+  const rejectDeactivatedAccounts = async ({
+    userId,
+    scheduledDeletionAt,
+  }: {
+    userId: number;
+    scheduledDeletionAt: string;
+  }) => {
+    await saveInteractionWithoutReq({
+      action: ActionType.ACCOUNT_DELETION_LOGIN_BLOCKED,
+      userId,
+      data: {
+        scheduledDeletionAt,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+    logger.info({ userId }, 'Magic code blocked: account scheduled for deletion');
+    res.status(200).send({
+      ok: true,
+      accountDisabled: true,
+      scheduledDeletionAt,
+    });
+  };
+
   if (!code) {
     // we are sending the magic code
-
     try {
+      const userByEmail = await prismaClient.user.findUnique({
+        where: { email: cleanEmail },
+        select: { id: true },
+      });
+      if (userByEmail) {
+        const pendingDeletion = await getAccountDeletionRequest(userByEmail.id);
+        if (pendingDeletion) {
+          return rejectDeactivatedAccounts({
+            userId: userByEmail.id,
+            scheduledDeletionAt: pendingDeletion.scheduledDeletionAt.toISOString(),
+          });
+        }
+      }
       const ip = req.ip;
-      // debugger;
       const ok = await sendMagicLink(cleanEmail, ip, undefined, isSciweave);
       logger.info({ ok }, 'Magic link sent');
       res.send({ ok: !!ok });
@@ -60,6 +103,14 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       const { user, isNewUser } = await magicLinkRedeem(cleanEmail, code);
 
       if (!user) throw new Error('User not found');
+
+      const pendingDeletion = await getAccountDeletionRequest(user.id);
+      if (pendingDeletion) {
+        return rejectDeactivatedAccounts({
+          userId: user.id,
+          scheduledDeletionAt: pendingDeletion.scheduledDeletionAt.toISOString(),
+        });
+      }
 
       if (orcid && user) {
         logger.trace(
@@ -115,6 +166,13 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         data: { userId: user.id, method: 'magic', isSciweave },
         userId: user.id,
         submitToMixpanel: true,
+      });
+
+      await trackDeletedSciweaveUserReturnedIfNeeded({
+        req,
+        userId: user.id,
+        email: user.email,
+        isSciweave: !!isSciweave,
       });
 
       if (isNewUser) {

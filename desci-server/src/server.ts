@@ -17,6 +17,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import swaggerUI from 'swagger-ui-express';
 import { v4 } from 'uuid';
 
+import { SERVER_ENV } from './config/index.js';
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
 import { NotFoundError } from './core/ApiError.js';
@@ -30,8 +31,8 @@ import routes from './routes/index.js';
 import { dataMigrationWorker } from './services/DataMigration/DataMigrationWorker.js';
 import { refereeRecommenderSqsHandler } from './services/externalApi/RefereeRecommenderSqsHandler.js';
 import { initializeWebSockets, getIO } from './services/websocketService.js';
+import { AccountDeletionRunnerJob } from './workers/accountDeletionRunner.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
-import { SERVER_ENV } from './config/index.js';
 
 const logger = parentLogger.child({
   module: 'server.ts',
@@ -309,6 +310,9 @@ export class AppServer {
 
     // Start referee recommender SQS handler
     await refereeRecommenderSqsHandler.start();
+
+    // Start account deletion runner cron job
+    AccountDeletionRunnerJob.start();
   }
 }
 function getRemoteAddress(req) {

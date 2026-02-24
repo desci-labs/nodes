@@ -7,7 +7,7 @@ import { prisma } from '../../client.js';
 import { ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { appleLoginSchema } from '../../schemas/auth.schema.js';
-import { saveInteraction } from '../../services/interactionLog.js';
+import { saveInteraction, trackDeletedSciweaveUserReturnedIfNeeded } from '../../services/interactionLog.js';
 import { checkIfUserAcceptedTerms } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { splitName } from '../../utils.js';
@@ -241,6 +241,13 @@ export const appleLogin = async (req: AppleLoginRequest, res: Response) => {
       data: { userId: user.id, method: 'apple' },
       userId: user.id,
       submitToMixpanel: true,
+    });
+
+    await trackDeletedSciweaveUserReturnedIfNeeded({
+      req,
+      userId: user.id,
+      email: user.email,
+      isSciweave: true,
     });
 
     logger.info({ userId: user.id, email: user.email }, 'Successful login with apple auth');

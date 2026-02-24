@@ -4,7 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { saveInteraction } from '../../services/interactionLog.js';
+import { saveInteraction, trackDeletedSciweaveUserReturnedIfNeeded } from '../../services/interactionLog.js';
 import { checkIfUserAcceptedTerms } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { splitName } from '../../utils.js';
@@ -150,6 +150,13 @@ export const googleAuth = async (req: Request, res: Response) => {
       data: { userId: user.id, method: 'google' },
       userId: user.id,
       submitToMixpanel: true,
+    });
+
+    await trackDeletedSciweaveUserReturnedIfNeeded({
+      req,
+      userId: user.id,
+      email: user.email,
+      isSciweave: app === GoogleAuthApp.SCIWEAVE,
     });
 
     logger.info({ userId: user.id, email: user.email }, 'Successful login with google auth');
