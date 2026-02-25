@@ -5,7 +5,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { sendEmail } from '../email/email.js';
 import { SciweaveEmailTypes } from '../email/sciweaveEmailTypes.js';
-import { isUserStudentSciweave } from '../interactionLog.js';
+// import { isUserStudentSciweave } from '../interactionLog.js'; // unused after coupon campaign disable
 
 import { FeatureLimitsService } from './FeatureLimitsService.js';
 import { getUserNameByUser } from '../user.js';
@@ -117,59 +117,41 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
             return ok({ usageId: result.usageId });
           }
 
-          // Check if user identified as a student in the Sciweave questionnaire
-          const isStudent = await isUserStudentSciweave(userId);
-
           const { firstName, lastName } = await getUserNameByUser(user);
 
-          let emailResult;
-          let couponInfo;
+          // Outdated coupon campaign emails disabled:
+          // - Student discount coupon email (SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED) was sent to students
+          //   with a generated coupon code when they hit their limit.
+          // const isStudent = await isUserStudentSciweave(userId);
+          // if (isStudent) {
+          //   const { StripeCouponService } = await import('../StripeCouponService.js');
+          //   const couponInfo = await StripeCouponService.getStudentDiscountCoupon({ userId, email: user.email });
+          //   emailResult = await sendEmail({
+          //     type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED,
+          //     payload: { email: user.email, firstName: firstName || 'Researcher', lastName,
+          //       couponCode: couponInfo.code, percentOff: couponInfo.percentOff },
+          //   });
+          // }
 
-          if (isStudent) {
-            // Generate student discount coupon for students
-            const { StripeCouponService } = await import('../StripeCouponService.js');
-            couponInfo = await StripeCouponService.getStudentDiscountCoupon({
-              userId,
+          const emailResult = await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL,
+            payload: {
               email: user.email,
-            });
-
-            // Send student email with coupon
-            emailResult = await sendEmail({
-              type: SciweaveEmailTypes.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED,
-              payload: {
-                email: user.email,
-                firstName: firstName || 'Researcher',
-                lastName,
-                couponCode: couponInfo.code,
-                percentOff: couponInfo.percentOff,
-              },
-            });
-          } else {
-            // Send regular out-of-chats email for non-students
-            emailResult = await sendEmail({
-              type: SciweaveEmailTypes.SCIWEAVE_OUT_OF_CHATS_INITIAL,
-              payload: {
-                email: user.email,
-                firstName: firstName || 'Researcher',
-                lastName,
-              },
-            });
-          }
+              firstName: firstName || 'Researcher',
+              lastName,
+            },
+          });
 
           // Record that we sent this email
           await prisma.sentEmail.create({
             data: {
               userId,
-              emailType: isStudent
-                ? SentEmailType.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED
-                : SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL,
+              emailType: SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL,
               internalTrackingId:
                 emailResult && 'internalTrackingId' in emailResult ? emailResult.internalTrackingId : undefined,
               details: {
                 feature: Feature.RESEARCH_ASSISTANT,
                 triggeredByUsageId: result.usageId,
-                isStudent,
-                ...(couponInfo && { couponCode: couponInfo.code, percentOff: couponInfo.percentOff }),
                 ...(emailResult &&
                   'sgMessageIdPrefix' in emailResult &&
                   emailResult.sgMessageIdPrefix && { sgMessageId: emailResult.sgMessageIdPrefix }),
@@ -181,10 +163,7 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
             {
               userId,
               email: user.email,
-              isStudent,
-              emailType: isStudent
-                ? SentEmailType.SCIWEAVE_STUDENT_DISCOUNT_LIMIT_REACHED
-                : SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL,
+              emailType: SentEmailType.SCIWEAVE_OUT_OF_CHATS_INITIAL,
             },
             'Sent limit-reached email',
           );
