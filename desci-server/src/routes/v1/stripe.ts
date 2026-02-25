@@ -10,8 +10,10 @@ import {
   cancelSubscription,
   getPricingOptions,
   createPaymentIntent,
+  resetStripeTestStateForCurrentUser,
 } from '../../controllers/stripe/subscription.js';
 import { handleStripeWebhook } from '../../controllers/stripe/webhook.js';
+import { ensureAdmin } from '../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../middleware/permissions.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { requireStripe } from '../../utils/stripe.js';
@@ -29,6 +31,7 @@ router.get('/subscription', [requireStripe, ensureUser], asyncHandler(getUserSub
 router.get('/purchases', [requireStripe, ensureUser], asyncHandler(getUserStripePurchases));
 router.put('/subscription', [requireStripe, ensureUser], asyncHandler(updateSubscription));
 router.delete('/subscription', [requireStripe, ensureUser], asyncHandler(cancelSubscription));
+router.post('/test/reset-current-user', [requireStripe, ensureUser, ensureAdmin], asyncHandler(resetStripeTestStateForCurrentUser));
 
 // Public pricing endpoints - no auth required
 router.get('/pricing', asyncHandler(getPricingOptions));
