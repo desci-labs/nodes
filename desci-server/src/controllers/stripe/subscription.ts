@@ -488,9 +488,21 @@ export const resetStripeTestStateForCurrentUser = async (req: RequestWithUser, r
     const stripe = getStripe();
     const stripeCancelableIds = new Set<string>();
     const stripeSkipped: Array<{ id: string; status?: string; reason: string }> = [];
+    const looksLikeStripeSubscriptionId = (id: string) => id.startsWith('sub_');
 
     for (const subscription of dbSubscriptions) {
       if (!subscription.stripeSubscriptionId) continue;
+
+      // Lifetime one-time purchases are stored locally with synthetic IDs like
+      // `lifetime_checkout_cs_test_*` and are not cancelable Stripe subscriptions.
+      if (!looksLikeStripeSubscriptionId(subscription.stripeSubscriptionId)) {
+        stripeSkipped.push({
+          id: subscription.stripeSubscriptionId,
+          status: subscription.status,
+          reason: 'non_stripe_subscription_id',
+        });
+        continue;
+      }
 
       if (subscription.status === SubscriptionStatus.CANCELED) {
         stripeSkipped.push({
@@ -530,11 +542,19 @@ export const resetStripeTestStateForCurrentUser = async (req: RequestWithUser, r
         await stripe.subscriptions.cancel(subscriptionId);
         canceledStripeSubscriptionIds.push(subscriptionId);
       } catch (error: any) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (errorMessage.includes('No such subscription')) {
+          stripeSkipped.push({
+            id: subscriptionId,
+            reason: 'not_found_in_stripe',
+          });
+          continue;
+        }
         logger.error({ err: error, userId, subscriptionId }, 'Failed to cancel Stripe subscription in test reset');
         return res.status(502).json({
           error: 'Failed to cancel Stripe subscription during test reset',
           subscriptionId,
-          details: error instanceof Error ? error.message : 'Unknown error',
+          details: errorMessage,
         });
       }
     }
