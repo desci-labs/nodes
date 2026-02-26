@@ -17,6 +17,9 @@ export const POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD;
 export const POSTGRES_DB = process.env.POSTGRES_DB;
 export const OPEN_ALEX_DATABASE_URL = process.env.OPEN_ALEX_DATABASE_URL;
 
+// Sciweave separate DB (chats/messages in search_logs)
+export const SCIWEAVE_DATABASE_URL = process.env.SCIWEAVE_DATABASE_URL;
+
 // JWT Configuration
 export const JWT_SECRET = process.env.JWT_SECRET;
 export const JWT_EXPIRATION = process.env.JWT_EXPIRATION;
@@ -63,6 +66,11 @@ export const SERVER_URL = process.env.SERVER_URL;
 export const DAPP_URL = process.env.DAPP_URL;
 export const NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 export const NODES_MEDIA_SERVER_URL = process.env.NODES_MEDIA_SERVER_URL;
+
+// RevenueCat Configuration
+export const REVENUECAT_API_KEY = process.env.REVENUECAT_API_KEY;
+export const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET;
+export const REVENUECAT_ENTITLEMENT_ID = process.env.REVENUECAT_ENTITLEMENT_ID ?? 'Sciweave Pro';
 
 // Stripe Configuration
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;

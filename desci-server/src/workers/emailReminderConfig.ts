@@ -1077,12 +1077,13 @@ export {
   testEmailHandler,
 };
 
+// Outdated coupon campaign email handlers disabled
 export const EMAIL_REMINDER_HANDLERS: EmailReminderHandler[] = [
   checkSciweave14DayInactivity,
-  checkOutOfChatsFollowUp,
-  checkStudentDiscountFollowUp,
-  checkAbandonedCheckout1Hour,
-  checkAbandonedCheckoutCouponExpiring,
+  // checkOutOfChatsFollowUp,
+  // checkStudentDiscountFollowUp,
+  // checkAbandonedCheckout1Hour,
+  // checkAbandonedCheckoutCouponExpiring,
   checkNewUser3Day,
   testEmailHandler, // Auto-skips unless TEST_EMAIL_ADDRESS is set
   // Add more handlers here

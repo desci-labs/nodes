@@ -10,7 +10,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { getRelativeTime } from '../../utils/clock.js';
 
 sgMail.setApiKey(SENDGRID_API_KEY);
-
+parentLogger.info('sciweave API key set');
 import {
   SciweaveEmailTypes,
   SciweaveEmailProps,
@@ -29,6 +29,9 @@ import {
   StudentDiscountEmailPayload,
   StudentDiscountLimitReachedEmailPayload,
   NewUser3DayEmailPayload,
+  AccountDeletionScheduledEmailPayload,
+  AccountDeletionReactivatedEmailPayload,
+  AccountDeletionFinalizedEmailPayload,
 } from './sciweaveEmailTypes.js';
 
 /**
@@ -92,6 +95,7 @@ async function sendSciweaveEmail(
   let success = false;
 
   try {
+    logger.info({ SHOULD_SEND_EMAIL }, 'SEND SCIWEAVE EMAIL');
     if (SHOULD_SEND_EMAIL) {
       const subjectPrefix =
         process.env.SERVER_URL === 'https://nodes-api.desci.com'
@@ -558,6 +562,90 @@ async function sendNewUser3DayEmail({ email, firstName, lastName }: NewUser3DayE
   return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY, { templateId });
 }
 
+async function sendAccountDeletionScheduledEmail({
+  email,
+  firstName,
+  lastName,
+  scheduledDeletionAt,
+}: AccountDeletionScheduledEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED];
+  if (!templateId) {
+    logger.error({ templateId }, ` No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED}`);
+    return undefined;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || 'Stranger', lastName: lastName || '', email },
+      // scheduledDeletionAt: scheduledDeletionAt.toISOString(),
+      deletionDate: scheduledDeletionAt.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+      // scheduledDeletionAtRelative: getRelativeTime(scheduledDeletionAt),
+    },
+  };
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED, { templateId });
+}
+
+async function sendAccountDeletionReactivatedEmail({
+  email,
+  firstName,
+  lastName,
+}: AccountDeletionReactivatedEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED];
+  if (!templateId) {
+    logger.error(
+      { templateId },
+      `No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED}`,
+    );
+    return undefined;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || 'Stranger', lastName: lastName || '', email },
+      reactivationDate: new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+    },
+  };
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED, { templateId });
+}
+
+async function sendAccountDeletionFinalizedEmail({
+  email,
+  firstName,
+  lastName,
+}: AccountDeletionFinalizedEmailPayload['payload']) {
+  const templateId = sciweaveTemplateIdMap[SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED];
+  if (!templateId) {
+    logger.error({ templateId }, `No template ID found for ${SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED}`);
+    return undefined;
+  }
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId,
+    dynamicTemplateData: {
+      envUrlPrefix: deploymentEnvironmentString,
+      user: { firstName: firstName || 'Stranger', lastName: lastName || '', email },
+    },
+  };
+  return await sendSciweaveEmail(message, SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED, { templateId });
+}
+
 export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
   switch (props.type) {
     case SciweaveEmailTypes.SCIWEAVE_WELCOME_EMAIL:
@@ -590,6 +678,12 @@ export const sendSciweaveEmailService = async (props: SciweaveEmailProps) => {
       return sendStudentDiscountLimitReachedEmail(props.payload);
     case SciweaveEmailTypes.SCIWEAVE_NEW_USER_3_DAY:
       return sendNewUser3DayEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_SCHEDULED:
+      return sendAccountDeletionScheduledEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_REACTIVATED:
+      return sendAccountDeletionReactivatedEmail(props.payload);
+    case SciweaveEmailTypes.SCIWEAVE_ACCOUNT_DELETION_FINALIZED:
+      return sendAccountDeletionFinalizedEmail(props.payload);
     default:
       return assertNever(props);
   }

@@ -1,0 +1,2 @@
+- This project is using pino logger, make sure to use the correct syntax, e.g. logger.error(params, message)
+- Avoid using barrel file imports/exports
