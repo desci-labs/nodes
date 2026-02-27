@@ -290,6 +290,10 @@ export async function handleWebhookEvent(
       await SubscriptionService.handleMobileSubscriptionRenewed(userId);
       if (customerInfo) await cacheMobileSubscriptionFromCustomerInfo(userId, customerInfo);
       break;
+    case 'TRANSFER':
+      await SubscriptionService.handleMobileSubscriptionTransfered(userId);
+      if (customerInfo) await cacheMobileSubscriptionFromCustomerInfo(userId, customerInfo);
+      break;
     case 'CANCELLATION':
       await SubscriptionService.handleMobileSubscriptionCancelled(userId);
       break;
