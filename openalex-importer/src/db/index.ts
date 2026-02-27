@@ -39,6 +39,80 @@ const getColumnSet = (table: any) => {
   return columnSetCache.get(cacheKey);
 };
 
+/**
+ * Generic function to filter out rows where any primary key column is null.
+ * Logs a warning if any rows are filtered.
+ */
+const filterNullPrimaryKeys = <T extends Record<string, any>>(
+  data: T[],
+  primaryKeyColumns: (keyof T)[],
+  tableName: string
+): T[] => {
+  let filteredCount = 0;
+  let filteredWorkIds: string[] = [];
+  
+  const filtered = data.filter(row => {
+    const isValid = primaryKeyColumns.every(col => row[col] != null);
+    if (!isValid) filteredCount++;
+    if (!isValid && row.work_id) filteredWorkIds.push(row.work_id);
+    return isValid;
+  });
+  
+  if (filteredCount > 0) {
+    logger.warn(
+      { filteredCount, totalRows: data.length, primaryKeyColumns, tableName },
+      'Filtered out rows with null primary key values'
+    );
+    // cap at 100 so it doesn't spam the logs
+    if (filteredWorkIds.length > 0) {
+      logger.warn({ filteredWorkIds: filteredWorkIds.slice(0, 100) }, 'Filtered work_ids'); 
+    }
+  }
+  
+  return filtered;
+};
+
+/**
+ * Replace null values in specified columns with default values.
+ * Useful for tables where nulls need to be converted to defaults for primary keys.
+ */
+const replaceNullsWithDefaults = <T extends Record<string, any>>(
+  data: T[],
+  defaults: Record<string, any>,
+  tableName: string
+): T[] => {
+  let replacedCount = 0;
+  let replacedWorkIds: string[] = [];
+  
+  const cleaned = data.map(row => {
+    let hadNull = false;
+    const result: Record<string, any> = { ...row };
+    
+    for (const [key, defaultValue] of Object.entries(defaults)) {
+      if (result[key] == null) {
+        result[key] = defaultValue;
+        hadNull = true;
+        if (row.work_id) replacedWorkIds.push(row.work_id);
+      }
+    }
+    
+    if (hadNull) replacedCount++;
+    return result as T;
+  });
+  
+  if (replacedCount > 0) {
+    logger.warn(
+      { replacedCount, totalRows: data.length, defaults, tableName },
+      'Replaced null values with defaults'
+    );
+    if (replacedWorkIds.length > 0) {
+      logger.warn({ replacedWorkIds: replacedWorkIds.slice(0, 100) }, 'Replaced work_ids');
+    }
+  }
+  
+  return cleaned;
+};
+
 const pgp = pgPromise({
   capSQL: true, // capitalize all SQL queries
   connect: (_client) => {
@@ -222,8 +296,12 @@ const updateWorksBestOaLocations = async (tx: pgPromise.ITask<any>, data: DataMo
 const updateWorksPrimaryLocations = async (tx: pgPromise.ITask<any>, data: DataModels['works_primary_locations']) => {
   if (!data.length) return;
 
+  // Filter out rows with null primary keys
+  const cleaned = filterNullPrimaryKeys(data, ['work_id'], 'works_primary_locations');
+  if (!cleaned.length) return;
+
   const columns = getColumnSet(works_primary_locationsInOpenalex);
-  const query = pgp.helpers.insert(data.sort(sortByWorkId), columns) +
+  const query = pgp.helpers.insert(cleaned.sort(sortByWorkId), columns) +
     ' ON CONFLICT (work_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'work_id' });
 
@@ -338,7 +416,11 @@ const sortWorksAuthorships = (a: DataModels['works_authorships'][number], b: Dat
 const updateWorksAuthorships = async (tx: pgPromise.ITask<any>, data: DataModels['works_authorships']) => {
   if (!data.length) return;
 
-  const merged = data.reduce((acc, curr) => {
+  // Filter out rows with null primary keys
+  const cleaned = filterNullPrimaryKeys(data, ['work_id', 'author_id'], 'works_authorships');
+  if (!cleaned.length) return;
+
+  const merged = cleaned.reduce((acc, curr) => {
     const key = `${curr.work_id!}-${curr.author_id!}`;
     if (!acc[key]) {
       acc[key] = curr;
@@ -386,8 +468,12 @@ const sortWorksConcepts = (a: DataModels['works_concepts'][number], b: DataModel
 const updateWorksConcepts = async (tx: pgPromise.ITask<any>, data: DataModels['works_concepts']) => {
   if (!data.length) return;
 
+  // Filter out rows with null primary keys
+  const cleaned = filterNullPrimaryKeys(data, ['work_id', 'concept_id'], 'works_concepts');
+  if (!cleaned.length) return;
+
   const columns = getColumnSet(works_conceptsInOpenalex);
-  const query = pgp.helpers.insert(data.sort(sortWorksConcepts), columns) +
+  const query = pgp.helpers.insert(cleaned.sort(sortWorksConcepts), columns) +
     ' ON CONFLICT (work_id, concept_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'concept_id'] });
 
@@ -410,8 +496,38 @@ const sortWorksMesh = (a: DataModels['works_mesh'][number], b: DataModels['works
 const updateWorksMesh = async (tx: pgPromise.ITask<any>, data: DataModels['works_mesh']) => {
   if (!data.length) return;
 
+  // Filter out rows with null essential fields (work_id, descriptor_ui)
+  const filtered = filterNullPrimaryKeys(data, ['work_id', 'descriptor_ui'], 'works_mesh');
+  if (!filtered.length) return;
+
+  // Replace null qualifier_ui with empty string (part of composite PK but can be legitimately null)
+  const cleaned = replaceNullsWithDefaults(
+    filtered,
+    { qualifier_ui: '' },
+    'works_mesh'
+  );
+
+  // Deduplicate by composite primary key (OpenAlex sometimes returns duplicates)
+  const deduped = Object.values(
+    cleaned.reduce((acc, curr) => {
+      const key = `${curr.work_id!}-${curr.descriptor_ui!}-${curr.qualifier_ui!}`;
+      // Keep the first occurrence (or you could merge data if needed)
+      if (!acc[key]) {
+        acc[key] = curr;
+      }
+      return acc;
+    }, {} as Record<string, DataModels['works_mesh'][number]>)
+  );
+
+  if (deduped.length < cleaned.length) {
+    logger.warn(
+      { duplicates: cleaned.length - deduped.length, totalRows: cleaned.length },
+      'Removed duplicate works_mesh rows with same primary key'
+    );
+  }
+
   const columns = getColumnSet(works_meshInOpenalex);
-  const query = pgp.helpers.insert(data.sort(sortWorksMesh), columns) +
+  const query = pgp.helpers.insert(deduped.sort(sortWorksMesh), columns) +
     ' ON CONFLICT (work_id, descriptor_ui, qualifier_ui) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'descriptor_ui', 'qualifier_ui'] });
   await tx.none(query);
@@ -429,8 +545,13 @@ const sortWorksTopics = (a: DataModels['works_topics'][number], b: DataModels['w
 
 const updateWorksTopics = async (tx: pgPromise.ITask<any>, data: DataModels['works_topics']) => {
   if (!data.length) return;
+
+  // Filter out rows with null primary keys
+  const cleaned = filterNullPrimaryKeys(data, ['work_id', 'topic_id'], 'works_topics');
+  if (!cleaned.length) return;
+
   const columns = getColumnSet(works_topicsInOpenalex);
-  const query = pgp.helpers.insert(data.sort(sortWorksTopics), columns) +
+  const query = pgp.helpers.insert(cleaned.sort(sortWorksTopics), columns) +
     ' ON CONFLICT (work_id, topic_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'topic_id'] });
 
