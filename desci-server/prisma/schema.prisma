@@ -1172,7 +1172,7 @@ model DataMigration {
 
 model Journal {
   id                    Int      @id @default(autoincrement())
-  name                  String
+  name                  String   @unique
   slug                  String?
   description           String?
   iconCid               String? // Deprecated: Use imageUrl instead
@@ -2059,3 +2059,24 @@ enum SentEmailType {
 //   @@index([userId])
 //   @@index([subscriptionId])
 // }
+
+enum JournalApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model JournalApplication {
+  id                       Int                      @id @default(autoincrement())
+  name                     String
+  description              String
+  iconCid                  String?
+  editorialBoard           Json // Array of { name, email, role }
+  instructionsForAuthors   String
+  instructionsForReviewers String
+  status                   JournalApplicationStatus @default(PENDING)
+  applicantId              Int
+  applicant                User                     @relation(fields: [applicantId], references: [id])
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+}
