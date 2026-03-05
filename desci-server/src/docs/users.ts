@@ -225,9 +225,123 @@ export const getMarketingConsentUsersCsvOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// ---------------------------------------------
+//  POST /v1/users/me/account-deletion-request
+// ---------------------------------------------
+export const requestAccountDeletionOperation: ZodOpenApiOperationObject = {
+  operationId: 'requestAccountDeletion',
+  tags: ['Users'],
+  summary: 'Request account deletion (Sciweave only)',
+  description:
+    'Schedules the authenticated user’s account for hard deletion in 30 days. Only available for users who signed up from Sciweave (web or mobile). Optional reason is stored for audit.',
+  requestBody: {
+    description: 'Optional reason for deletion',
+    required: false,
+    content: {
+      'application/json': {
+        schema: z.object({
+          reason: z.string().optional().describe('User-provided reason for requesting account deletion'),
+        }),
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Deletion scheduled',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(true),
+            scheduledDeletionAt: z.string().describe('ISO date when the account will be hard-deleted'),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - account deletion is only for Sciweave accounts',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    '409': {
+      description: 'Conflict - deletion already scheduled',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+            scheduledDeletionAt: z.string().optional(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// ---------------------------------------------
+//  POST /v1/users/me/account-deletion-cancel
+// ---------------------------------------------
+export const cancelAccountDeletionOperation: ZodOpenApiOperationObject = {
+  operationId: 'cancelAccountDeletion',
+  tags: ['Users'],
+  summary: 'Cancel scheduled account deletion',
+  description:
+    'Removes the scheduled account deletion for the authenticated user and sends a magic code email so they can log in again. Note: When requesting a magic code (POST /v1/auth/magic with email only, no code), if the account is scheduled for deletion the response includes accountDisabled: true and scheduledDeletionAt; no magic code email is sent.',
+  responses: {
+    '200': {
+      description: 'Deletion cancelled or no deletion was scheduled',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(true),
+            message: z.string().optional().describe('Present when no deletion was scheduled'),
+            cancelled: z.boolean().optional().describe('True when a scheduled deletion was removed'),
+            magicCodeSent: z.boolean().optional().describe('True when a login magic code was sent to the user email'),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.literal(false),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const userPaths: ZodOpenApiPathsObject = {
   '/v1/users/questionnaire': {
     post: submitQuestionnaireOperation,
+  },
+  '/v1/users/me/account-deletion-request': {
+    post: requestAccountDeletionOperation,
+  },
+  '/v1/users/me/account-deletion-cancel': {
+    post: cancelAccountDeletionOperation,
   },
   '/v1/auth/marketing-consent': {
     patch: updateMarketingConsentOperation,

@@ -1,9 +1,10 @@
-import { SubscriptionStatus } from '@prisma/client';
+import { Feature, PlanType, StripeCheckoutFulfillmentType, SubscriptionStatus } from '@prisma/client';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
-import { z } from 'zod';
+import { ZodError, z } from 'zod';
 
 import { prisma } from '../../client.js';
+import { SERVER_ENV } from '../../config/index.js';
 import { STRIPE_PRICE_IDS, PLAN_DETAILS } from '../../config/stripe.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
@@ -27,6 +28,22 @@ const customerPortalSchema = z.object({
   returnUrl: z.string().optional(),
 });
 
+const getUserStripePurchasesSchema = z.object({
+  query: z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(50).optional(),
+    fulfillmentType: z.nativeEnum(StripeCheckoutFulfillmentType).optional(),
+  }),
+});
+
+const formatZodIssues = (error: ZodError) =>
+  error.issues.map((issue) => ({
+    path: issue.path.join('.'),
+    message: issue.message,
+  }));
+
+const isStripeSubscriptionCancelable = (status: Stripe.Subscription.Status) =>
+  !['canceled', 'incomplete_expired'].includes(status);
+
 export const createSubscriptionCheckout = async (req: RequestWithUser, res: Response): Promise<Response> => {
   try {
     const userId = req.user?.id;
@@ -48,6 +65,52 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
 
     // Create checkout session
     const stripe = getStripe();
+    const stripePrice = await stripe.prices.retrieve(priceId);
+    const entitlementType = stripePrice.metadata?.entitlement_type;
+    const bundleChatsMetadata = stripePrice.metadata?.bundle_chats;
+    const isBundleCheckout = entitlementType === 'bundle_chats';
+
+    if (isBundleCheckout && resolvedCheckoutMode !== 'payment') {
+      return res.status(400).json({
+        error: 'Bundle checkout must use payment mode',
+      });
+    }
+
+    if (isBundleCheckout) {
+      const bundleChats = Number.parseInt(bundleChatsMetadata || '', 10);
+      if (!Number.isFinite(bundleChats) || bundleChats <= 0) {
+        return res.status(400).json({
+          error: 'Invalid bundle configuration for selected price',
+        });
+      }
+
+      const [activePaidSubscription, activeResearchAssistantLimit] = await Promise.all([
+        prisma.subscription.findFirst({
+          where: {
+            userId,
+            status: SubscriptionStatus.ACTIVE,
+            planType: { not: PlanType.FREE },
+          },
+          select: { id: true, planType: true },
+        }),
+        prisma.userFeatureLimit.findFirst({
+          where: {
+            userId,
+            feature: Feature.RESEARCH_ASSISTANT,
+            isActive: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { useLimit: true },
+        }),
+      ]);
+
+      if (activePaidSubscription || activeResearchAssistantLimit?.useLimit === null) {
+        return res.status(409).json({
+          error: 'Bundles are only available for users without an active subscription',
+        });
+      }
+    }
+
     const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       customer: customer.id,
       payment_method_types: ['card'],
@@ -62,8 +125,11 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
       cancel_url: cancelUrl || `${req.headers.origin}/settings/subscription?canceled=true`,
       metadata: {
         userId: userId.toString(),
+        email: req.user?.email,
         priceId,
         checkoutMode: resolvedCheckoutMode,
+        ...(entitlementType ? { entitlementType } : {}),
+        ...(bundleChatsMetadata ? { bundleChats: bundleChatsMetadata } : {}),
       },
     };
 
@@ -279,6 +345,53 @@ export const getUserSubscription = async (req: RequestWithUser, res: Response): 
   }
 };
 
+export const getUserStripePurchases = async (req: RequestWithUser, res: Response): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const {
+      query: { limit = 50, fulfillmentType },
+    } = getUserStripePurchasesSchema.parse(req);
+
+    const purchases = await prisma.stripeCheckoutFulfillment.findMany({
+      where: {
+        userId,
+        grantedUnits: {
+          gt: 0,
+        },
+        ...(fulfillmentType ? { fulfillmentType } : {}),
+      },
+      orderBy: { fulfilledAt: 'desc' },
+      take: limit,
+      select: {
+        fulfillmentType: true,
+        purchasedUnits: true,
+        grantedUnits: true,
+        amountPaid: true,
+        currency: true,
+        fulfilledAt: true,
+      },
+    });
+
+    return res.status(200).json({
+      purchases,
+    });
+  } catch (error: any) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid request parameters',
+        details: formatZodIssues(error),
+      });
+    }
+
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to get user stripe purchases');
+    return res.status(500).json({ error: 'Failed to get user stripe purchases' });
+  }
+};
+
 export const updateSubscription = async (req: RequestWithUser, res: Response): Promise<Response> => {
   try {
     const userId = req.user?.id;
@@ -294,6 +407,13 @@ export const updateSubscription = async (req: RequestWithUser, res: Response): P
 
     return res.status(200).json({ success: true });
   } catch (error: any) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: formatZodIssues(error),
+      });
+    }
+
     logger.error({ err: error, userId: req.user?.id }, 'Failed to update subscription');
     return res.status(500).json({ error: 'Failed to update subscription' });
   }
@@ -317,6 +437,196 @@ export const cancelSubscription = async (req: RequestWithUser, res: Response): P
     }
     logger.error({ err: error, userId: req.user?.id }, 'Failed to cancel subscription');
     return res.status(500).json({ error: 'Failed to cancel subscription' });
+  }
+};
+
+export const resetStripeTestStateForCurrentUser = async (req: RequestWithUser, res: Response): Promise<Response> => {
+  const userId = req.user?.id;
+  const userEmail = req.user?.email;
+
+  try {
+    if (!userId || !userEmail) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (SERVER_ENV !== 'DEVELOPMENT') {
+      return res.status(403).json({
+        error: 'This endpoint is only enabled on the development deployment',
+        serverEnv: SERVER_ENV,
+      });
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) {
+      return res.status(403).json({
+        error: 'Refusing reset because Stripe is not configured with a test key',
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { stripeUserId: true },
+    });
+
+    const dbSubscriptions = await prisma.subscription.findMany({
+      where: { userId },
+      select: {
+        stripeSubscriptionId: true,
+        stripeCustomerId: true,
+        status: true,
+      },
+    });
+
+    const customerIds = Array.from(
+      new Set(
+        [user?.stripeUserId, ...dbSubscriptions.map((sub) => sub.stripeCustomerId)]
+          .filter((id): id is string => !!id)
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    const stripe = getStripe();
+    const stripeCancelableIds = new Set<string>();
+    const stripeSkipped: Array<{ id: string; status?: string; reason: string }> = [];
+    const looksLikeStripeSubscriptionId = (id: string) => id.startsWith('sub_');
+
+    for (const subscription of dbSubscriptions) {
+      if (!subscription.stripeSubscriptionId) continue;
+
+      // Lifetime one-time purchases are stored locally with synthetic IDs like
+      // `lifetime_checkout_cs_test_*` and are not cancelable Stripe subscriptions.
+      if (!looksLikeStripeSubscriptionId(subscription.stripeSubscriptionId)) {
+        stripeSkipped.push({
+          id: subscription.stripeSubscriptionId,
+          status: subscription.status,
+          reason: 'non_stripe_subscription_id',
+        });
+        continue;
+      }
+
+      if (subscription.status === SubscriptionStatus.CANCELED) {
+        stripeSkipped.push({
+          id: subscription.stripeSubscriptionId,
+          status: subscription.status,
+          reason: 'db_marked_canceled',
+        });
+        continue;
+      }
+
+      stripeCancelableIds.add(subscription.stripeSubscriptionId);
+    }
+
+    for (const customerId of customerIds) {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'all',
+        limit: 100,
+      });
+
+      for (const subscription of subscriptions.data) {
+        if (!isStripeSubscriptionCancelable(subscription.status)) {
+          stripeSkipped.push({
+            id: subscription.id,
+            status: subscription.status,
+            reason: 'already_terminal',
+          });
+          continue;
+        }
+        stripeCancelableIds.add(subscription.id);
+      }
+    }
+
+    const canceledStripeSubscriptionIds: string[] = [];
+    for (const subscriptionId of stripeCancelableIds) {
+      try {
+        await stripe.subscriptions.cancel(subscriptionId);
+        canceledStripeSubscriptionIds.push(subscriptionId);
+      } catch (error: any) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (errorMessage.includes('No such subscription')) {
+          stripeSkipped.push({
+            id: subscriptionId,
+            reason: 'not_found_in_stripe',
+          });
+          continue;
+        }
+        logger.error({ err: error, userId, subscriptionId }, 'Failed to cancel Stripe subscription in test reset');
+        return res.status(502).json({
+          error: 'Failed to cancel Stripe subscription during test reset',
+          subscriptionId,
+          details: errorMessage,
+        });
+      }
+    }
+
+    const dbDeleteCounts = await prisma.$transaction(async (tx) => {
+      const invoiceResult = await tx.invoice.deleteMany({ where: { userId } });
+      const paymentMethodResult = await tx.paymentMethod.deleteMany({ where: { userId } });
+      const abandonedCheckoutResult = await tx.abandonedCheckout.deleteMany({ where: { userId } });
+      const fulfillmentResult = await tx.stripeCheckoutFulfillment.deleteMany({ where: { userId } });
+      const subscriptionResult = await tx.subscription.deleteMany({ where: { userId } });
+      const usageResult = await tx.externalApiUsage.deleteMany({ where: { userId } });
+      const featureLimitResult = await tx.userFeatureLimit.deleteMany({ where: { userId } });
+
+      return {
+        invoices: invoiceResult.count,
+        paymentMethods: paymentMethodResult.count,
+        abandonedCheckouts: abandonedCheckoutResult.count,
+        stripeCheckoutFulfillments: fulfillmentResult.count,
+        subscriptions: subscriptionResult.count,
+        externalApiUsage: usageResult.count,
+        userFeatureLimits: featureLimitResult.count,
+      };
+    });
+
+    const { FeatureLimitsService } = await import('../../services/FeatureLimits/FeatureLimitsService.js');
+    const [researchAssistantLimitResult, refereeFinderLimitResult] = await Promise.all([
+      FeatureLimitsService.getOrCreateUserFeatureLimit(userId, Feature.RESEARCH_ASSISTANT),
+      FeatureLimitsService.getOrCreateUserFeatureLimit(userId, Feature.REFEREE_FINDER),
+    ]);
+
+    if (researchAssistantLimitResult.isErr() || refereeFinderLimitResult.isErr()) {
+      return res.status(500).json({
+        error: 'State was cleared but failed to recreate free feature limits',
+        details: [
+          researchAssistantLimitResult.isErr() ? researchAssistantLimitResult.error.message : null,
+          refereeFinderLimitResult.isErr() ? refereeFinderLimitResult.error.message : null,
+        ].filter(Boolean),
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      userId,
+      email: userEmail,
+      serverEnv: SERVER_ENV,
+      stripe: {
+        customerIds,
+        canceledSubscriptionIds: canceledStripeSubscriptionIds,
+        skippedSubscriptions: stripeSkipped,
+      },
+      db: {
+        deleted: dbDeleteCounts,
+        recreatedFreeLimits: [
+          {
+            feature: researchAssistantLimitResult.value.feature,
+            planCodename: researchAssistantLimitResult.value.planCodename,
+            useLimit: researchAssistantLimitResult.value.useLimit,
+          },
+          {
+            feature: refereeFinderLimitResult.value.feature,
+            planCodename: refereeFinderLimitResult.value.planCodename,
+            useLimit: refereeFinderLimitResult.value.useLimit,
+          },
+        ],
+      },
+    });
+  } catch (error: any) {
+    logger.error({ err: error, userId, userEmail }, 'Failed to reset Stripe test state');
+    return res.status(500).json({
+      error: 'Failed to reset Stripe test state',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 };
 

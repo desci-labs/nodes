@@ -479,6 +479,58 @@ export const getNewSciweaveUsersInXDays = async (dateXDaysAgo: Date) => {
   }));
 };
 
+/**
+ * Returns true if the user signed up from Sciweave (web or mobile).
+ * Checks InteractionLog for USER_SIGNUP_SUCCESS with extra.isSciweave = true.
+ */
+export const isSciweaveUser = async (userId: number): Promise<boolean> => {
+  logger.trace({ fn: 'isSciweaveUser', userId }, 'user::isSciweaveUser');
+  const result = await client.$queryRaw<{ id: number }[]>`
+    SELECT il.id
+    FROM "InteractionLog" il
+    WHERE il."userId" = ${userId}
+      AND il.action = 'USER_SIGNUP_SUCCESS'
+      AND (il.extra :: jsonb ->> 'isSciweave') = 'true'
+    LIMIT 1
+  `;
+  return result.length > 0;
+};
+
+export const getAccountDeletionRequest = async (userId: number) => {
+  return client.accountDeletionRequest.findUnique({
+    where: { userId },
+  });
+};
+
+export const createAccountDeletionRequest = async (userId: number, scheduledDeletionAt: Date, reason?: string) => {
+  return client.accountDeletionRequest.create({
+    data: {
+      userId,
+      scheduledDeletionAt,
+      ...(reason != null && reason !== '' ? { reason } : {}),
+    },
+  });
+};
+
+export const deleteAccountDeletionRequest = async (userId: number) => {
+  return client.accountDeletionRequest.deleteMany({
+    where: { userId },
+  });
+};
+
+export const getDueAccountDeletionRequests = async () => {
+  try {
+    return client.accountDeletionRequest.findMany({
+      where: { scheduledDeletionAt: { lte: new Date() } },
+      include: { user: { select: { id: true, email: true } } },
+      orderBy: { scheduledDeletionAt: 'asc' },
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to get due account deletion requests');
+    return [];
+  }
+};
+
 export const getCountAllUsers = async (): Promise<number> => {
   logger.trace({ fn: 'getCountAllUsers' }, 'user::getCountAllUsers');
   const allUsers = await client.user.count({ where: { isGuest: false } });
