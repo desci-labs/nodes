@@ -139,6 +139,10 @@ spec:
           export REVENUECAT_ENTITLEMENT_ID="{{ .Data.REVENUECAT_ENTITLEMENT_ID }}"
           export REVENUECAT_WEBHOOK_SECRET="{{ .Data.REVENUECAT_WEBHOOK_SECRET }}"
           export STRIPE_SCIWEAVE_LIFETIME_PRICE_ID="{{ .Data.STRIPE_SCIWEAVE_LIFETIME_PRICE_ID }}"
+          export R2_ACCOUNT_ID="{{ .Data.R2_ACCOUNT_ID }}"
+          export R2_ACCESS_KEY_ID="{{ .Data.R2_ACCESS_KEY_ID }}"
+          export R2_SECRET_ACCESS_KEY="{{ .Data.R2_SECRET_ACCESS_KEY }}"
+          export R2_BUCKET_NAME="{{ .Data.R2_BUCKET_NAME }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
