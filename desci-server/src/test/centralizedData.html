@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeSci — Private Data Sharing</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1117; color: #e1e4ea; min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 32px; border-bottom: 1px solid #1e2130;
+    background: #14161e;
+  }
+  .header-logo { font-size: 1.1rem; font-weight: 600; color: #e1e4ea; }
+  .header-logo span { color: #3b82f6; }
+  .header-user { display: flex; align-items: center; gap: 12px; }
+  .header-user .email { font-size: 0.85rem; color: #8b9dc3; }
+  .header-user .avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: #3b82f6;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 600; color: white;
+  }
+  .btn-logout {
+    background: transparent; border: 1px solid #333; color: #8b9dc3;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
+  }
+  .btn-logout:hover { border-color: #ef4444; color: #fca5a5; }
+
+  /* Main layout */
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+
+  /* Auth screen */
+  .auth-screen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 80vh; text-align: center;
+  }
+  .auth-screen h1 { font-size: 2rem; margin-bottom: 8px; }
+  .auth-screen p { color: #6c7a8d; margin-bottom: 32px; font-size: 1rem; }
+  .auth-form { width: 100%; max-width: 360px; }
+  .auth-form input[type="email"], .auth-form input[type="text"] {
+    background: #12141c; border: 1px solid #333; color: #e1e4ea;
+    padding: 12px 14px; border-radius: 8px; font-size: 1rem; width: 100%;
+    margin-bottom: 12px;
+  }
+  .auth-form input:focus { outline: none; border-color: #3b82f6; }
+  .auth-form .btn { width: 100%; justify-content: center; padding: 12px; font-size: 1rem; }
+  .auth-back { background: none; border: none; color: #6c7a8d; cursor: pointer; font-size: 0.85rem; margin-top: 12px; }
+  .auth-back:hover { color: #93c5fd; }
+  .auth-email-display { color: #93c5fd; font-weight: 500; }
+  .auth-error { color: #fca5a5; font-size: 0.85rem; margin-top: 16px; }
+
+  /* Steps */
+  .step {
+    background: #1a1d27; border: 1px solid #2a2d37; border-radius: 12px;
+    padding: 24px; margin-bottom: 20px;
+  }
+  .step.disabled { opacity: 0.4; pointer-events: none; }
+  .step-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  }
+  .step-number {
+    width: 28px; height: 28px; border-radius: 50%; background: #2a2d37;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 600; color: #6c7a8d; flex-shrink: 0;
+  }
+  .step.active .step-number { background: #3b82f6; color: white; }
+  .step.done .step-number { background: #22c55e; color: white; }
+  .step-title { font-size: 1.05rem; font-weight: 600; }
+  .step-desc { font-size: 0.85rem; color: #6c7a8d; margin-bottom: 16px; }
+
+  /* Forms */
+  .form-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-end; }
+  .form-row.col { flex-direction: column; align-items: stretch; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .form-group label { font-size: 0.8rem; color: #8b9dc3; }
+  input[type="text"], select {
+    background: #12141c; border: 1px solid #333; color: #e1e4ea;
+    padding: 10px 12px; border-radius: 6px; font-size: 0.9rem; width: 100%;
+  }
+  input:focus, select:focus { outline: none; border-color: #3b82f6; }
+
+  /* Buttons */
+  .btn {
+    background: #3b82f6; color: white; border: none; padding: 10px 20px;
+    border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: #2563eb; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+  .btn-outline { background: transparent; border: 1px solid #333; color: #8b9dc3; }
+  .btn-outline:hover { border-color: #3b82f6; color: #3b82f6; }
+  .btn-green { background: #22c55e; }
+  .btn-green:hover { background: #16a34a; }
+
+  /* Node selector */
+  .node-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .node-item {
+    padding: 10px 14px; background: #12141c; border: 1px solid #2a2d37;
+    border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between;
+    align-items: center; font-size: 0.85rem;
+  }
+  .node-item:hover { border-color: #3b82f6; }
+  .node-item.selected { border-color: #3b82f6; background: #1c2440; }
+  .node-item .uuid { color: #6c7a8d; font-size: 0.75rem; font-family: monospace; }
+
+  /* Dropzone */
+  .dropzone {
+    border: 2px dashed #333; border-radius: 8px; padding: 32px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .dropzone:hover, .dropzone.dragover { border-color: #3b82f6; background: #1c2440; }
+  .dropzone p { color: #6c7a8d; font-size: 0.9rem; }
+  .dropzone .hint { font-size: 0.8rem; color: #4a5568; margin-top: 6px; }
+  .file-list { margin-top: 12px; }
+  .file-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; background: #12141c; border-radius: 4px; margin-top: 6px;
+    font-size: 0.85rem;
+  }
+  .file-item .remove { color: #ef4444; cursor: pointer; font-size: 0.8rem; }
+
+  /* Tree */
+  .tree-container { margin-top: 12px; }
+  .tree-dir, .tree-file {
+    padding: 6px 8px; border-radius: 4px; font-size: 0.85rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tree-dir { color: #6eb5ff; cursor: pointer; }
+  .tree-dir:hover { background: #1c2440; }
+  .tree-file { color: #e1e4ea; }
+  .tree-file:hover { background: #1c2440; }
+  .tree-children { margin-left: 20px; }
+  .tree-meta { color: #6c7a8d; font-size: 0.75rem; margin-left: auto; }
+  .tree-dl { color: #3b82f6; cursor: pointer; font-size: 0.8rem; margin-left: 8px; text-decoration: none; }
+  .tree-dl:hover { text-decoration: underline; }
+
+  /* Share */
+  .share-box {
+    padding: 16px; background: #12141c; border: 1px solid #22c55e44;
+    border-radius: 8px; margin-top: 12px;
+  }
+  .share-url {
+    display: flex; gap: 8px; align-items: center; margin-top: 8px;
+  }
+  .share-url input {
+    flex: 1; background: #0f1117; border: 1px solid #333; color: #86efac;
+    font-family: monospace; font-size: 0.8rem; padding: 10px;
+  }
+
+  /* Status messages */
+  .status { padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; margin-top: 12px; }
+  .status.success { background: #22c55e22; color: #86efac; border: 1px solid #22c55e44; }
+  .status.error { background: #ef444422; color: #fca5a5; border: 1px solid #ef444444; }
+  .status.info { background: #3b82f622; color: #93c5fd; border: 1px solid #3b82f644; }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid #333; border-top-color: #3b82f6;
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+
+  /* Test results */
+  .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  @media (max-width: 700px) { .test-grid { grid-template-columns: 1fr; } }
+  .test-item {
+    padding: 10px 12px; border-radius: 6px; font-size: 0.8rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .test-item.pass { background: #22c55e18; color: #86efac; }
+  .test-item.fail { background: #ef444418; color: #fca5a5; }
+  .test-item.pending { background: #f59e0b18; color: #fcd34d; }
+  .test-icon { font-weight: bold; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- ========== AUTH SCREEN ========== -->
+<div id="authScreen" class="auth-screen">
+  <h1>DeSci Private Data Sharing</h1>
+  <p>Upload private research data and generate secure share links</p>
+
+  <!-- Screen 1: Enter email -->
+  <div id="authEmailStep" class="auth-form">
+    <input type="email" id="authEmailInput" placeholder="Enter your email" autocomplete="email" />
+    <button class="btn" id="sendCodeBtn" onclick="sendMagicCode()">Send Code</button>
+  </div>
+
+  <!-- Screen 2: Enter verification code -->
+  <div id="authCodeStep" class="auth-form hidden">
+    <p style="color:#6c7a8d;margin-bottom:6px;">Check your email</p>
+    <p style="margin-bottom:16px;">Code sent to <span id="authEmailDisplay" class="auth-email-display"></span></p>
+    <input type="text" id="authCodeInput" placeholder="Enter verification code" autocomplete="one-time-code" maxlength="8" />
+    <button class="btn" id="verifyCodeBtn" onclick="verifyMagicCode()">Verify</button>
+    <button class="auth-back" onclick="backToEmail()">Use a different email</button>
+  </div>
+
+  <div id="authError" class="auth-error hidden"></div>
+  <div id="authLoading" class="hidden"><div class="spinner"></div> Signing in...</div>
+</div>
+
+<!-- ========== MAIN APP ========== -->
+<div id="mainApp" class="hidden">
+  <div class="header">
+    <div class="header-logo"><span>DeSci</span> Private Data</div>
+    <div class="header-user">
+      <span class="email" id="userEmail"></span>
+      <div class="avatar" id="userAvatar"></div>
+      <button class="btn-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- STEP 1: Create / Select Node -->
+    <div class="step active" id="step1">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Create or Select a Research Node</div>
+      </div>
+      <p class="step-desc">A node is a container for your research data. Create a new one or select an existing one.</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Node Title</label>
+          <input type="text" id="nodeTitle" value="My Research Data" />
+        </div>
+        <button class="btn" onclick="createNode()">Create Node</button>
+      </div>
+      <div id="existingNodes"></div>
+      <div id="step1Status"></div>
+    </div>
+
+    <!-- STEP 2: Upload Files -->
+    <div class="step disabled" id="step2">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Upload Files</div>
+      </div>
+      <p class="step-desc">Select files to upload to your private R2 storage.</p>
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <p>Drop files here or click to browse</p>
+        <p class="hint">Supports any file type</p>
+      </div>
+      <input type="file" id="fileInput" multiple class="hidden" />
+      <div class="file-list" id="pendingFiles"></div>
+      <div class="form-row" style="margin-top:12px">
+        <div class="form-group">
+          <label>Storage Path</label>
+          <input type="text" id="contextPath" value="root/restricted-data" />
+        </div>
+        <button class="btn" id="uploadBtn" onclick="uploadFiles()" disabled>Upload</button>
+      </div>
+      <div id="step2Status"></div>
+    </div>
+
+    <!-- STEP 3: Browse Files -->
+    <div class="step disabled" id="step3">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Your Files</div>
+      </div>
+      <p class="step-desc">Files stored in your private R2 bucket. Only you can see these unless you share them.</p>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="refreshTree()">Refresh</button>
+        <button class="btn btn-sm" onclick="downloadZip()">Download All (ZIP)</button>
+      </div>
+      <div class="tree-container" id="treeContainer"></div>
+      <div id="step3Status"></div>
+    </div>
+
+    <!-- STEP 4: Share -->
+    <div class="step disabled" id="step4">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Share</div>
+      </div>
+      <p class="step-desc">Generate a secure share link. Anyone with the link can download your files — no sign-in required.</p>
+      <button class="btn btn-green" onclick="generateShareLink()">Generate Share Link</button>
+      <div id="shareResult"></div>
+      <div id="step4Status"></div>
+
+      <!-- Access control verification -->
+      <div id="testSection" class="hidden" style="margin-top:20px">
+        <button class="btn btn-outline btn-sm" onclick="runTests()">Verify Access Controls</button>
+        <div class="test-grid" id="testResults"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ==================== STATE ====================
+const API = location.origin;
+let authToken = null;
+let currentUser = null;
+let currentNodeUuid = null;
+let currentShareId = null;
+let selectedFiles = [];
+
+// ==================== AUTH ====================
+let pendingEmail = null;
+
+async function sendMagicCode() {
+  const email = document.getElementById('authEmailInput').value.trim();
+  if (!email) { showAuthError('Please enter an email address'); return; }
+
+  const btn = document.getElementById('sendCodeBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Sending...';
+  hideAuthError();
+
+  try {
+    const resp = await fetch(API + '/v1/auth/magic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      pendingEmail = email;
+      document.getElementById('authEmailDisplay').textContent = email;
+      document.getElementById('authEmailStep').classList.add('hidden');
+      document.getElementById('authCodeStep').classList.remove('hidden');
+      // In non-production, the server returns the code directly — auto-fill it
+      if (data.devCode) {
+        document.getElementById('authCodeInput').value = data.devCode;
+      } else {
+        document.getElementById('authCodeInput').value = '';
+      }
+      document.getElementById('authCodeInput').focus();
+    } else {
+      showAuthError(data.message || 'Failed to send code');
+    }
+  } catch (err) {
+    showAuthError('Could not connect to server. Is it running at ' + API + '?');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Send Code';
+}
+
+async function verifyMagicCode() {
+  const code = document.getElementById('authCodeInput').value.trim();
+  if (!code) { showAuthError('Please enter the verification code'); return; }
+
+  const btn = document.getElementById('verifyCodeBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Verifying...';
+  hideAuthError();
+
+  try {
+    const resp = await fetch(API + '/v1/auth/magic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: pendingEmail, code }),
+    });
+    const data = await resp.json();
+    if (data.ok && data.user) {
+      authToken = data.user.token;
+      currentUser = data.user;
+      pendingEmail = null;
+      showMainApp();
+    } else {
+      showAuthError(data.message || 'Invalid code. Please try again.');
+    }
+  } catch (err) {
+    showAuthError('Verification failed: ' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Verify';
+}
+
+function backToEmail() {
+  hideAuthError();
+  document.getElementById('authCodeStep').classList.add('hidden');
+  document.getElementById('authEmailStep').classList.remove('hidden');
+  document.getElementById('authEmailInput').focus();
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function hideAuthError() {
+  document.getElementById('authError').classList.add('hidden');
+}
+
+function showMainApp() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('userEmail').textContent = currentUser.email;
+  document.getElementById('userAvatar').textContent = currentUser.email[0].toUpperCase();
+  loadExistingNodes();
+}
+
+async function doLogout() {
+  try {
+    await fetch(API + '/v1/auth/logout', { method: 'DELETE', credentials: 'include' });
+  } catch {}
+  authToken = null;
+  currentUser = null;
+  currentNodeUuid = null;
+  currentShareId = null;
+  pendingEmail = null;
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+  hideAuthError();
+  // Reset to email step
+  document.getElementById('authCodeStep').classList.add('hidden');
+  document.getElementById('authEmailStep').classList.remove('hidden');
+  document.getElementById('authEmailInput').value = '';
+}
+
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + authToken };
+}
+
+// ==================== STEP 1: NODES ====================
+async function loadExistingNodes() {
+  try {
+    const resp = await fetch(API + '/v1/nodes/', { headers: authHeaders() });
+    const data = await resp.json();
+    const nodes = data.data || data.nodes || [];
+    if (!nodes.length) {
+      document.getElementById('existingNodes').innerHTML = '';
+      return;
+    }
+    let html = '<p style="font-size:0.8rem;color:#6c7a8d;margin:12px 0 6px">Or select an existing node:</p><div class="node-list">';
+    for (const n of nodes.slice(0, 10)) {
+      const uuid = (n.uuid || '').replace(/\.$/, '');
+      const title = esc(n.title || 'Untitled');
+      html += '<div class="node-item" onclick="selectNode(\'' + esc(n.uuid || '') + '\', \'' + title + '\')">';
+      html += '<span>' + title + '</span>';
+      html += '<span class="uuid">' + uuid + '</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+    document.getElementById('existingNodes').innerHTML = html;
+  } catch {}
+}
+
+async function createNode() {
+  const title = document.getElementById('nodeTitle').value.trim() || 'My Research Data';
+  showStatus('step1Status', 'Creating node...', 'info');
+  try {
+    const resp = await fetch(API + '/v1/nodes/createDraft', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, defaultLicense: 'CC-BY', researchFields: [] }),
+    });
+    const data = await resp.json();
+    if (data.ok && data.node) {
+      selectNode(data.node.uuid, title);
+      showStatus('step1Status', 'Node created: ' + (data.node.uuid || '').replace(/\.$/, ''), 'success');
+    } else {
+      showStatus('step1Status', data.error || data.message || 'Failed to create node', 'error');
+    }
+  } catch (err) {
+    showStatus('step1Status', 'Error: ' + err.message, 'error');
+  }
+}
+
+function selectNode(uuid, title) {
+  currentNodeUuid = uuid;
+  currentShareId = null;
+  // Highlight selected
+  document.querySelectorAll('.node-item').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.node-item').forEach(el => {
+    if (el.querySelector('.uuid')?.textContent === uuid.replace(/\.$/, '')) el.classList.add('selected');
+  });
+  showStatus('step1Status', 'Selected: ' + (title || uuid.replace(/\.$/, '')), 'success');
+  activateStep(2);
+  refreshTree();
+}
+
+// ==================== STEP 2: UPLOAD ====================
+function initDropzone() {
+  const dz = document.getElementById('dropzone');
+  const fi = document.getElementById('fileInput');
+
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragover');
+    addFiles(e.dataTransfer.files);
+  });
+  fi.addEventListener('change', () => { addFiles(fi.files); fi.value = ''; });
+}
+
+function addFiles(fileList) {
+  for (const f of fileList) {
+    if (!selectedFiles.find(s => s.name === f.name && s.size === f.size)) {
+      selectedFiles.push(f);
+    }
+  }
+  renderPendingFiles();
+}
+
+function removeFile(index) {
+  selectedFiles.splice(index, 1);
+  renderPendingFiles();
+}
+
+function renderPendingFiles() {
+  const container = document.getElementById('pendingFiles');
+  document.getElementById('uploadBtn').disabled = !selectedFiles.length;
+  if (!selectedFiles.length) { container.innerHTML = ''; return; }
+  let html = '';
+  selectedFiles.forEach((f, i) => {
+    html += '<div class="file-item"><span>' + esc(f.name) + ' <span style="color:#6c7a8d">(' + formatSize(f.size) + ')</span></span>';
+    html += '<span class="remove" onclick="removeFile(' + i + ')">remove</span></div>';
+  });
+  container.innerHTML = html;
+}
+
+async function uploadFiles() {
+  if (!selectedFiles.length) return;
+  document.getElementById('uploadBtn').disabled = true;
+  showStatus('step2Status', 'Uploading ' + selectedFiles.length + ' file(s)...', 'info');
+
+  const formData = new FormData();
+  formData.append('uuid', currentNodeUuid);
+  formData.append('contextPath', document.getElementById('contextPath').value.trim() || 'root/restricted-data');
+  for (const f of selectedFiles) formData.append('files', f);
+
+  try {
+    const resp = await fetch(API + '/v1/data/uploadCentralized', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: formData,
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const count = data.files?.length || selectedFiles.length;
+      showStatus('step2Status', count + ' file(s) uploaded successfully', 'success');
+      selectedFiles = [];
+      renderPendingFiles();
+      activateStep(3);
+      refreshTree();
+    } else {
+      showStatus('step2Status', data.message || 'Upload failed', 'error');
+    }
+  } catch (err) {
+    showStatus('step2Status', 'Error: ' + err.message, 'error');
+  }
+  document.getElementById('uploadBtn').disabled = false;
+}
+
+// ==================== STEP 3: TREE ====================
+async function refreshTree() {
+  if (!currentNodeUuid) return;
+  const container = document.getElementById('treeContainer');
+  container.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const resp = await fetch(API + '/v1/data/centralizedTree/' + currentNodeUuid);
+    const data = await resp.json();
+    if (resp.ok && data.tree && data.tree.length > 0) {
+      container.innerHTML = renderTree(data.tree);
+      activateStep(3);
+      activateStep(4);
+    } else if (resp.ok) {
+      container.innerHTML = '<p style="color:#6c7a8d;font-size:0.85rem">No files uploaded yet.</p>';
+    } else {
+      container.innerHTML = '<p style="color:#fca5a5;font-size:0.85rem">' + (data.message || 'Could not load files') + '</p>';
+    }
+  } catch (err) {
+    container.innerHTML = '<p style="color:#fca5a5;font-size:0.85rem">Error: ' + err.message + '</p>';
+  }
+}
+
+function renderTree(nodes, parentPath) {
+  if (!nodes || !nodes.length) return '';
+  let html = '';
+  for (const node of nodes) {
+    const fullPath = parentPath ? parentPath + '/' + node.name : node.name;
+    if (node.type === 'dir') {
+      html += '<div class="tree-dir" onclick="this.nextElementSibling.classList.toggle(\'hidden\')">';
+      html += '<span>&#128193;</span> ' + esc(node.name);
+      html += '</div>';
+      html += '<div class="tree-children">' + renderTree(node.children, fullPath) + '</div>';
+    } else {
+      html += '<div class="tree-file">';
+      html += '<span>&#128196;</span> ' + esc(node.name);
+      html += '<span class="tree-meta">' + formatSize(node.size) + '</span>';
+      html += '<a class="tree-dl" data-path="' + esc(fullPath) + '" href="javascript:void(0)" onclick="downloadFile(this.dataset.path)">download</a>';
+      html += '</div>';
+    }
+  }
+  return html;
+}
+
+async function downloadFile(filePath) {
+  const encodedPath = filePath.split('/').map(s => encodeURIComponent(s)).join('/');
+  const url = API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/' + encodedPath;
+  try {
+    const resp = await fetch(url, { headers: authHeaders() });
+    if (!resp.ok) {
+      alert('Download failed: ' + resp.status);
+      return;
+    }
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filePath.split('/').pop();
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert('Download error: ' + err.message);
+  }
+}
+
+async function downloadZip() {
+  if (!currentNodeUuid) return;
+  const url = API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/zip';
+  try {
+    const resp = await fetch(url, { headers: authHeaders() });
+    if (!resp.ok) { alert('Download failed: ' + resp.status); return; }
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = currentNodeUuid.slice(0, 12) + '.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert('Download error: ' + err.message);
+  }
+}
+
+// ==================== STEP 4: SHARE ====================
+async function generateShareLink() {
+  showStatus('step4Status', 'Generating share link...', 'info');
+  try {
+    const resp = await fetch(API + '/v1/nodes/share/' + currentNodeUuid, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    });
+    const data = await resp.json();
+    if (data.ok && data.shareId) {
+      currentShareId = data.shareId;
+      showShareResult(data.shareId);
+      showStatus('step4Status', '', 'success');
+      document.getElementById('step4Status').classList.add('hidden');
+      document.getElementById('testSection').classList.remove('hidden');
+    } else {
+      showStatus('step4Status', data.message || 'Failed to generate share link', 'error');
+    }
+  } catch (err) {
+    showStatus('step4Status', 'Error: ' + err.message, 'error');
+  }
+}
+
+function showShareResult(shareId) {
+  const zipUrl = API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/zip?shareId=' + shareId;
+  const treeUrl = API + '/v1/data/centralizedTree/' + currentNodeUuid;
+
+  document.getElementById('shareResult').innerHTML =
+    '<div class="share-box">' +
+    '<p style="font-size:0.85rem;color:#86efac;font-weight:500">Share link generated!</p>' +
+    '<p style="font-size:0.8rem;color:#6c7a8d;margin-top:4px">Share ID: <code style="color:#fcd34d">' + esc(shareId) + '</code></p>' +
+    '<p style="font-size:0.8rem;color:#6c7a8d;margin-top:10px">Download all files as ZIP (no sign-in needed):</p>' +
+    '<div class="share-url">' +
+    '<input type="text" value="' + esc(zipUrl) + '" readonly onclick="this.select()" />' +
+    '<button class="btn btn-sm" onclick="copyShareUrl(this)">Copy</button>' +
+    '</div>' +
+    '<p style="font-size:0.8rem;color:#6c7a8d;margin-top:10px">Browse files (public metadata):</p>' +
+    '<div class="share-url">' +
+    '<input type="text" value="' + esc(treeUrl) + '" readonly onclick="this.select()" />' +
+    '<button class="btn btn-sm" onclick="copyShareUrl(this)">Copy</button>' +
+    '</div>' +
+    '</div>';
+}
+
+function copyShareUrl(btn) {
+  const input = btn.previousElementSibling;
+  navigator.clipboard.writeText(input.value).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  });
+}
+
+function findFirstFile() {
+  const fileEls = document.querySelectorAll('.tree-dl');
+  if (fileEls.length > 0) {
+    return fileEls[0].dataset.path || null;
+  }
+  return null;
+}
+
+// ==================== TESTS ====================
+async function runTests() {
+  const firstFile = findFirstFile();
+  const results = document.getElementById('testResults');
+  results.innerHTML = '';
+
+  const tests = [
+    { name: 'Tree is public (no auth)', fn: testTreePublic },
+    { name: 'Download denied without auth', fn: () => testDownloadDenied(firstFile) },
+    { name: 'Download works with auth', fn: () => testDownloadAuth(firstFile) },
+    { name: 'Download works with share link', fn: () => testDownloadShare(firstFile) },
+    { name: 'Invalid share ID denied', fn: () => testInvalidShare(firstFile) },
+    { name: 'Zip download works with auth', fn: testZipAuth },
+    { name: 'Zip download works with share link', fn: testZipShare },
+    { name: 'Zip download denied without auth', fn: testZipDenied },
+    { name: 'Upload denied without auth', fn: testUploadDenied },
+  ];
+
+  for (const t of tests) {
+    try {
+      const pass = await t.fn();
+      results.innerHTML += '<div class="test-item ' + (pass ? 'pass' : 'fail') + '"><span class="test-icon">' + (pass ? 'PASS' : 'FAIL') + '</span> ' + esc(t.name) + '</div>';
+    } catch (err) {
+      results.innerHTML += '<div class="test-item fail"><span class="test-icon">FAIL</span> ' + esc(t.name) + ' (' + err.message + ')</div>';
+    }
+  }
+}
+
+async function testTreePublic() {
+  const resp = await fetch(API + '/v1/data/centralizedTree/' + currentNodeUuid);
+  return resp.ok;
+}
+
+function encodeFilePath(p) { return p.split('/').map(s => encodeURIComponent(s)).join('/'); }
+
+async function testDownloadDenied(filePath) {
+  if (!filePath) return false;
+  const resp = await fetch(API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/' + encodeFilePath(filePath));
+  return resp.status === 403;
+}
+
+async function testDownloadAuth(filePath) {
+  if (!filePath) return false;
+  const resp = await fetch(API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/' + encodeFilePath(filePath), { headers: authHeaders() });
+  return resp.ok;
+}
+
+async function testDownloadShare(filePath) {
+  if (!filePath || !currentShareId) return false;
+  const resp = await fetch(API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/' + encodeFilePath(filePath) + '?shareId=' + currentShareId);
+  return resp.ok;
+}
+
+async function testInvalidShare(filePath) {
+  if (!filePath) return false;
+  const resp = await fetch(API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/' + encodeFilePath(filePath) + '?shareId=bogus-invalid');
+  return resp.status === 403;
+}
+
+async function testZipAuth() {
+  const resp = await fetch(API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/zip', { headers: authHeaders() });
+  return resp.ok && resp.headers.get('content-type')?.includes('zip');
+}
+
+async function testZipShare() {
+  if (!currentShareId) return false;
+  const resp = await fetch(API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/zip?shareId=' + currentShareId);
+  return resp.ok && resp.headers.get('content-type')?.includes('zip');
+}
+
+async function testZipDenied() {
+  const resp = await fetch(API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/zip');
+  return resp.status === 403;
+}
+
+async function testUploadDenied() {
+  const fd = new FormData();
+  fd.append('uuid', currentNodeUuid);
+  fd.append('contextPath', 'test');
+  fd.append('files', new Blob(['test']), 'test.txt');
+  const resp = await fetch(API + '/v1/data/uploadCentralized', { method: 'POST', body: fd });
+  return resp.status === 401;
+}
+
+// ==================== HELPERS ====================
+function activateStep(n) {
+  const el = document.getElementById('step' + n);
+  el.classList.remove('disabled');
+  el.classList.add('active');
+}
+
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!msg) { el.innerHTML = ''; el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const icon = type === 'info' ? '<div class="spinner"></div> ' : '';
+  el.innerHTML = '<div class="status ' + type + '">' + icon + esc(msg) + '</div>';
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+  return (bytes / 1073741824).toFixed(2) + ' GB';
+}
+
+function esc(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', () => {
+  initDropzone();
+  // Enter key submits the active auth form
+  document.getElementById('authEmailInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMagicCode(); });
+  document.getElementById('authCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter') verifyMagicCode(); });
+  document.getElementById('authEmailInput').focus();
+});
+</script>
+</body>
+</html>

@@ -10,6 +10,8 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import type { Express, Request } from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { pinoHttp } from 'pino-http';
@@ -61,6 +63,7 @@ const allowlist = [
   'sciweave.com',
   'https://www.sciweave.com',
   'https://sciweave.com',
+  'http://localhost:5420',
   'loca.lt' /** NOT SECURE */,
   'vercel.app' /** NOT SECURE */,
 ];
@@ -135,7 +138,10 @@ export class AppServer {
       });
     });
 
-    this.app.use(helmet());
+    this.app.use((req, res, next) => {
+      if (req.path.startsWith('/test/')) return next();
+      helmet()(req, res, next);
+    });
 
     // Skip JSON parsing for webhook endpoints to preserve raw body for signature verification
     this.app.use((req, res, next) => {
@@ -150,6 +156,11 @@ export class AppServer {
 
     this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
+
+    // Serve test UI for centralized data (must be before route handlers)
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    this.app.use('/test', express.static(path.join(__dirname, '../src/test')));
 
     // attach all app routes
     this.#attachRouteHandlers();

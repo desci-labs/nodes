@@ -46,10 +46,20 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
     try {
       const ip = req.ip;
-      // debugger;
       const ok = await sendMagicLink(cleanEmail, ip, undefined, isSciweave);
       logger.info({ ok }, 'Magic link sent');
-      res.send({ ok: !!ok });
+
+      // In non-production, include the code in the response for test UIs
+      let devCode: string | undefined;
+      if (process.env.NODE_ENV !== 'production') {
+        const latest = await prismaClient.magicLink.findFirst({
+          where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+          orderBy: { createdAt: 'desc' },
+        });
+        devCode = latest?.token;
+      }
+
+      res.send({ ok: !!ok, ...(devCode ? { devCode } : {}) });
     } catch (err) {
       logger.error({ err }, 'Failed sending code');
       res.status(400).send({ ok: false, error: 'Failed sending code' });

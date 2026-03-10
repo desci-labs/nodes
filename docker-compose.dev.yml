@@ -48,6 +48,9 @@ services:
 
   desci_nodes_backend:
     container_name: "desci_nodes_backend"
+    build:
+      context: desci-server
+      dockerfile: Dockerfile
     entrypoint: /bin/sh './desci-server/scripts/be-node-dev.sh'
     env_file:
       - .env
