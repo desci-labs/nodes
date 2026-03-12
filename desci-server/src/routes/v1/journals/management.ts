@@ -67,15 +67,38 @@ export default function managementRoutes(router: Router) {
       if (isNaN(applicationId) || applicationId <= 0) {
         return sendError(res, 'Invalid application ID.', 400);
       }
-      const { name, description, iconCid, editorialBoard, instructionsForAuthors, instructionsForReviewers } =
-        req.validatedData.body;
+      const {
+        name,
+        description,
+        iconCid,
+        issn,
+        editorialBoard,
+        aimsAndScope,
+        reviewProcess,
+        reviewerStandards,
+        authorPolicies,
+        instructionsForAuthors,
+        instructionsForReviewers,
+      } = req.validatedData.body;
       const result = await JournalManagementService.resubmitJournalApplication({
         applicationId,
         applicantId: req.user.id,
         name,
         description,
         iconCid,
-        editorialBoard,
+        issn,
+        editorialBoard: (editorialBoard ?? []).map((member: any) => ({
+          name: member.name ?? '',
+          email: member.email ?? '',
+          role: member.role ?? '',
+          affiliation: member.affiliation ?? '',
+          country: member.country ?? '',
+          profileUrl: member.profileUrl ?? '',
+        })),
+        aimsAndScope: aimsAndScope ?? undefined,
+        reviewProcess: reviewProcess ?? undefined,
+        reviewerStandards: reviewerStandards ?? undefined,
+        authorPolicies: authorPolicies ?? undefined,
         instructionsForAuthors,
         instructionsForReviewers,
       });

@@ -15,8 +15,19 @@ type ApplyForJournalRequest = ValidatedRequest<typeof journalApplicationSchema, 
 
 export const applyForJournalController = async (req: ApplyForJournalRequest, res: Response) => {
   try {
-    const { name, description, iconCid, editorialBoard, instructionsForAuthors, instructionsForReviewers } =
-      req.validatedData.body;
+    const {
+      name,
+      description,
+      iconCid,
+      issn,
+      editorialBoard,
+      aimsAndScope,
+      reviewProcess,
+      reviewerStandards,
+      authorPolicies,
+      instructionsForAuthors,
+      instructionsForReviewers,
+    } = req.validatedData.body;
     const applicantId = req.user.id;
 
     logger.info({ name, applicantId }, 'Attempting to submit journal application');
@@ -25,11 +36,19 @@ export const applyForJournalController = async (req: ApplyForJournalRequest, res
       name,
       description,
       iconCid,
+      issn,
       editorialBoard: (editorialBoard ?? []).map((member) => ({
         name: member.name ?? '',
         email: member.email ?? '',
         role: member.role ?? '',
+        affiliation: member.affiliation ?? '',
+        country: member.country ?? '',
+        profileUrl: member.profileUrl ?? '',
       })),
+      aimsAndScope: aimsAndScope ?? undefined,
+      reviewProcess: reviewProcess ?? undefined,
+      reviewerStandards: reviewerStandards ?? undefined,
+      authorPolicies: authorPolicies ?? undefined,
       instructionsForAuthors,
       instructionsForReviewers,
       applicantId,

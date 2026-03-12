@@ -1221,11 +1221,25 @@ async function updateJournalSettings(
 
 // --- Journal Application (journal creation approval flow) ---
 
+interface EditorialBoardMemberInput {
+  name: string;
+  email: string;
+  role: string;
+  affiliation?: string;
+  country?: string;
+  profileUrl?: string;
+}
+
 interface ApplyForJournalInput {
   name: string;
   description: string;
   iconCid?: string;
-  editorialBoard: { name: string; email: string; role: string }[];
+  issn?: string;
+  editorialBoard: EditorialBoardMemberInput[];
+  aimsAndScope?: Record<string, unknown>;
+  reviewProcess?: Record<string, unknown>;
+  reviewerStandards?: Record<string, unknown>;
+  authorPolicies?: Record<string, unknown>;
   instructionsForAuthors: string;
   instructionsForReviewers: string;
   applicantId: number;
@@ -1242,11 +1256,17 @@ async function applyForJournal(data: ApplyForJournalInput): Promise<Result<Journ
       data: {
         name: data.name,
         description: data.description,
-        editorialBoard: data.editorialBoard,
+        iconCid: data.iconCid ?? null,
+        issn: data.issn ?? null,
+        editorialBoard: data.editorialBoard as unknown as Prisma.InputJsonValue,
+        aimsAndScope: data.aimsAndScope != null ? (data.aimsAndScope as Prisma.InputJsonValue) : null,
+        reviewProcess: data.reviewProcess != null ? (data.reviewProcess as Prisma.InputJsonValue) : null,
+        reviewerStandards: data.reviewerStandards != null ? (data.reviewerStandards as Prisma.InputJsonValue) : null,
+        authorPolicies: data.authorPolicies != null ? (data.authorPolicies as Prisma.InputJsonValue) : null,
         instructionsForAuthors: data.instructionsForAuthors,
         instructionsForReviewers: data.instructionsForReviewers,
         applicantId: data.applicantId,
-      },
+      } as unknown as Prisma.JournalApplicationCreateInput,
     });
 
     // Send notification email to admin
@@ -1405,7 +1425,12 @@ interface ResubmitJournalApplicationInput {
   name: string;
   description: string;
   iconCid?: string;
-  editorialBoard: { name: string; email: string; role: string }[];
+  issn?: string;
+  editorialBoard: EditorialBoardMemberInput[];
+  aimsAndScope?: Record<string, unknown>;
+  reviewProcess?: Record<string, unknown>;
+  reviewerStandards?: Record<string, unknown>;
+  authorPolicies?: Record<string, unknown>;
   instructionsForAuthors: string;
   instructionsForReviewers: string;
 }
@@ -1435,11 +1460,17 @@ async function resubmitJournalApplication(
       data: {
         name: data.name,
         description: data.description,
-        editorialBoard: data.editorialBoard,
+        iconCid: data.iconCid ?? null,
+        issn: data.issn ?? null,
+        editorialBoard: data.editorialBoard as unknown as Prisma.InputJsonValue,
+        aimsAndScope: data.aimsAndScope != null ? (data.aimsAndScope as Prisma.InputJsonValue) : null,
+        reviewProcess: data.reviewProcess != null ? (data.reviewProcess as Prisma.InputJsonValue) : null,
+        reviewerStandards: data.reviewerStandards != null ? (data.reviewerStandards as Prisma.InputJsonValue) : null,
+        authorPolicies: data.authorPolicies != null ? (data.authorPolicies as Prisma.InputJsonValue) : null,
         instructionsForAuthors: data.instructionsForAuthors,
         instructionsForReviewers: data.instructionsForReviewers,
         status: JournalApplicationStatus.PENDING,
-      },
+      } as unknown as Prisma.JournalApplicationUpdateInput,
     });
 
     // Send notification email to admin

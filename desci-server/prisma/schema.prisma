@@ -269,6 +269,7 @@ model User {
   inviteCredits             Int                         @default(0)
   JournalEventLogs          JournalEventLog[]
   EditorInvite              EditorInvite[]
+  journalApplications       JournalApplication[]
   // messagesSent        Message[]           @relation("MessageSender")
   // messagesReceived    Message[]           @relation("MessageReceiver")
   // Message             Message[]
@@ -2071,7 +2072,12 @@ model JournalApplication {
   name                     String
   description              String
   iconCid                  String?
-  editorialBoard           Json // Array of { name, email, role }
+  issn                     String?
+  editorialBoard           Json // Array of { name, email, role, affiliation?, country?, profileUrl? }
+  aimsAndScope             Json? // { primaryPublicationLanguage, articleTypes, publicationSchedule, ... }
+  reviewProcess            Json? // { reviewerAuthorIdentities, minReviewersPerSubmission, ... }
+  reviewerStandards        Json? // { reviewerSelection, conflictOfInterestPolicy }
+  authorPolicies           Json? // { orcidResearcherIdRequirement, assignDoisToCuratedResearchObjects, additionalAuthorInstructions, mandatoryPolicy1-6 }
   instructionsForAuthors   String
   instructionsForReviewers String
   status                   JournalApplicationStatus @default(PENDING)

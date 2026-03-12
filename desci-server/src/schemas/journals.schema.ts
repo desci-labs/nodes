@@ -843,20 +843,69 @@ export const updateJournalSettingsSchema = z.object({
 });
 
 // Journal Application Schemas (journal creation approval flow)
+const editorialBoardMemberSchema = z.object({
+  name: z.string(),
+  email: z.string(),
+  role: z.string(),
+  affiliation: z.string().optional().default(''),
+  country: z.string().optional().default(''),
+  profileUrl: z.string().optional().default(''),
+});
+
+const aimsAndScopeSchema = z
+  .object({
+    primaryPublicationLanguage: z.string(),
+    articleTypes: z.array(z.string()),
+    publicationSchedule: z.string(),
+    articlesPerYear: z.string(),
+    intendedAcademicAudience: z.string(),
+    mission: z.string(),
+    topicsAndSubjectAreas: z.string(),
+    gapThisJournalFills: z.string(),
+  })
+  .optional();
+
+const reviewProcessSchema = z
+  .object({
+    reviewerAuthorIdentities: z.string(),
+    minReviewersPerSubmission: z.string(),
+    primaryResearchPeerReview: z.string(),
+    typicalReviewTimeline: z.string(),
+  })
+  .optional();
+
+const reviewerStandardsSchema = z
+  .object({
+    reviewerSelection: z.string(),
+    conflictOfInterestPolicy: z.string(),
+  })
+  .optional();
+
+const authorPoliciesSchema = z
+  .object({
+    orcidResearcherIdRequirement: z.string(),
+    assignDoisToCuratedResearchObjects: z.string(),
+    additionalAuthorInstructions: z.string(),
+    mandatoryPolicy1: z.boolean(),
+    mandatoryPolicy2: z.boolean(),
+    mandatoryPolicy3: z.boolean(),
+    mandatoryPolicy4: z.boolean(),
+    mandatoryPolicy5: z.boolean(),
+    mandatoryPolicy6: z.boolean(),
+  })
+  .optional();
+
 export const journalApplicationSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Journal name cannot be empty.'),
     description: z.string().min(1, 'Journal description cannot be empty.'),
     iconCid: z.string().optional().describe('IPFS CID of the journal icon'),
-    editorialBoard: z
-      .array(
-        z.object({
-          name: z.string(),
-          email: z.string(),
-          role: z.string(),
-        }),
-      )
-      .default([]),
+    issn: z.string().optional(),
+    editorialBoard: z.array(editorialBoardMemberSchema).default([]),
+    aimsAndScope: aimsAndScopeSchema,
+    reviewProcess: reviewProcessSchema,
+    reviewerStandards: reviewerStandardsSchema,
+    authorPolicies: authorPoliciesSchema,
     instructionsForAuthors: z.string().min(1, 'Instructions for authors cannot be empty.'),
     instructionsForReviewers: z.string().min(1, 'Instructions for reviewers cannot be empty.'),
   }),
