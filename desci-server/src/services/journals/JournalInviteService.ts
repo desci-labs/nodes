@@ -60,6 +60,7 @@ async function inviteJournalEditor({
       name: true,
       description: true,
       iconCid: true,
+      imageUrl: true,
     },
   });
 
@@ -345,6 +346,7 @@ async function resendEditorInvite({
       name: true,
       description: true,
       iconCid: true,
+      imageUrl: true,
     },
   });
 

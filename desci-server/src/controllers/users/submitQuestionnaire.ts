@@ -30,14 +30,14 @@ export const submitQuestionnaire = async (req: Request, res: Response, next: Nex
     });
 
     // Update Amplitude user properties for publish app
-    const amplitudeResult = await updateUserProperties(
-      user?.id,
-      {
+    const amplitudeResult = await updateUserProperties({
+      userId: user?.id,
+      properties: {
         publishRole: role,
         publishDiscoverySource: discoverySource,
       },
-      AmplitudeAppType.PUBLISH,
-    );
+      appType: AmplitudeAppType.PUBLISH,
+    });
 
     if (amplitudeResult.isErr()) {
       logger.warn({ error: amplitudeResult.error }, 'Failed to update Amplitude properties');
