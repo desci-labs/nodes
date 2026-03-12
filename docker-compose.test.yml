@@ -157,7 +157,7 @@ services:
 
   ceramic_one_test:
     container_name: ceramic_one_test
-    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0
+    image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/ceramic-one:latest
     restart: no
     ports:
       - 5101:5101 # RPC
