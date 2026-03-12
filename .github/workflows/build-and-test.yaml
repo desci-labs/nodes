@@ -37,7 +37,7 @@ jobs:
 
       - name: Pre-pull ceramic-one image
         run: |
-          docker pull 523044037273.dkr.ecr.us-east-2.amazonaws.com/ceramic-one:latest || echo "Pull failed, will retry during docker-compose"
+          docker pull public.ecr.aws/m3e8d9d6/desci-labs/ceramic-one:0.58.1 || echo "Pull failed, will retry during docker-compose"
 
       - name: Run tests
         run:

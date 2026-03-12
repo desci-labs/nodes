@@ -157,7 +157,7 @@ services:
 
   ceramic_one_test:
     container_name: ceramic_one_test
-    image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/ceramic-one:latest
+    image: public.ecr.aws/m3e8d9d6/desci-labs/ceramic-one:0.58.1
     restart: no
     ports:
       - 5101:5101 # RPC

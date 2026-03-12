@@ -32,17 +32,6 @@ handle_error() {
 
 trap handle_error ERR
 
-# Check ECR auth for private images (ceramic-one) — skip in CI where auth is handled by the workflow
-if [ -z "$GITHUB_ACTIONS" ]; then
-  ECR_REGISTRY="523044037273.dkr.ecr.us-east-2.amazonaws.com"
-  if ! docker manifest inspect "$ECR_REGISTRY/ceramic-one:latest" > /dev/null 2>&1; then
-    echo "⚠️  Cannot access ECR registry ($ECR_REGISTRY)."
-    echo "   Run: aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $ECR_REGISTRY"
-    echo "   (Requires AWS credentials with ECR read permissions)"
-    exit 1
-  fi
-fi
-
 # Cleanup old containers
 docker compose -f docker-compose.test.yml down
 
