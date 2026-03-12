@@ -6,12 +6,11 @@ FROM node:20
 WORKDIR /usr/src/app
 
 # Copy application dependency manifests to the container image.
-# A wildcard is used to ensure both package.json AND package-lock.json are copied.
-# Copying this separately prevents re-running npm install on every code change.
-COPY package*.json ./
+# Copying package.json and yarn.lock separately prevents re-running yarn install on every code change.
+COPY package.json yarn.lock ./
 
 # Install production dependencies.
-RUN yarn install
+RUN yarn install --frozen-lockfile
 
 # Wrangler will prompt, and thus hang if you don't specify this
 ENV WRANGLER_SEND_METRICS=false
