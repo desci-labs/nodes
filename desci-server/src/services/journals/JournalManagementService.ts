@@ -247,6 +247,7 @@ async function createJournal(data: CreateJournalInput): Promise<Result<Journal, 
           create: {
             userId: data.ownerId,
             role: EditorRole.CHIEF_EDITOR,
+            expertise: [],
             invitedAt: new Date(),
             acceptedAt: new Date(),
           },
