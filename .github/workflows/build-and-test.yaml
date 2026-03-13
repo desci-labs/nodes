@@ -25,9 +25,19 @@ jobs:
       # Enable blacksmith docker layer caching
       #- uses: useblacksmith/setup-docker-builder@v1
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Pre-pull ceramic-one image
         run: |
-          docker pull public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.56.0 || echo "Pull failed, will retry during docker-compose"
+          docker pull public.ecr.aws/m3e8d9d6/desci-labs/ceramic-one:0.58.1 || echo "Pull failed, will retry during docker-compose"
 
       - name: Run tests
         run:
