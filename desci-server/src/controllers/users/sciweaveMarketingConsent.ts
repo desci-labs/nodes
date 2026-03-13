@@ -43,13 +43,13 @@ export const updateSciweaveMarketingConsentController = async (req: Authenticate
     const consentData = result.value;
 
     // Update Amplitude user properties for sciweave app marketing consent
-    const amplitudeResult = await updateUserProperties(
+    const amplitudeResult = await updateUserProperties({
       userId,
-      {
+      properties: {
         receiveSciweaveMarketingEmails: receiveMarketingEmails,
       },
-      AmplitudeAppType.SCIWEAVE,
-    );
+      appType: AmplitudeAppType.SCIWEAVE,
+    });
 
     if (amplitudeResult.isErr()) {
       logger.warn({ error: amplitudeResult.error }, 'Failed to update Amplitude properties');

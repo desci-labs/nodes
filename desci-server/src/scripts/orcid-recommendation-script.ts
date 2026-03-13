@@ -1,12 +1,12 @@
 #!/usr/bin/env ts-node
 /**
  * ORCID Co-Author Recommendation Script
- * 
+ *
  * This script fetches ORCID IDs from various sources for building a news feed recommendation system:
  * 1. Direct co-authors: Authors who have co-authored papers with the target ORCID
  * 2. View-authors: Authors of papers the target ORCID has viewed/bookmarked
  * 3. Second-order relationships: Co-authors of the above categories
- * 
+ *
  * Results are saved to Redis as comma-separated lists for each category.
  */
 
@@ -79,20 +79,23 @@ class OrcidRecommendationService {
         directCoAuthors: this.deduplicateOrcids(directCoAuthors, [targetOrcid]),
         viewAuthors: this.deduplicateOrcids(viewAuthors, [targetOrcid]),
         directCoAuthors2nd: this.deduplicateOrcids(directCoAuthors2nd, [targetOrcid, ...directCoAuthors]),
-        viewAuthors2nd: this.deduplicateOrcids(viewAuthors2nd, [targetOrcid, ...viewAuthors])
+        viewAuthors2nd: this.deduplicateOrcids(viewAuthors2nd, [targetOrcid, ...viewAuthors]),
       };
 
       const endTime = performance.now();
       const duration = Math.round(endTime - startTime);
-      
-      logger.info({
-        targetOrcid,
-        directCoAuthors: recommendations.directCoAuthors.length,
-        viewAuthors: recommendations.viewAuthors.length,
-        directCoAuthors2nd: recommendations.directCoAuthors2nd.length,
-        viewAuthors2nd: recommendations.viewAuthors2nd.length,
-        duration: `${duration}ms`
-      }, 'ORCID recommendation building completed');
+
+      logger.info(
+        {
+          targetOrcid,
+          directCoAuthors: recommendations.directCoAuthors.length,
+          viewAuthors: recommendations.viewAuthors.length,
+          directCoAuthors2nd: recommendations.directCoAuthors2nd.length,
+          viewAuthors2nd: recommendations.viewAuthors2nd.length,
+          duration: `${duration}ms`,
+        },
+        'ORCID recommendation building completed',
+      );
 
       return recommendations;
     } catch (error) {
@@ -110,7 +113,7 @@ class OrcidRecommendationService {
     try {
       // Format ORCID for ES search
       const formattedOrcid = this.formatOrcidForSearch(targetOrcid);
-      
+
       // Search for works by this author in Elasticsearch
       const searchResponse = await elasticClient.search({
         index: 'works_*', // Search across all works indices
@@ -120,14 +123,14 @@ class OrcidRecommendationService {
               path: 'authors',
               query: {
                 term: {
-                  'authors.orcid': formattedOrcid
-                }
-              }
-            }
+                  'authors.orcid': formattedOrcid,
+                },
+              },
+            },
           },
           _source: ['authors.orcid', 'authors.display_name', 'title'],
-          size: 1000 // Adjust as needed
-        }
+          size: 1000, // Adjust as needed
+        },
       });
 
       const works = searchResponse.hits.hits;
@@ -150,7 +153,6 @@ class OrcidRecommendationService {
       for (const orcid of orcidApiWorks) {
         coAuthors.add(orcid);
       }
-
     } catch (error) {
       logger.error({ error, targetOrcid }, 'Error fetching direct co-authors from Elasticsearch');
     }
@@ -171,21 +173,21 @@ class OrcidRecommendationService {
         include: {
           BookmarkedNode: {
             include: {
-              node: true
-            }
+              node: true,
+            },
           },
           interactionLogs: {
             where: {
               action: 'RETRIEVE_URL', // or other view-related actions
-              nodeId: { not: null }
+              nodeId: { not: null },
             },
             include: {
-              node: true
+              node: true,
             },
             take: 1000,
-            orderBy: { createdAt: 'desc' }
-          }
-        }
+            orderBy: { createdAt: 'desc' },
+          },
+        },
       });
 
       if (!user) {
@@ -200,31 +202,30 @@ class OrcidRecommendationService {
         if (bookmark.oaWorkId && !processedWorks.has(bookmark.oaWorkId)) {
           processedWorks.add(bookmark.oaWorkId);
           const workAuthors = await this.getAuthorsFromElasticWork(bookmark.oaWorkId);
-          workAuthors.forEach(orcid => authors.add(orcid));
+          workAuthors.forEach((orcid) => authors.add(orcid));
         }
-        
+
         if (bookmark.doi && !processedWorks.has(bookmark.doi)) {
           processedWorks.add(bookmark.doi);
           const workAuthors = await this.getAuthorsFromElasticWorkByDoi(bookmark.doi);
-          workAuthors.forEach(orcid => authors.add(orcid));
+          workAuthors.forEach((orcid) => authors.add(orcid));
         }
       }
 
       // Process viewed nodes from interaction logs
       const viewedNodeUuids = new Set(
         user.interactionLogs
-          .filter(log => log.nodeId)
-          .map(log => log.node?.uuid)
-          .filter(Boolean)
+          .filter((log) => log.nodeId)
+          .map((log) => log.node?.uuid)
+          .filter(Boolean),
       );
 
       for (const nodeUuid of viewedNodeUuids) {
         if (nodeUuid) {
           const nodeAuthors = await this.getAuthorsFromNode(nodeUuid);
-          nodeAuthors.forEach(orcid => authors.add(orcid));
+          nodeAuthors.forEach((orcid) => authors.add(orcid));
         }
       }
-
     } catch (error) {
       logger.error({ error, targetOrcid }, 'Error fetching viewed paper authors');
     }
@@ -238,13 +239,16 @@ class OrcidRecommendationService {
   private async getSecondOrderCoAuthors(firstOrderOrcids: string[]): Promise<string[]> {
     const secondOrderAuthors: Set<string> = new Set();
     const limitedOrcids = firstOrderOrcids.slice(0, this.MAX_SECOND_ORDER_DEPTH);
-    
-    logger.info({ firstOrder: firstOrderOrcids.length, processing: limitedOrcids.length }, 'Processing second-order co-authors');
+
+    logger.info(
+      { firstOrder: firstOrderOrcids.length, processing: limitedOrcids.length },
+      'Processing second-order co-authors',
+    );
 
     // Process in batches to avoid overwhelming the system
     for (let i = 0; i < limitedOrcids.length; i += this.BATCH_SIZE) {
       const batch = limitedOrcids.slice(i, i + this.BATCH_SIZE);
-      
+
       const batchPromises = batch.map(async (orcid) => {
         try {
           const coAuthors = await this.getDirectCoAuthors(orcid);
@@ -256,10 +260,10 @@ class OrcidRecommendationService {
       });
 
       const batchResults = await Promise.allSettled(batchPromises);
-      
+
       batchResults.forEach((result) => {
         if (result.status === 'fulfilled') {
-          result.value.forEach(orcid => secondOrderAuthors.add(orcid));
+          result.value.forEach((orcid) => secondOrderAuthors.add(orcid));
         }
       });
 
@@ -285,19 +289,23 @@ class OrcidRecommendationService {
         setToCache(`${keyPrefix}:view_authors`, recommendations.viewAuthors.join(','), this.CACHE_TTL),
         setToCache(`${keyPrefix}:direct_coauthors_2nd`, recommendations.directCoAuthors2nd.join(','), this.CACHE_TTL),
         setToCache(`${keyPrefix}:view_authors_2nd`, recommendations.viewAuthors2nd.join(','), this.CACHE_TTL),
-        setToCache(`${keyPrefix}:metadata`, JSON.stringify({
-          generatedAt: new Date().toISOString(),
-          counts: {
-            directCoAuthors: recommendations.directCoAuthors.length,
-            viewAuthors: recommendations.viewAuthors.length,
-            directCoAuthors2nd: recommendations.directCoAuthors2nd.length,
-            viewAuthors2nd: recommendations.viewAuthors2nd.length
-          }
-        }), this.CACHE_TTL)
+        setToCache(
+          `${keyPrefix}:metadata`,
+          JSON.stringify({
+            generatedAt: new Date().toISOString(),
+            counts: {
+              directCoAuthors: recommendations.directCoAuthors.length,
+              viewAuthors: recommendations.viewAuthors.length,
+              directCoAuthors2nd: recommendations.directCoAuthors2nd.length,
+              viewAuthors2nd: recommendations.viewAuthors2nd.length,
+            },
+          }),
+          this.CACHE_TTL,
+        ),
       ];
 
       await Promise.all(savePromises);
-      
+
       logger.info({ targetOrcid }, 'Successfully saved recommendations to Redis');
     } catch (error) {
       logger.error({ error, targetOrcid }, 'Error saving recommendations to Redis');
@@ -318,13 +326,15 @@ class OrcidRecommendationService {
       const response = await elasticClient.get({
         index: 'works_*',
         id: workId.replace('https://openalex.org/', ''),
-        _source: ['authors.orcid']
+        _source: ['authors.orcid'],
       });
 
       const work = response._source as ElasticWork;
-      return work.authors
-        ?.filter(author => author.orcid && this.isValidOrcid(author.orcid))
-        .map(author => this.cleanOrcid(author.orcid)) || [];
+      return (
+        work.authors
+          ?.filter((author) => author.orcid && this.isValidOrcid(author.orcid))
+          .map((author) => this.cleanOrcid(author.orcid)) || []
+      );
     } catch (error) {
       logger.warn({ workId, error }, 'Error fetching authors from Elastic work');
       return [];
@@ -337,20 +347,22 @@ class OrcidRecommendationService {
         index: 'works_*',
         body: {
           query: {
-            term: { 'doi.keyword': doi.toLowerCase() }
+            term: { 'doi.keyword': doi.toLowerCase() },
           },
           _source: ['authors.orcid'],
-          size: 1
-        }
+          size: 1,
+        },
       });
 
       const hits = response.hits.hits;
       if (hits.length === 0) return [];
 
       const work = hits[0]._source as ElasticWork;
-      return work.authors
-        ?.filter(author => author.orcid && this.isValidOrcid(author.orcid))
-        .map(author => this.cleanOrcid(author.orcid)) || [];
+      return (
+        work.authors
+          ?.filter((author) => author.orcid && this.isValidOrcid(author.orcid))
+          .map((author) => this.cleanOrcid(author.orcid)) || []
+      );
     } catch (error) {
       logger.warn({ doi, error }, 'Error fetching authors from Elastic work by DOI');
       return [];
@@ -362,16 +374,16 @@ class OrcidRecommendationService {
       // Get node from database
       const node = await prisma.node.findUnique({
         where: { uuid: nodeUuid },
-        include: { authors: true }
+        include: { authors: { include: { user: true } } },
       });
 
       if (!node) return [];
 
-      // Extract ORCIDs from node authors
+      // Extract ORCIDs from node authors (orcid is on User)
       const orcids = node.authors
-        .map(author => author.orcid)
-        .filter(orcid => orcid && this.isValidOrcid(orcid))
-        .map(orcid => this.cleanOrcid(orcid));
+        .map((author) => author.user?.orcid)
+        .filter((orcid) => orcid && this.isValidOrcid(orcid))
+        .map((orcid) => this.cleanOrcid(orcid));
 
       return orcids;
     } catch (error) {
@@ -395,20 +407,20 @@ class OrcidRecommendationService {
   }
 
   private deduplicateOrcids(orcids: string[], exclusions: string[] = []): string[] {
-    const cleanExclusions = exclusions.map(o => this.cleanOrcid(o));
-    const uniqueOrcids = [...new Set(orcids.map(o => this.cleanOrcid(o)))];
-    return uniqueOrcids.filter(orcid => !cleanExclusions.includes(orcid));
+    const cleanExclusions = exclusions.map((o) => this.cleanOrcid(o));
+    const uniqueOrcids = [...new Set(orcids.map((o) => this.cleanOrcid(o)))];
+    return uniqueOrcids.filter((orcid) => !cleanExclusions.includes(orcid));
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
 // Main execution function
 export const main = async () => {
   const targetOrcid = process.argv[2];
-  
+
   if (!targetOrcid) {
     throw new Error('Usage: npm run script:orcid-recommendations <orcid-id>');
   }
@@ -416,40 +428,46 @@ export const main = async () => {
   const service = new OrcidRecommendationService();
 
   logger.info({ targetOrcid }, 'Building ORCID recommendations');
-  
+
   const startTime = performance.now();
   const recommendations = await service.buildRecommendationsForUser(targetOrcid);
   const endTime = performance.now();
-  
+
   const duration = Math.round(endTime - startTime);
-  
-  logger.info({
-    targetOrcid,
-    results: {
-      directCoAuthors: recommendations.directCoAuthors.length,
-      viewAuthors: recommendations.viewAuthors.length,
-      directCoAuthors2nd: recommendations.directCoAuthors2nd.length,
-      viewAuthors2nd: recommendations.viewAuthors2nd.length
+
+  logger.info(
+    {
+      targetOrcid,
+      results: {
+        directCoAuthors: recommendations.directCoAuthors.length,
+        viewAuthors: recommendations.viewAuthors.length,
+        directCoAuthors2nd: recommendations.directCoAuthors2nd.length,
+        viewAuthors2nd: recommendations.viewAuthors2nd.length,
+      },
+      duration: `${duration}ms`,
     },
-    duration: `${duration}ms`
-  }, 'ORCID recommendations completed');
-  
+    'ORCID recommendations completed',
+  );
+
   // Save to Redis
   logger.info({ targetOrcid }, 'Saving recommendations to Redis');
   await service.saveRecommendationsToRedis(targetOrcid, recommendations);
-  
+
   const cleanOrcid = targetOrcid.replace('https://orcid.org/', '').replace(/[^0-9X-]/g, '');
-  logger.info({
-    targetOrcid,
-    redisKeys: [
-      `orcid_recommendations:${cleanOrcid}:direct_coauthors`,
-      `orcid_recommendations:${cleanOrcid}:view_authors`,
-      `orcid_recommendations:${cleanOrcid}:direct_coauthors_2nd`,
-      `orcid_recommendations:${cleanOrcid}:view_authors_2nd`,
-      `orcid_recommendations:${cleanOrcid}:metadata`
-    ]
-  }, 'Successfully saved to Redis');
-  
+  logger.info(
+    {
+      targetOrcid,
+      redisKeys: [
+        `orcid_recommendations:${cleanOrcid}:direct_coauthors`,
+        `orcid_recommendations:${cleanOrcid}:view_authors`,
+        `orcid_recommendations:${cleanOrcid}:direct_coauthors_2nd`,
+        `orcid_recommendations:${cleanOrcid}:view_authors_2nd`,
+        `orcid_recommendations:${cleanOrcid}:metadata`,
+      ],
+    },
+    'Successfully saved to Redis',
+  );
+
   return recommendations;
 };
 

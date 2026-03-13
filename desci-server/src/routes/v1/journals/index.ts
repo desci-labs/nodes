@@ -38,6 +38,9 @@ import submissionsRoutes from './submissions.js';
 
 const router = Router();
 
+// Management routes registered before /:journalId to avoid param conflicts
+managementRoutes(router);
+
 // General
 router.get('/', [attachUser, validateInputs(listJournalsSchema)], asyncHandler(listJournalsController));
 router.get('/profile', [ensureUser], asyncHandler(showJournalProfileController));
@@ -90,7 +93,6 @@ router.get(
 );
 
 invitesRoutes(router);
-managementRoutes(router);
 submissionsRoutes(router);
 reviewsRoutes(router);
 refereesRoutes(router);
