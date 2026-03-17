@@ -54,6 +54,22 @@ export const downloadCentralized = async (req: Request, res: Response): Promise<
       res.setHeader('X-Content-Hash', contentHash);
     }
 
+    stream.on('error', (streamErr) => {
+      logger.error({ err: streamErr, r2Key }, 'R2 stream error during download');
+      stream.destroy();
+      if (!res.headersSent) {
+        res.status(500).json({ ok: false, message: 'Stream error during download' });
+      } else {
+        res.end();
+      }
+    });
+
+    res.on('close', () => {
+      if (!res.writableFinished) {
+        stream.destroy();
+      }
+    });
+
     stream.pipe(res);
   } catch (err: any) {
     if (err?.name === 'NoSuchKey' || err?.$metadata?.httpStatusCode === 404) {

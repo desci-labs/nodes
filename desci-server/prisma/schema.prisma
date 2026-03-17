@@ -598,6 +598,7 @@ model NodeDataGrant {
   @@unique([nodeUUID, granteeId])
   @@index([nodeUUID])
   @@index([granteeId])
+  @@index([grantedById])
 }
 
 model BookmarkedNode {

@@ -1165,8 +1165,7 @@ async function testTreeWithAuth() {
 
 async function testTreeDeniedNoAuth() {
   const resp = await fetch(API + '/v1/data/centralizedTree/' + currentNodeUuid);
-  // Unpublished nodes return 403 without auth; published nodes return 200
-  return resp.status === 403 || resp.ok;
+  return resp.status === 403;
 }
 
 function encodeFilePath(p) { return p.split('/').map(s => encodeURIComponent(s)).join('/'); }

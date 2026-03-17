@@ -3,9 +3,6 @@ import multer from 'multer';
 import fs from 'fs';
 import crypto from 'crypto';
 import os from 'os';
-import { Transform } from 'stream';
-import { pipeline } from 'stream/promises';
-
 import { logger as parentLogger } from '../../logger.js';
 import { uploadToR2, isR2Configured } from '../../services/r2.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
@@ -56,11 +53,13 @@ export const uploadCentralized = async (req: Request, res: Response) => {
   logger.info({ userId: user.id, nodeUuid, contextPath, fileCount: files.length }, 'Uploading centralized data to R2');
 
   const uploaded: { path: string; size: number; contentHash: string }[] = [];
+  const rejected: { fileName: string; reason: string }[] = [];
 
   try {
     for (const file of files) {
       if (UNSAFE_PATH_PATTERN.test(file.originalname) || file.originalname.startsWith('/')) {
         logger.warn({ fileName: file.originalname }, 'Rejected unsafe filename');
+        rejected.push({ fileName: file.originalname, reason: 'unsafe filename' });
         await fs.promises.unlink(file.path).catch(() => {});
         continue;
       }
@@ -71,20 +70,17 @@ export const uploadCentralized = async (req: Request, res: Response) => {
       let hash: string;
 
       if (file.size > STREAM_THRESHOLD) {
+        // Stream large files: compute hash while reading, then upload the file from disk.
+        // Note: uploadToR2 uses PutObjectCommand which buffers internally for R2.
+        // For truly huge files (>5GB), multipart upload would be needed.
         const hashStream = crypto.createHash('sha256');
-        const chunks: Buffer[] = [];
-        const collector = new Transform({
-          transform(chunk, _encoding, cb) {
-            hashStream.update(chunk);
-            chunks.push(chunk);
-            cb(null, chunk);
-          },
-        });
         const readStream = fs.createReadStream(file.path);
-        await pipeline(readStream, collector);
+        for await (const chunk of readStream) {
+          hashStream.update(chunk);
+        }
         hash = hashStream.digest('hex');
-        const fileBuffer = Buffer.concat(chunks);
-        await uploadToR2(r2Key, fileBuffer, {
+        const uploadStream = fs.createReadStream(file.path);
+        await uploadToR2(r2Key, uploadStream, {
           'content-hash': hash,
           'mime-type': file.mimetype || 'application/octet-stream',
         });
@@ -103,7 +99,7 @@ export const uploadCentralized = async (req: Request, res: Response) => {
       await fs.promises.unlink(file.path).catch(() => {});
     }
 
-    return res.status(200).json({ ok: true, files: uploaded });
+    return res.status(200).json({ ok: true, files: uploaded, ...(rejected.length ? { rejected } : {}) });
   } catch (err) {
     logger.error({ err }, 'Failed to upload centralized data');
     // Clean up any remaining temp files

@@ -31,14 +31,14 @@ Open the test UI: **http://localhost:5420/test/centralizedData.html**
 
 Uses the existing magic link flow — no new auth endpoints.
 
-```
+```text
 POST /v1/auth/magic  { email }          → sends verification code
 POST /v1/auth/magic  { email, code }    → returns JWT token
 ```
 
 ### Node Management
 
-```
+```text
 POST /v1/nodes/createDraft              → creates a research node (returns uuid)
 GET  /v1/nodes/                         → lists user's nodes
 ```
@@ -54,12 +54,12 @@ GET  /v1/nodes/                         → lists user's nodes
 
 ### Sharing
 
-```
+```text
 POST /v1/nodes/share/:uuid             → generates a shareId (requires JWT)
 ```
 
 Share links allow **unauthenticated** download access:
-```
+```text
 GET /v1/data/downloadCentralized/:uuid/zip?shareId=xxx
 GET /v1/data/downloadCentralized/:uuid/path/to/file.pdf?shareId=xxx
 ```
@@ -79,7 +79,7 @@ GET /v1/data/downloadCentralized/:uuid/path/to/file.pdf?shareId=xxx
 
 Required in `.env` (see `.env.example`):
 
-```
+```text
 R2_ACCOUNT_ID=...
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
@@ -90,7 +90,7 @@ For deployed environments, these are injected via Vault (see `kubernetes/deploym
 
 ## File Structure
 
-```
+```text
 src/
   services/r2.ts                          # R2 client (S3-compatible)
   controllers/data/uploadCentralized.ts   # Upload endpoint

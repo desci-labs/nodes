@@ -51,7 +51,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
       // In non-production, include the code in the response for test UIs
       let devCode: string | undefined;
-      if (process.env.NODE_ENV !== 'production') {
+      if (process.env.NODE_ENV !== 'production' && ok) {
         const latest = await prismaClient.magicLink.findFirst({
           where: { email: { equals: cleanEmail, mode: 'insensitive' } },
           orderBy: { id: 'desc' },

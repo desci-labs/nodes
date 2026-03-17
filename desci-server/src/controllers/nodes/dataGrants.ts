@@ -69,7 +69,7 @@ export const revokeDataGrant = async (req: Request, res: Response): Promise<void
   const normalizedUuid = ensureUuidEndsWithDot(uuid);
 
   const node = await prisma.node.findFirst({
-    where: { uuid: normalizedUuid, ownerId: owner.id },
+    where: { uuid: normalizedUuid, ownerId: owner.id, isDeleted: false },
   });
 
   if (!node) {
@@ -101,7 +101,7 @@ export const listDataGrants = async (req: Request, res: Response): Promise<void>
   const normalizedUuid = ensureUuidEndsWithDot(uuid);
 
   const node = await prisma.node.findFirst({
-    where: { uuid: normalizedUuid, ownerId: owner.id },
+    where: { uuid: normalizedUuid, ownerId: owner.id, isDeleted: false },
   });
 
   if (!node) {
@@ -132,7 +132,7 @@ export const listMyGrants = async (req: Request, res: Response): Promise<void> =
   const user = (req as any).user;
 
   const grants = await prisma.nodeDataGrant.findMany({
-    where: { granteeId: user.id, revokedAt: null },
+    where: { granteeId: user.id, revokedAt: null, node: { isDeleted: false } },
     include: {
       node: { select: { uuid: true, title: true } },
       grantedBy: { select: { email: true, name: true } },

@@ -48,7 +48,7 @@ export async function uploadToR2(
       Metadata: metadata,
     }),
   );
-  logger.info({ key }, 'Uploaded to R2');
+  logger.info({ keyPrefix: key.split('/').slice(0, 2).join('/') + '/...' }, 'Uploaded to R2');
 }
 
 export async function getStreamFromR2(key: string): Promise<{ stream: Readable; metadata: Record<string, string> }> {
@@ -76,7 +76,7 @@ export async function deleteFromR2(key: string): Promise<void> {
       Key: key,
     }),
   );
-  logger.info({ key }, 'Deleted from R2');
+  logger.info({ keyPrefix: key.split('/').slice(0, 2).join('/') + '/...' }, 'Deleted from R2');
 }
 
 export type R2ObjectEntry = { key: string; size: number; lastModified: Date | undefined };
