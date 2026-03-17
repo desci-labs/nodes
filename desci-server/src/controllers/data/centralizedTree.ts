@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { checkCentralizedDataAccess } from '../../services/centralizedDataAccess.js';
 import { listR2Objects, isR2Configured } from '../../services/r2.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -87,14 +88,23 @@ export const centralizedTree = async (req: Request, res: Response) => {
 
   logger.info({ nodeUuid: normalizedUuid }, 'Fetching centralized tree');
 
-  // Metadata (tree structure) is public — no auth required
-  // Verify the node exists
   const node = await prisma.node.findFirst({
     where: { uuid: normalizedUuid },
+    include: { versions: { where: { transactionId: { not: null } }, take: 1 } },
   });
 
   if (!node) {
     return res.status(404).json({ ok: false, message: 'Node not found' });
+  }
+
+  const isPublished = node.versions.length > 0;
+  if (!isPublished) {
+    const shareId = req.query.shareId as string | undefined;
+    const user = (req as any).user;
+    const { hasAccess } = await checkCentralizedDataAccess(normalizedUuid, shareId, user);
+    if (!hasAccess) {
+      return res.status(403).json({ ok: false, message: 'Access denied. This node is unpublished — provide a valid shareId, authenticate as owner, or request a data grant.' });
+    }
   }
 
   try {

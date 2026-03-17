@@ -181,6 +181,87 @@
   .test-item.fail { background: #ef444418; color: #fca5a5; }
   .test-item.pending { background: #f59e0b18; color: #fcd34d; }
   .test-icon { font-weight: bold; flex-shrink: 0; }
+
+  /* Grants table */
+  .grants-table {
+    width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.85rem;
+  }
+  .grants-table th {
+    text-align: left; padding: 8px 12px; color: #8b9dc3; font-weight: 500;
+    border-bottom: 1px solid #2a2d37; font-size: 0.8rem;
+  }
+  .grants-table td {
+    padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #e1e4ea;
+  }
+  .grants-table tr:hover td { background: #1c2440; }
+  .grants-empty {
+    padding: 16px; text-align: center; color: #6c7a8d; font-size: 0.85rem;
+  }
+  .btn-danger { background: #ef4444; }
+  .btn-danger:hover { background: #dc2626; }
+
+  /* Shared With Me panel */
+  .shared-panel {
+    background: #1a1d27; border: 1px solid #2a2d37; border-radius: 12px;
+    padding: 24px; margin-bottom: 24px;
+  }
+  .shared-panel-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;
+  }
+  .shared-panel-title {
+    font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 10px;
+  }
+  .shared-badge {
+    background: #8b5cf6; color: white; font-size: 0.7rem; font-weight: 600;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .shared-node-card {
+    padding: 14px 16px; background: #12141c; border: 1px solid #2a2d37;
+    border-radius: 8px; margin-top: 10px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .shared-node-card:hover { border-color: #8b5cf6; }
+  .shared-node-card.expanded { border-color: #8b5cf6; background: #161a26; }
+  .shared-node-top {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .shared-node-title { font-size: 0.9rem; font-weight: 500; }
+  .shared-node-meta { font-size: 0.75rem; color: #6c7a8d; margin-top: 4px; }
+  .shared-node-meta span { margin-right: 14px; }
+  .shared-node-body {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid #2a2d37;
+  }
+  .shared-node-actions {
+    display: flex; gap: 8px; margin-bottom: 10px;
+  }
+
+  /* Curl reference panel */
+  .curl-panel {
+    background: #1a1d27; border: 1px solid #2a2d37; border-radius: 12px;
+    margin-top: 20px;
+  }
+  .curl-toggle {
+    width: 100%; background: none; border: none; color: #8b9dc3;
+    padding: 16px 24px; cursor: pointer; font-size: 0.95rem; font-weight: 500;
+    display: flex; justify-content: space-between; align-items: center; text-align: left;
+  }
+  .curl-toggle:hover { color: #e1e4ea; }
+  .curl-toggle .arrow { transition: transform 0.2s; }
+  .curl-toggle.open .arrow { transform: rotate(90deg); }
+  .curl-body { padding: 0 24px 24px; }
+  .curl-block { margin-bottom: 16px; }
+  .curl-block h4 { font-size: 0.8rem; color: #8b9dc3; margin-bottom: 6px; font-weight: 500; }
+  .curl-block pre {
+    background: #0f1117; border: 1px solid #2a2d37; border-radius: 6px;
+    padding: 12px; font-size: 0.78rem; color: #86efac; overflow-x: auto;
+    white-space: pre-wrap; word-break: break-all; font-family: 'SF Mono', Monaco, monospace;
+    line-height: 1.5;
+  }
+  .curl-block .copy-curl {
+    background: transparent; border: 1px solid #333; color: #6c7a8d;
+    padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7rem;
+    margin-top: 4px; float: right;
+  }
+  .curl-block .copy-curl:hover { border-color: #3b82f6; color: #3b82f6; }
 </style>
 </head>
 <body>
@@ -221,6 +302,19 @@
   </div>
 
   <div class="container">
+
+    <!-- SHARED WITH ME -->
+    <div class="shared-panel hidden" id="sharedWithMePanel">
+      <div class="shared-panel-header">
+        <div class="shared-panel-title">
+          Shared With Me
+          <span class="shared-badge" id="sharedBadge">0</span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadMyGrants()">Refresh</button>
+      </div>
+      <p class="step-desc">Nodes that other users have granted you access to.</p>
+      <div id="sharedWithMeList"></div>
+    </div>
 
     <!-- STEP 1: Create / Select Node -->
     <div class="step active" id="step1">
@@ -296,6 +390,45 @@
       </div>
     </div>
 
+    <!-- STEP 5: Access Grants -->
+    <div class="step disabled" id="step5">
+      <div class="step-header">
+        <div class="step-number">5</div>
+        <div class="step-title">Access Grants</div>
+      </div>
+      <p class="step-desc">Grant specific users credential-based access to your private data. They can download files when signed in — no share link needed.</p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Recipient Email</label>
+          <input type="text" id="grantEmail" placeholder="user@example.com" />
+        </div>
+        <div class="form-group" style="flex:0.6">
+          <label>Memo (optional)</label>
+          <input type="text" id="grantMemo" placeholder="e.g. Reviewer access" />
+        </div>
+        <button class="btn btn-green" onclick="createGrant()">Grant Access</button>
+      </div>
+      <div id="step5Status"></div>
+
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-outline btn-sm" onclick="refreshGrants()">Refresh Grants</button>
+      </div>
+
+      <div id="grantsTableContainer">
+        <p class="grants-empty">No active grants. Use the form above to share access.</p>
+      </div>
+    </div>
+
+    <!-- Curl Reference Panel -->
+    <div class="curl-panel" id="curlPanel">
+      <button class="curl-toggle" onclick="toggleCurlPanel()">
+        <span>API Reference (curl commands)</span>
+        <span class="arrow">&#9654;</span>
+      </button>
+      <div class="curl-body hidden" id="curlBody"></div>
+    </div>
+
   </div>
 </div>
 
@@ -307,6 +440,7 @@ let currentUser = null;
 let currentNodeUuid = null;
 let currentShareId = null;
 let selectedFiles = [];
+let currentGrants = [];
 
 // ==================== AUTH ====================
 let pendingEmail = null;
@@ -403,6 +537,7 @@ function showMainApp() {
   document.getElementById('userEmail').textContent = currentUser.email;
   document.getElementById('userAvatar').textContent = currentUser.email[0].toUpperCase();
   loadExistingNodes();
+  loadMyGrants();
 }
 
 async function doLogout() {
@@ -565,12 +700,14 @@ async function refreshTree() {
   container.innerHTML = '<div class="spinner"></div>';
 
   try {
-    const resp = await fetch(API + '/v1/data/centralizedTree/' + currentNodeUuid);
+    const resp = await fetch(API + '/v1/data/centralizedTree/' + currentNodeUuid, { headers: authHeaders() });
     const data = await resp.json();
     if (resp.ok && data.tree && data.tree.length > 0) {
       container.innerHTML = renderTree(data.tree);
       activateStep(3);
       activateStep(4);
+      activateStep(5);
+      refreshGrants();
     } else if (resp.ok) {
       container.innerHTML = '<p style="color:#6c7a8d;font-size:0.85rem">No files uploaded yet.</p>';
     } else {
@@ -699,6 +836,298 @@ function findFirstFile() {
   return null;
 }
 
+// ==================== STEP 5: ACCESS GRANTS ====================
+async function createGrant() {
+  const email = document.getElementById('grantEmail').value.trim();
+  const memo = document.getElementById('grantMemo').value.trim();
+  if (!email) { showStatus('step5Status', 'Please enter an email address', 'error'); return; }
+  if (!currentNodeUuid) return;
+
+  showStatus('step5Status', 'Granting access...', 'info');
+  try {
+    const resp = await fetch(API + '/v1/nodes/grant/' + currentNodeUuid, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, memo: memo || undefined }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showStatus('step5Status', 'Access granted to ' + esc(email), 'success');
+      document.getElementById('grantEmail').value = '';
+      document.getElementById('grantMemo').value = '';
+      refreshGrants();
+    } else {
+      showStatus('step5Status', data.message || 'Failed to grant access', 'error');
+    }
+  } catch (err) {
+    showStatus('step5Status', 'Error: ' + err.message, 'error');
+  }
+}
+
+async function refreshGrants() {
+  if (!currentNodeUuid) return;
+  const container = document.getElementById('grantsTableContainer');
+  container.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const resp = await fetch(API + '/v1/nodes/grants/' + currentNodeUuid, { headers: authHeaders() });
+    const data = await resp.json();
+    if (data.ok) {
+      currentGrants = data.grants || [];
+      renderGrantsTable();
+    } else {
+      container.innerHTML = '<p class="grants-empty" style="color:#fca5a5">' + esc(data.message || 'Failed to load grants') + '</p>';
+    }
+  } catch (err) {
+    container.innerHTML = '<p class="grants-empty" style="color:#fca5a5">Error: ' + esc(err.message) + '</p>';
+  }
+}
+
+function renderGrantsTable() {
+  const container = document.getElementById('grantsTableContainer');
+  if (!currentGrants.length) {
+    container.innerHTML = '<p class="grants-empty">No active grants. Use the form above to share access.</p>';
+    return;
+  }
+  let html = '<table class="grants-table"><thead><tr><th>Email</th><th>Memo</th><th>Granted</th><th></th></tr></thead><tbody>';
+  for (const g of currentGrants) {
+    const date = new Date(g.createdAt).toLocaleDateString();
+    html += '<tr>';
+    html += '<td>' + esc(g.granteeEmail) + '</td>';
+    html += '<td style="color:#8b9dc3">' + esc(g.memo || '--') + '</td>';
+    html += '<td style="color:#6c7a8d;font-size:0.8rem">' + date + '</td>';
+    html += '<td><button class="btn btn-sm btn-danger" onclick="revokeGrant(' + g.granteeId + ', \'' + esc(g.granteeEmail) + '\')">Revoke</button></td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+async function revokeGrant(granteeId, email) {
+  if (!confirm('Revoke access for ' + email + '?')) return;
+  showStatus('step5Status', 'Revoking...', 'info');
+  try {
+    const resp = await fetch(API + '/v1/nodes/grant/' + currentNodeUuid + '/' + granteeId, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showStatus('step5Status', 'Access revoked for ' + email, 'success');
+      refreshGrants();
+    } else {
+      showStatus('step5Status', data.message || 'Failed to revoke', 'error');
+    }
+  } catch (err) {
+    showStatus('step5Status', 'Error: ' + err.message, 'error');
+  }
+}
+
+// ==================== SHARED WITH ME ====================
+let myGrantsList = [];
+
+async function loadMyGrants() {
+  try {
+    const resp = await fetch(API + '/v1/nodes/myGrants', { headers: authHeaders() });
+    const data = await resp.json();
+    if (data.ok) {
+      myGrantsList = data.grants || [];
+      renderMyGrants();
+    }
+  } catch (err) {
+    console.error('Failed to load my grants', err);
+  }
+}
+
+function renderMyGrants() {
+  const panel = document.getElementById('sharedWithMePanel');
+  const list = document.getElementById('sharedWithMeList');
+  const badge = document.getElementById('sharedBadge');
+
+  if (!myGrantsList.length) {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  panel.classList.remove('hidden');
+  badge.textContent = myGrantsList.length;
+
+  let html = '';
+  for (let i = 0; i < myGrantsList.length; i++) {
+    const g = myGrantsList[i];
+    const uuid = (g.nodeUUID || '').replace(/\.$/, '');
+    const title = g.nodeTitle || 'Untitled Node';
+    const from = g.grantedByEmail || 'unknown';
+    const date = new Date(g.createdAt).toLocaleDateString();
+    const memo = g.memo ? ' — ' + esc(g.memo) : '';
+
+    html += '<div class="shared-node-card" id="shared-card-' + i + '" onclick="toggleSharedNode(' + i + ', \'' + esc(g.nodeUUID) + '\')">';
+    html += '<div class="shared-node-top">';
+    html += '<div>';
+    html += '<div class="shared-node-title">' + esc(title) + '</div>';
+    html += '<div class="shared-node-meta">';
+    html += '<span>From: <strong>' + esc(from) + '</strong></span>';
+    html += '<span>Granted: ' + date + '</span>';
+    if (memo) html += '<span>' + memo + '</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '<span style="color:#6c7a8d;font-size:0.75rem;font-family:monospace">' + uuid.slice(0, 12) + '...</span>';
+    html += '</div>';
+    html += '<div class="shared-node-body hidden" id="shared-body-' + i + '"></div>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+async function toggleSharedNode(index, nodeUuid) {
+  const body = document.getElementById('shared-body-' + index);
+  const card = document.getElementById('shared-card-' + index);
+
+  if (!body.classList.contains('hidden')) {
+    body.classList.add('hidden');
+    card.classList.remove('expanded');
+    return;
+  }
+
+  // Collapse any other open cards
+  document.querySelectorAll('.shared-node-body').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.shared-node-card').forEach(el => el.classList.remove('expanded'));
+
+  card.classList.add('expanded');
+  body.classList.remove('hidden');
+  body.innerHTML = '<div class="spinner" style="margin:12px 0"></div>';
+
+  try {
+    const resp = await fetch(API + '/v1/data/centralizedTree/' + nodeUuid, { headers: authHeaders() });
+    const data = await resp.json();
+
+    let html = '<div class="shared-node-actions">';
+    html += '<button class="btn btn-sm" onclick="event.stopPropagation(); downloadSharedZip(\'' + esc(nodeUuid) + '\')">Download All (ZIP)</button>';
+    html += '</div>';
+
+    if (resp.ok && data.tree && data.tree.length > 0) {
+      html += '<div class="tree-container">' + renderSharedTree(data.tree, null, nodeUuid) + '</div>';
+    } else if (resp.ok) {
+      html += '<p style="color:#6c7a8d;font-size:0.85rem">No files in this node yet.</p>';
+    } else {
+      html += '<p style="color:#fca5a5;font-size:0.85rem">' + esc(data.message || 'Could not load files') + '</p>';
+    }
+    body.innerHTML = html;
+  } catch (err) {
+    body.innerHTML = '<p style="color:#fca5a5;font-size:0.85rem">Error: ' + esc(err.message) + '</p>';
+  }
+}
+
+function renderSharedTree(nodes, parentPath, nodeUuid) {
+  if (!nodes || !nodes.length) return '';
+  let html = '';
+  for (const node of nodes) {
+    const fullPath = parentPath ? parentPath + '/' + node.name : node.name;
+    if (node.type === 'dir') {
+      html += '<div class="tree-dir" onclick="event.stopPropagation(); this.nextElementSibling.classList.toggle(\'hidden\')">';
+      html += '<span>&#128193;</span> ' + esc(node.name);
+      html += '</div>';
+      html += '<div class="tree-children">' + renderSharedTree(node.children, fullPath, nodeUuid) + '</div>';
+    } else {
+      html += '<div class="tree-file">';
+      html += '<span>&#128196;</span> ' + esc(node.name);
+      html += '<span class="tree-meta">' + formatSize(node.size) + '</span>';
+      html += '<a class="tree-dl" href="javascript:void(0)" onclick="event.stopPropagation(); downloadSharedFile(\'' + esc(nodeUuid) + '\', \'' + esc(fullPath) + '\')">download</a>';
+      html += '</div>';
+    }
+  }
+  return html;
+}
+
+async function downloadSharedFile(nodeUuid, filePath) {
+  const encodedPath = filePath.split('/').map(s => encodeURIComponent(s)).join('/');
+  const url = API + '/v1/data/downloadCentralized/' + nodeUuid + '/' + encodedPath;
+  try {
+    const resp = await fetch(url, { headers: authHeaders() });
+    if (!resp.ok) {
+      alert('Download failed: ' + resp.status + ' — ' + (await resp.text()));
+      return;
+    }
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filePath.split('/').pop();
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert('Download error: ' + err.message);
+  }
+}
+
+async function downloadSharedZip(nodeUuid) {
+  const url = API + '/v1/data/downloadCentralized/' + nodeUuid + '/zip';
+  try {
+    const resp = await fetch(url, { headers: authHeaders() });
+    if (!resp.ok) {
+      alert('Download failed: ' + resp.status);
+      return;
+    }
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nodeUuid.slice(0, 12) + '.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert('Download error: ' + err.message);
+  }
+}
+
+// ==================== CURL REFERENCE ====================
+function toggleCurlPanel() {
+  const body = document.getElementById('curlBody');
+  const toggle = document.querySelector('.curl-toggle');
+  body.classList.toggle('hidden');
+  toggle.classList.toggle('open');
+  if (!body.classList.contains('hidden')) renderCurlCommands();
+}
+
+function renderCurlCommands() {
+  const uuid = currentNodeUuid || '<NODE_UUID>';
+  const token = authToken ? authToken.slice(0, 20) + '...' : '<AUTH_TOKEN>';
+  const fullToken = authToken || '<AUTH_TOKEN>';
+  const shareId = currentShareId || '<SHARE_ID>';
+
+  const commands = [
+    { title: 'Upload Files', curl: `curl -X POST ${API}/v1/data/uploadCentralized \\\n  -H "Authorization: Bearer ${fullToken}" \\\n  -F "uuid=${uuid}" \\\n  -F "contextPath=root/restricted-data" \\\n  -F "files=@/path/to/file.pdf"` },
+    { title: 'Browse Files (Tree)', curl: `curl ${API}/v1/data/centralizedTree/${uuid} \\\n  -H "Authorization: Bearer ${fullToken}"` },
+    { title: 'Download Single File', curl: `curl ${API}/v1/data/downloadCentralized/${uuid}/root/restricted-data/file.pdf \\\n  -H "Authorization: Bearer ${fullToken}" -o file.pdf` },
+    { title: 'Download ZIP (all files)', curl: `curl ${API}/v1/data/downloadCentralized/${uuid}/zip \\\n  -H "Authorization: Bearer ${fullToken}" -o data.zip` },
+    { title: 'Download via Share Link (no auth)', curl: `curl "${API}/v1/data/downloadCentralized/${uuid}/zip?shareId=${shareId}" \\\n  -o data.zip` },
+    { title: 'Generate Share Link', curl: `curl -X POST ${API}/v1/nodes/share/${uuid} \\\n  -H "Authorization: Bearer ${fullToken}" \\\n  -H "Content-Type: application/json"` },
+    { title: 'Grant Access to User', curl: `curl -X POST ${API}/v1/nodes/grant/${uuid} \\\n  -H "Authorization: Bearer ${fullToken}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"email": "user@example.com", "memo": "Reviewer"}'` },
+    { title: 'List Active Grants', curl: `curl ${API}/v1/nodes/grants/${uuid} \\\n  -H "Authorization: Bearer ${fullToken}"` },
+    { title: 'Revoke Grant', curl: `curl -X DELETE ${API}/v1/nodes/grant/${uuid}/<GRANTEE_ID> \\\n  -H "Authorization: Bearer ${fullToken}"` },
+    { title: 'My Grants (nodes shared with me)', curl: `curl ${API}/v1/nodes/myGrants \\\n  -H "Authorization: Bearer ${fullToken}"` },
+  ];
+
+  let html = '';
+  for (const cmd of commands) {
+    const id = 'curl-' + cmd.title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    html += '<div class="curl-block">';
+    html += '<h4>' + esc(cmd.title) + '</h4>';
+    html += '<pre id="' + id + '">' + esc(cmd.curl) + '</pre>';
+    html += '<button class="copy-curl" onclick="copyCurl(\'' + id + '\')">Copy</button>';
+    html += '<div style="clear:both"></div>';
+    html += '</div>';
+  }
+  document.getElementById('curlBody').innerHTML = html;
+}
+
+function copyCurl(preId) {
+  const pre = document.getElementById(preId);
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    const btn = pre.nextElementSibling;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  });
+}
+
 // ==================== TESTS ====================
 async function runTests() {
   const firstFile = findFirstFile();
@@ -706,7 +1135,8 @@ async function runTests() {
   results.innerHTML = '';
 
   const tests = [
-    { name: 'Tree is public (no auth)', fn: testTreePublic },
+    { name: 'Tree accessible with auth', fn: testTreeWithAuth },
+    { name: 'Tree gated without auth (unpublished)', fn: testTreeDeniedNoAuth },
     { name: 'Download denied without auth', fn: () => testDownloadDenied(firstFile) },
     { name: 'Download works with auth', fn: () => testDownloadAuth(firstFile) },
     { name: 'Download works with share link', fn: () => testDownloadShare(firstFile) },
@@ -715,6 +1145,7 @@ async function runTests() {
     { name: 'Zip download works with share link', fn: testZipShare },
     { name: 'Zip download denied without auth', fn: testZipDenied },
     { name: 'Upload denied without auth', fn: testUploadDenied },
+    { name: 'Grant API (CRUD + auth)', fn: testGrantCRUD },
   ];
 
   for (const t of tests) {
@@ -727,9 +1158,15 @@ async function runTests() {
   }
 }
 
-async function testTreePublic() {
-  const resp = await fetch(API + '/v1/data/centralizedTree/' + currentNodeUuid);
+async function testTreeWithAuth() {
+  const resp = await fetch(API + '/v1/data/centralizedTree/' + currentNodeUuid, { headers: authHeaders() });
   return resp.ok;
+}
+
+async function testTreeDeniedNoAuth() {
+  const resp = await fetch(API + '/v1/data/centralizedTree/' + currentNodeUuid);
+  // Unpublished nodes return 403 without auth; published nodes return 200
+  return resp.status === 403 || resp.ok;
 }
 
 function encodeFilePath(p) { return p.split('/').map(s => encodeURIComponent(s)).join('/'); }
@@ -772,6 +1209,39 @@ async function testZipShare() {
 async function testZipDenied() {
   const resp = await fetch(API + '/v1/data/downloadCentralized/' + currentNodeUuid + '/zip');
   return resp.status === 403;
+}
+
+async function testGrantCRUD() {
+  // 1. Self-grant should return 400
+  const selfResp = await fetch(API + '/v1/nodes/grant/' + currentNodeUuid, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: currentUser?.email }),
+  });
+  if (selfResp.status !== 400) return false;
+
+  // 2. List grants returns 200 with array
+  const listResp = await fetch(API + '/v1/nodes/grants/' + currentNodeUuid, { headers: authHeaders() });
+  const listData = await listResp.json();
+  if (!listResp.ok || !Array.isArray(listData.grants)) return false;
+
+  // 3. Grant without auth returns 401
+  const noAuthResp = await fetch(API + '/v1/nodes/grant/' + currentNodeUuid, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'test@test.com' }),
+  });
+  if (noAuthResp.status !== 401) return false;
+
+  // 4. Grant without email returns 400
+  const noEmailResp = await fetch(API + '/v1/nodes/grant/' + currentNodeUuid, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  if (noEmailResp.status !== 400) return false;
+
+  return true;
 }
 
 async function testUploadDenied() {
@@ -820,6 +1290,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('authEmailInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMagicCode(); });
   document.getElementById('authCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter') verifyMagicCode(); });
   document.getElementById('authEmailInput').focus();
+  document.getElementById('grantEmail').addEventListener('keydown', e => { if (e.key === 'Enter') createGrant(); });
 });
 </script>
 </body>

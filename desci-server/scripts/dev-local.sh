@@ -12,7 +12,7 @@ echo ""
 
 # 1. Start Postgres, Redis, and IPFS via Docker
 echo "[1/6] Starting Postgres, Redis, and IPFS..."
-(cd "$NODES_DIR" && docker compose -f docker-compose.dev.yml up -d db_postgres redis ipfs)
+(cd "$NODES_DIR" && docker compose -f docker-compose.dev.yml up -d db_postgres redis ipfs ipfs_public ipfs_guest)
 
 echo "[2/6] Waiting for services to be healthy..."
 until docker exec db_boilerplate pg_isready -U walter -d postgres > /dev/null 2>&1; do
@@ -27,6 +27,14 @@ until docker exec ipfs ipfs id > /dev/null 2>&1; do
   sleep 1
 done
 echo "       IPFS ready."
+until docker exec ipfs_public ipfs id > /dev/null 2>&1; do
+  sleep 1
+done
+echo "       IPFS Public ready."
+until docker exec ipfs_guest ipfs id > /dev/null 2>&1; do
+  sleep 1
+done
+echo "       IPFS Guest ready."
 
 # 2. Symlink .env if not present
 if [ ! -f "$SERVER_DIR/.env" ]; then
@@ -40,10 +48,11 @@ fi
 echo "[4/6] Fixing Sentry profiler binary for Node $(node -v)..."
 NODE_ABI=$(node -e "console.log(process.versions.modules)")
 SENTRY_LIB="$SERVER_DIR/node_modules/@sentry/profiling-node/lib"
-TARGET="$SENTRY_LIB/sentry_cpu_profiler-darwin-arm64-${NODE_ABI}.node"
+SENTRY_PLATFORM=$(node -e "console.log(process.platform + '-' + process.arch)")
+TARGET="$SENTRY_LIB/sentry_cpu_profiler-${SENTRY_PLATFORM}-${NODE_ABI}.node"
 if [ ! -f "$TARGET" ] && [ -d "$SENTRY_LIB" ]; then
   # Find the highest ABI binary available and copy it
-  LATEST=$(ls "$SENTRY_LIB"/sentry_cpu_profiler-darwin-arm64-*.node 2>/dev/null | sort -t- -k5 -n | tail -1)
+  LATEST=$(ls "$SENTRY_LIB"/sentry_cpu_profiler-${SENTRY_PLATFORM}-*.node 2>/dev/null | sort -t- -k5 -n | tail -1)
   if [ -n "$LATEST" ]; then
     cp "$LATEST" "$TARGET"
     echo "       Copied $(basename "$LATEST") → $(basename "$TARGET")"
@@ -85,5 +94,10 @@ export IPFS_RESOLVER_OVERRIDE=http://localhost:8089/ipfs
 export IPFS_READ_ONLY_GATEWAY_SERVER=http://localhost:8089/ipfs
 
 # Compile first, then run
-npx tsc 2>&1 | grep -c "error TS" | xargs -I{} echo "       TypeScript compiled ({} type errors, non-blocking)"
+TS_ERRORS=$(npx tsc 2>&1 | grep -c "error TS" || true)
+if [ "$TS_ERRORS" -eq 0 ]; then
+  echo "       TypeScript compiled successfully."
+else
+  echo "       TypeScript compiled ($TS_ERRORS type errors, non-blocking)"
+fi
 exec node ./dist/index.js

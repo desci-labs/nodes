@@ -108,7 +108,7 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
       try {
         const result = await repoService.initDraftDocument({ uuid: node.uuid as NodeUuid, manifest: researchObject });
 
-        if (result) {
+        if (result && result.documentId) {
           documentId = result.documentId;
           document = result.document;
           await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: documentId } });

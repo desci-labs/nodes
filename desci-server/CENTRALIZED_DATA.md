@@ -122,4 +122,4 @@ scripts/dev-local.sh                      # One-command local dev setup
 |-------------|---------|
 | Local | `http://localhost:5420/test/centralizedData.html` |
 | Dev | `https://nodes-api-dev.desci.com/test/centralizedData.html` |
-| Prod | `https://nodes-api.desci.com/test/centralizedData.html` |
+| Prod | `https://nodes-api.desci.com/test/centralizedData.html` *(disabled — /test route is gated from production)* |

@@ -30,7 +30,7 @@ router.post('/google/import', [ensureUser, ensureNodeAccess], googleImport);
 
 // Centralized data (R2) routes
 router.post('/uploadCentralized', [ensureUser, centralizedUploadHandler, ensureNodeAccess], uploadCentralized);
-router.get('/centralizedTree/:nodeUuid', centralizedTree);
+router.get('/centralizedTree/:nodeUuid', [attachUser], centralizedTree);
 router.get('/downloadCentralized/:nodeUuid/zip', [attachUser], downloadCentralizedZip);
 router.get('/downloadCentralized/:nodeUuid/*', [attachUser], downloadCentralized);
 

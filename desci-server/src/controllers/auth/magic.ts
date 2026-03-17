@@ -54,7 +54,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       if (process.env.NODE_ENV !== 'production') {
         const latest = await prismaClient.magicLink.findFirst({
           where: { email: { equals: cleanEmail, mode: 'insensitive' } },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { id: 'desc' },
         });
         devCode = latest?.token;
       }

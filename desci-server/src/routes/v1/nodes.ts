@@ -82,6 +82,7 @@ import {
 import { mecaImport, mecaImportSchema } from '../../controllers/nodes/mecaImport.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
 import { updateNoveltyScoreConfigController } from '../../controllers/nodes/updateNoveltyScoreConfig.js';
+import { createDataGrant, revokeDataGrant, listDataGrants, listMyGrants } from '../../controllers/nodes/dataGrants.js';
 import { attachUser } from '../../middleware/attachUser.js';
 import {
   ensureNodeAccess,
@@ -137,6 +138,12 @@ router.get('/share', [ensureGuestOrUser], listSharedNodes);
 router.get('/share/:uuid', [ensureGuestOrUser], getPrivateShare);
 router.post('/share/:uuid', [ensureGuestOrUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureGuestOrUser], revokePrivateShare);
+
+// Data grants (credential-based access to centralized data)
+router.post('/grant/:uuid', [ensureUser], asyncHandler(createDataGrant));
+router.delete('/grant/:uuid/:granteeId', [ensureUser], asyncHandler(revokeDataGrant));
+router.get('/grants/:uuid', [ensureUser], asyncHandler(listDataGrants));
+router.get('/myGrants', [ensureUser], asyncHandler(listMyGrants));
 
 // Bookmarks
 router.get('/bookmarks', [ensureGuestOrUser], listBookmarkedNodes);

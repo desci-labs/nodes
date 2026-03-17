@@ -3,6 +3,8 @@ import multer from 'multer';
 import fs from 'fs';
 import crypto from 'crypto';
 import os from 'os';
+import { Transform } from 'stream';
+import { pipeline } from 'stream/promises';
 
 import { logger as parentLogger } from '../../logger.js';
 import { uploadToR2, isR2Configured } from '../../services/r2.js';
@@ -33,6 +35,12 @@ export const uploadCentralized = async (req: Request, res: Response) => {
   const user = (req as any).user;
   const node = (req as any).node;
   const contextPath = req.body.contextPath || '';
+
+  const UNSAFE_PATH_PATTERN = /(\.\.|\\|[\x00-\x1f])/;
+  if (contextPath && (contextPath.startsWith('/') || UNSAFE_PATH_PATTERN.test(contextPath))) {
+    return res.status(400).send({ ok: false, message: 'Invalid contextPath: must not contain path traversal sequences, backslashes, or control characters' });
+  }
+
   const files = req.files as Express.Multer.File[];
 
   if (!isR2Configured) {
@@ -51,17 +59,43 @@ export const uploadCentralized = async (req: Request, res: Response) => {
 
   try {
     for (const file of files) {
+      if (UNSAFE_PATH_PATTERN.test(file.originalname) || file.originalname.startsWith('/')) {
+        logger.warn({ fileName: file.originalname }, 'Rejected unsafe filename');
+        await fs.promises.unlink(file.path).catch(() => {});
+        continue;
+      }
       const relativePath = contextPath ? `${contextPath}/${file.originalname}` : file.originalname;
       const r2Key = `${nodeUuid}/${relativePath}`;
 
-      // Read file and compute SHA-256
-      const fileBuffer = await fs.promises.readFile(file.path);
-      const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+      const STREAM_THRESHOLD = 50 * 1024 * 1024; // 50MB
+      let hash: string;
 
-      await uploadToR2(r2Key, fileBuffer, {
-        'content-hash': hash,
-        'mime-type': file.mimetype || 'application/octet-stream',
-      });
+      if (file.size > STREAM_THRESHOLD) {
+        const hashStream = crypto.createHash('sha256');
+        const chunks: Buffer[] = [];
+        const collector = new Transform({
+          transform(chunk, _encoding, cb) {
+            hashStream.update(chunk);
+            chunks.push(chunk);
+            cb(null, chunk);
+          },
+        });
+        const readStream = fs.createReadStream(file.path);
+        await pipeline(readStream, collector);
+        hash = hashStream.digest('hex');
+        const fileBuffer = Buffer.concat(chunks);
+        await uploadToR2(r2Key, fileBuffer, {
+          'content-hash': hash,
+          'mime-type': file.mimetype || 'application/octet-stream',
+        });
+      } else {
+        const fileBuffer = await fs.promises.readFile(file.path);
+        hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+        await uploadToR2(r2Key, fileBuffer, {
+          'content-hash': hash,
+          'mime-type': file.mimetype || 'application/octet-stream',
+        });
+      }
 
       uploaded.push({ path: relativePath, size: file.size, contentHash: hash });
 

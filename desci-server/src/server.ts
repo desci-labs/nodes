@@ -139,7 +139,7 @@ export class AppServer {
     });
 
     this.app.use((req, res, next) => {
-      if (req.path.startsWith('/test/')) return next();
+      if (process.env.NODE_ENV !== 'production' && req.path.startsWith('/test/')) return next();
       helmet()(req, res, next);
     });
 
@@ -157,10 +157,11 @@ export class AppServer {
     this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
-    // Serve test UI for centralized data (must be before route handlers)
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    this.app.use('/test', express.static(path.join(__dirname, '../src/test')));
+    if (process.env.NODE_ENV !== 'production') {
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      this.app.use('/test', express.static(path.join(__dirname, '../src/test')));
+    }
 
     // attach all app routes
     this.#attachRouteHandlers();
@@ -188,7 +189,7 @@ export class AppServer {
   }
 
   get httpServer() {
-    return this.httpServer;
+    return this.server;
   }
 
   async ready() {

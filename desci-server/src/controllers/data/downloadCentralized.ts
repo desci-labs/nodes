@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import path from 'path';
 
-import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { checkCentralizedDataAccess } from '../../services/centralizedDataAccess.js';
 import { getStreamFromR2, isR2Configured } from '../../services/r2.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -28,31 +28,10 @@ export const downloadCentralized = async (req: Request, res: Response): Promise<
 
   logger.info({ nodeUuid: normalizedUuid, filePath, hasShareId: !!shareId, hasUser: !!user }, 'Download request');
 
-  // Access check: must have valid shareId OR be the node owner
-  let hasAccess = false;
-
-  if (shareId) {
-    const privateShare = await prisma.privateShare.findFirst({
-      where: { shareId },
-      select: { node: true, nodeUUID: true },
-    });
-
-    if (privateShare && privateShare.node && ensureUuidEndsWithDot(privateShare.nodeUUID) === normalizedUuid) {
-      hasAccess = true;
-    }
-  }
-
-  if (!hasAccess && user) {
-    const node = await prisma.node.findFirst({
-      where: { uuid: normalizedUuid, ownerId: user.id },
-    });
-    if (node) {
-      hasAccess = true;
-    }
-  }
+  const { hasAccess } = await checkCentralizedDataAccess(normalizedUuid, shareId, user);
 
   if (!hasAccess) {
-    res.status(403).json({ ok: false, message: 'Access denied. Provide a valid shareId or authenticate as the node owner.' });
+    res.status(403).json({ ok: false, message: 'Access denied. Provide a valid shareId, authenticate as the node owner, or request a data grant.' });
     return;
   }
 
@@ -63,9 +42,14 @@ export const downloadCentralized = async (req: Request, res: Response): Promise<
     const mimeType = metadata['mime-type'] || 'application/octet-stream';
     const contentHash = metadata['content-hash'];
     const fileName = path.basename(filePath);
+    const sanitizedFileName = fileName
+      .replace(/[\x00-\x1f\x7f"\\]/g, '_')
+      .replace(/[^\x20-\x7e]/g, '_')
+      || 'download';
+    const encodedFileName = encodeURIComponent(fileName).replace(/'/g, '%27');
 
     res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFileName}"; filename*=UTF-8''${encodedFileName}`);
     if (contentHash) {
       res.setHeader('X-Content-Hash', contentHash);
     }

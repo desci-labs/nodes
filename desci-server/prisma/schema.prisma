@@ -66,6 +66,7 @@ model Node {
   dataMigrationId      Int?
   JournalSubmission    JournalSubmission[]
   ImportTaskQueue      ImportTaskQueue[]
+  NodeDataGrant        NodeDataGrant[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -285,6 +286,8 @@ model User {
   ImportTaskQueue        ImportTaskQueue[]
   AbandonedCheckout      AbandonedCheckout[]
   StripeCheckoutFulfillment StripeCheckoutFulfillment[]
+  dataGrantsReceived   NodeDataGrant[]   @relation("dataGrantsReceived")
+  dataGrantsGiven      NodeDataGrant[]   @relation("dataGrantsGiven")
 
   @@index([orcid])
   @@index([walletAddress])
@@ -576,6 +579,25 @@ model PrivateShare {
 
   @@index([nodeUUID])
   @@index([shareId])
+}
+
+model NodeDataGrant {
+  id          Int       @id @default(autoincrement())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  nodeUUID    String
+  granteeId   Int
+  grantedById Int
+  memo        String?
+  revokedAt   DateTime?
+
+  node        Node      @relation(fields: [nodeUUID], references: [uuid])
+  grantee     User      @relation("dataGrantsReceived", fields: [granteeId], references: [id])
+  grantedBy   User      @relation("dataGrantsGiven", fields: [grantedById], references: [id])
+
+  @@unique([nodeUUID, granteeId])
+  @@index([nodeUUID])
+  @@index([granteeId])
 }
 
 model BookmarkedNode {

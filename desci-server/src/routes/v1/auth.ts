@@ -48,10 +48,9 @@ router.get('/orcid/auth/close', orcidAuthClose);
 router.get('/orcid/connect', orcidConnect);
 router.get('/orcid/connect/close', orcidConnectClose);
 router.get('/orcid/validate', validateOrcid);
-router.get('/orcid/validate', validateOrcid);
 router.get('/google/client-id', (_req, res): void => {
-  const clientId = process.env.GOOGLE_CLIENT_ID_AUTH;
-  if (!clientId) { res.json({ ok: false, message: 'GOOGLE_CLIENT_ID_AUTH not configured' }); return; }
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) { res.json({ ok: false, message: 'GOOGLE_CLIENT_ID not configured' }); return; }
   res.json({ ok: true, clientId });
 });
 router.post('/google/login', [validateInputs(googleAuthSchema)], asyncHandler(googleAuth));

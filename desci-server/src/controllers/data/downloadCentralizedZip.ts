@@ -3,6 +3,7 @@ import archiver from 'archiver';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { checkCentralizedDataAccess } from '../../services/centralizedDataAccess.js';
 import { getStreamFromR2, listR2Objects, isR2Configured } from '../../services/r2.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -25,31 +26,10 @@ export const downloadCentralizedZip = async (req: Request, res: Response): Promi
 
   const normalizedUuid = ensureUuidEndsWithDot(nodeUuid);
 
-  // Access check: must have valid shareId OR be the node owner
-  let hasAccess = false;
-
-  if (shareId) {
-    const privateShare = await prisma.privateShare.findFirst({
-      where: { shareId },
-      select: { node: true, nodeUUID: true },
-    });
-
-    if (privateShare && privateShare.node && ensureUuidEndsWithDot(privateShare.nodeUUID) === normalizedUuid) {
-      hasAccess = true;
-    }
-  }
-
-  if (!hasAccess && user) {
-    const node = await prisma.node.findFirst({
-      where: { uuid: normalizedUuid, ownerId: user.id },
-    });
-    if (node) {
-      hasAccess = true;
-    }
-  }
+  const { hasAccess } = await checkCentralizedDataAccess(normalizedUuid, shareId, user);
 
   if (!hasAccess) {
-    res.status(403).json({ ok: false, message: 'Access denied. Provide a valid shareId or authenticate as the node owner.' });
+    res.status(403).json({ ok: false, message: 'Access denied. Provide a valid shareId, authenticate as the node owner, or request a data grant.' });
     return;
   }
 
@@ -65,8 +45,14 @@ export const downloadCentralizedZip = async (req: Request, res: Response): Promi
     const nodeRecord = await prisma.node.findFirst({ where: { uuid: normalizedUuid }, select: { title: true } });
     const zipName = (nodeRecord?.title || nodeUuid).replace(/[^a-zA-Z0-9_\- ]/g, '_') + '.zip';
 
+    const sanitizedZipName = zipName
+      .replace(/[\x00-\x1f\x7f"\\]/g, '_')
+      .replace(/[^\x20-\x7e]/g, '_')
+      || 'download.zip';
+    const encodedZipName = encodeURIComponent(zipName).replace(/'/g, '%27');
+
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${sanitizedZipName}"; filename*=UTF-8''${encodedZipName}`);
 
     const archive = archiver('zip', { zlib: { level: 5 } });
 

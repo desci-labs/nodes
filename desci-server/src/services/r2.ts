@@ -30,6 +30,10 @@ export const r2Client = isR2Configured
     })
   : null;
 
+// Note: PutObjectCommand does not set ContentLength and does not use multipart upload.
+// For large objects, callers should pass a Buffer (or a known-length stream) rather than
+// an unbounded Readable. For objects exceeding ~5GB, implement multipart upload via
+// @aws-sdk/lib-storage Upload class instead.
 export async function uploadToR2(
   key: string,
   body: Buffer | Readable,
@@ -55,6 +59,9 @@ export async function getStreamFromR2(key: string): Promise<{ stream: Readable; 
       Key: key,
     }),
   );
+  if (!response.Body) {
+    throw new Error(`R2 returned empty body for key "${key}" in bucket "${process.env.R2_BUCKET_NAME}"`);
+  }
   return {
     stream: response.Body as Readable,
     metadata: response.Metadata ?? {},
@@ -72,11 +79,12 @@ export async function deleteFromR2(key: string): Promise<void> {
   logger.info({ key }, 'Deleted from R2');
 }
 
-export async function listR2Objects(
+export type R2ObjectEntry = { key: string; size: number; lastModified: Date | undefined };
+
+export async function* listR2ObjectsPages(
   prefix: string,
-): Promise<{ key: string; size: number; lastModified: Date | undefined }[]> {
+): AsyncGenerator<R2ObjectEntry[]> {
   if (!r2Client) throw new Error('R2 is not configured');
-  const results: { key: string; size: number; lastModified: Date | undefined }[] = [];
   let continuationToken: string | undefined;
 
   do {
@@ -87,17 +95,25 @@ export async function listR2Objects(
         ContinuationToken: continuationToken,
       }),
     );
+    const page: R2ObjectEntry[] = [];
     for (const obj of response.Contents ?? []) {
       if (obj.Key) {
-        results.push({
+        page.push({
           key: obj.Key,
           size: obj.Size ?? 0,
           lastModified: obj.LastModified,
         });
       }
     }
+    if (page.length > 0) yield page;
     continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
   } while (continuationToken);
+}
 
+export async function listR2Objects(prefix: string): Promise<R2ObjectEntry[]> {
+  const results: R2ObjectEntry[] = [];
+  for await (const page of listR2ObjectsPages(prefix)) {
+    results.push(...page);
+  }
   return results;
 }
