@@ -28,10 +28,16 @@ jobs:
   build-and-push:
     name: Build and deploy
     runs-on: blacksmith-4vcpu-ubuntu-2204
+    outputs:
+      image_tag: ${{ steps.image-tag.outputs.tag }}
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Generate image tag
+        id: image-tag
+        run: echo "tag=$(echo ${{ github.sha }} | cut -c1-7)-$(date +%s)" >> $GITHUB_OUTPUT
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
@@ -56,6 +62,7 @@ jobs:
           # Build and tag the image
           docker build \
             --target production -t $CONTAINER_IMAGE-dev:production \
+            --target production -t $CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }} \
             --target production -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
              ./desci-media-isolated
 
@@ -65,6 +72,7 @@ jobs:
           # Build and tag the image
           docker build \
             --target production -t $CONTAINER_IMAGE-prod:production \
+            --target production -t $CONTAINER_IMAGE-prod:${{ steps.image-tag.outputs.tag }} \
             --target production -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
              ./desci-media-isolated
 
@@ -78,8 +86,10 @@ jobs:
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
           docker tag $CONTAINER_IMAGE-dev:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
           docker tag $CONTAINER_IMAGE-dev:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:production
+          docker tag $CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:production
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }}
 
       - name: Push (PROD)
         if: github.ref == 'refs/heads/main'
@@ -88,8 +98,10 @@ jobs:
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
           docker tag $CONTAINER_IMAGE-prod:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }}
           docker tag $CONTAINER_IMAGE-prod:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:production
+          docker tag $CONTAINER_IMAGE-prod:${{ steps.image-tag.outputs.tag }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ steps.image-tag.outputs.tag }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:production
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ steps.image-tag.outputs.tag }}
 
       - name: Deploy to EKS (DEV)
         # uses: steebchen/kubectl@v2.0.0
