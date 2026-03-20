@@ -37,7 +37,16 @@ export const client: IPFSHTTPClient = create({ url: process.env.IPFS_NODE_URL })
 export const readerClient: IPFSHTTPClient = create({ url: PUBLIC_IPFS_PATH });
 export const guestIpfsClient: IPFSHTTPClient = create({ url: process.env.GUEST_IPFS_NODE_URL });
 
-export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
+const _publicIpfsHeaders: Record<string, string> = {};
+if (process.env.PUBLIC_IPFS_USER && process.env.PUBLIC_IPFS_PASSWORD) {
+  const encoded = Buffer.from(`${process.env.PUBLIC_IPFS_USER}:${process.env.PUBLIC_IPFS_PASSWORD}`).toString('base64');
+  _publicIpfsHeaders['Authorization'] = `Basic ${encoded}`;
+}
+
+export const publicIpfs = create({
+  url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0',
+  ...(Object.keys(_publicIpfsHeaders).length ? { headers: _publicIpfsHeaders } : {}),
+});
 
 export enum IPFS_NODE {
   PRIVATE = 'private',
