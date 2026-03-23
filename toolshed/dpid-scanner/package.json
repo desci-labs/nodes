@@ -22,7 +22,7 @@
     "typescript-eslint": "^8.19.1"
   },
   "dependencies": {
-    "@desci-labs/nodes-lib": "^0.1.4",
+    "@desci-labs/nodes-lib": "^0.2.2",
     "dotenv": "^16.4.5",
     "pino": "^9.3.2",
     "pino-pretty": "^13.0.0",
