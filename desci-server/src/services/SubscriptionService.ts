@@ -541,6 +541,12 @@ export class SubscriptionService {
     return await this.updateUserFeatureLimits(userId, planType);
   }
 
+  static async handleMobileSubscriptionTransferred(userId: number) {
+    logger.info({ userId }, 'Handling mobile subscription renewed');
+    const planType = PlanType.OMNI_CHATS;
+    return await this.updateUserFeatureLimits(userId, planType);
+  }
+
   static async handleMobileSubscriptionRenewed(userId: number) {
     logger.info({ userId }, 'Handling mobile subscription renewed');
     const planType = PlanType.OMNI_CHATS;

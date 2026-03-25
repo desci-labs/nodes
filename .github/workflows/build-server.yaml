@@ -60,10 +60,16 @@ jobs:
     # we build and push for every commit, even if tests pass, that way when tests pass deployment is short (run test + build in parallel)
     name: Build and push images
     runs-on: blacksmith-4vcpu-ubuntu-2204
+    outputs:
+      image_tag: ${{ steps.image-tag.outputs.tag }}
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Generate image tag
+        id: image-tag
+        run: echo "tag=$(echo ${{ github.sha }} | cut -c1-7)-$(date +%s)" >> $GITHUB_OUTPUT
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
@@ -92,6 +98,7 @@ jobs:
             --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-dev:${{ github.sha }} \
+            -t $CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
              ./desci-server
 
@@ -102,6 +109,7 @@ jobs:
             --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-demo:${{ github.sha }} \
+            -t $CONTAINER_IMAGE-demo:${{ steps.image-tag.outputs.tag }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo \
              ./desci-server
 
@@ -112,6 +120,7 @@ jobs:
             --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE:${{ github.sha }} \
+            -t $CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
              ./desci-server
 
@@ -122,6 +131,8 @@ jobs:
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
           docker tag $CONTAINER_IMAGE-dev:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }}
 
       - name: Push (DEMO)
         if: github.ref == 'refs/heads/demo'
@@ -130,6 +141,8 @@ jobs:
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
           docker tag $CONTAINER_IMAGE-demo:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE-demo:${{ steps.image-tag.outputs.tag }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ steps.image-tag.outputs.tag }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ steps.image-tag.outputs.tag }}
 
       - name: Push (PROD)
         if: github.ref == 'refs/heads/main'
@@ -138,6 +151,8 @@ jobs:
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
           docker tag $CONTAINER_IMAGE:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }}
 
   deploy:
     name: Deploy desci-server
@@ -177,6 +192,8 @@ jobs:
           docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
           docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
+          docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ needs.build-and-push-images.outputs.image_tag }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ needs.build-and-push-images.outputs.image_tag }}
 
       - name: Deploy to EKS (DEMO)
         # uses: steebchen/kubectl@v2.0.0
@@ -187,6 +204,8 @@ jobs:
           docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
           docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
+          docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ needs.build-and-push-images.outputs.image_tag }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ needs.build-and-push-images.outputs.image_tag }}
 
       - name: Deploy to EKS (PROD)
         if: github.ref == 'refs/heads/main'
@@ -197,6 +216,8 @@ jobs:
           docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
           docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+          docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ needs.build-and-push-images.outputs.image_tag }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ needs.build-and-push-images.outputs.image_tag }}
 
       - name: Verify EKS Deployment (DEV)
         if: github.ref == 'refs/heads/develop'
