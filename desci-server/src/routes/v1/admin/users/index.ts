@@ -2,7 +2,6 @@ import { NextFunction, Response, Router } from 'express';
 import { Request } from 'express';
 
 import { prisma } from '../../../../client.js';
-import { updateAmplitudeIdentity, updateAmplitudeIdentitySchema } from '../../../../controllers/admin/amplitude.js';
 import {
   getMarketingConsentUsersCsv,
   getSciweaveMarketingConsentUsersCsv,
@@ -41,16 +40,6 @@ router.get(
   '/export-sciweave-marketing-consent',
   [ensureUser, ensureUserIsAdmin, validateInputs(exportMarketingConsentSchema)],
   getSciweaveMarketingConsentUsersCsv,
-);
-
-/**
- * Update user identity/properties on Amplitude
- * @see https://amplitude.com/docs/apis/analytics/identify
- */
-router.post(
-  '/:userId/amplitude/identify',
-  [ensureUser, ensureAdmin, validate(updateAmplitudeIdentitySchema)],
-  asyncHandler(updateAmplitudeIdentity),
 );
 
 export default router;
