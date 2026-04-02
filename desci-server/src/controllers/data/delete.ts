@@ -41,11 +41,15 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   });
   if (!node) {
     logger.warn(`DATA::Delete: auth failed, user id: ${owner.id} does not own node: ${uuid}`);
-    return res.status(400).json({ error: 'failed' });
+    return res.status(403).json({ error: 'node not found or not owned by user' });
   }
 
   const latestManifest = await getLatestManifestFromNode(node);
   console.log('latestManifest', latestManifest);
+  if (!latestManifest) {
+    logger.error({ uuid }, 'DATA::Delete: failed to retrieve manifest from node');
+    return res.status(400).json({ error: 'manifest not found' });
+  }
   try {
     /**
      * Remove draft node tree entries, add them to the cid prune list
@@ -131,8 +135,10 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     }
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
-    if (!persistedManifestCid)
-      throw Error(`[DATA::DELETE]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
+    if (!persistedManifestCid) {
+      logger.error({ uuid, path }, 'DATA::Delete: failed to persist manifest to IPFS');
+      return res.status(500).json({ error: 'failed to persist manifest' });
+    }
 
     logger.info(`DATA::Delete Success, path: `, path, ' deleted');
 
@@ -160,10 +166,9 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.log('[ERROR]::[DeleteComponentsFromManifest]::', e);
-    logger.error(e, `DATA::Delete error: ${e}`);
+    logger.error({ err: e, uuid, path }, `DATA::Delete unhandled error: ${e.message}`);
+    return res.status(500).json({ error: `delete failed: ${e.message}` });
   }
-  return res.status(400).json({ error: 'failed' });
 };
 
 interface UpdatingManifestParams {
