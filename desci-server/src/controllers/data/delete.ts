@@ -100,7 +100,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
           },
         });
 
-    const dataRefsToDelete = existingDataRefs.filter((e) => e.path.startsWith(path + '/') || e.path === path);
+    const dataRefsToDelete = existingDataRefs.filter((e) => e.path?.startsWith(path + '/') || e.path === path);
 
     const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
 
