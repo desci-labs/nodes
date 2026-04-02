@@ -17,6 +17,7 @@ export interface DpidMetadata {
   publicationYear: number;
   publicationDate: string;
   pdfUrl: string;
+  coverImageUrl: string;
 }
 
 export async function getDpidMetadata(dpid: number, version?: number): Promise<DpidMetadata> {
@@ -64,6 +65,12 @@ export async function getDpidMetadata(dpid: number, version?: number): Promise<D
         component.payload?.path?.endsWith('.pdf')),
   );
 
+  // Look up the cached cover image for this version
+  const coverEntry = await prisma.nodeCover.findFirst({
+    where: { nodeUuid: node.uuid, version: targetVersionIndex },
+    select: { url: true },
+  });
+
   const date = targetVersion.time ? new Date(parseInt(targetVersion.time) * 1000) : undefined;
   const pubDate = date ? date.toLocaleDateString().split('/') : undefined;
   const metadata = {
@@ -74,6 +81,7 @@ export async function getDpidMetadata(dpid: number, version?: number): Promise<D
     publicationYear: targetVersion.time ? new Date(parseInt(targetVersion.time) * 1000).getFullYear() : undefined,
     publicationDate: pubDate ? `${pubDate[2]}/${pubDate[0]}/${pubDate[1]}` : undefined, // YYYY/MM/DD
     pdfUrl: pdfComponent ? `${IPFS_RESOLVER}/${pdfComponent.payload.cid}` : undefined,
+    coverImageUrl: coverEntry?.url || undefined,
     dpid: node.dpidAlias || node.legacyDpid,
     version: targetVersionIndex + 1,
   };
