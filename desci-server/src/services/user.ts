@@ -243,7 +243,7 @@ export async function setOrcidForUser(
         data: {
           accessToken: auth.accessToken,
           refreshToken: auth.refreshToken,
-          expiresIn: auth.expiresIn,
+          expiresIn: typeof auth.expiresIn === 'string' ? parseInt(auth.expiresIn, 10) : auth.expiresIn,
           userId,
           source: AuthTokenSource.ORCID,
         },

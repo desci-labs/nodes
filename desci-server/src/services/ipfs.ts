@@ -37,7 +37,9 @@ export const client: IPFSHTTPClient = create({ url: process.env.IPFS_NODE_URL })
 export const readerClient: IPFSHTTPClient = create({ url: PUBLIC_IPFS_PATH });
 export const guestIpfsClient: IPFSHTTPClient = create({ url: process.env.GUEST_IPFS_NODE_URL });
 
-export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
+export const publicIpfs = create({
+  url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0',
+});
 
 export enum IPFS_NODE {
   PRIVATE = 'private',

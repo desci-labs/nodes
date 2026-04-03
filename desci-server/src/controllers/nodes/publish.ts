@@ -138,6 +138,12 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     // Make sure we don't serve stale manifest state when a publish is happening
     delFromCache(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`);
 
+    // Invalidate dpid metadata cache so link previews reflect the new version
+    if (dpidAlias) {
+      logger.info({ dpidAlias, cacheKey: `dpid-metadata-${dpidAlias}-latest` }, 'Invalidating dpid metadata cache');
+      delFromCache(`dpid-metadata-${dpidAlias}-latest`);
+    }
+
     saveInteraction({
       req,
       action: ActionType.PUBLISH_NODE,

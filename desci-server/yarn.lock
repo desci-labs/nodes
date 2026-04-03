@@ -1614,10 +1614,10 @@
   dependencies:
     "@composedb/types" "^0.7.1"
 
-"@desci-labs/desci-codex-lib@^2.0.0-rc5":
-  version "2.0.0-rc5"
-  resolved "https://registry.yarnpkg.com/@desci-labs/desci-codex-lib/-/desci-codex-lib-2.0.0-rc5.tgz#27c7c7ff97c282f504e955e81199458fc1daecfd"
-  integrity sha512-m834azEgZsRwJ+DVUWdEdfi6eWMwzdE+avR8k86H49vPh1qi2UST66jc71VfdxSzt8Uh+RGfrTSiHQpu02zT2w==
+"@desci-labs/desci-codex-lib@^2.0.0-rc9":
+  version "2.0.0-rc9"
+  resolved "https://registry.yarnpkg.com/@desci-labs/desci-codex-lib/-/desci-codex-lib-2.0.0-rc9.tgz#227bd54e83f364e01475a94614a17f59d214f7ab"
+  integrity sha512-G6Yzg4uqkKszWPhxGMDIA7TCld+EUvR+jw3vjJScvNHG2F3jx+ZAFnRdimlxrNasOz7CwIOlKnx+dJkZNAm2cg==
   dependencies:
     "@ceramic-sdk/flight-sql-client" "^0.11.0"
     "@ceramic-sdk/identifiers" "^0.11.0"
