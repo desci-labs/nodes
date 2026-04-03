@@ -71,6 +71,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     title: string;
     abstract: string;
     doi: string;
+    keywords?: string[];
   } | null;
 
   let attemptedOpenAlexQuery = false;
@@ -93,6 +94,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         abstract: grobidMetadata.abstract || openAlexMetadata.abstract,
         title: grobidMetadata.title || openAlexMetadata.title,
         doi: grobidMetadata.doi,
+        keywords: openAlexMetadata?.keywords?.length ? openAlexMetadata.keywords : grobidMetadata.keywords,
       };
       doi = grobidMetadata.doi;
     } else if (grobidMetadata) {
@@ -100,6 +102,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         title: grobidMetadata?.title,
         abstract: grobidMetadata?.abstract,
         authors: grobidMetadata?.authors.map((author) => ({ name: author, affiliations: [], orcid: '' })),
+        keywords: grobidMetadata?.keywords,
       };
     }
 

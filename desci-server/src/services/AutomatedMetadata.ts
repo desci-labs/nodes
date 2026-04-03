@@ -1,3 +1,4 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { DocumentId } from '@automerge/automerge-repo';
 import { ManifestActions, ResearchObjectV1Author, ResearchObjectV1AuthorRole } from '@desci-labs/desci-models';
 import axios from 'axios';
@@ -14,6 +15,41 @@ import repoService from './repoService.js';
 const logger = parentLogger.child({ module: '[AutomatedMetadataClient]' });
 
 const IPFS_RESOLVER = process.env.IPFS_RESOLVER_OVERRIDE || 'https://ipfs.desci.com/ipfs';
+
+/**
+ * Tool schema for Claude structured extraction of academic paper metadata.
+ * Using tool_use forces deterministic structured output matching the schema.
+ */
+const EXTRACT_METADATA_TOOL: Anthropic.Tool = {
+  name: 'extract_paper_metadata',
+  description: 'Extract structured metadata from an academic paper PDF',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      title: { type: 'string', description: 'Full title of the paper' },
+      abstract: { type: 'string', description: 'Full abstract text' },
+      authors: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Full name (e.g. "John A. Smith")' },
+            affiliation: { type: 'string', description: 'Primary institutional affiliation' },
+            orcid: { type: 'string', description: 'ORCID identifier if found, empty string otherwise' },
+          },
+          required: ['name'],
+        },
+      },
+      doi: { type: 'string', description: 'DOI if found in the paper, empty string otherwise' },
+      keywords: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Keywords or key terms from the paper (from keywords section or inferred from content)',
+      },
+    },
+    required: ['title', 'abstract', 'authors', 'doi', 'keywords'],
+  },
+};
 
 export const delay = async (timeMs: number) => {
   return new Promise((resolve) => setTimeout(resolve, timeMs));
@@ -247,10 +283,108 @@ export class AutomatedMetadataClient {
         });
       }
 
+      // If still inadequate after Grobid fulltext, fall back to LLM extraction
+      if (!headerMetadata.authors?.length || !headerMetadata.title || !headerMetadata.abstract) {
+        logger.info(headerMetadata, 'Still inadequate after Grobid fulltext, falling back to LLM extraction');
+        const llmMetadata = await this.queryFromLLM(buffer);
+        if (llmMetadata) {
+          if (!headerMetadata.title && llmMetadata.title) headerMetadata.title = llmMetadata.title;
+          if (!headerMetadata.abstract && llmMetadata.abstract) headerMetadata.abstract = llmMetadata.abstract;
+          if (!headerMetadata.authors?.length && llmMetadata.authors?.length) headerMetadata.authors = llmMetadata.authors;
+          if (!headerMetadata.doi && llmMetadata.doi) headerMetadata.doi = llmMetadata.doi;
+          if (llmMetadata.keywords?.length) headerMetadata.keywords = llmMetadata.keywords;
+        }
+      }
+
       return headerMetadata;
     } catch (error) {
       logger.error(error, 'ERROR');
+      // Last resort: try LLM-only extraction if Grobid completely fails
+      try {
+        if (error?.response?.status || error?.code === 'ECONNREFUSED') {
+          logger.info('Grobid unavailable, attempting LLM-only extraction');
+          const pdfUrl = `${IPFS_RESOLVER}/${cid}`;
+          const fetchRes = await fetch(pdfUrl);
+          const res = await fetchRes.arrayBuffer();
+          const buffer = Buffer.from(res);
+          const llmMetadata = await this.queryFromLLM(buffer);
+          if (llmMetadata) return llmMetadata;
+        }
+      } catch (llmError) {
+        logger.error(llmError, 'LLM fallback also failed');
+      }
       return DEFAULT_GROBID_METADATA;
+    }
+  }
+
+  /**
+   * Extract metadata from a PDF using Claude's native PDF understanding + tool_use
+   * for deterministic structured output. Used as fallback when Grobid returns
+   * inadequate metadata or is unavailable.
+   */
+  async queryFromLLM(buffer: Buffer): Promise<GrobidMetadata | null> {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      logger.warn('ANTHROPIC_API_KEY not set, skipping LLM metadata extraction');
+      return null;
+    }
+
+    try {
+      const client = new Anthropic({ apiKey });
+      const pdfBase64 = buffer.toString('base64');
+
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        tools: [EXTRACT_METADATA_TOOL],
+        tool_choice: { type: 'tool', name: 'extract_paper_metadata' },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: pdfBase64,
+                },
+              },
+              {
+                type: 'text',
+                text: 'Extract the metadata from this academic paper. Be precise with author names and affiliations. If keywords are listed explicitly, use those; otherwise infer 3-5 key terms from the abstract and content.',
+              },
+            ],
+          },
+        ],
+      });
+
+      const toolBlock = response.content.find((block) => block.type === 'tool_use');
+      if (!toolBlock || toolBlock.type !== 'tool_use') {
+        logger.error('No tool_use block in LLM response');
+        return null;
+      }
+
+      const extracted = toolBlock.input as {
+        title: string;
+        abstract: string;
+        authors: Array<{ name: string; affiliation?: string; orcid?: string }>;
+        doi: string;
+        keywords: string[];
+      };
+
+      logger.info({ extracted }, 'LLM metadata extraction successful');
+
+      return {
+        title: extracted.title || '',
+        abstract: extracted.abstract || '',
+        authors: extracted.authors?.map((a) => a.name) || [],
+        doi: extracted.doi || '',
+        keywords: extracted.keywords || [],
+      };
+    } catch (error) {
+      logger.error(error, 'LLM metadata extraction failed');
+      return null;
     }
   }
 
@@ -331,8 +465,11 @@ export class AutomatedMetadataClient {
     }
 
     if (metadata.authors) {
+      // Use 'Set Contributors' to replace existing authors rather than appending.
+      // This prevents duplicate authors when a manuscript is replaced or
+      // metadata is re-extracted after the user has already curated authors.
       actions.push({
-        type: 'Add Contributors',
+        type: 'Set Contributors',
         contributors: metadata.authors.map(
           (author) =>
             ({
@@ -343,7 +480,7 @@ export class AutomatedMetadataClient {
               ...(author.orcid && { orcid: getOrcidFromURL(author.orcid) }),
             }) as ResearchObjectV1Author,
         ),
-      }); //
+      });
     }
 
     const response = await repoService.dispatchAction({
@@ -356,11 +493,12 @@ export class AutomatedMetadataClient {
   }
 }
 
-type GrobidMetadata = {
+export type GrobidMetadata = {
   authors: string[];
   title: string;
   abstract: string;
   doi: string;
+  keywords?: string[];
 };
 
 /**

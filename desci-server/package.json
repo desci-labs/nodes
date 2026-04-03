@@ -62,6 +62,7 @@
   },
   "dependencies": {
     "@amplitude/analytics-node": "^1.5.10",
+    "@anthropic-ai/sdk": "^0.82.0",
     "@automerge/automerge-repo": "^1.0.19",
     "@automerge/automerge-repo-network-websocket": "^1.0.19",
     "@awesome-myst/myst-zod": "^0.6.1",
