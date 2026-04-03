@@ -107,7 +107,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
       (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
     ) as PdfComponent[];
     logger.info({ pdfs }, 'PDFS:::=>>>>>>>>>>>>');
-    const cid = pdfs[0].payload.url;
+    const cid = pdfs[0].payload.url || pdfs[0].payload.cid;
 
     if (!cid) {
       // TODO: return default url
