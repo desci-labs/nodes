@@ -41,7 +41,40 @@ const cover = async function (req: Request, res: Response) {
     }
 
     console.log('starting convert', url);
-    await convertAsync([`${TMP_FILE}[0]`, '-quality', '100', TARGET_IMG]);
+    const CROPPED_IMG = path.join(TMP_DIR, 'cover_cropped.jpeg');
+    const GRADIENT_IMG = path.join(TMP_DIR, 'gradient.png');
+
+    // Step 1: Render PDF, resize, and crop to 1200x630
+    await convertAsync([
+      '-density', '200',
+      `${TMP_FILE}[0]`,
+      '-background', 'white',
+      '-flatten',
+      '-resize', '1200x',
+      '-gravity', 'North',
+      '-extent', '1200x630',
+      '-quality', '90',
+      CROPPED_IMG,
+    ]);
+
+    // Step 2: Generate a gradient mask (white→black over bottom 120px)
+    await convertAsync([
+      '-size', '1200x630', 'xc:white',
+      '-size', '1200x120', 'gradient:white-black',
+      '-gravity', 'South',
+      '-composite',
+      GRADIENT_IMG,
+    ]);
+
+    // Step 3: Composite — fade bottom to black
+    await convertAsync([
+      CROPPED_IMG,
+      GRADIENT_IMG,
+      '-compose', 'Multiply',
+      '-composite',
+      '-quality', '90',
+      TARGET_IMG,
+    ]);
     console.log('done convert', url);
     const buffer = await readFile(TARGET_IMG);
     const storedCover = await client.add(buffer, { cidVersion: 1 });
