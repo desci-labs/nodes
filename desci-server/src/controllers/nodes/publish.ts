@@ -330,9 +330,15 @@ const syncPublish = async (
   void discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
 
   /**
-   * Save the cover art for this Node for later sharing: PDF -> JPG for this version
+   * Save the cover art for this Node for later sharing: PDF -> JPG for this version.
+   * Pass the version explicitly because the subgraph may not have indexed the new
+   * version yet, causing cacheNodeMetadata to save the cover under the wrong version.
    */
-  void cacheNodeMetadata(node.uuid, cid).catch((err) => logger.warn(err, 'Error: Caching node metadata failed'));
+  const versionCount = await prisma.nodeVersion.count({ where: { nodeId: node.id } });
+  const newVersionIndex = versionCount - 1;
+  void cacheNodeMetadata(node.uuid, cid, newVersionIndex).catch((err) =>
+    logger.warn(err, 'Error: Caching node metadata failed'),
+  );
   return dpidAlias;
 };
 
