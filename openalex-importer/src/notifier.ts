@@ -121,6 +121,16 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
      ORDER BY finished_at DESC LIMIT 1`,
   );
 
+  const recordCounts = await db.oneOrNone<{ total_works: string; works_24h: string }>(
+    `SELECT
+       COALESCE((SELECT reltuples::bigint FROM pg_class
+         WHERE oid = 'openalex.works'::regclass), 0)::text AS total_works,
+       COALESCE((SELECT COUNT(*) FROM openalex.works_batch wb
+         JOIN openalex.batch b ON b.id = wb.batch_id
+         WHERE b.finished_at > NOW() - INTERVAL '24 hours'
+           AND b.query_type = 'updated'), 0)::text AS works_24h`,
+  );
+
   const syncDate = syncPosition?.query_to
     ? new UTCDate(syncPosition.query_to).toISOString().split('T')[0]
     : 'unknown';
@@ -149,6 +159,13 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
     ? new UTCDate(lastSuccess.finished_at).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
     : 'never';
 
+  const totalWorks = parseInt(recordCounts?.total_works ?? '0');
+  const works24h = parseInt(recordCounts?.works_24h ?? '0');
+
+  const formatCount = (n: number) => n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : `${n}`;
+
   const lines = [
     `📊 <b>OpenAlex Importer — Status</b>`,
     ``,
@@ -156,6 +173,7 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
     `<b>Synced through:</b> ${syncDate}${daysBehind !== null && daysBehind > 1 ? ` (${daysBehind} days behind)` : ''}`,
     `<b>Last successful import:</b> ${lastSuccessStr}`,
     `<b>Last 24h:</b> ${daysImported} day${daysImported !== 1 ? 's' : ''} imported in ${durationMin}m ${durationSec}s`,
+    `<b>Records:</b> ${formatCount(works24h)} works in last 24h · ${formatCount(totalWorks)} total`,
     `<b>Pod uptime:</b> ${uptimeH}h ${uptimeM}m`,
   ];
 
