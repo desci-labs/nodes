@@ -29,7 +29,7 @@ export const sendTelegram = async (message: string): Promise<boolean> => {
       parse_mode: 'HTML',
     };
     if (config.threadId) {
-      body.message_thread_id = parseInt(config.threadId);
+      body.message_thread_id = parseInt(config.threadId, 10);
     }
 
     const res = await fetch(`${TELEGRAM_API}/bot${config.token}/sendMessage`, {
@@ -87,10 +87,6 @@ export const markImporting = (): void => {
   wasCaughtUp = false;
 };
 
-/**
- * Daily digest: queries the batch table for last-24h stats and overall
- * sync position. Designed to be called by a once-daily cron.
- */
 /**
  * Builds the status/digest message by querying the batch table.
  * Shared between the daily digest cron and the /status bot command.
@@ -257,6 +253,7 @@ export const startCommandListener = (db: OaDb): void => {
                 update.message.message_thread_id,
               );
             } catch (err) {
+              logger.warn({ err }, 'Failed to build status for /status command');
               await replyToMessage(
                 update.message.chat.id,
                 update.message.message_id,

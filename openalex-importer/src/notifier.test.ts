@@ -112,15 +112,18 @@ describe('notifyError', () => {
   });
 
   it('sends again after cooldown expires', async () => {
-    await notifyError(new Error('first'));
-    vi.useFakeTimers();
-    vi.advanceTimersByTime(61 * 60 * 1000);
-    vi.useRealTimers();
+    const baseTime = 1_700_000_000_000;
+    const dateNowSpy = vi.spyOn(Date, 'now');
 
-    vi.resetModules();
-    const mod = await import('./notifier.js');
-    await mod.notifyError(new Error('after cooldown'));
+    dateNowSpy.mockReturnValue(baseTime);
+    await notifyError(new Error('first'));
+    expect(fetchSpy).toHaveBeenCalledOnce();
+
+    dateNowSpy.mockReturnValue(baseTime + 61 * 60 * 1000);
+    await notifyError(new Error('after cooldown'));
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    dateNowSpy.mockRestore();
   });
 
   it('truncates very long error messages', async () => {
