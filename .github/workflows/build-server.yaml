@@ -141,9 +141,9 @@ jobs:
 
   verify-deployment:
     name: Verify deployment (${{ github.ref_name }})
-    needs:
-      - build-and-test
-      - build-and-push-images
+    # Only need the image pushed — Flux deploys regardless of test results
+    needs: build-and-push-images
+    if: always() && needs.build-and-push-images.result == 'success'
     runs-on: blacksmith-4vcpu-ubuntu-2204
     timeout-minutes: 18
     steps:
