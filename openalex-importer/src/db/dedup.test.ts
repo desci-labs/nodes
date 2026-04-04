@@ -83,9 +83,30 @@ describe('deduplicateWorksConcepts', () => {
     expect(deduplicateWorksConcepts([])).toEqual([]);
   });
 
+  it('filters out rows with null work_id', () => {
+    const data = [
+      { work_id: null, concept_id: 'C1', score: 0.5 },
+      { work_id: 'W1', concept_id: 'C1', score: 0.8 },
+    ] as any;
+
+    const result = deduplicateWorksConcepts(data);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.work_id).toBe('W1');
+  });
+
+  it('filters out rows with null concept_id', () => {
+    const data = [
+      { work_id: 'W1', concept_id: null, score: 0.5 },
+      { work_id: 'W1', concept_id: undefined, score: 0.6 },
+      { work_id: 'W1', concept_id: 'C1', score: 0.8 },
+    ] as any;
+
+    const result = deduplicateWorksConcepts(data);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.concept_id).toBe('C1');
+  });
+
   it('handles the real-world scenario: large batch with scattered duplicates', () => {
-    // Simulate the Nov 11 crash scenario — 1000 works with ~12k concept rows,
-    // a handful of which have duplicate (work_id, concept_id) pairs
     const data = [];
     for (let w = 0; w < 100; w++) {
       for (let c = 0; c < 10; c++) {
@@ -104,9 +125,8 @@ describe('deduplicateWorksConcepts', () => {
     const result = deduplicateWorksConcepts(data);
     expect(result).toHaveLength(1000); // 100 * 10, duplicates removed
 
-    // The duplicates should have won where their score was higher
     const w0c0 = result.find(r => r.work_id === 'W0' && r.concept_id === 'C0');
-    expect(w0c0!.score).toBe(0.99); // injected dupe had highest score
+    expect(w0c0!.score).toBe(0.99);
   });
 });
 
@@ -133,6 +153,19 @@ describe('deduplicateWorksTopics', () => {
     expect(result[0]!.score).toBe(0.9);
   });
 
+  it('filters out rows with null primary keys', () => {
+    const data = [
+      { work_id: null, topic_id: 'T1', score: 0.5 },
+      { work_id: 'W1', topic_id: null, score: 0.6 },
+      { work_id: 'W1', topic_id: 'T1', score: 0.8 },
+    ] as any;
+
+    const result = deduplicateWorksTopics(data);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.work_id).toBe('W1');
+    expect(result[0]!.topic_id).toBe('T1');
+  });
+
   it('returns empty array for empty input', () => {
     expect(deduplicateWorksTopics([])).toEqual([]);
   });
@@ -157,7 +190,6 @@ describe('deduplicateWorksMesh', () => {
 
     const result = deduplicateWorksMesh(data);
     expect(result).toHaveLength(1);
-    // Keeps the last occurrence
     expect(result[0]!.descriptor_name).toBe('Name1-updated');
     expect(result[0]!.is_major_topic).toBe(true);
   });
@@ -171,6 +203,19 @@ describe('deduplicateWorksMesh', () => {
 
     const result = deduplicateWorksMesh(data);
     expect(result).toHaveLength(2);
+  });
+
+  it('filters out rows with null primary keys', () => {
+    const data = [
+      { work_id: null, descriptor_ui: 'D001', descriptor_name: 'Name1', qualifier_ui: 'Q001', qualifier_name: 'QName1', is_major_topic: true },
+      { work_id: 'W1', descriptor_ui: null, descriptor_name: 'Name1', qualifier_ui: 'Q001', qualifier_name: 'QName1', is_major_topic: true },
+      { work_id: 'W1', descriptor_ui: 'D001', descriptor_name: 'Name1', qualifier_ui: null, qualifier_name: 'QName1', is_major_topic: true },
+      { work_id: 'W1', descriptor_ui: 'D001', descriptor_name: 'Name1', qualifier_ui: 'Q001', qualifier_name: 'QName1', is_major_topic: true },
+    ] as any;
+
+    const result = deduplicateWorksMesh(data);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.work_id).toBe('W1');
   });
 
   it('returns empty array for empty input', () => {

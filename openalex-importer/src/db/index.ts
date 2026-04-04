@@ -339,7 +339,17 @@ const sortWorksAuthorships = (a: DataModels['works_authorships'][number], b: Dat
 const updateWorksAuthorships = async (tx: pgPromise.ITask<any>, data: DataModels['works_authorships']) => {
   if (!data.length) return;
 
-  const merged = data.reduce((acc, curr) => {
+  const filtered = data.filter(row => row.work_id && row.author_id);
+  if (filtered.length < data.length) {
+    logger.warn(
+      { filteredCount: data.length - filtered.length, totalRows: data.length, primaryKeyColumns: ['work_id', 'author_id'], tableName: 'works_authorships' },
+      'Filtered out rows with null primary key values',
+    );
+  }
+
+  if (!filtered.length) return;
+
+  const merged = filtered.reduce((acc, curr) => {
     const key = `${curr.work_id!}-${curr.author_id!}`;
     if (!acc[key]) {
       acc[key] = curr;
