@@ -173,7 +173,7 @@ describe('sendDailyDigest', () => {
         .mockResolvedValueOnce({ days_imported: '3', total_duration_sec: '125' })
         .mockResolvedValueOnce({ failed_count: '0' })
         .mockResolvedValueOnce({ finished_at: new Date('2024-03-15T10:30:00Z') })
-        .mockResolvedValueOnce({ total_works: '5000000', works_24h: '45000' }),
+        .mockResolvedValueOnce({ total_works: '5000000', works_24h: '45000', works_30d: '900000' }),
     } as any;
 
     await sendDailyDigest(mockDb);
@@ -181,10 +181,11 @@ describe('sendDailyDigest', () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.text).toContain('Status');
     expect(body.text).toContain('2024-03-15');
-    expect(body.text).toContain('3 days');
-    expect(body.text).toContain('Last successful import');
-    expect(body.text).toContain('45.0K works in last 24h');
-    expect(body.text).toContain('5.0M total');
+    expect(body.text).toContain('3 day');
+    expect(body.text).toContain('Last import');
+    expect(body.text).toContain('45.0K works');
+    expect(body.text).toContain('900.0K works');
+    expect(body.text).toContain('5.0M works');
   });
 
   it('shows warning for failed batches', async () => {
@@ -194,7 +195,7 @@ describe('sendDailyDigest', () => {
         .mockResolvedValueOnce({ days_imported: '1', total_duration_sec: '60' })
         .mockResolvedValueOnce({ failed_count: '5' })
         .mockResolvedValueOnce({ finished_at: new Date('2024-03-10T08:00:00Z') })
-        .mockResolvedValueOnce({ total_works: '1000000', works_24h: '10000' }),
+        .mockResolvedValueOnce({ total_works: '1000000', works_24h: '10000', works_30d: '200000' }),
     } as any;
 
     await sendDailyDigest(mockDb);
@@ -232,7 +233,7 @@ describe('sendDailyDigest', () => {
         .mockResolvedValueOnce({ days_imported: '0', total_duration_sec: '0' })
         .mockResolvedValueOnce({ failed_count: '0' })
         .mockResolvedValueOnce({ finished_at: new Date('2024-01-01T12:00:00Z') })
-        .mockResolvedValueOnce({ total_works: '100000', works_24h: '0' }),
+        .mockResolvedValueOnce({ total_works: '100000', works_24h: '0', works_30d: '5000' }),
     } as any;
 
     await sendDailyDigest(mockDb);
@@ -243,22 +244,26 @@ describe('sendDailyDigest', () => {
 });
 
 describe('buildDigestMessage', () => {
-  it('includes pod uptime, last successful import, and record counts', async () => {
+  it('includes pod uptime, last import with time ago, and record counts', async () => {
+    const recentDate = new Date(Date.now() - 3600_000); // 1h ago
     const mockDb = {
       oneOrNone: vi.fn()
         .mockResolvedValueOnce({ query_to: new Date('2024-03-15') })
         .mockResolvedValueOnce({ days_imported: '1', total_duration_sec: '60' })
         .mockResolvedValueOnce({ failed_count: '0' })
-        .mockResolvedValueOnce({ finished_at: new Date('2024-03-15T14:00:00Z') })
-        .mockResolvedValueOnce({ total_works: '12500000', works_24h: '8500' }),
+        .mockResolvedValueOnce({ finished_at: recentDate })
+        .mockResolvedValueOnce({ total_works: '12500000', works_24h: '8500', works_30d: '250000' }),
     } as any;
 
     const message = await buildDigestMessage(mockDb);
     expect(message).toContain('Pod uptime');
-    expect(message).toContain('Last successful import');
-    expect(message).toContain('2024-03-15 14:00:00 UTC');
-    expect(message).toContain('8.5K works in last 24h');
-    expect(message).toContain('12.5M total');
+    expect(message).toContain('Last import');
+    expect(message).toContain('ago)');
+    expect(message).toContain('24h:');
+    expect(message).toContain('8.5K works');
+    expect(message).toContain('30d:');
+    expect(message).toContain('250.0K works');
+    expect(message).toContain('~12.5M works');
   });
 
   it('shows caught up status for recent sync', async () => {
@@ -270,7 +275,7 @@ describe('buildDigestMessage', () => {
         .mockResolvedValueOnce({ days_imported: '1', total_duration_sec: '30' })
         .mockResolvedValueOnce({ failed_count: '0' })
         .mockResolvedValueOnce({ finished_at: yesterday })
-        .mockResolvedValueOnce({ total_works: '1000', works_24h: '500' }),
+        .mockResolvedValueOnce({ total_works: '1000', works_24h: '500', works_30d: '800' }),
     } as any;
 
     const message = await buildDigestMessage(mockDb);

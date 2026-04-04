@@ -1,5 +1,5 @@
 import { logger } from './logger.js';
-import { differenceInCalendarDays } from 'date-fns';
+import { differenceInCalendarDays, formatDistanceToNowStrict } from 'date-fns';
 import { UTCDate } from '@date-fns/utc';
 import type { OaDb } from './db/index.js';
 
@@ -121,14 +121,18 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
      ORDER BY finished_at DESC LIMIT 1`,
   );
 
-  const recordCounts = await db.oneOrNone<{ total_works: string; works_24h: string }>(
+  const recordCounts = await db.oneOrNone<{ total_works: string; works_24h: string; works_30d: string }>(
     `SELECT
        COALESCE((SELECT reltuples::bigint FROM pg_class
          WHERE oid = 'openalex.works'::regclass), 0)::text AS total_works,
        COALESCE((SELECT COUNT(*) FROM openalex.works_batch wb
          JOIN openalex.batch b ON b.id = wb.batch_id
          WHERE b.finished_at > NOW() - INTERVAL '24 hours'
-           AND b.query_type = 'updated'), 0)::text AS works_24h`,
+           AND b.query_type = 'updated'), 0)::text AS works_24h,
+       COALESCE((SELECT COUNT(*) FROM openalex.works_batch wb
+         JOIN openalex.batch b ON b.id = wb.batch_id
+         WHERE b.finished_at > NOW() - INTERVAL '30 days'
+           AND b.query_type = 'updated'), 0)::text AS works_30d`,
   );
 
   const syncDate = syncPosition?.query_to
@@ -155,14 +159,21 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
   const uptimeH = Math.floor(uptime / 3600);
   const uptimeM = Math.floor((uptime % 3600) / 60);
 
-  const lastSuccessStr = lastSuccess?.finished_at
+  const lastSuccessTs = lastSuccess?.finished_at
     ? new UTCDate(lastSuccess.finished_at).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+    : null;
+  const lastSuccessAgo = lastSuccess?.finished_at
+    ? formatDistanceToNowStrict(new UTCDate(lastSuccess.finished_at), { addSuffix: true })
+    : null;
+  const lastSuccessStr = lastSuccessTs
+    ? `${lastSuccessTs} (${lastSuccessAgo})`
     : 'never';
 
   const totalWorks = parseInt(recordCounts?.total_works ?? '0');
   const works24h = parseInt(recordCounts?.works_24h ?? '0');
+  const works30d = parseInt(recordCounts?.works_30d ?? '0');
 
-  const formatCount = (n: number) => n >= 1_000_000
+  const fmt = (n: number) => n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(1)}M`
     : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : `${n}`;
 
@@ -171,9 +182,14 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
     ``,
     `<b>Status:</b> ${status}`,
     `<b>Synced through:</b> ${syncDate}${daysBehind !== null && daysBehind > 1 ? ` (${daysBehind} days behind)` : ''}`,
-    `<b>Last successful import:</b> ${lastSuccessStr}`,
-    `<b>Last 24h:</b> ${daysImported} day${daysImported !== 1 ? 's' : ''} imported in ${durationMin}m ${durationSec}s`,
-    `<b>Records:</b> ${formatCount(works24h)} works in last 24h · ${formatCount(totalWorks)} total`,
+    `<b>Last import:</b> ${lastSuccessStr}`,
+    `<b>Throughput:</b> ${daysImported} day${daysImported !== 1 ? 's' : ''} imported in ${durationMin}m ${durationSec}s (last 24h)`,
+    ``,
+    `<b>Records ingested</b>`,
+    `  24h:  ${fmt(works24h)} works`,
+    `  30d:  ${fmt(works30d)} works`,
+    `  total: ~${fmt(totalWorks)} works`,
+    ``,
     `<b>Pod uptime:</b> ${uptimeH}h ${uptimeM}m`,
   ];
 
