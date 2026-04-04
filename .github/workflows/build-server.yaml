@@ -238,12 +238,12 @@ jobs:
 
       - name: Wait for Flux to pick up image and pull
         run: |
-          echo "Waiting 5 minutes for Flux pipeline + image pull..."
+          echo "Waiting 7 minutes for Flux pipeline + image pull..."
           echo "  - ImageRepository polls ECR every 1m"
           echo "  - ImageUpdateAutomation commits every 2m"
           echo "  - Kustomization reconciles every 1m"
-          echo "  - Image pull ~5 min (2.4GB image)"
-          sleep 300
+          echo "  - Image pull + startup ~5 min (2.4GB image)"
+          sleep 420
 
       - name: Poll health endpoint for deployed version
         id: health-check
