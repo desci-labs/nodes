@@ -18,6 +18,7 @@ let notifyCaughtUp: typeof import('./notifier.js')['notifyCaughtUp'];
 let markImporting: typeof import('./notifier.js')['markImporting'];
 let sendDailyDigest: typeof import('./notifier.js')['sendDailyDigest'];
 let buildDigestMessage: typeof import('./notifier.js')['buildDigestMessage'];
+let buildPipelineStatus: typeof import('./notifier.js')['buildPipelineStatus'];
 let startCommandListener: typeof import('./notifier.js')['startCommandListener'];
 let stopCommandListener: typeof import('./notifier.js')['stopCommandListener'];
 
@@ -25,7 +26,7 @@ beforeEach(async () => {
   vi.resetModules();
   vi.stubEnv('TELEGRAM_BOT_TOKEN', 'test-token');
   vi.stubEnv('TELEGRAM_CHAT_ID', '-100123456');
-  fetchSpy.mockClear();
+  fetchSpy.mockReset();
   fetchSpy.mockResolvedValue({ ok: true, text: async () => '{}' });
 
   const mod = await import('./notifier.js');
@@ -35,6 +36,7 @@ beforeEach(async () => {
   markImporting = mod.markImporting;
   sendDailyDigest = mod.sendDailyDigest;
   buildDigestMessage = mod.buildDigestMessage;
+  buildPipelineStatus = mod.buildPipelineStatus;
   startCommandListener = mod.startCommandListener;
   stopCommandListener = mod.stopCommandListener;
 });
@@ -289,6 +291,137 @@ describe('buildDigestMessage', () => {
 
     const message = await buildDigestMessage(mockDb);
     expect(message).toContain('never');
+  });
+});
+
+describe('buildPipelineStatus', () => {
+  it('shows overall health and per-pipeline details', async () => {
+    const mockDb = {
+      oneOrNone: vi.fn().mockResolvedValueOnce({ max_batch: '14611' }),
+      manyOrNone: vi.fn().mockResolvedValueOnce([
+        { service: 'pg-to-es-batch-openalex', value: '14527', updated_at: new Date(Date.now() - 3600_000) },
+        { service: 'ml-novelty-batch-openalex', value: '14527', updated_at: new Date(Date.now() - 3600_000) },
+        { service: 'pg-to-vector-db-batch-openalex', value: '6451', updated_at: new Date('2026-02-27') },
+      ]),
+    } as any;
+
+    fetchSpy
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { id: 'deploy-es', name: 'pg_to_es_batch_import_deployment' },
+          { id: 'deploy-nov', name: 'batch_novelty_openalex_deployment' },
+          { id: 'deploy-qdr', name: 'pg_to_vector_db_batch_import_deployment' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { id: 'run1', deployment_id: 'deploy-es', state: { type: 'COMPLETED', name: 'Completed' }, start_time: new Date(Date.now() - 7200_000).toISOString(), total_run_time: 221 },
+          { id: 'run2', deployment_id: 'deploy-nov', state: { type: 'COMPLETED', name: 'Completed' }, start_time: new Date(Date.now() - 7200_000).toISOString(), total_run_time: 1540 },
+          { id: 'run3', deployment_id: 'deploy-qdr', state: { type: 'COMPLETED', name: 'Completed' }, start_time: new Date(Date.now() - 86400_000).toISOString(), total_run_time: 3.8 },
+        ],
+      });
+
+    const message = await buildPipelineStatus(mockDb);
+    expect(message).toContain('Pipeline Health');
+    expect(message).toContain('action needed');
+    expect(message).toContain('PG → Elasticsearch');
+    expect(message).toContain('Lagging');
+    expect(message).toContain('99.4%');
+    expect(message).toContain('84 batches behind');
+    expect(message).toContain('PG → Qdrant');
+    expect(message).toContain('Stalled');
+    expect(message).toContain('6,451');
+    expect(message).toContain('no data processed');
+    expect(message).toContain('No progress since');
+    expect(message).toContain('Importer at batch');
+  });
+
+  it('shows all healthy when pipelines are caught up', async () => {
+    const mockDb = {
+      oneOrNone: vi.fn().mockResolvedValueOnce({ max_batch: '14611' }),
+      manyOrNone: vi.fn().mockResolvedValueOnce([
+        { service: 'pg-to-es-batch-openalex', value: '14611', updated_at: new Date() },
+        { service: 'ml-novelty-batch-openalex', value: '14611', updated_at: new Date() },
+        { service: 'pg-to-vector-db-batch-openalex', value: '14611', updated_at: new Date() },
+      ]),
+    } as any;
+
+    fetchSpy
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { id: 'd1', name: 'pg_to_es_batch_import_deployment' },
+          { id: 'd2', name: 'batch_novelty_openalex_deployment' },
+          { id: 'd3', name: 'pg_to_vector_db_batch_import_deployment' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { id: 'r1', deployment_id: 'd1', state: { type: 'COMPLETED', name: 'Completed' }, start_time: new Date().toISOString(), total_run_time: 300 },
+          { id: 'r2', deployment_id: 'd2', state: { type: 'COMPLETED', name: 'Completed' }, start_time: new Date().toISOString(), total_run_time: 1200 },
+          { id: 'r3', deployment_id: 'd3', state: { type: 'COMPLETED', name: 'Completed' }, start_time: new Date().toISOString(), total_run_time: 600 },
+        ],
+      });
+
+    const message = await buildPipelineStatus(mockDb);
+    expect(message).toContain('All pipelines healthy');
+    expect(message).toContain('caught up');
+  });
+
+  it('handles Prefect API failure gracefully', async () => {
+    const mockDb = {
+      oneOrNone: vi.fn().mockResolvedValueOnce({ max_batch: '14611' }),
+      manyOrNone: vi.fn().mockResolvedValueOnce([
+        { service: 'pg-to-es-batch-openalex', value: '14527', updated_at: new Date() },
+      ]),
+    } as any;
+
+    fetchSpy.mockRejectedValueOnce(new Error('connection refused'));
+
+    const message = await buildPipelineStatus(mockDb);
+    expect(message).toContain('Pipeline Health');
+    expect(message).toContain('No recent runs found');
+    expect(message).toContain('14,527');
+  });
+
+  it('handles empty export_metadata gracefully', async () => {
+    const mockDb = {
+      oneOrNone: vi.fn().mockResolvedValueOnce({ max_batch: '100' }),
+      manyOrNone: vi.fn().mockResolvedValueOnce([]),
+    } as any;
+
+    fetchSpy.mockRejectedValueOnce(new Error('connection refused'));
+
+    const message = await buildPipelineStatus(mockDb);
+    expect(message).toContain('no tracking data');
+  });
+
+  it('shows failing status for crashed runs', async () => {
+    const mockDb = {
+      oneOrNone: vi.fn().mockResolvedValueOnce({ max_batch: '100' }),
+      manyOrNone: vi.fn().mockResolvedValueOnce([
+        { service: 'pg-to-es-batch-openalex', value: '90', updated_at: new Date() },
+      ]),
+    } as any;
+
+    fetchSpy
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ id: 'd1', name: 'pg_to_es_batch_import_deployment' }],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { id: 'r1', deployment_id: 'd1', state: { type: 'CRASHED', name: 'Crashed' }, start_time: new Date().toISOString(), total_run_time: 2 },
+        ],
+      });
+
+    const message = await buildPipelineStatus(mockDb);
+    expect(message).toContain('Last run failed');
+    expect(message).toContain('action needed');
   });
 });
 
