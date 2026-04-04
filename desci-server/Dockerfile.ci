@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1
 FROM node:20.19.5-bullseye-slim
 
+ARG GIT_SHA=unknown
+ENV GIT_SHA=${GIT_SHA}
+
 RUN apt-get -qy update && apt-get -qy install openssl curl socat jq dumb-init
 
 RUN mkdir /app && chown -R node:node /app
