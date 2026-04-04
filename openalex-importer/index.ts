@@ -8,7 +8,7 @@ import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
 import { runImportPipeline } from './src/pipeline.js';
 import { Cron } from 'croner';
-import { markImporting, notifyCaughtUp, notifyError, sendDailyDigest, startCommandListener, stopCommandListener } from './src/notifier.js';
+import { markImporting, notifyCaughtUp, notifyError, sendDailyDigest, sendTelegram, startCommandListener, stopCommandListener } from './src/notifier.js';
 
 export const MAX_PAGES_TO_FETCH = parseInt(process.env.MAX_PAGES_TO_FETCH || '100');
 export const IS_DEV = process.env.NODE_ENV === 'development';
@@ -215,36 +215,35 @@ const getRuntimeArgs = (): RuntimeArgs => {
 
 let isPoolEnded = false;
 
-const endPool = async () => {
-  if (!isPoolEnded) {
-    isPoolEnded = true;
-    stopCommandListener();
-    await db.$pool.end();
-  }
+const shutdown = async (reason: string, exitCode: number) => {
+  if (isPoolEnded) return;
+  isPoolEnded = true;
+
+  stopCommandListener();
+  await sendTelegram(`🔴 <b>OpenAlex Importer shutting down</b>\n<b>Reason:</b> ${reason}`).catch(() => {});
+  await db.$pool.end();
+  process.exit(exitCode);
 };
 
 process.on('uncaughtException', async (err) => {
   logger.fatal(errWithCause(err), 'uncaught exception');
-  await endPool();
-  process.exit(1);
+  await notifyError(err, 'Uncaught exception').catch(() => {});
+  await shutdown('uncaught exception', 1);
 });
 
 process.on("SIGTERM", async () => {
   logger.info("Received SIGTERM signal. Shutting down pool...");
-  await endPool();
-  process.exit(1);
+  await shutdown('SIGTERM (K8s rollout or scale-down)', 0);
 });
 
 process.on("SIGINT", async () => {
   logger.info("Received SIGINT signal. Shutting down pool...");
-  await endPool();
-  process.exit(1);
+  await shutdown('SIGINT', 0);
 });
 
 process.on('beforeExit', async () => {
-  logger.info('Process exiting, shutting down pool...')
-  await endPool();
-  process.exit(0);
+  logger.info('Process exiting, shutting down pool...');
+  await shutdown('process exit', 0);
 });
 
 /**
