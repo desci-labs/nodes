@@ -302,7 +302,7 @@ export const buildPipelineStatus = async (db: OaDb): Promise<string> => {
     logger.warn({ err }, 'Failed to query Prefect API for pipeline status');
   }
 
-  type PipelineHealth = 'healthy' | 'lagging' | 'stalled' | 'failing' | 'unknown';
+  type PipelineHealth = 'healthy' | 'stalled' | 'failing' | 'unknown';
 
   const statuses: Array<{ label: string; health: PipelineHealth; lines: string[] }> = [];
 
@@ -318,21 +318,23 @@ export const buildPipelineStatus = async (db: OaDb): Promise<string> => {
       ? ((batch / currentBatch) * 100).toFixed(1)
       : null;
 
+    const ranRecently = run?.start_time
+      ? (Date.now() - new UTCDate(run.start_time).getTime()) < 24 * 60 * 60 * 1000
+      : false;
+    const didWork = run ? run.total_run_time > 30 : false;
+
     let health: PipelineHealth = 'unknown';
     if (run?.state.type === 'FAILED' || run?.state.type === 'CRASHED') {
       health = 'failing';
-    } else if (behind !== null && behind > 100) {
-      health = 'stalled';
-    } else if (behind !== null && behind > 10) {
-      health = 'lagging';
-    } else if (run?.state.type === 'COMPLETED' && (behind === null || behind <= 10)) {
+    } else if (ranRecently && didWork) {
       health = 'healthy';
+    } else if (run) {
+      health = 'stalled';
     }
 
-    const icon = { healthy: '✅', lagging: '🟡', stalled: '🔴', failing: '❌', unknown: '❓' }[health];
+    const icon = { healthy: '✅', stalled: '🔴', failing: '❌', unknown: '❓' }[health];
     const verdict = {
       healthy: 'Healthy',
-      lagging: 'Lagging',
       stalled: 'Stalled',
       failing: 'Last run failed',
       unknown: 'Unknown',
