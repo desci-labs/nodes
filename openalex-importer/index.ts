@@ -213,37 +213,45 @@ const getRuntimeArgs = (): RuntimeArgs => {
   return args as RuntimeArgs;
 };
 
-let isPoolEnded = false;
+let isShuttingDown = false;
+
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T | undefined> =>
+  Promise.race([promise, new Promise<undefined>(r => setTimeout(r, ms))]);
 
 const shutdown = async (reason: string, exitCode: number) => {
-  if (isPoolEnded) return;
-  isPoolEnded = true;
+  if (isShuttingDown) return;
+  isShuttingDown = true;
 
   stopCommandListener();
-  await sendTelegram(`🔴 <b>OpenAlex Importer shutting down</b>\n<b>Reason:</b> ${reason}`).catch(() => {});
-  await db.$pool.end();
+  await withTimeout(
+    sendTelegram(`🔴 <b>OpenAlex Importer shutting down</b>\n<b>Reason:</b> ${reason}`),
+    5_000,
+  ).catch(() => {});
+  await withTimeout(db.$pool.end(), 5_000).catch(() => {});
   process.exit(exitCode);
 };
 
 process.on('uncaughtException', async (err) => {
   logger.fatal(errWithCause(err), 'uncaught exception');
-  await notifyError(err, 'Uncaught exception').catch(() => {});
+  await withTimeout(notifyError(err, 'Uncaught exception'), 5_000).catch(() => {});
   await shutdown('uncaught exception', 1);
 });
 
-process.on("SIGTERM", async () => {
-  logger.info("Received SIGTERM signal. Shutting down pool...");
-  await shutdown('SIGTERM (K8s rollout or scale-down)', 0);
+process.on('unhandledRejection', async (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  logger.fatal({ err }, 'unhandled rejection');
+  await withTimeout(notifyError(err, 'Unhandled rejection'), 5_000).catch(() => {});
+  await shutdown('unhandled rejection', 1);
 });
 
-process.on("SIGINT", async () => {
-  logger.info("Received SIGINT signal. Shutting down pool...");
-  await shutdown('SIGINT', 0);
+process.on("SIGTERM", () => {
+  logger.info("Received SIGTERM signal. Shutting down...");
+  void shutdown('SIGTERM (K8s rollout or scale-down)', 0);
 });
 
-process.on('beforeExit', async () => {
-  logger.info('Process exiting, shutting down pool...');
-  await shutdown('process exit', 0);
+process.on("SIGINT", () => {
+  logger.info("Received SIGINT signal. Shutting down...");
+  void shutdown('SIGINT', 0);
 });
 
 /**
