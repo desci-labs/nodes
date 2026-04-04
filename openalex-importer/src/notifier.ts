@@ -224,7 +224,7 @@ export const startCommandListener = (db: OaDb): void => {
       try {
         const res = await fetch(
           `${TELEGRAM_API}/bot${config.token}/getUpdates?offset=${offset}&timeout=30`,
-          { signal: pollAbort?.signal },
+          { signal: pollAbort?.signal ?? null },
         );
 
         if (!res.ok) {
