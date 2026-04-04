@@ -115,6 +115,12 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
        AND query_type = 'updated'`,
   );
 
+  const lastSuccess = await db.oneOrNone<{ finished_at: Date }>(
+    `SELECT finished_at FROM openalex.batch
+     WHERE finished_at IS NOT NULL AND query_type = 'updated'
+     ORDER BY finished_at DESC LIMIT 1`,
+  );
+
   const syncDate = syncPosition?.query_to
     ? new UTCDate(syncPosition.query_to).toISOString().split('T')[0]
     : 'unknown';
@@ -139,11 +145,16 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
   const uptimeH = Math.floor(uptime / 3600);
   const uptimeM = Math.floor((uptime % 3600) / 60);
 
+  const lastSuccessStr = lastSuccess?.finished_at
+    ? new UTCDate(lastSuccess.finished_at).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+    : 'never';
+
   const lines = [
     `📊 <b>OpenAlex Importer — Status</b>`,
     ``,
     `<b>Status:</b> ${status}`,
-    `<b>Synced through:</b> ${syncDate}`,
+    `<b>Synced through:</b> ${syncDate}${daysBehind !== null && daysBehind > 1 ? ` (${daysBehind} days behind)` : ''}`,
+    `<b>Last successful import:</b> ${lastSuccessStr}`,
     `<b>Last 24h:</b> ${daysImported} day${daysImported !== 1 ? 's' : ''} imported in ${durationMin}m ${durationSec}s`,
     `<b>Pod uptime:</b> ${uptimeH}h ${uptimeM}m`,
   ];
@@ -219,7 +230,14 @@ export const startCommandListener = (db: OaDb): void => {
   let offset = 0;
   pollAbort = new AbortController();
 
-  void sendTelegram('🟢 <b>OpenAlex Importer online</b>\nBot started, listening for commands. Type /help for options.');
+  void (async () => {
+    try {
+      const message = await buildDigestMessage(db);
+      await sendTelegram(`🟢 <b>OpenAlex Importer online</b>\n\n${message}\n\nType /help for commands.`);
+    } catch {
+      await sendTelegram('🟢 <b>OpenAlex Importer online</b>\nFailed to fetch initial status — type /status to retry.');
+    }
+  })();
 
   const poll = async () => {
     while (!pollAbort?.signal.aborted) {

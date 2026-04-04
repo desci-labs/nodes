@@ -171,7 +171,8 @@ describe('sendDailyDigest', () => {
       oneOrNone: vi.fn()
         .mockResolvedValueOnce({ query_to: new Date('2024-03-15') })
         .mockResolvedValueOnce({ days_imported: '3', total_duration_sec: '125' })
-        .mockResolvedValueOnce({ failed_count: '0' }),
+        .mockResolvedValueOnce({ failed_count: '0' })
+        .mockResolvedValueOnce({ finished_at: new Date('2024-03-15T10:30:00Z') }),
     } as any;
 
     await sendDailyDigest(mockDb);
@@ -180,6 +181,7 @@ describe('sendDailyDigest', () => {
     expect(body.text).toContain('Status');
     expect(body.text).toContain('2024-03-15');
     expect(body.text).toContain('3 days');
+    expect(body.text).toContain('Last successful import');
   });
 
   it('shows warning for failed batches', async () => {
@@ -187,7 +189,8 @@ describe('sendDailyDigest', () => {
       oneOrNone: vi.fn()
         .mockResolvedValueOnce({ query_to: new Date('2024-03-10') })
         .mockResolvedValueOnce({ days_imported: '1', total_duration_sec: '60' })
-        .mockResolvedValueOnce({ failed_count: '5' }),
+        .mockResolvedValueOnce({ failed_count: '5' })
+        .mockResolvedValueOnce({ finished_at: new Date('2024-03-10T08:00:00Z') }),
     } as any;
 
     await sendDailyDigest(mockDb);
@@ -223,7 +226,8 @@ describe('sendDailyDigest', () => {
       oneOrNone: vi.fn()
         .mockResolvedValueOnce({ query_to: new Date('2024-01-01') })
         .mockResolvedValueOnce({ days_imported: '0', total_duration_sec: '0' })
-        .mockResolvedValueOnce({ failed_count: '0' }),
+        .mockResolvedValueOnce({ failed_count: '0' })
+        .mockResolvedValueOnce({ finished_at: new Date('2024-01-01T12:00:00Z') }),
     } as any;
 
     await sendDailyDigest(mockDb);
@@ -234,16 +238,19 @@ describe('sendDailyDigest', () => {
 });
 
 describe('buildDigestMessage', () => {
-  it('includes pod uptime', async () => {
+  it('includes pod uptime and last successful import', async () => {
     const mockDb = {
       oneOrNone: vi.fn()
         .mockResolvedValueOnce({ query_to: new Date('2024-03-15') })
         .mockResolvedValueOnce({ days_imported: '1', total_duration_sec: '60' })
-        .mockResolvedValueOnce({ failed_count: '0' }),
+        .mockResolvedValueOnce({ failed_count: '0' })
+        .mockResolvedValueOnce({ finished_at: new Date('2024-03-15T14:00:00Z') }),
     } as any;
 
     const message = await buildDigestMessage(mockDb);
     expect(message).toContain('Pod uptime');
+    expect(message).toContain('Last successful import');
+    expect(message).toContain('2024-03-15 14:00:00 UTC');
   });
 
   it('shows caught up status for recent sync', async () => {
@@ -253,11 +260,21 @@ describe('buildDigestMessage', () => {
       oneOrNone: vi.fn()
         .mockResolvedValueOnce({ query_to: yesterday })
         .mockResolvedValueOnce({ days_imported: '1', total_duration_sec: '30' })
-        .mockResolvedValueOnce({ failed_count: '0' }),
+        .mockResolvedValueOnce({ failed_count: '0' })
+        .mockResolvedValueOnce({ finished_at: yesterday }),
     } as any;
 
     const message = await buildDigestMessage(mockDb);
     expect(message).toContain('Caught up');
+  });
+
+  it('shows "never" when no successful imports exist', async () => {
+    const mockDb = {
+      oneOrNone: vi.fn().mockResolvedValue(null),
+    } as any;
+
+    const message = await buildDigestMessage(mockDb);
+    expect(message).toContain('never');
   });
 });
 
