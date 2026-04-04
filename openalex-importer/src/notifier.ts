@@ -6,6 +6,13 @@ import type { OaDb } from './db/index.js';
 const TELEGRAM_API = 'https://api.telegram.org';
 const ERROR_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour between error notifications
 const POLL_INTERVAL_MS = 5_000;
+const PREFECT_API = process.env.PREFECT_API_URL || 'http://alexandria.desci.com:4200';
+
+const DOWNSTREAM_PIPELINES = [
+  { deployment: 'pg_to_es_batch_import_deployment', service: 'pg-to-es-batch-openalex', label: 'PG → Elasticsearch' },
+  { deployment: 'batch_novelty_openalex_deployment', service: 'ml-novelty-batch-openalex', label: 'Batch Novelty' },
+  { deployment: 'pg_to_vector_db_batch_import_deployment', service: 'pg-to-vector-db-batch-openalex', label: 'PG → Qdrant' },
+] as const;
 
 let lastErrorNotifyMs = 0;
 let wasCaughtUp = true;
@@ -214,6 +221,175 @@ export const sendDailyDigest = async (db: OaDb): Promise<void> => {
   }
 };
 
+interface PrefectFlowRun {
+  id: string;
+  deployment_id: string;
+  state: { type: string; name: string };
+  start_time: string | null;
+  total_run_time: number;
+}
+
+interface PrefectDeployment {
+  id: string;
+  name: string;
+  schedules: Array<{ schedule: { cron: string; timezone?: string }; active: boolean }>;
+}
+
+/**
+ * Queries the Prefect API and export_metadata to build a status summary
+ * for all downstream pipelines (ES, novelty, Qdrant).
+ */
+export const buildPipelineStatus = async (db: OaDb): Promise<string> => {
+  const importerBatch = await db.oneOrNone<{ max_batch: string }>(
+    `SELECT MAX(id)::text AS max_batch FROM openalex.batch WHERE finished_at IS NOT NULL`,
+  );
+  const currentBatch = parseInt(importerBatch?.max_batch ?? '0');
+
+  const exportRows = await db.manyOrNone<{ service: string; value: string; updated_at: Date }>(
+    `SELECT service, value, updated_at FROM openalex.export_metadata
+     WHERE service IN ($1:csv)`,
+    [DOWNSTREAM_PIPELINES.map(p => p.service)],
+  );
+  const exportByService = new Map(exportRows.map(r => [r.service, r]));
+
+  let deploymentMap = new Map<string, string>();
+  let latestRuns = new Map<string, PrefectFlowRun>();
+
+  try {
+    const deployRes = await fetch(`${PREFECT_API}/api/deployments/filter`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deployments: { name: { any_: DOWNSTREAM_PIPELINES.map(p => p.deployment) } },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (deployRes.ok) {
+      const deploys = await deployRes.json() as PrefectDeployment[];
+      deploymentMap = new Map(deploys.map(d => [d.name, d.id]));
+
+      if (deploymentMap.size > 0) {
+        const runsRes = await fetch(`${PREFECT_API}/api/flow_runs/filter`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sort: 'START_TIME_DESC',
+            limit: 30,
+            flow_runs: {
+              state: { type: { any_: ['COMPLETED', 'FAILED', 'CRASHED'] } },
+              deployment_id: { any_: [...deploymentMap.values()] },
+            },
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        if (runsRes.ok) {
+          const runs = await runsRes.json() as PrefectFlowRun[];
+          for (const run of runs) {
+            if (!latestRuns.has(run.deployment_id)) {
+              latestRuns.set(run.deployment_id, run);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Failed to query Prefect API for pipeline status');
+  }
+
+  type PipelineHealth = 'healthy' | 'lagging' | 'stalled' | 'failing' | 'unknown';
+
+  const statuses: Array<{ label: string; health: PipelineHealth; lines: string[] }> = [];
+
+  for (const pipeline of DOWNSTREAM_PIPELINES) {
+    const deployId = deploymentMap.get(pipeline.deployment);
+    const run = deployId ? latestRuns.get(deployId) : undefined;
+    const exportRow = exportByService.get(pipeline.service);
+
+    const batch = exportRow ? parseInt(exportRow.value) : null;
+    const behind = batch !== null ? currentBatch - batch : null;
+    const pct = batch !== null && currentBatch > 0
+      ? ((batch / currentBatch) * 100).toFixed(1)
+      : null;
+
+    let health: PipelineHealth = 'unknown';
+    if (run?.state.type === 'FAILED' || run?.state.type === 'CRASHED') {
+      health = 'failing';
+    } else if (behind !== null && behind > 100) {
+      health = 'stalled';
+    } else if (behind !== null && behind > 10) {
+      health = 'lagging';
+    } else if (run?.state.type === 'COMPLETED' && (behind === null || behind <= 10)) {
+      health = 'healthy';
+    }
+
+    const icon = { healthy: '✅', lagging: '🟡', stalled: '🔴', failing: '❌', unknown: '❓' }[health];
+    const verdict = {
+      healthy: 'Healthy',
+      lagging: 'Lagging',
+      stalled: 'Stalled',
+      failing: 'Last run failed',
+      unknown: 'Unknown',
+    }[health];
+
+    const detail: string[] = [];
+
+    if (run) {
+      const ago = run.start_time
+        ? formatDistanceToNowStrict(new UTCDate(run.start_time), { addSuffix: true })
+        : 'unknown';
+      const duration = run.total_run_time < 60
+        ? `${run.total_run_time.toFixed(1)}s`
+        : `${Math.floor(run.total_run_time / 60)}m ${Math.round(run.total_run_time % 60)}s`;
+      const didWork = run.total_run_time > 30;
+      detail.push(`  Ran ${ago} · ${duration}${!didWork ? ' (no data processed)' : ''}`);
+    } else {
+      detail.push(`  No recent runs found`);
+    }
+
+    if (batch !== null) {
+      if (behind !== null && behind <= 0) {
+        detail.push(`  Progress: ${batch.toLocaleString()} / ${currentBatch.toLocaleString()} — caught up`);
+      } else if (behind !== null) {
+        detail.push(`  Progress: ${batch.toLocaleString()} / ${currentBatch.toLocaleString()} (${pct}%) — ${behind.toLocaleString()} batches behind`);
+      }
+      if (health === 'stalled' && exportRow) {
+        const stalledAgo = formatDistanceToNowStrict(new UTCDate(exportRow.updated_at), { addSuffix: true });
+        detail.push(`  ⚠️ No progress since ${stalledAgo}`);
+      }
+    } else {
+      detail.push(`  Progress: no tracking data`);
+    }
+
+    statuses.push({ label: pipeline.label, health, lines: [`${icon} <b>${pipeline.label}</b> — ${verdict}`, ...detail] });
+  }
+
+  const healthy = statuses.filter(s => s.health === 'healthy').length;
+  const total = statuses.length;
+  let overallIcon: string;
+  let overallVerdict: string;
+  if (healthy === total) {
+    overallIcon = '✅';
+    overallVerdict = 'All pipelines healthy';
+  } else if (statuses.some(s => s.health === 'stalled' || s.health === 'failing')) {
+    overallIcon = '🔴';
+    overallVerdict = `${healthy}/${total} healthy — action needed`;
+  } else {
+    overallIcon = '🟡';
+    overallVerdict = `${healthy}/${total} healthy`;
+  }
+
+  const lines = [
+    `🔗 <b>Pipeline Health — ${overallIcon} ${overallVerdict}</b>`,
+    ``,
+    ...statuses.flatMap(s => [...s.lines, ``]),
+    `<i>Importer at batch ${currentBatch.toLocaleString()}</i>`,
+  ];
+
+  return lines.join('\n');
+};
+
 interface TelegramUpdate {
   update_id: number;
   message?: {
@@ -315,6 +491,24 @@ export const startCommandListener = (db: OaDb): void => {
                 update.message.message_thread_id,
               );
             }
+          } else if (command === '/pipelines') {
+            try {
+              const message = await buildPipelineStatus(db);
+              await replyToMessage(
+                update.message.chat.id,
+                update.message.message_id,
+                message,
+                update.message.message_thread_id,
+              );
+            } catch (err) {
+              logger.warn({ err }, 'Failed to build pipeline status');
+              await replyToMessage(
+                update.message.chat.id,
+                update.message.message_id,
+                '⚠️ Failed to fetch pipeline status — check logs',
+                update.message.message_thread_id,
+              );
+            }
           } else if (command === '/help') {
             await replyToMessage(
               update.message.chat.id,
@@ -322,7 +516,8 @@ export const startCommandListener = (db: OaDb): void => {
               [
                 `<b>OpenAlex Importer Bot</b>`,
                 ``,
-                `/status — sync position, last 24h stats, pod uptime`,
+                `/status — importer sync position, records, uptime`,
+                `/pipelines — downstream pipeline health (ES, novelty, Qdrant)`,
                 `/help — show this message`,
               ].join('\n'),
               update.message.message_thread_id,
