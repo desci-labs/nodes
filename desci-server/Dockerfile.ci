@@ -22,7 +22,19 @@ COPY ./tsconfig.json ./tsconfig.json
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
     yarn build
 
-# Prune devDependencies after build
+# ── Test stage (used by docker-compose.test.yml) ─────────────
+FROM builder AS test
+
+RUN apt-get -qy update && apt-get -qy install curl dumb-init \
+    && rm -rf /var/lib/apt/lists/*
+
+EXPOSE 5420 9227 5555
+
+CMD [ "dumb-init", "yarn", "start" ]
+
+# ── Production deps ─────────────────────────────────────────
+FROM builder AS prod-deps
+
 RUN yarn install --ignore-engines --production && yarn cache clean
 
 # ── Runtime stage ────────────────────────────────────────────
@@ -38,12 +50,13 @@ RUN mkdir /app && chown -R node:node /app
 WORKDIR /app
 
 # Copy only what's needed at runtime
-COPY --from=builder --chown=node:node /app/dist ./dist
-COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/prisma ./prisma
-COPY --from=builder --chown=node:node /app/package.json ./package.json
-COPY --from=builder --chown=node:node /app/scripts ./scripts
-COPY --from=builder --chown=node:node /app/src/ssl ./src/ssl
+COPY --from=prod-deps --chown=node:node /app/dist ./dist
+COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
+COPY --from=prod-deps --chown=node:node /app/prisma ./prisma
+COPY --from=prod-deps --chown=node:node /app/package.json ./package.json
+COPY --from=prod-deps --chown=node:node /app/scripts ./scripts
+COPY --from=prod-deps --chown=node:node /app/src/ssl ./src/ssl
+COPY --from=prod-deps --chown=node:node /app/src/data ./src/data
 
 USER node
 
