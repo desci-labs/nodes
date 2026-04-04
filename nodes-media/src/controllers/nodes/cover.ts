@@ -57,20 +57,18 @@ const cover = async function (req: Request, res: Response) {
       CROPPED_IMG,
     ]);
 
-    // Step 2: Generate a gradient mask (white→black over bottom 120px)
+    // Step 2: Generate a white gradient overlay (transparent→white over bottom 120px)
     await convertAsync([
-      '-size', '1200x630', 'xc:white',
-      '-size', '1200x120', 'gradient:white-black',
-      '-gravity', 'South',
-      '-composite',
+      '-size', '1200x510', 'xc:none',
+      '-size', '1200x120', 'gradient:none-white',
+      '-append',
       GRADIENT_IMG,
     ]);
 
-    // Step 3: Composite — fade bottom to black
+    // Step 3: Composite — fade bottom to white
     await convertAsync([
       CROPPED_IMG,
       GRADIENT_IMG,
-      '-compose', 'Multiply',
       '-composite',
       '-quality', '90',
       TARGET_IMG,
