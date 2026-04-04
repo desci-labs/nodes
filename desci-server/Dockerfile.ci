@@ -17,6 +17,8 @@ RUN npx prisma generate
 # Source code + build config
 COPY ./src ./src
 COPY ./scripts ./scripts
+COPY ./test ./test
+COPY ./vitest.config.ts ./vitest.config.ts
 COPY ./tsconfig.json ./tsconfig.json
 
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
