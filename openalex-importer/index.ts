@@ -1,13 +1,14 @@
 import 'dotenv/config';
-import { addDays, differenceInDays, endOfDay, isAfter, isSameDay, startOfDay } from 'date-fns';
+import { addDays, differenceInDays, endOfDay, isAfter, isSameDay, startOfDay, subDays } from 'date-fns';
 import { logger } from './src/logger.js';
 import { db, getNextDayToImport, type OaDb } from './src/db/index.js';
 import { type QueryInfo } from './src/db/types.js';
-import { type Optional, parseDate } from './src/util.js';
+import { type Optional, parseDate, dropTime } from './src/util.js';
 import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
 import { runImportPipeline } from './src/pipeline.js';
 import { Cron } from 'croner';
+import { markImporting, notifyCaughtUp, notifyError, sendDailyDigest } from './src/notifier.js';
 
 export const MAX_PAGES_TO_FETCH = parseInt(process.env.MAX_PAGES_TO_FETCH || '100');
 export const IS_DEV = process.env.NODE_ENV === 'development';
@@ -24,8 +25,12 @@ const runImportTask = async (db: OaDb, query_type: QueryInfo['query_type']) => {
   const currentDate: UTCDate = new UTCDate();
   if (isSameDay(nextDay, currentDate) || isAfter(nextDay, currentDate)) {
     logger.info({ nextDay, currentDate }, '💤 Next day to import is today or in the future, snoozing...');
+    const syncedTo = dropTime(subDays(nextDay, 1).toISOString());
+    await notifyCaughtUp(syncedTo);
     return;
   }
+
+  markImporting();
 
   const importParams: QueryInfo = {
     query_from: startOfDay(nextDay),
@@ -64,10 +69,18 @@ async function main(): Promise<void> {
       protect: () => {
         logger.info('💤 Recurring task invoked while an import is already running, snoozing...');
       },
-      catch: (e) => {
-        logger.error({ error: errWithCause(e as Error) }, '💥 Cron job caught an error, will retry on next schedule tick');
+      catch: async (e) => {
+        const err = e as Error;
+        logger.error({ error: errWithCause(err) }, '💥 Cron job caught an error, will retry on next schedule tick');
+        await notifyError(err, 'Recurring import task');
       },
     });
+
+    const digestSchedule = process.env.DIGEST_SCHEDULE ?? '0 9 * * *';
+    const _digestJob = new Cron(digestSchedule, async () => {
+      logger.info('📊 Sending daily digest...');
+      await sendDailyDigest(db);
+    }, { timezone: 'UTC' });
 
     // Kick off first run right away
     void job.trigger();
