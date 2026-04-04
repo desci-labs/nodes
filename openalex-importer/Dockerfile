@@ -15,6 +15,7 @@ WORKDIR /app
 COPY . .
 
 RUN npm ci
+RUN npm test
 RUN npm run build
 
 CMD [ "npm", "start" ]

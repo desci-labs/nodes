@@ -398,6 +398,8 @@ const updateWorksConcepts = async (tx: pgPromise.ITask<any>, data: DataModels['w
   if (!data.length) return;
 
   const deduped = deduplicateWorksConcepts(data);
+  if (!deduped.length) return;
+
   const columns = getColumnSet(works_conceptsInOpenalex);
   const query = pgp.helpers.insert(deduped.sort(sortWorksConcepts), columns) +
     ' ON CONFLICT (work_id, concept_id) DO UPDATE SET ' +
@@ -423,6 +425,8 @@ const updateWorksMesh = async (tx: pgPromise.ITask<any>, data: DataModels['works
   if (!data.length) return;
 
   const deduped = deduplicateWorksMesh(data);
+  if (!deduped.length) return;
+
   const columns = getColumnSet(works_meshInOpenalex);
   const query = pgp.helpers.insert(deduped.sort(sortWorksMesh), columns) +
     ' ON CONFLICT (work_id, descriptor_ui, qualifier_ui) DO UPDATE SET ' +
@@ -444,6 +448,8 @@ const updateWorksTopics = async (tx: pgPromise.ITask<any>, data: DataModels['wor
   if (!data.length) return;
 
   const deduped = deduplicateWorksTopics(data);
+  if (!deduped.length) return;
+
   const columns = getColumnSet(works_topicsInOpenalex);
   const query = pgp.helpers.insert(deduped.sort(sortWorksTopics), columns) +
     ' ON CONFLICT (work_id, topic_id) DO UPDATE SET ' +
