@@ -60,6 +60,7 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
+            --build-arg INSTALL_TEXLIVE=false \
             -t $CONTAINER_IMAGE-dev:latest \
             -t $CONTAINER_IMAGE-dev:${{ steps.image-tag.outputs.tag }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
@@ -70,6 +71,7 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
+            --build-arg INSTALL_TEXLIVE=false \
             -t $CONTAINER_IMAGE:latest \
             -t $CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
