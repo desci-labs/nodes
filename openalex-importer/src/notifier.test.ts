@@ -17,6 +17,9 @@ let notifyError: typeof import('./notifier.js')['notifyError'];
 let notifyCaughtUp: typeof import('./notifier.js')['notifyCaughtUp'];
 let markImporting: typeof import('./notifier.js')['markImporting'];
 let sendDailyDigest: typeof import('./notifier.js')['sendDailyDigest'];
+let buildDigestMessage: typeof import('./notifier.js')['buildDigestMessage'];
+let startCommandListener: typeof import('./notifier.js')['startCommandListener'];
+let stopCommandListener: typeof import('./notifier.js')['stopCommandListener'];
 
 beforeEach(async () => {
   vi.resetModules();
@@ -31,6 +34,9 @@ beforeEach(async () => {
   notifyCaughtUp = mod.notifyCaughtUp;
   markImporting = mod.markImporting;
   sendDailyDigest = mod.sendDailyDigest;
+  buildDigestMessage = mod.buildDigestMessage;
+  startCommandListener = mod.startCommandListener;
+  stopCommandListener = mod.stopCommandListener;
 });
 
 afterEach(() => {
@@ -168,7 +174,7 @@ describe('sendDailyDigest', () => {
     await sendDailyDigest(mockDb);
     expect(fetchSpy).toHaveBeenCalledOnce();
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-    expect(body.text).toContain('Daily Digest');
+    expect(body.text).toContain('Status');
     expect(body.text).toContain('2024-03-15');
     expect(body.text).toContain('3 days');
   });
@@ -221,5 +227,48 @@ describe('sendDailyDigest', () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.text).toContain('No imports completed');
     expect(body.text).toContain('check pod health');
+  });
+});
+
+describe('buildDigestMessage', () => {
+  it('includes pod uptime', async () => {
+    const mockDb = {
+      oneOrNone: vi.fn()
+        .mockResolvedValueOnce({ query_to: new Date('2024-03-15') })
+        .mockResolvedValueOnce({ days_imported: '1', total_duration_sec: '60' })
+        .mockResolvedValueOnce({ failed_count: '0' }),
+    } as any;
+
+    const message = await buildDigestMessage(mockDb);
+    expect(message).toContain('Pod uptime');
+  });
+
+  it('shows caught up status for recent sync', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const mockDb = {
+      oneOrNone: vi.fn()
+        .mockResolvedValueOnce({ query_to: yesterday })
+        .mockResolvedValueOnce({ days_imported: '1', total_duration_sec: '30' })
+        .mockResolvedValueOnce({ failed_count: '0' }),
+    } as any;
+
+    const message = await buildDigestMessage(mockDb);
+    expect(message).toContain('Caught up');
+  });
+});
+
+describe('startCommandListener', () => {
+  it('does not start polling when env vars are missing', async () => {
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '');
+    vi.resetModules();
+    const mod = await import('./notifier.js');
+
+    mod.startCommandListener({} as any);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('stops cleanly via stopCommandListener', () => {
+    stopCommandListener();
   });
 });

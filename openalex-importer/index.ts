@@ -8,7 +8,7 @@ import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
 import { runImportPipeline } from './src/pipeline.js';
 import { Cron } from 'croner';
-import { markImporting, notifyCaughtUp, notifyError, sendDailyDigest } from './src/notifier.js';
+import { markImporting, notifyCaughtUp, notifyError, sendDailyDigest, startCommandListener, stopCommandListener } from './src/notifier.js';
 
 export const MAX_PAGES_TO_FETCH = parseInt(process.env.MAX_PAGES_TO_FETCH || '100');
 export const IS_DEV = process.env.NODE_ENV === 'development';
@@ -81,6 +81,8 @@ async function main(): Promise<void> {
       logger.info('📊 Sending daily digest...');
       await sendDailyDigest(db);
     }, { timezone: 'UTC' });
+
+    startCommandListener(db);
 
     // Kick off first run right away
     void job.trigger();
@@ -216,6 +218,7 @@ let isPoolEnded = false;
 const endPool = async () => {
   if (!isPoolEnded) {
     isPoolEnded = true;
+    stopCommandListener();
     await db.$pool.end();
   }
 };
