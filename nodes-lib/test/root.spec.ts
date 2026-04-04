@@ -830,6 +830,17 @@ describe("nodes-lib", () => {
 
     describe("external CID", async () => {
       test("can be added", async () => {
+        // Add a small file to the test IPFS node so it's resolvable as an "external" CID
+        const testContent = Buffer.from("test-cat-image-data");
+        const ipfsUrl = "http://host.docker.internal:5003";
+        const formData = new FormData();
+        formData.append("file", new Blob([testContent]), "cat.jpg");
+        const ipfsRes = await fetch(`${ipfsUrl}/api/v0/add?cid-version=1`, {
+          method: "POST",
+          body: formData,
+        });
+        const { Hash: catCid } = await ipfsRes.json() as { Hash: string };
+
         const {
           node: { uuid },
         } = await createBoilerplateNode();
@@ -838,8 +849,6 @@ describe("nodes-lib", () => {
           contextPath: "root",
           newFolderName: "catpics",
         });
-        const catCid =
-          "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
         const addResult = await addExternalCid({
           uuid,
           externalCids: [
