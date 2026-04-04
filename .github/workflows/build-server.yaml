@@ -189,17 +189,21 @@ jobs:
             --image-ids imageTag=${{ github.sha }} \
             --region $AWS_DEFAULT_REGION \
             --query 'images[0].imageManifest' --output text)
-          aws ecr put-image \
-            --repository-name ${{ steps.env.outputs.ecr_repo }} \
-            --image-tag latest \
-            --image-manifest "$MANIFEST" \
-            --region $AWS_DEFAULT_REGION || true
-          aws ecr put-image \
-            --repository-name ${{ steps.env.outputs.ecr_repo }} \
-            --image-tag ${{ needs.build-and-push-images.outputs.image_tag }} \
-            --image-manifest "$MANIFEST" \
-            --region $AWS_DEFAULT_REGION || true
-          echo "Tagged as :latest and :${{ needs.build-and-push-images.outputs.image_tag }}"
+          for TAG in latest ${{ needs.build-and-push-images.outputs.image_tag }}; do
+            OUTPUT=$(aws ecr put-image \
+              --repository-name ${{ steps.env.outputs.ecr_repo }} \
+              --image-tag "$TAG" \
+              --image-manifest "$MANIFEST" \
+              --region $AWS_DEFAULT_REGION 2>&1) || {
+              if echo "$OUTPUT" | grep -q "ImageAlreadyExistsException"; then
+                echo "Tag :$TAG already points to this digest — ok"
+              else
+                echo "::error::Failed to tag :$TAG — $OUTPUT"
+                exit 1
+              fi
+            }
+            echo "Tagged as :$TAG"
+          done
 
       - name: Create GitHub Deployment
         id: create-deployment
