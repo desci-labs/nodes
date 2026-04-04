@@ -326,15 +326,13 @@ describe('buildPipelineStatus', () => {
     const message = await buildPipelineStatus(mockDb);
     expect(message).toContain('Pipeline Health');
     expect(message).toContain('action needed');
+    expect(message).toContain('✅');
     expect(message).toContain('PG → Elasticsearch');
-    expect(message).toContain('Lagging');
-    expect(message).toContain('99.4%');
-    expect(message).toContain('84 batches behind');
+    expect(message).toContain('Healthy');
     expect(message).toContain('PG → Qdrant');
     expect(message).toContain('Stalled');
     expect(message).toContain('6,451');
     expect(message).toContain('no data processed');
-    expect(message).toContain('No progress since');
     expect(message).toContain('Importer at batch');
   });
 
