@@ -64,11 +64,8 @@ async function main(): Promise<void> {
       protect: () => {
         logger.info('💤 Recurring task invoked while an import is already running, snoozing...');
       },
-      // For some reason this doesn't trigger if the stream callbacks catches errors, but the app exits anyway so OK
-      catch: (e, job) => {
-        logger.error({ error: errWithCause(e as Error) }, '💥 Cron job caught an error');
-        job.stop();
-        throw e;
+      catch: (e) => {
+        logger.error({ error: errWithCause(e as Error) }, '💥 Cron job caught an error, will retry on next schedule tick');
       },
     });
 
