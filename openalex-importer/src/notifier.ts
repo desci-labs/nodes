@@ -243,7 +243,7 @@ export const buildPipelineStatus = async (db: OaDb): Promise<string> => {
   const importerBatch = await db.oneOrNone<{ max_batch: string }>(
     `SELECT MAX(id)::text AS max_batch FROM openalex.batch WHERE finished_at IS NOT NULL`,
   );
-  const currentBatch = parseInt(importerBatch?.max_batch ?? '0');
+  const currentBatch = parseInt(importerBatch?.max_batch ?? '0', 10) || 0;
 
   const exportRows = await db.manyOrNone<{ service: string; value: string; updated_at: Date }>(
     `SELECT service, value, updated_at FROM openalex.export_metadata
@@ -291,8 +291,12 @@ export const buildPipelineStatus = async (db: OaDb): Promise<string> => {
               latestRuns.set(run.deployment_id, run);
             }
           }
+        } else {
+          logger.warn({ status: runsRes.status }, 'Prefect flow_runs/filter returned non-OK');
         }
       }
+    } else {
+      logger.warn({ status: deployRes.status }, 'Prefect deployments/filter returned non-OK');
     }
   } catch (err) {
     logger.warn({ err }, 'Failed to query Prefect API for pipeline status');
@@ -307,7 +311,8 @@ export const buildPipelineStatus = async (db: OaDb): Promise<string> => {
     const run = deployId ? latestRuns.get(deployId) : undefined;
     const exportRow = exportByService.get(pipeline.service);
 
-    const batch = exportRow ? parseInt(exportRow.value) : null;
+    const parsedBatch = exportRow ? parseInt(exportRow.value, 10) : NaN;
+    const batch = Number.isFinite(parsedBatch) ? parsedBatch : null;
     const behind = batch !== null ? currentBatch - batch : null;
     const pct = batch !== null && currentBatch > 0
       ? ((batch / currentBatch) * 100).toFixed(1)
