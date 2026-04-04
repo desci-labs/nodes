@@ -145,7 +145,7 @@ jobs:
       - build-and-test
       - build-and-push-images
     runs-on: blacksmith-4vcpu-ubuntu-2204
-    timeout-minutes: 12
+    timeout-minutes: 18
     steps:
       - name: Determine environment
         id: env
@@ -236,13 +236,14 @@ jobs:
               log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
-      - name: Wait for Flux to pick up image
+      - name: Wait for Flux to pick up image and pull
         run: |
-          echo "Waiting 3 minutes for Flux to detect new image and start rollout..."
+          echo "Waiting 5 minutes for Flux pipeline + image pull..."
           echo "  - ImageRepository polls ECR every 1m"
           echo "  - ImageUpdateAutomation commits every 2m"
           echo "  - Kustomization reconciles every 1m"
-          sleep 180
+          echo "  - Image pull ~5 min (2.4GB image)"
+          sleep 300
 
       - name: Poll health endpoint for deployed version
         id: health-check
@@ -311,7 +312,7 @@ jobs:
               repo: context.repo.repo,
               deployment_id: ${{ steps.create-deployment.outputs.deployment_id }},
               state: 'failure',
-              description: 'Deployment not verified — /health did not return expected SHA after 8 min',
+              description: 'Deployment not verified — /health did not return expected SHA after 10 min',
               log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
             core.setFailed('Deployment verification timed out');
