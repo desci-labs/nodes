@@ -219,6 +219,8 @@ export const startCommandListener = (db: OaDb): void => {
   let offset = 0;
   pollAbort = new AbortController();
 
+  void sendTelegram('🟢 <b>OpenAlex Importer online</b>\nBot started, listening for commands. Type /help for options.');
+
   const poll = async () => {
     while (!pollAbort?.signal.aborted) {
       try {
