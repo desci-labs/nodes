@@ -1,7 +1,7 @@
 import { logger } from './logger.js';
 import { differenceInCalendarDays, formatDistanceToNowStrict } from 'date-fns';
 import { UTCDate } from '@date-fns/utc';
-import type { OaDb } from './db/index.js';
+import { hasUnfinishedBatches, type OaDb } from './db/index.js';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const ERROR_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour between error notifications
@@ -17,6 +17,9 @@ const DOWNSTREAM_PIPELINES = [
 let lastErrorNotifyMs = 0;
 let wasCaughtUp = true;
 let pollAbort: AbortController | null = null;
+let digestPaused = false;
+
+export const isDigestPaused = (): boolean => digestPaused;
 
 const getConfig = () => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -212,9 +215,13 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
 };
 
 export const sendDailyDigest = async (db: OaDb): Promise<void> => {
+  if (digestPaused) {
+    logger.info('Daily digest skipped (paused)');
+    return;
+  }
   try {
     const message = await buildDigestMessage(db);
-    await sendTelegram(message);
+    await sendTelegram(`📅 <b>Daily Update</b>\n\n${message}`);
   } catch (err) {
     logger.warn({ err }, 'Failed to build daily digest');
     await sendTelegram('⚠️ <b>OpenAlex Importer</b>\nFailed to generate daily digest — check logs');
@@ -449,8 +456,13 @@ export const startCommandListener = (db: OaDb): void => {
 
   void (async () => {
     try {
-      const message = await buildDigestMessage(db);
-      await sendTelegram(`🟢 <b>OpenAlex Importer online</b>\n\n${message}\n\nType /help for commands.`);
+      const crashRecovery = await hasUnfinishedBatches(db);
+      if (crashRecovery) {
+        const message = await buildDigestMessage(db);
+        await sendTelegram(`🔄 <b>OpenAlex Importer back online</b> (recovering from crash)\n\n${message}`);
+      } else {
+        await sendTelegram(`🟢 <b>OpenAlex Importer online</b>\nType /help for commands.`);
+      }
     } catch {
       await sendTelegram('🟢 <b>OpenAlex Importer online</b>\nFailed to fetch initial status — type /status to retry.');
     }
@@ -516,6 +528,24 @@ export const startCommandListener = (db: OaDb): void => {
                 update.message.message_thread_id,
               );
             }
+          } else if (command === '/stopupdate') {
+            digestPaused = true;
+            logger.info('Daily digest paused via /stopupdate');
+            await replyToMessage(
+              update.message.chat.id,
+              update.message.message_id,
+              '⏸️ Daily updates paused. Use /startupdate to resume.',
+              update.message.message_thread_id,
+            );
+          } else if (command === '/startupdate') {
+            digestPaused = false;
+            logger.info('Daily digest resumed via /startupdate');
+            await replyToMessage(
+              update.message.chat.id,
+              update.message.message_id,
+              '▶️ Daily updates resumed.',
+              update.message.message_thread_id,
+            );
           } else if (command === '/help') {
             await replyToMessage(
               update.message.chat.id,
@@ -525,6 +555,8 @@ export const startCommandListener = (db: OaDb): void => {
                 ``,
                 `/status — importer sync position, records, uptime`,
                 `/pipelines — downstream pipeline health (ES, novelty, Qdrant)`,
+                `/stopupdate — pause daily digest`,
+                `/startupdate — resume daily digest`,
                 `/help — show this message`,
               ].join('\n'),
               update.message.message_thread_id,
