@@ -120,11 +120,20 @@ export const hasUnfinishedBatches = async (db: OaDb): Promise<boolean> => {
  * Clean up unfinished batches for a specific day only.
  * Intentionally scoped to queryInfo's day — other days may be in-progress
  * via time-travel mode or a parallel process.
+ *
+ * Uses FOR UPDATE SKIP LOCKED to avoid deleting batches that are actively
+ * being written to by a concurrent process (e.g. during rolling restarts).
+ * Only targets batches older than 5 minutes to avoid racing with freshly
+ * created batches.
  */
 export const cleanupUnfinishedBatches = async (db: OaDb, queryInfo: QueryInfo) => {
   await db.tx(async (tx) => {
     const unfinished = await tx.manyOrNone(
-      'SELECT id FROM openalex.batch WHERE query_type = $1 AND query_from = $2 AND query_to = $3 AND finished_at IS NULL',
+      `SELECT id FROM openalex.batch
+       WHERE query_type = $1 AND query_from = $2 AND query_to = $3
+         AND finished_at IS NULL
+         AND started_at < NOW() - INTERVAL '5 minutes'
+       FOR UPDATE SKIP LOCKED`,
       [queryInfo.query_type, queryInfo.query_from, queryInfo.query_to]
     );
 

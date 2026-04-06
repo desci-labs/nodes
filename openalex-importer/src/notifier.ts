@@ -19,6 +19,11 @@ let wasCaughtUp = true;
 let pollAbort: AbortController | null = null;
 let digestPaused = false;
 
+const getAdminUserIds = (): Set<number> => {
+  const raw = process.env.TELEGRAM_ADMIN_IDS ?? '';
+  return new Set(raw.split(',').map(s => Number(s.trim())).filter(n => !Number.isNaN(n) && n > 0));
+};
+
 export const isDigestPaused = (): boolean => digestPaused;
 
 const getConfig = () => {
@@ -408,6 +413,7 @@ interface TelegramUpdate {
   update_id: number;
   message?: {
     message_id: number;
+    from?: { id: number };
     chat: { id: number };
     message_thread_id?: number;
     text?: string;
@@ -528,24 +534,29 @@ export const startCommandListener = (db: OaDb): void => {
                 update.message.message_thread_id,
               );
             }
-          } else if (command === '/stopupdate') {
-            digestPaused = true;
-            logger.info('Daily digest paused via /stopupdate');
-            await replyToMessage(
-              update.message.chat.id,
-              update.message.message_id,
-              '⏸️ Daily updates paused. Use /startupdate to resume.',
-              update.message.message_thread_id,
-            );
-          } else if (command === '/startupdate') {
-            digestPaused = false;
-            logger.info('Daily digest resumed via /startupdate');
-            await replyToMessage(
-              update.message.chat.id,
-              update.message.message_id,
-              '▶️ Daily updates resumed.',
-              update.message.message_thread_id,
-            );
+          } else if (command === '/stopupdate' || command === '/startupdate') {
+            const adminIds = getAdminUserIds();
+            const senderId = update.message.from?.id;
+            if (adminIds.size > 0 && (!senderId || !adminIds.has(senderId))) {
+              logger.warn({ senderId, command }, 'Unauthorized command attempt');
+              await replyToMessage(
+                update.message.chat.id,
+                update.message.message_id,
+                '🚫 You are not authorized to use this command.',
+                update.message.message_thread_id,
+              );
+            } else {
+              digestPaused = command === '/stopupdate';
+              logger.info({ command, senderId }, `Daily digest ${digestPaused ? 'paused' : 'resumed'} via ${command}`);
+              await replyToMessage(
+                update.message.chat.id,
+                update.message.message_id,
+                digestPaused
+                  ? '⏸️ Daily updates paused. Use /startupdate to resume.'
+                  : '▶️ Daily updates resumed.',
+                update.message.message_thread_id,
+              );
+            }
           } else if (command === '/help') {
             await replyToMessage(
               update.message.chat.id,
