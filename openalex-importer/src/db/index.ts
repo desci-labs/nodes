@@ -116,9 +116,13 @@ export const hasUnfinishedBatches = async (db: OaDb): Promise<boolean> => {
   return result !== null;
 };
 
+/**
+ * Clean up unfinished batches for a specific day only.
+ * Intentionally scoped to queryInfo's day — other days may be in-progress
+ * via time-travel mode or a parallel process.
+ */
 export const cleanupUnfinishedBatches = async (db: OaDb, queryInfo: QueryInfo) => {
   await db.tx(async (tx) => {
-    // Find unfinished batch IDs for this day
     const unfinished = await tx.manyOrNone(
       'SELECT id FROM openalex.batch WHERE query_type = $1 AND query_from = $2 AND query_to = $3 AND finished_at IS NULL',
       [queryInfo.query_type, queryInfo.query_from, queryInfo.query_to]

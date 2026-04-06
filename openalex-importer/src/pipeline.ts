@@ -212,13 +212,18 @@ export const runImportPipeline = async (db: OaDb, queryInfo: QueryInfo): Promise
   logger.info({ batchId, queryInfo }, 'Created batch record');
 
   // Each chunk saves in its own transaction — progress survives crashes
-  await pipeline(
-    createWorksAPIStream(filter),
-    createBufferStream(),
-    createTransformStream(),
-    createLogStream(),
-    createSaveStream(db, batchId),
-  );
+  try {
+    await pipeline(
+      createWorksAPIStream(filter),
+      createBufferStream(),
+      createTransformStream(),
+      createLogStream(),
+      createSaveStream(db, batchId),
+    );
+  } catch (err) {
+    logger.error({ batchId, queryInfo, err: errWithCause(err as Error) }, 'Import pipeline failed — batch left unfinished for recovery');
+    throw err;
+  }
 
   // Mark the batch as complete
   await finalizeBatch(db, batchId);
