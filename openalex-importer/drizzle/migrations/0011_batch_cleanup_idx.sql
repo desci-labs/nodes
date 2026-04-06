@@ -1,0 +1,1 @@
+CREATE INDEX "batch_cleanup_idx" ON "openalex"."batch" USING btree ("query_type","query_from","query_to","finished_at");

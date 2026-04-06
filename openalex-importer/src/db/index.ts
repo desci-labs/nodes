@@ -95,16 +95,64 @@ export const db = pgp(dbInfo);
 
 export type OaDb = typeof db;
 
-export const createBatch = async (tx: pgPromise.ITask<any>, queryInfo: QueryInfo) => {
-  const savedBatch = await tx.one(
+export const createBatch = async (db: OaDb, queryInfo: QueryInfo) => {
+  const savedBatch = await db.one(
     'INSERT INTO openalex.batch (query_type, query_from, query_to) VALUES ($1, $2, $3) RETURNING id',
     [queryInfo.query_type, queryInfo.query_from, queryInfo.query_to]
   );
   return savedBatch.id;
 };
 
-export const finalizeBatch = async (tx: pgPromise.ITask<any>, batchId: number) =>
-  await tx.none('UPDATE openalex.batch SET finished_at = $1 WHERE id = $2', [new UTCDate(), batchId]);
+export const finalizeBatch = async (db: OaDb, batchId: number) =>
+  await db.none('UPDATE openalex.batch SET finished_at = $1 WHERE id = $2', [new UTCDate(), batchId]);
+
+/**
+ * Check if there are unfinished batches from a previous crash (without cleaning them up).
+ * Intentionally global (not scoped to a specific day) — used only at startup to detect
+ * any crash evidence and send the "recovering" notification. Cleanup is day-scoped separately.
+ */
+export const hasUnfinishedBatches = async (db: OaDb): Promise<boolean> => {
+  const result = await db.oneOrNone(
+    'SELECT 1 FROM openalex.batch WHERE finished_at IS NULL LIMIT 1',
+  );
+  return result !== null;
+};
+
+/**
+ * Clean up unfinished batches for a specific day only.
+ * Intentionally scoped to queryInfo's day — other days may be in-progress
+ * via time-travel mode or a parallel process.
+ *
+ * Uses FOR UPDATE SKIP LOCKED to avoid deleting batches that are actively
+ * being written to by a concurrent process (e.g. during rolling restarts).
+ * Only targets batches older than 5 minutes to avoid racing with freshly
+ * created batches.
+ */
+export const cleanupUnfinishedBatches = async (db: OaDb, queryInfo: QueryInfo) => {
+  await db.tx(async (tx) => {
+    const unfinished = await tx.manyOrNone(
+      `SELECT id FROM openalex.batch
+       WHERE query_type = $1 AND query_from = $2 AND query_to = $3
+         AND finished_at IS NULL
+         AND started_at < NOW() - INTERVAL '5 minutes'
+       FOR UPDATE SKIP LOCKED`,
+      [queryInfo.query_type, queryInfo.query_from, queryInfo.query_to]
+    );
+
+    if (unfinished.length === 0) return;
+
+    const batchIds = unfinished.map(r => r.id);
+    logger.info({ batchIds, queryInfo }, 'Cleaning up unfinished batches from previous crash');
+
+    // Delete works_batch rows for these batches first (avoid orphaned NULL rows)
+    await tx.none('DELETE FROM openalex.works_batch WHERE batch_id IN ($1:list)', [batchIds]);
+
+    // Then delete the batch records themselves
+    await tx.none('DELETE FROM openalex.batch WHERE id IN ($1:list)', [batchIds]);
+
+    logger.info({ batchIds }, 'Cleanup complete');
+  });
+};
 
 export const saveData = async (tx: pgPromise.ITask<any>, batchId: number, models: DataModels) => {
   const counts = Object.entries(models).reduce((acc, [k, a]) => ({ ...acc, [k]: a.length}), {});
@@ -463,7 +511,7 @@ const updateWorksTopics = async (tx: pgPromise.ITask<any>, data: DataModels['wor
  */
 export const getNextDayToImport = async (queryType: QueryInfo['query_type']): Promise<UTCDate> => {
   const lastBatchEnd = await db.oneOrNone(
-    'SELECT query_to FROM openalex.batch WHERE query_type = $1 ORDER BY query_to DESC LIMIT 1',
+    'SELECT query_to FROM openalex.batch WHERE query_type = $1 AND finished_at IS NOT NULL ORDER BY query_to DESC LIMIT 1',
     [queryType]
   );
 
