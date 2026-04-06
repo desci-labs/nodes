@@ -402,7 +402,7 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
       (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
     ) as PdfComponent[];
     logger.debug({ pdfs }, 'PDFS:::=>>>>>>>>>>>>');
-    const cid = pdfs[0].payload.url;
+    const cid = pdfs[0].payload.url || pdfs[0].payload.cid;
     // console.log('Component CID', cid);
 
     // TODO: handle case where no research-article was published

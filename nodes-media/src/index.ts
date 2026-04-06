@@ -90,6 +90,10 @@ app.get('/readyz', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', version: process.env.GIT_SHA || 'unknown' });
+});
+
 app.use('/', routes);
 
 // Global error handler - must be before Sentry error handler

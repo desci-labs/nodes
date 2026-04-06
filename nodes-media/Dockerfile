@@ -93,6 +93,9 @@ RUN apt-get install -y ghostscript
 
 RUN npm install -g npm@8.10.0
 
+ARG GIT_SHA=unknown
+ENV GIT_SHA=${GIT_SHA}
+
 RUN mkdir /app
 WORKDIR /app
 

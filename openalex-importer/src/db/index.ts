@@ -6,6 +6,7 @@ import { UTCDate } from '@date-fns/utc';
 import { addDays, startOfDay } from 'date-fns';
 import * as batchesSchema from '../../drizzle/batches-schema.js';
 import * as openAlexSchema from '../../drizzle/schema.js';
+import { deduplicateWorksConcepts, deduplicateWorksMesh, deduplicateWorksTopics } from './dedup.js';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 export * from '../../drizzle/schema.js';
 export * from './types.js';
@@ -338,7 +339,17 @@ const sortWorksAuthorships = (a: DataModels['works_authorships'][number], b: Dat
 const updateWorksAuthorships = async (tx: pgPromise.ITask<any>, data: DataModels['works_authorships']) => {
   if (!data.length) return;
 
-  const merged = data.reduce((acc, curr) => {
+  const filtered = data.filter(row => row.work_id && row.author_id);
+  if (filtered.length < data.length) {
+    logger.warn(
+      { filteredCount: data.length - filtered.length, totalRows: data.length, primaryKeyColumns: ['work_id', 'author_id'], tableName: 'works_authorships' },
+      'Filtered out rows with null primary key values',
+    );
+  }
+
+  if (!filtered.length) return;
+
+  const merged = filtered.reduce((acc, curr) => {
     const key = `${curr.work_id!}-${curr.author_id!}`;
     if (!acc[key]) {
       acc[key] = curr;
@@ -386,8 +397,11 @@ const sortWorksConcepts = (a: DataModels['works_concepts'][number], b: DataModel
 const updateWorksConcepts = async (tx: pgPromise.ITask<any>, data: DataModels['works_concepts']) => {
   if (!data.length) return;
 
+  const deduped = deduplicateWorksConcepts(data);
+  if (!deduped.length) return;
+
   const columns = getColumnSet(works_conceptsInOpenalex);
-  const query = pgp.helpers.insert(data.sort(sortWorksConcepts), columns) +
+  const query = pgp.helpers.insert(deduped.sort(sortWorksConcepts), columns) +
     ' ON CONFLICT (work_id, concept_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'concept_id'] });
 
@@ -410,8 +424,11 @@ const sortWorksMesh = (a: DataModels['works_mesh'][number], b: DataModels['works
 const updateWorksMesh = async (tx: pgPromise.ITask<any>, data: DataModels['works_mesh']) => {
   if (!data.length) return;
 
+  const deduped = deduplicateWorksMesh(data);
+  if (!deduped.length) return;
+
   const columns = getColumnSet(works_meshInOpenalex);
-  const query = pgp.helpers.insert(data.sort(sortWorksMesh), columns) +
+  const query = pgp.helpers.insert(deduped.sort(sortWorksMesh), columns) +
     ' ON CONFLICT (work_id, descriptor_ui, qualifier_ui) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'descriptor_ui', 'qualifier_ui'] });
   await tx.none(query);
@@ -429,8 +446,12 @@ const sortWorksTopics = (a: DataModels['works_topics'][number], b: DataModels['w
 
 const updateWorksTopics = async (tx: pgPromise.ITask<any>, data: DataModels['works_topics']) => {
   if (!data.length) return;
+
+  const deduped = deduplicateWorksTopics(data);
+  if (!deduped.length) return;
+
   const columns = getColumnSet(works_topicsInOpenalex);
-  const query = pgp.helpers.insert(data.sort(sortWorksTopics), columns) +
+  const query = pgp.helpers.insert(deduped.sort(sortWorksTopics), columns) +
     ' ON CONFLICT (work_id, topic_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'topic_id'] });
 

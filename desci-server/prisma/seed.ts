@@ -1,6 +1,8 @@
-import { prisma } from '../src/client.js';
-import researchFieldsData from '../src/data/fields.json' assert { type: 'json' };
-import { seedSocialData } from '../src/scripts/seed-social-data.js';
+import { PrismaClient } from '@prisma/client';
+import { readFileSync } from 'fs';
+
+const prisma = new PrismaClient();
+const researchFieldsData: string[] = JSON.parse(readFileSync(new URL('../src/data/fields.json', import.meta.url), 'utf-8'));
 
 async function main() {
   console.log('Seeding database...');
@@ -87,6 +89,7 @@ async function main() {
   console.log('NODE ENV', process.env.NODE_ENV);
   if (process.env.NODE_ENV === 'test') return;
 
+  const { seedSocialData } = await import('../src/scripts/seed-social-data.js');
   await seedSocialData();
 }
 

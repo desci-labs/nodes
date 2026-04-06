@@ -8,6 +8,10 @@ import v1 from './v1/index.js';
 
 const router = Router();
 
+router.get('/health', (_req, res) => {
+  res.json({ status: 'ok', version: process.env.GIT_SHA || 'unknown' });
+});
+
 router.use(`/v1`, v1);
 
 router.get('/:query*', resolve);

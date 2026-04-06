@@ -77,6 +77,7 @@ jobs:
         if: github.ref == 'refs/heads/develop'
         run: |
           docker build \
+            --build-arg GIT_SHA=${{ github.sha }} \
             --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-dev:${{ github.sha }} \
@@ -88,6 +89,7 @@ jobs:
         if: github.ref == 'refs/heads/demo'
         run: |
           docker build \
+            --build-arg GIT_SHA=${{ github.sha }} \
             --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE-demo:${{ github.sha }} \
@@ -99,6 +101,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           docker build \
+            --build-arg GIT_SHA=${{ github.sha }} \
             --secret id=SENTRY_AUTH_TOKEN \
             -f desci-server/Dockerfile.ci \
             -t $CONTAINER_IMAGE:${{ github.sha }} \
@@ -135,3 +138,195 @@ jobs:
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
           docker tag $CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }}
+
+  verify-deployment:
+    name: Verify deployment (${{ github.ref_name }})
+    # Only need the image pushed — Flux deploys regardless of test results
+    needs: build-and-push-images
+    if: always() && needs.build-and-push-images.result == 'success'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 18
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "name=production" >> $GITHUB_OUTPUT
+            echo "ecr_repo=$CONTAINER_IMAGE" >> $GITHUB_OUTPUT
+            echo "health_url=https://nodes-api.desci.com/health" >> $GITHUB_OUTPUT
+            echo "env_url=https://nodes.desci.com" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "name=dev" >> $GITHUB_OUTPUT
+            echo "ecr_repo=$CONTAINER_IMAGE-dev" >> $GITHUB_OUTPUT
+            echo "health_url=https://nodes-api-dev.desci.com/health" >> $GITHUB_OUTPUT
+            echo "env_url=https://nodes-dev.desci.com" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/demo" ]]; then
+            echo "name=demo" >> $GITHUB_OUTPUT
+            echo "ecr_repo=$CONTAINER_IMAGE-demo" >> $GITHUB_OUTPUT
+            echo "health_url=" >> $GITHUB_OUTPUT
+            echo "env_url=https://nodes-demo.desci.com" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify image exists in ECR
+        id: verify-ecr
+        run: |
+          IMAGE_META=$(aws ecr describe-images \
+            --repository-name ${{ steps.env.outputs.ecr_repo }} \
+            --image-ids imageTag=${{ github.sha }} \
+            --region $AWS_DEFAULT_REGION 2>&1)
+          if [ $? -eq 0 ]; then
+            echo "Image ${{ steps.env.outputs.ecr_repo }}:${{ github.sha }} verified in ECR"
+            echo "$IMAGE_META" | jq '.imageDetails[0].imageTags'
+          else
+            echo "::error::Image not found in ECR: $IMAGE_META"
+            exit 1
+          fi
+
+      - name: Tag image for Flux
+        run: |
+          MANIFEST=$(aws ecr batch-get-image \
+            --repository-name ${{ steps.env.outputs.ecr_repo }} \
+            --image-ids imageTag=${{ github.sha }} \
+            --region $AWS_DEFAULT_REGION \
+            --query 'images[0].imageManifest' --output text)
+          for TAG in latest ${{ needs.build-and-push-images.outputs.image_tag }}; do
+            OUTPUT=$(aws ecr put-image \
+              --repository-name ${{ steps.env.outputs.ecr_repo }} \
+              --image-tag "$TAG" \
+              --image-manifest "$MANIFEST" \
+              --region $AWS_DEFAULT_REGION 2>&1) || {
+              if echo "$OUTPUT" | grep -q "ImageAlreadyExistsException"; then
+                echo "Tag :$TAG already points to this digest — ok"
+              else
+                echo "::error::Failed to tag :$TAG — $OUTPUT"
+                exit 1
+              fi
+            }
+            echo "Tagged as :$TAG"
+          done
+
+      - name: Create GitHub Deployment
+        id: create-deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: '${{ steps.env.outputs.name }}',
+              description: `desci-server:${{ needs.build-and-push-images.outputs.image_tag }}`,
+              auto_merge: false,
+              required_contexts: [],
+              transient_environment: false,
+              production_environment: '${{ steps.env.outputs.name }}' === 'production',
+            });
+            core.setOutput('deployment_id', deployment.data.id);
+
+      - name: Set deployment to in_progress
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.create-deployment.outputs.deployment_id }},
+              state: 'in_progress',
+              description: 'Image in ECR, waiting for Flux to deploy...',
+              log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+
+      - name: Wait for Flux to pick up image and pull
+        run: |
+          echo "Waiting 7 minutes for Flux pipeline + image pull..."
+          echo "  - ImageRepository polls ECR every 1m"
+          echo "  - ImageUpdateAutomation commits every 2m"
+          echo "  - Kustomization reconciles every 1m"
+          echo "  - Image pull + startup ~5 min (2.4GB image)"
+          sleep 420
+
+      - name: Poll health endpoint for deployed version
+        id: health-check
+        run: |
+          EXPECTED_SHA="${{ github.sha }}"
+          HEALTH_URL="${{ steps.env.outputs.health_url }}"
+
+          if [[ -z "$HEALTH_URL" ]]; then
+            echo "No health URL configured for ${{ steps.env.outputs.name }} — skipping verification"
+            echo "status=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          MAX_ATTEMPTS=20
+          INTERVAL=15
+          echo "Polling $HEALTH_URL for version=$EXPECTED_SHA"
+          echo "Max wait: $((MAX_ATTEMPTS * INTERVAL))s ($MAX_ATTEMPTS attempts x ${INTERVAL}s)"
+          echo ""
+
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            RESPONSE=$(curl -sf --max-time 10 "$HEALTH_URL" 2>/dev/null || echo '{"error":"unreachable"}')
+            CURRENT_VERSION=$(echo "$RESPONSE" | jq -r '.version // "unknown"' 2>/dev/null || echo "parse-error")
+            echo "Attempt $i/$MAX_ATTEMPTS: version=$CURRENT_VERSION (want ${EXPECTED_SHA:0:12}...)"
+
+            if [[ "$CURRENT_VERSION" == "$EXPECTED_SHA" ]]; then
+              echo ""
+              echo "Deployment verified! ${{ steps.env.outputs.name }} is running $EXPECTED_SHA"
+              echo "status=success" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            if [[ $i -lt $MAX_ATTEMPTS ]]; then
+              sleep $INTERVAL
+            fi
+          done
+
+          echo ""
+          echo "::warning::Deployment not verified after $((MAX_ATTEMPTS * INTERVAL))s. Last version: $CURRENT_VERSION"
+          echo "status=timeout" >> $GITHUB_OUTPUT
+
+      - name: Set deployment status to success
+        if: steps.health-check.outputs.status == 'success' || steps.health-check.outputs.status == 'skipped'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const verified = '${{ steps.health-check.outputs.status }}' === 'success';
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.create-deployment.outputs.deployment_id }},
+              state: 'success',
+              description: verified
+                ? 'Live on ${{ steps.env.outputs.name }} — verified via /health'
+                : 'Image in ECR — no health endpoint to verify (demo)',
+              log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              environment_url: '${{ steps.env.outputs.env_url }}',
+            });
+
+      - name: Set deployment status to failure (timeout)
+        if: steps.health-check.outputs.status == 'timeout'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.create-deployment.outputs.deployment_id }},
+              state: 'failure',
+              description: 'Deployment not verified — /health did not return expected SHA after 10 min',
+              log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+            core.setFailed('Deployment verification timed out');
+
+      - name: Set deployment status to failure (error)
+        if: failure() && steps.create-deployment.outputs.deployment_id
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.create-deployment.outputs.deployment_id }},
+              state: 'failure',
+              description: 'Deployment failed — check workflow logs',
+              log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
