@@ -221,7 +221,7 @@ export const buildDigestMessage = async (db: OaDb): Promise<string> => {
 
 export const sendDailyDigest = async (db: OaDb): Promise<void> => {
   if (digestPaused) {
-    logger.info('Daily digest skipped (paused)');
+    logger.info({ paused: true }, 'Daily digest skipped (paused)');
     return;
   }
   try {
@@ -537,6 +537,7 @@ export const startCommandListener = (db: OaDb): void => {
           } else if (command === '/stopupdate' || command === '/startupdate') {
             const adminIds = getAdminUserIds();
             const senderId = update.message.from?.id;
+            // When TELEGRAM_ADMIN_IDS is unset, allow all users (backwards-compatible dev default)
             if (adminIds.size > 0 && (!senderId || !adminIds.has(senderId))) {
               logger.warn({ senderId, command }, 'Unauthorized command attempt');
               await replyToMessage(

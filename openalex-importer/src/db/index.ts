@@ -108,6 +108,8 @@ export const finalizeBatch = async (db: OaDb, batchId: number) =>
 
 /**
  * Check if there are unfinished batches from a previous crash (without cleaning them up).
+ * Intentionally global (not scoped to a specific day) — used only at startup to detect
+ * any crash evidence and send the "recovering" notification. Cleanup is day-scoped separately.
  */
 export const hasUnfinishedBatches = async (db: OaDb): Promise<boolean> => {
   const result = await db.oneOrNone(
