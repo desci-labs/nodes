@@ -116,10 +116,20 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     cidString = hexToCid(version.cid);
   };
 
-  const { data } = await axios.get(
-    `${ipfsResolver}/${cidString}`,
-    { headers: { 'Bypass-Tunnel-Reminder': true } }
-  );
+  let data;
+  try {
+    const response = await axios.get(
+      `${ipfsResolver}/${cidString}`,
+      { headers: { 'Bypass-Tunnel-Reminder': true } }
+    );
+    data = response.data;
+  } catch (err) {
+    logger.warn({ err, ipfsResolver, cidString }, 'ipfs uplink failed');
+    return res.status(502).send({
+      ok: false,
+      msg: 'ipfs uplink failed, try setting ?g= querystring to resolver',
+    });
+  }
 
   if (!secondParam) {
     logger.info("Returning manifest as there is no additional path");
@@ -160,13 +170,18 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         if (thirdParam == '!') {
           logger.debug('recognize zip');
           //send the zip
-          return axios.get(
-            `${ipfsResolver}/${codeComponent.payload.url}`,
-            { responseType: 'stream' }
-          ).then((response) => {
+          try {
+            const response = await axios.get(
+              `${ipfsResolver}/${codeComponent.payload.url}`,
+              { responseType: 'stream' }
+            );
             // The response will give you the zip file
             response.data.pipe(res);
-          });
+            return res;
+          } catch (err) {
+            logger.warn({ err, ipfsResolver, url: codeComponent.payload.url }, 'ipfs zip stream failed');
+            return res.status(502).send({ ok: false, msg: 'ipfs uplink failed' });
+          }
         };
 
         // send the individual file
