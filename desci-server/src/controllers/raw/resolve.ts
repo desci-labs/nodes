@@ -6,6 +6,7 @@ import {
 } from '@desci-labs/desci-models';
 import axios from 'axios';
 import { NextFunction, Request, Response } from 'express';
+import { pipeline } from 'node:stream/promises';
 import { logger as parentLogger } from '../../logger.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
@@ -175,11 +176,20 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
               `${ipfsResolver}/${codeComponent.payload.url}`,
               { responseType: 'stream' }
             );
-            // The response will give you the zip file
-            response.data.pipe(res);
+            // Use stream.pipeline so errors from either side (source aborts,
+            // client disconnects mid-stream) are forwarded and both streams
+            // are torn down properly. A bare .pipe() leaks on error.
+            await pipeline(response.data, res);
             return res;
           } catch (err) {
             logger.warn({ err, ipfsResolver, url: codeComponent.payload.url }, 'ipfs zip stream failed');
+            // If headers are already sent (mid-stream failure) we can't send
+            // a JSON error — just destroy the response so the client sees an
+            // aborted connection instead of hanging.
+            if (res.headersSent) {
+              res.destroy(err instanceof Error ? err : new Error(String(err)));
+              return res;
+            }
             return res.status(502).send({ ok: false, msg: 'ipfs uplink failed' });
           }
         };

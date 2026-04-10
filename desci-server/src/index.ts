@@ -13,9 +13,16 @@ const logger = parentLogger.child({
 // Create the server instance for production
 const server = createServer();
 
-server.ready().then((_) => {
-  console.log('server is ready');
-});
+server.ready()
+  .then((_) => {
+    console.log('server is ready');
+  })
+  .catch((err) => {
+    // Now that unhandledRejection is non-fatal, a startup failure here would
+    // otherwise be silently logged and the process would limp along
+    // half-initialized. Treat startup failure as fatal explicitly.
+    void handleFatalError(err, 'server.ready');
+  });
 export const app = server.app;
 
 /**
