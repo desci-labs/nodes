@@ -6,9 +6,12 @@ import { prisma } from '../../client.js';
 
 export const feed = async (req: Request, res: Response) => {
   // get the latest feed items
-  const page = parseInt(req.query.page as string) || 1;
-  const size = parseInt(req.query.size as string) || 10;
-  const offset = Math.max(0, page - 1) * size;
+  const MAX_PAGE_SIZE = 100;
+  const rawPage = Number(req.query.page);
+  const rawSize = Number(req.query.size);
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  const size = Number.isInteger(rawSize) && rawSize > 0 ? Math.min(rawSize, MAX_PAGE_SIZE) : 10;
+  const offset = (page - 1) * size;
   const feedItems = await prisma.$queryRaw<NodeFeedItem[]>(
     Prisma.sql`
       SELECT "NodeFeedItem".*, "NodeFeedItemEndorsement"."desciCommunityId" as "endorsementOrganizationId"
