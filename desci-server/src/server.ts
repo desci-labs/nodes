@@ -6,6 +6,7 @@ import type { Server as HttpServer } from 'http';
 import { createRequire } from 'module';
 
 import * as Sentry from '@sentry/node';
+import { PrismaInstrumentation } from '@prisma/instrumentation';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -288,7 +289,11 @@ export class AppServer {
   #initTelemetry() {
     if (ENABLE_TELEMETRY) {
       logger.info('[DeSci Nodes] Telemetry enabled');
-      const sentryIntegrations = [Sentry.prismaIntegration()];
+      const sentryIntegrations = [
+        Sentry.prismaIntegration({
+          prismaInstrumentation: new PrismaInstrumentation(),
+        }),
+      ];
 
       // Profiling uses a native binding that is not always present in test/local environments.
       try {

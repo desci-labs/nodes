@@ -78,6 +78,7 @@
     "@opentelemetry/auto-instrumentations-node": "^0.37",
     "@penseapp/discord-notification": "^2.0.9",
     "@prisma/client": "6.15.0",
+    "@prisma/instrumentation": "6.15.0",
     "@react-email/components": "0.0.15",
     "@sendgrid/mail": "^7.7.0",
     "@sentry/node": "8.29.0",
