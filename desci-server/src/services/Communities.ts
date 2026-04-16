@@ -1092,7 +1092,9 @@ export class CommunityService {
             manifestUrl: true,
             manifestDocumentId: true,
             versions: {
-              where: { OR: { transactionId: { not: null }, commitId: { not: null } } },
+              where: {
+                OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+              },
               orderBy: { createdAt: 'desc' },
               select: {
                 transactionId: true,

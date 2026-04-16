@@ -3,9 +3,10 @@ import 'dotenv/config';
 import 'reflect-metadata';
 import * as child from 'child_process';
 import type { Server as HttpServer } from 'http';
+import { createRequire } from 'module';
 
 import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { PrismaInstrumentation } from '@prisma/instrumentation';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -37,6 +38,7 @@ import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 const logger = parentLogger.child({
   module: 'server.ts',
 });
+const require = createRequire(import.meta.url);
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;
@@ -287,11 +289,25 @@ export class AppServer {
   #initTelemetry() {
     if (ENABLE_TELEMETRY) {
       logger.info('[DeSci Nodes] Telemetry enabled');
+      const sentryIntegrations = [
+        Sentry.prismaIntegration({
+          prismaInstrumentation: new PrismaInstrumentation(),
+        }),
+      ];
+
+      // Profiling uses a native binding that is not always present in test/local environments.
+      try {
+        const { nodeProfilingIntegration } = require('@sentry/profiling-node');
+        sentryIntegrations.push(nodeProfilingIntegration());
+      } catch (error) {
+        logger.warn({ error }, 'Sentry profiling unavailable; continuing without profiling integration');
+      }
+
       Sentry.init({
         dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
         environment: SERVER_ENV,
         release: 'desci-nodes-server@' + process.env.npm_package_version,
-        integrations: [Sentry.prismaIntegration(), nodeProfilingIntegration()],
+        integrations: sentryIntegrations,
         tracesSampleRate: 0.1,
         profilesSampleRate: 0.1,
       });
