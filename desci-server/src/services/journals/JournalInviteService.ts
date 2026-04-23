@@ -60,6 +60,7 @@ async function inviteJournalEditor({
       name: true,
       description: true,
       iconCid: true,
+      imageUrl: true,
     },
   });
 
@@ -187,6 +188,7 @@ async function acceptJournalInvite({ token, userId }: { token: string; userId: n
         journalId: invite.journalId,
         userId,
         role: invite.role,
+        expertise: [],
         invitedAt: invite.createdAt,
         acceptedAt: now,
         inviterId: invite.inviterId,
@@ -345,6 +347,7 @@ async function resendEditorInvite({
       name: true,
       description: true,
       iconCid: true,
+      imageUrl: true,
     },
   });
 
