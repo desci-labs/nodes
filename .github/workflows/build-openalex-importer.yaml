@@ -1,0 +1,95 @@
+on:
+  push:
+    paths:
+      - .github/workflows/build-openalex-importer.yaml
+      - openalex-importer/**
+    branches:
+      - main
+      - develop
+
+name: Build openalex-importer
+
+env:
+  AWS_DEFAULT_REGION: us-east-2
+  AWS_DEFAULT_OUTPUT: json
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  CONTAINER_IMAGE: openalex-importer
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  build-and-push:
+    name: Build and push image
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    outputs:
+      image_tag: ${{ steps.image-tag.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate image tag
+        id: image-tag
+        run: echo "tag=$(echo ${{ github.sha }} | cut -c1-7)-$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Build and tag the image
+        run: |
+          docker build \
+            -t $CONTAINER_IMAGE:latest \
+            -t $CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }} \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
+             ./openalex-importer
+
+      - name: Push to ECR
+        run: |
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+          docker tag $CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ steps.image-tag.outputs.tag }}
+
+  verify-deployment:
+    name: Verify deployment
+    needs: build-and-push
+    if: always() && needs.build-and-push.result == 'success'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 10
+    steps:
+      - name: Verify image exists in ECR
+        run: |
+          IMAGE_META=$(aws ecr describe-images \
+            --repository-name $CONTAINER_IMAGE \
+            --image-ids imageTag=${{ github.sha }} \
+            --region $AWS_DEFAULT_REGION 2>&1)
+          if [ $? -eq 0 ]; then
+            echo "Image $CONTAINER_IMAGE:${{ github.sha }} verified in ECR"
+            echo "$IMAGE_META" | jq '.imageDetails[0].imageTags'
+          else
+            echo "::error::Image not found in ECR: $IMAGE_META"
+            exit 1
+          fi
+
+      - name: Tag image for Flux
+        run: |
+          MANIFEST=$(aws ecr batch-get-image \
+            --repository-name $CONTAINER_IMAGE \
+            --image-ids imageTag=${{ github.sha }} \
+            --region $AWS_DEFAULT_REGION \
+            --query 'images[0].imageManifest' --output text)
+          for TAG in latest ${{ needs.build-and-push.outputs.image_tag }}; do
+            OUTPUT=$(aws ecr put-image \
+              --repository-name $CONTAINER_IMAGE \
+              --image-tag "$TAG" \
+              --image-manifest "$MANIFEST" \
+              --region $AWS_DEFAULT_REGION 2>&1) || {
+              if echo "$OUTPUT" | grep -q "ImageAlreadyExistsException"; then
+                echo "Tag :$TAG already points to this digest — ok"
+              else
+                echo "::error::Failed to tag :$TAG — $OUTPUT"
+                exit 1
+              fi
+            }
+            echo "Tagged as :$TAG"
+          done

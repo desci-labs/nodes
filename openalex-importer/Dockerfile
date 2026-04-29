@@ -1,4 +1,4 @@
-FROM node:20.18.1-bullseye-slim
+FROM node:20.19.1-bullseye-slim
 
 RUN apt-get update && apt-get install -y \
     jq \
@@ -15,6 +15,7 @@ WORKDIR /app
 COPY . .
 
 RUN npm ci
+RUN npm test
 RUN npm run build
 
 CMD [ "npm", "start" ]

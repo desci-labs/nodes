@@ -78,6 +78,13 @@
       "when": 1747667888986,
       "tag": "0010_nappy_dormammu",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1749177600000,
+      "tag": "0011_batch_cleanup_idx",
+      "breakpoints": true
     }
   ]
 }

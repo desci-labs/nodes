@@ -6,6 +6,7 @@ import {
 } from '@desci-labs/desci-models';
 import axios from 'axios';
 import { NextFunction, Request, Response } from 'express';
+import { pipeline } from 'node:stream/promises';
 import { logger as parentLogger } from '../../logger.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
@@ -116,10 +117,20 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     cidString = hexToCid(version.cid);
   };
 
-  const { data } = await axios.get(
-    `${ipfsResolver}/${cidString}`,
-    { headers: { 'Bypass-Tunnel-Reminder': true } }
-  );
+  let data;
+  try {
+    const response = await axios.get(
+      `${ipfsResolver}/${cidString}`,
+      { headers: { 'Bypass-Tunnel-Reminder': true } }
+    );
+    data = response.data;
+  } catch (err) {
+    logger.warn({ err, ipfsResolver, cidString }, 'ipfs uplink failed');
+    return res.status(502).send({
+      ok: false,
+      msg: 'ipfs uplink failed, try setting ?g= querystring to resolver',
+    });
+  }
 
   if (!secondParam) {
     logger.info("Returning manifest as there is no additional path");
@@ -160,13 +171,27 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         if (thirdParam == '!') {
           logger.debug('recognize zip');
           //send the zip
-          return axios.get(
-            `${ipfsResolver}/${codeComponent.payload.url}`,
-            { responseType: 'stream' }
-          ).then((response) => {
-            // The response will give you the zip file
-            response.data.pipe(res);
-          });
+          try {
+            const response = await axios.get(
+              `${ipfsResolver}/${codeComponent.payload.url}`,
+              { responseType: 'stream' }
+            );
+            // Use stream.pipeline so errors from either side (source aborts,
+            // client disconnects mid-stream) are forwarded and both streams
+            // are torn down properly. A bare .pipe() leaks on error.
+            await pipeline(response.data, res);
+            return res;
+          } catch (err) {
+            logger.warn({ err, ipfsResolver, url: codeComponent.payload.url }, 'ipfs zip stream failed');
+            // If headers are already sent (mid-stream failure) we can't send
+            // a JSON error — just destroy the response so the client sees an
+            // aborted connection instead of hanging.
+            if (res.headersSent) {
+              res.destroy(err instanceof Error ? err : new Error(String(err)));
+              return res;
+            }
+            return res.status(502).send({ ok: false, msg: 'ipfs uplink failed' });
+          }
         };
 
         // send the individual file

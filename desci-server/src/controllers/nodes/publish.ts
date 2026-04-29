@@ -137,6 +137,8 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
 
     // Make sure we don't serve stale manifest state when a publish is happening
     delFromCache(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`);
+    // Invalidate versions cache so new version shows up immediately
+    delFromCache(`indexed-versions-${ensureUuidEndsWithDot(node.uuid)}`);
 
     // Invalidate dpid metadata cache so link previews reflect the new version
     if (dpidAlias) {

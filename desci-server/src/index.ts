@@ -13,9 +13,16 @@ const logger = parentLogger.child({
 // Create the server instance for production
 const server = createServer();
 
-server.ready().then((_) => {
-  console.log('server is ready');
-});
+server.ready()
+  .then((_) => {
+    console.log('server is ready');
+  })
+  .catch((err) => {
+    // Now that unhandledRejection is non-fatal, a startup failure here would
+    // otherwise be silently logged and the process would limp along
+    // half-initialized. Treat startup failure as fatal explicitly.
+    void handleFatalError(err, 'server.ready');
+  });
 export const app = server.app;
 
 /**
@@ -84,8 +91,8 @@ process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2'));
  */
 const FATAL_TIMEOUT_MS = 500;
 
-/** Handler to use for uncaught exceptions and promise rejections, from which we
- * want to extract as much log info as possible to the log aggregator.
+/** Handler for uncaughtException — process state is unknown after one of
+ * these, so we log and then exit. This is the standard Node.js recommendation.
  */
 const handleFatalError = async (error: unknown, type: string) => {
   // Mostly error should be an Error, but in theory anything can be thrown
@@ -108,8 +115,26 @@ const handleFatalError = async (error: unknown, type: string) => {
   }
 };
 
+/** Handler for unhandledRejection — log it, but DO NOT crash the process.
+ *
+ * Historically this called handleFatalError, which exited. That turned every
+ * un-try/catched upstream HTTP failure (e.g. a transient 503 from
+ * ipfs.desci.com) into a full pod crash, taking down the whole desci-server
+ * fleet in lockstep with any upstream hiccup. A long-running web server should
+ * survive a single bad request — the offending handler should be fixed to
+ * catch its own errors, but the process must keep serving traffic in the
+ * meantime. Sentry still picks these up via its global integration.
+ */
+const handleUnhandledRejection = (reason: unknown) => {
+  const normalizedError = reason instanceof Error ? reason : new Error(String(reason));
+  logger.error(
+    { err: errWithCause(normalizedError), type: 'unhandledRejection' },
+    'Unhandled promise rejection (process continuing)',
+  );
+};
+
 process.on('uncaughtException', (err) => handleFatalError(err, 'uncaughtException'));
-process.on('unhandledRejection', (reason) => handleFatalError(reason, 'unhandledRejection'));
+process.on('unhandledRejection', handleUnhandledRejection);
 
 process.on('exit', () => {
   if (!isShuttingDown) {

@@ -10,7 +10,9 @@ export const batchesInOpenAlex = openAlexSchema.table("batch", {
   query_type: text().notNull(),
   query_from: timestamp({ mode: "date" }).notNull(),
   query_to: timestamp({ mode: "date" }).notNull(),
-});
+}, (table) => [
+  index("batch_cleanup_idx").on(table.query_type, table.query_from, table.query_to, table.finished_at),
+]);
 
 export const workBatchesInOpenAlex = openAlexSchema.table("works_batch", {
   work_id: text().references(() => worksInOpenalex.id, {
