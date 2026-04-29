@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 
 import { logger as parentLogger } from '../../logger.js';
-import { getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
+import { getOrCache, ONE_DAY_TTL } from '../../redisClient.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 const logger = parentLogger.child({
@@ -9,23 +10,33 @@ const logger = parentLogger.child({
 });
 
 /**
- * Get all versions of research object from index (publicView)
+ * Get all versions of research object from index (publicView).
+ * Cached in Redis for 1 day — the dpid.org /api/v2/query/history
+ * endpoint takes 5-8 seconds uncached.
  */
 export const versions = async (req: Request, res: Response, next: NextFunction) => {
   const uuid = ensureUuidEndsWithDot(req.params.uuid);
-  let result: IndexedResearchObject;
+  const cacheKey = `indexed-versions-${uuid}`;
 
   try {
-    const { researchObjects } = await getIndexedResearchObjects([uuid]);
-    result = researchObjects[0];
-  } catch (err) {
-    logger.error({ result, err }, `[ERROR] graph lookup fail ${err.message}`);
-  }
-  if (!result) {
-    logger.warn({ uuid, result }, 'could not find indexed versions');
-    res.status(404).send({ ok: false, msg: `could not locate uuid ${uuid}` });
-    return;
-  }
+    const result = await getOrCache(
+      cacheKey,
+      async () => {
+        const { researchObjects } = await getIndexedResearchObjects([uuid]);
+        return researchObjects[0] ?? null;
+      },
+      ONE_DAY_TTL,
+    );
 
-  res.send(result);
+    if (!result) {
+      logger.warn({ uuid }, 'could not find indexed versions');
+      res.status(404).send({ ok: false, msg: `could not locate uuid ${uuid}` });
+      return;
+    }
+
+    res.send(result);
+  } catch (err) {
+    logger.error({ uuid, err }, `[ERROR] versions lookup fail ${err.message}`);
+    res.status(500).send({ ok: false, msg: 'Failed to fetch versions' });
+  }
 };
