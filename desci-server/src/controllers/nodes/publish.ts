@@ -139,6 +139,9 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     delFromCache(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`);
     // Invalidate versions cache so new version shows up immediately
     delFromCache(`indexed-versions-${ensureUuidEndsWithDot(node.uuid)}`);
+    // Invalidate "latest" manifest resolution. Per-index and per-CID keys are
+    // immutable (each version is content-addressed) so they don't need it.
+    delFromCache(`resolve-manifest:${ensureUuidEndsWithDot(node.uuid)}:latest`);
 
     // Invalidate dpid metadata cache so link previews reflect the new version
     if (dpidAlias) {

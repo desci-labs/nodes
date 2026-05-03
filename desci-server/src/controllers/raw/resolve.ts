@@ -8,10 +8,27 @@ import axios from 'axios';
 import { NextFunction, Request, Response } from 'express';
 import { pipeline } from 'node:stream/promises';
 import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
-import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
+import { decodeBase64UrlSafeToHex, ensureUuidEndsWithDot, hexToCid } from '../../utils.js';
 
 const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE || '';
+
+/**
+ * Cache key for manifest resolution. Used by both the read (cache lookup at
+ * controller entry) and write (after successful IPFS fetch) paths, plus
+ * invalidation in publish.ts on `latest`.
+ *
+ *   firstParam=""       → resolve-manifest:<uuid>.:latest      (invalidate on publish)
+ *   firstParam="0".."N" → resolve-manifest:<uuid>.:<index>     (immutable per index)
+ *   firstParam=<cid>    → resolve-manifest:<uuid>.:<cid>       (immutable per CID)
+ *
+ * The uuid is normalized via ensureUuidEndsWithDot so the key shape matches
+ * regardless of whether the URL included a trailing dot. publish.ts uses the
+ * same normalization for invalidation.
+ */
+const buildResolveManifestCacheKey = (uuid: string, firstParam: string | undefined) =>
+  `resolve-manifest:${ensureUuidEndsWithDot(uuid)}:${firstParam && firstParam.trim().length ? firstParam : 'latest'}`;
 
 export const resolve = async (req: Request, res: Response, next: NextFunction) => {
   /**
@@ -45,6 +62,22 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
   });
   logger.debug(`[resolve::resolve] firstParam=${firstParam} secondParam=${secondParam}`);
 
+  // Cache the manifest-by-uuid+version path. Heavy work below:
+  // getIndexedResearchObjects (theGraph, 5-8s) + IPFS gateway fetch (1-2s).
+  // Only cache when no secondParam — i.e. the response is the bare manifest,
+  // fully deterministic by uuid+firstParam. Component/code/PDF responses
+  // and 4xx/5xx outcomes are not cached.
+  const isCacheableManifestRequest = !secondParam;
+  const manifestCacheKey = isCacheableManifestRequest ? buildResolveManifestCacheKey(uuid, firstParam) : null;
+
+  if (manifestCacheKey) {
+    const cached = await getFromCache<unknown>(manifestCacheKey);
+    if (cached) {
+      logger.info({ manifestCacheKey }, '[resolve] cache hit');
+      return res.send(cached);
+    }
+  }
+
   let result;
   try {
     const res = await getIndexedResearchObjects([uuid]);
@@ -74,6 +107,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     try {
       logger.info(`Calling IPFS Resolver ${ipfsResolver} for CID ${cidString}`);
       const { data } = await axios.get(`${ipfsResolver}/${cidString}`);
+      if (manifestCacheKey) await setToCache(manifestCacheKey, data, ONE_DAY_TTL);
       return res.send(data);
     } catch (err) {
       return res.status(500).send({ ok: false, msg: 'ipfs uplink failed, try setting ?g= querystring to resolver' });
@@ -134,6 +168,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
 
   if (!secondParam) {
     logger.info("Returning manifest as there is no additional path");
+    if (manifestCacheKey) await setToCache(manifestCacheKey, data, ONE_DAY_TTL);
     return res.send(data);
   };
 
