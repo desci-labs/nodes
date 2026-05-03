@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
 import { FileTreeService } from '../../services/FileTreeService.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
@@ -133,6 +134,18 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   if (!manifestCid) return res.status(400).json({ error: 'no manifest CID provided' });
   if (!uuid) return res.status(400).json({ error: 'no UUID provided' });
 
+  // Cache the success payload only (FileTreeService returns a Result type
+  // whose methods don't survive a Redis JSON round-trip). The manifestCid is
+  // content-addressed, so (uuid, manifestCid, rootCid, dataPath, depth) is
+  // fully immutable — no invalidation needed. New publishes mint a new
+  // manifestCid and write a new cache entry.
+  const cacheKey = `pub-tree:${ensureUuidEndsWithDot(uuid)}:${manifestCid}:${rootCid || ''}:${dataPath}:${depth ?? 'auto'}`;
+  const cached = await getFromCache<PubTreeResponse>(cacheKey, ONE_DAY_TTL);
+  if (cached) {
+    logger.info({ cacheKey }, '[pubTree] cache hit');
+    return res.status(200).json(cached);
+  }
+
   const result = await FileTreeService.getPublishedTree({
     manifestCid,
     rootCid,
@@ -163,5 +176,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   }
 
   const { tree, date } = result.value;
-  return res.status(200).json({ tree, date });
+  const payload: PubTreeResponse = { tree, date };
+  await setToCache(cacheKey, payload, ONE_DAY_TTL);
+  return res.status(200).json(payload);
 };
