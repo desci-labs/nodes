@@ -714,7 +714,7 @@ export class SubscriptionService {
       });
 
       let reversedChats = 0;
-      if (activeLimit?.useLimit !== null && fulfillment.grantedUnits > 0) {
+      if (activeLimit && activeLimit.useLimit !== null && fulfillment.grantedUnits > 0) {
         const nextUseLimit = Math.max(0, activeLimit.useLimit - fulfillment.grantedUnits);
         await tx.userFeatureLimit.update({
           where: { id: activeLimit.id },
