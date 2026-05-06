@@ -247,10 +247,15 @@ async function getOrCreateUserFeatureLimit(userId: number, feature: Feature): Pr
  * Maintains the original billing cycle (e.g., if billing started on 5th, keep it on 5th)
  */
 async function checkAndResetPeriodIfNeeded(limit: UserFeatureLimit): Promise<UserFeatureLimit> {
-  // Unlimited research assistant access does not depend on billing windows.
-  // Limited research assistant access (free tiers, bundles, etc.) still needs
-  // period rollover so usage is counted from the active window only.
-  if (limit.feature === Feature.RESEARCH_ASSISTANT && limit.useLimit === null) {
+  // Legacy weekly research assistant limits intentionally behave like a
+  // long-lived allowance with daily drip and do not roll over. Newer monthly
+  // / yearly limited access (for bundles or migrated rows) should still use
+  // active windows so old usage does not accumulate forever. Unlimited access
+  // also ignores rollover because the period is irrelevant.
+  if (
+    limit.feature === Feature.RESEARCH_ASSISTANT &&
+    (limit.useLimit === null || limit.period === Period.WEEK)
+  ) {
     return limit;
   }
 
