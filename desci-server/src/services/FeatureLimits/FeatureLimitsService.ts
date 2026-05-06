@@ -247,8 +247,10 @@ async function getOrCreateUserFeatureLimit(userId: number, feature: Feature): Pr
  * Maintains the original billing cycle (e.g., if billing started on 5th, keep it on 5th)
  */
 async function checkAndResetPeriodIfNeeded(limit: UserFeatureLimit): Promise<UserFeatureLimit> {
-  // if feature is research assistant, there'll be no period reset, so return the limit as is
-  if (limit.feature === Feature.RESEARCH_ASSISTANT) {
+  // Unlimited research assistant access does not depend on billing windows.
+  // Limited research assistant access (free tiers, bundles, etc.) still needs
+  // period rollover so usage is counted from the active window only.
+  if (limit.feature === Feature.RESEARCH_ASSISTANT && limit.useLimit === null) {
     return limit;
   }
 
