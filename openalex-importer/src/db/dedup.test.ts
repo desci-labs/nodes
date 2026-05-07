@@ -83,6 +83,17 @@ describe('deduplicateWorksConcepts', () => {
     expect(deduplicateWorksConcepts([])).toEqual([]);
   });
 
+  it('returns empty array when all rows have null primary keys', () => {
+    const data = [
+      { work_id: null, concept_id: 'C1', score: 0.5 },
+      { work_id: 'W1', concept_id: null, score: 0.6 },
+      { work_id: null, concept_id: null, score: 0.7 },
+    ] as any;
+
+    const result = deduplicateWorksConcepts(data);
+    expect(result).toEqual([]);
+  });
+
   it('filters out rows with null work_id', () => {
     const data = [
       { work_id: null, concept_id: 'C1', score: 0.5 },
@@ -169,6 +180,16 @@ describe('deduplicateWorksTopics', () => {
   it('returns empty array for empty input', () => {
     expect(deduplicateWorksTopics([])).toEqual([]);
   });
+
+  it('returns empty array when all rows have null primary keys', () => {
+    const data = [
+      { work_id: null, topic_id: 'T1', score: 0.5 },
+      { work_id: 'W1', topic_id: null, score: 0.6 },
+    ] as any;
+
+    const result = deduplicateWorksTopics(data);
+    expect(result).toEqual([]);
+  });
 });
 
 describe('deduplicateWorksMesh', () => {
@@ -220,5 +241,16 @@ describe('deduplicateWorksMesh', () => {
 
   it('returns empty array for empty input', () => {
     expect(deduplicateWorksMesh([])).toEqual([]);
+  });
+
+  it('returns empty array when all rows have null primary keys', () => {
+    const data = [
+      { work_id: null, descriptor_ui: 'D001', descriptor_name: 'Name1', qualifier_ui: 'Q001', qualifier_name: 'QName1', is_major_topic: true },
+      { work_id: 'W1', descriptor_ui: null, descriptor_name: 'Name1', qualifier_ui: 'Q001', qualifier_name: 'QName1', is_major_topic: true },
+      { work_id: 'W1', descriptor_ui: 'D001', descriptor_name: 'Name1', qualifier_ui: null, qualifier_name: 'QName1', is_major_topic: true },
+    ] as any;
+
+    const result = deduplicateWorksMesh(data);
+    expect(result).toEqual([]);
   });
 });

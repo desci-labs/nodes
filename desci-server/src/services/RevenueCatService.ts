@@ -3,6 +3,7 @@
  */
 import crypto from 'node:crypto';
 
+import { getChatBundleUnitsForProduct, isLifetimeMobileProduct } from '../config/mobileBundles.js';
 import { REVENUECAT_API_KEY, REVENUECAT_ENTITLEMENT_ID, REVENUECAT_WEBHOOK_SECRET } from '../config.js';
 import { logger as parentLogger } from '../logger.js';
 import { delFromCache, getFromCache, setToCache } from '../redisClient.js';
@@ -74,8 +75,14 @@ export interface RevenueCatWebhookPayload {
   api_version: string;
   event: {
     app_user_id: string;
+    cancel_reason?: string | null;
+    currency?: string | null;
     event_timestamp_ms: number;
     expiration_at_ms: number;
+    id?: string;
+    original_transaction_id?: string | null;
+    presented_offering_id?: string | null;
+    price?: number | null;
     product_id: string;
     store: string;
     subscriber_attributes: {
@@ -84,6 +91,19 @@ export interface RevenueCatWebhookPayload {
     transaction_id: string | null;
     type: string;
   };
+}
+
+function getWebhookUserId(payload: RevenueCatWebhookPayload): number | null {
+  const attributeUserId = payload.event.subscriber_attributes['userId']?.value;
+  if (attributeUserId) {
+    const parsed = Number(attributeUserId);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  const appUserId = Number(payload.event.app_user_id);
+  return Number.isNaN(appUserId) ? null : appUserId;
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -264,14 +284,156 @@ async function cacheMobileSubscriptionFromCustomerInfo(
 export async function handleWebhookEvent(
   payload: RevenueCatWebhookPayload,
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const userIdValue = payload.event.subscriber_attributes['userId']?.value;
-  const userId = userIdValue ? Number(userIdValue) : null;
-  const user = userId != null && !Number.isNaN(userId) ? await getUserById(userId) : null;
+  const userId = getWebhookUserId(payload);
+  const user = userId != null ? await getUserById(userId) : null;
   if (!user) {
-    logger.warn({ userId: userIdValue }, 'RevenueCat webhook: user not found');
+    logger.warn({ appUserId: payload.event.app_user_id }, 'RevenueCat webhook: user not found');
     return { ok: false, status: 404, error: 'User not found' };
   }
   const appUserId = payload.event.app_user_id;
+  const productId = payload.event.product_id;
+  const bundleUnits = getChatBundleUnitsForProduct(productId);
+  const isLifetimeProduct = isLifetimeMobileProduct(productId);
+
+  if (bundleUnits !== null || isLifetimeProduct) {
+    switch (payload.event.type) {
+      case 'NON_RENEWING_PURCHASE':
+      case 'INITIAL_PURCHASE':
+        if (!payload.event.transaction_id) {
+          logger.warn(
+            { userId, productId, eventType: payload.event.type },
+            'RevenueCat purchase missing transaction id',
+          );
+          break;
+        }
+
+        if (bundleUnits !== null) {
+          const fulfillment = await SubscriptionService.handleRevenueCatBundlePurchase({
+            userId,
+            productId,
+            transactionId: payload.event.transaction_id,
+            originalTransactionId: payload.event.original_transaction_id,
+            eventId: payload.event.id,
+            store: payload.event.store,
+            amountPaid: payload.event.price,
+            currency: payload.event.currency,
+            presentedOfferingId: payload.event.presented_offering_id,
+          });
+
+          logger.info(
+            {
+              userId,
+              productId,
+              transactionId: payload.event.transaction_id,
+              grantedChats: fulfillment.grantedChats,
+              totalChats: fulfillment.totalChats,
+              skipReason: fulfillment.skipReason,
+              alreadyFulfilled: fulfillment.alreadyFulfilled,
+            },
+            'RevenueCat bundle purchase fulfilled',
+          );
+        } else {
+          const fulfillment = await SubscriptionService.handleRevenueCatLifetimePurchase({
+            userId,
+            productId,
+            transactionId: payload.event.transaction_id,
+            originalTransactionId: payload.event.original_transaction_id,
+            eventId: payload.event.id,
+            store: payload.event.store,
+            amountPaid: payload.event.price,
+            currency: payload.event.currency,
+            presentedOfferingId: payload.event.presented_offering_id,
+          });
+
+          logger.info(
+            {
+              userId,
+              productId,
+              transactionId: payload.event.transaction_id,
+              createdNewLifetime: fulfillment.createdNewLifetime,
+              alreadyFulfilled: fulfillment.alreadyFulfilled,
+            },
+            'RevenueCat lifetime purchase fulfilled',
+          );
+        }
+        break;
+      case 'CANCELLATION':
+        if (!payload.event.transaction_id) {
+          logger.warn(
+            { userId, productId, eventType: payload.event.type },
+            'RevenueCat cancellation missing transaction id',
+          );
+          break;
+        }
+
+        if (bundleUnits !== null) {
+          const reversal = await SubscriptionService.reverseRevenueCatBundlePurchase({
+            userId,
+            productId,
+            transactionId: payload.event.transaction_id,
+            eventId: payload.event.id,
+            reason: payload.event.cancel_reason,
+          });
+
+          logger.info(
+            {
+              userId,
+              productId,
+              transactionId: payload.event.transaction_id,
+              reversed: reversal.reversed,
+              alreadyReversed: reversal.alreadyReversed,
+              reversedChats: reversal.reversedChats,
+            },
+            'RevenueCat bundle cancellation handled',
+          );
+        } else {
+          const cancellation = await SubscriptionService.handleRevenueCatLifetimeCancellation({
+            userId,
+            transactionId: payload.event.transaction_id,
+            eventId: payload.event.id,
+            reason: payload.event.cancel_reason,
+          });
+
+          logger.info(
+            {
+              userId,
+              productId,
+              transactionId: payload.event.transaction_id,
+              canceled: cancellation.canceled,
+              alreadyReversed: cancellation.alreadyReversed,
+            },
+            'RevenueCat lifetime cancellation handled',
+          );
+        }
+        break;
+      case 'EXPIRATION':
+        if (isLifetimeProduct && payload.event.transaction_id) {
+          const cancellation = await SubscriptionService.handleRevenueCatLifetimeCancellation({
+            userId,
+            transactionId: payload.event.transaction_id,
+            eventId: payload.event.id,
+            reason: 'expiration',
+          });
+
+          logger.info(
+            {
+              userId,
+              productId,
+              transactionId: payload.event.transaction_id,
+              canceled: cancellation.canceled,
+              alreadyReversed: cancellation.alreadyReversed,
+            },
+            'RevenueCat lifetime expiration handled',
+          );
+        }
+        break;
+      default:
+        logger.info({ eventType: payload.event.type, userId, productId }, 'RevenueCat bundle/lifetime webhook ignored');
+        break;
+    }
+
+    return { ok: true };
+  }
 
   const customerInfo = await getCustomerInfo(appUserId);
   if (customerInfo) {

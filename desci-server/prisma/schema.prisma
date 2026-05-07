@@ -285,6 +285,7 @@ model User {
   AbandonedCheckout         AbandonedCheckout[]
   accountDeletionRequest    AccountDeletionRequest?
   StripeCheckoutFulfillment StripeCheckoutFulfillment[]
+  RevenueCatPurchaseFulfillment RevenueCatPurchaseFulfillment[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1634,6 +1635,35 @@ model StripeCheckoutFulfillment {
   @@index([fulfilledAt])
 }
 
+model RevenueCatPurchaseFulfillment {
+  id                               Int                                @id @default(autoincrement())
+  userId                           Int
+  revenueCatEventId                String?
+  revenueCatTransactionId          String                             @unique
+  revenueCatOriginalTransactionId  String?
+  revenueCatProductId              String
+  revenueCatStore                  String?
+  amountPaid                       Float?
+  currency                         String?
+  fulfillmentType                  RevenueCatPurchaseFulfillmentType
+  purchasedUnits                   Int
+  grantedUnits                     Int
+  skipReason                       String?
+  details                          Json?
+  reversedAt                       DateTime?
+  reversalReason                   String?
+  reversalDetails                  Json?
+  fulfilledAt                      DateTime                           @default(now())
+  createdAt                        DateTime                           @default(now())
+  updatedAt                        DateTime                           @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([revenueCatProductId])
+  @@index([fulfilledAt])
+}
+
 enum ImportTaskQueueStatus {
   PENDING
   IN_PROGRESS
@@ -1643,6 +1673,11 @@ enum ImportTaskQueueStatus {
 
 enum StripeCheckoutFulfillmentType {
   BUNDLE_CHATS
+}
+
+enum RevenueCatPurchaseFulfillmentType {
+  BUNDLE_CHATS
+  LIFETIME_UNLOCK
 }
 
 enum Feature {
