@@ -8,10 +8,12 @@ import {
   Feature,
   PlanCodename,
   Period,
+  RevenueCatPurchaseFulfillmentType,
   SentEmailType,
 } from '@prisma/client';
 import Stripe from 'stripe';
 
+import { getChatBundleUnitsForProduct } from '../config/mobileBundles.js';
 import { getPlanTypeFromPriceId, getBillingIntervalFromPriceId } from '../config/stripe.js';
 import { capturePostHogEvent } from '../lib/PostHog.js';
 import { logger as parentLogger } from '../logger.js';
@@ -556,6 +558,378 @@ export class SubscriptionService {
   static async handleMobileSubscriptionCancelled(userId: number) {
     logger.info({ userId }, 'Handling mobile subscription cancelled');
     return await this.updateFeatureLimitsAfterCancellation(userId);
+  }
+
+  static async handleRevenueCatBundlePurchase({
+    userId,
+    productId,
+    transactionId,
+    originalTransactionId,
+    eventId,
+    store,
+    amountPaid,
+    currency,
+    presentedOfferingId,
+  }: {
+    userId: number;
+    productId: string;
+    transactionId: string;
+    originalTransactionId?: string | null;
+    eventId?: string | null;
+    store?: string | null;
+    amountPaid?: number | null;
+    currency?: string | null;
+    presentedOfferingId?: string | null;
+  }): Promise<{
+    alreadyFulfilled: boolean;
+    grantedChats: number;
+    totalChats: number;
+    skipReason: string | null;
+  }> {
+    const bundleChatsPerUnit = getChatBundleUnitsForProduct(productId);
+
+    if (!bundleChatsPerUnit) {
+      throw new Error(`Unsupported RevenueCat chat bundle product: ${productId}`);
+    }
+
+    const { FeatureLimitsService } = await import('./FeatureLimits/FeatureLimitsService.js');
+    const limitResult = await FeatureLimitsService.getOrCreateUserFeatureLimit(userId, Feature.RESEARCH_ASSISTANT);
+    if (limitResult.isErr()) {
+      throw limitResult.error;
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const existingFulfillment = await tx.revenueCatPurchaseFulfillment.findUnique({
+        where: { revenueCatTransactionId: transactionId },
+      });
+
+      if (existingFulfillment) {
+        return {
+          alreadyFulfilled: true,
+          grantedChats: existingFulfillment.grantedUnits,
+          totalChats: existingFulfillment.purchasedUnits,
+          skipReason: existingFulfillment.skipReason,
+        };
+      }
+
+      const activeLimit = await tx.userFeatureLimit.findFirst({
+        where: {
+          userId,
+          feature: Feature.RESEARCH_ASSISTANT,
+          isActive: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!activeLimit) {
+        throw new Error(`Active RESEARCH_ASSISTANT feature limit not found for user ${userId}`);
+      }
+
+      const totalChats = bundleChatsPerUnit;
+      let grantedChats = 0;
+      let skipReason: string | null = null;
+
+      if (activeLimit.useLimit === null) {
+        skipReason = 'user_has_unlimited_chat_access';
+      } else {
+        grantedChats = totalChats;
+        await tx.userFeatureLimit.update({
+          where: { id: activeLimit.id },
+          data: { useLimit: activeLimit.useLimit + totalChats },
+        });
+      }
+
+      await tx.revenueCatPurchaseFulfillment.create({
+        data: {
+          userId,
+          revenueCatEventId: eventId ?? null,
+          revenueCatTransactionId: transactionId,
+          revenueCatOriginalTransactionId: originalTransactionId ?? null,
+          revenueCatProductId: productId,
+          revenueCatStore: store ?? null,
+          amountPaid: amountPaid ?? null,
+          currency: currency ?? null,
+          fulfillmentType: RevenueCatPurchaseFulfillmentType.BUNDLE_CHATS,
+          purchasedUnits: totalChats,
+          grantedUnits: grantedChats,
+          skipReason,
+          details: {
+            presentedOfferingId: presentedOfferingId ?? null,
+            bundleChatsPerUnit,
+          },
+        },
+      });
+
+      return {
+        alreadyFulfilled: false,
+        grantedChats,
+        totalChats,
+        skipReason,
+      };
+    });
+  }
+
+  static async reverseRevenueCatBundlePurchase({
+    userId,
+    productId,
+    transactionId,
+    eventId,
+    reason,
+  }: {
+    userId: number;
+    productId: string;
+    transactionId: string;
+    eventId?: string | null;
+    reason?: string | null;
+  }): Promise<{
+    reversed: boolean;
+    alreadyReversed: boolean;
+    reversedChats: number;
+  }> {
+    const bundleChatsPerUnit = getChatBundleUnitsForProduct(productId);
+    if (!bundleChatsPerUnit) {
+      throw new Error(`Unsupported RevenueCat chat bundle product: ${productId}`);
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const fulfillment = await tx.revenueCatPurchaseFulfillment.findUnique({
+        where: { revenueCatTransactionId: transactionId },
+      });
+
+      if (!fulfillment || fulfillment.fulfillmentType !== RevenueCatPurchaseFulfillmentType.BUNDLE_CHATS) {
+        return { reversed: false, alreadyReversed: false, reversedChats: 0 };
+      }
+
+      if (fulfillment.reversedAt) {
+        return { reversed: false, alreadyReversed: true, reversedChats: 0 };
+      }
+
+      const activeLimit = await tx.userFeatureLimit.findFirst({
+        where: {
+          userId,
+          feature: Feature.RESEARCH_ASSISTANT,
+          isActive: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      let reversedChats = 0;
+      if (activeLimit && activeLimit.useLimit !== null && fulfillment.grantedUnits > 0) {
+        const nextUseLimit = Math.max(0, activeLimit.useLimit - fulfillment.grantedUnits);
+        await tx.userFeatureLimit.update({
+          where: { id: activeLimit.id },
+          data: { useLimit: nextUseLimit },
+        });
+        reversedChats = fulfillment.grantedUnits;
+      }
+
+      await tx.revenueCatPurchaseFulfillment.update({
+        where: { id: fulfillment.id },
+        data: {
+          reversedAt: new Date(),
+          reversalReason: reason ?? 'revenuecat_cancellation',
+          reversalDetails: {
+            eventId: eventId ?? null,
+          },
+        },
+      });
+
+      return { reversed: true, alreadyReversed: false, reversedChats };
+    });
+  }
+
+  static async handleRevenueCatLifetimePurchase({
+    userId,
+    productId,
+    transactionId,
+    originalTransactionId,
+    eventId,
+    store,
+    amountPaid,
+    currency,
+    presentedOfferingId,
+  }: {
+    userId: number;
+    productId: string;
+    transactionId: string;
+    originalTransactionId?: string | null;
+    eventId?: string | null;
+    store?: string | null;
+    amountPaid?: number | null;
+    currency?: string | null;
+    presentedOfferingId?: string | null;
+  }): Promise<{
+    alreadyFulfilled: boolean;
+    createdNewLifetime: boolean;
+  }> {
+    const now = new Date();
+    const syntheticSubscriptionId = `revenuecat_lifetime_${transactionId}`;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const existingFulfillment = await tx.revenueCatPurchaseFulfillment.findUnique({
+        where: { revenueCatTransactionId: transactionId },
+      });
+
+      if (existingFulfillment) {
+        return {
+          alreadyFulfilled: true,
+          createdNewLifetime: false,
+        };
+      }
+
+      const existingSubscription = await tx.subscription.findFirst({
+        where: {
+          stripeSubscriptionId: syntheticSubscriptionId,
+        },
+      });
+
+      await tx.subscription.upsert({
+        where: { stripeSubscriptionId: syntheticSubscriptionId },
+        create: {
+          userId,
+          stripeCustomerId: null,
+          stripeSubscriptionId: syntheticSubscriptionId,
+          stripePriceId: productId,
+          status: SubscriptionStatus.ACTIVE,
+          planType: PlanType.SCIWEAVE_LIFETIME,
+          billingInterval: BillingInterval.LIFETIME,
+          currentPeriodStart: now,
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          trialStart: null,
+          trialEnd: null,
+        },
+        update: {
+          userId,
+          stripePriceId: productId,
+          status: SubscriptionStatus.ACTIVE,
+          planType: PlanType.SCIWEAVE_LIFETIME,
+          billingInterval: BillingInterval.LIFETIME,
+          currentPeriodStart: existingSubscription?.currentPeriodStart ?? now,
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          trialStart: null,
+          trialEnd: null,
+        },
+      });
+
+      await tx.revenueCatPurchaseFulfillment.create({
+        data: {
+          userId,
+          revenueCatEventId: eventId ?? null,
+          revenueCatTransactionId: transactionId,
+          revenueCatOriginalTransactionId: originalTransactionId ?? null,
+          revenueCatProductId: productId,
+          revenueCatStore: store ?? null,
+          amountPaid: amountPaid ?? null,
+          currency: currency ?? null,
+          fulfillmentType: RevenueCatPurchaseFulfillmentType.LIFETIME_UNLOCK,
+          purchasedUnits: 1,
+          grantedUnits: 1,
+          details: {
+            presentedOfferingId: presentedOfferingId ?? null,
+            syntheticSubscriptionId,
+          },
+        },
+      });
+
+      return {
+        alreadyFulfilled: false,
+        createdNewLifetime: !existingSubscription,
+      };
+    });
+
+    await this.updateUserFeatureLimits(userId, PlanType.SCIWEAVE_LIFETIME);
+
+    if (result.createdNewLifetime) {
+      try {
+        const user = await this.getUserForEmail(userId);
+        if (user) {
+          await sendEmail({
+            type: SciweaveEmailTypes.SCIWEAVE_UPGRADE_EMAIL,
+            payload: {
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            },
+          });
+          logger.info({ userId, transactionId, productId }, 'Upgrade email sent for RevenueCat lifetime purchase');
+        }
+      } catch (emailError) {
+        logger.error(
+          { error: emailError, userId, transactionId, productId },
+          'Failed to send upgrade email for RevenueCat lifetime purchase',
+        );
+      }
+    }
+
+    return result;
+  }
+
+  static async handleRevenueCatLifetimeCancellation({
+    userId,
+    transactionId,
+    eventId,
+    reason,
+  }: {
+    userId: number;
+    transactionId: string;
+    eventId?: string | null;
+    reason?: string | null;
+  }): Promise<{
+    canceled: boolean;
+    alreadyReversed: boolean;
+  }> {
+    const syntheticSubscriptionId = `revenuecat_lifetime_${transactionId}`;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const fulfillment = await tx.revenueCatPurchaseFulfillment.findUnique({
+        where: { revenueCatTransactionId: transactionId },
+      });
+
+      if (!fulfillment || fulfillment.fulfillmentType !== RevenueCatPurchaseFulfillmentType.LIFETIME_UNLOCK) {
+        return { canceled: false, alreadyReversed: false };
+      }
+
+      if (fulfillment.reversedAt) {
+        return { canceled: false, alreadyReversed: true };
+      }
+
+      await tx.revenueCatPurchaseFulfillment.update({
+        where: { id: fulfillment.id },
+        data: {
+          reversedAt: new Date(),
+          reversalReason: reason ?? 'revenuecat_cancellation',
+          reversalDetails: {
+            eventId: eventId ?? null,
+          },
+        },
+      });
+
+      await tx.subscription.updateMany({
+        where: {
+          userId,
+          stripeSubscriptionId: syntheticSubscriptionId,
+          status: SubscriptionStatus.ACTIVE,
+        },
+        data: {
+          status: SubscriptionStatus.CANCELED,
+          cancelAtPeriodEnd: false,
+          canceledAt: new Date(),
+          currentPeriodEnd: new Date(),
+        },
+      });
+
+      return { canceled: true, alreadyReversed: false };
+    });
+
+    if (result.canceled) {
+      await this.updateFeatureLimitsAfterCancellation(userId);
+    }
+
+    return result;
   }
 
   /**
