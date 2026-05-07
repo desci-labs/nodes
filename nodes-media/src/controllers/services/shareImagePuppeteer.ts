@@ -86,6 +86,28 @@ function escapeHtml(text: string): string {
     .replace(/`/g, '&#96;');
 }
 
+// Inline tags we allow to "leak through" the HTML escape so chemistry/biology
+// names (e.g. "NAD<sup>+</sup>", "H<sub>2</sub>O", italicized species names)
+// render correctly inside the question and citation titles. None of these tags
+// can carry attributes through this escape path, so there's no XSS surface.
+const INLINE_FORMATTING_TAGS = ['sup', 'sub', 'i', 'em', 'b', 'strong'] as const;
+
+/**
+ * Like escapeHtml, but un-escapes a small allowlist of attribute-less inline
+ * formatting tags so titles like "NAD<sup>+</sup>" don't render as literal
+ * text. Use this for any user/LLM-controlled text rendered into the template
+ * that may legitimately contain inline scientific notation.
+ */
+function escapeHtmlAllowInline(text: string): string {
+  let escaped = escapeHtml(text);
+  for (const tag of INLINE_FORMATTING_TAGS) {
+    escaped = escaped
+      .split(`&lt;${tag}&gt;`).join(`<${tag}>`)
+      .split(`&lt;/${tag}&gt;`).join(`</${tag}>`);
+  }
+  return escaped;
+}
+
 /**
  * Custom error to indicate that SVG fallback is needed
  */
@@ -320,11 +342,17 @@ function getReferencedCitations(answer: string, citations: Citation[]): any[] {
  * Configures marked for proper markdown rendering
  */
 function configureMarkdown() {
-  // Configure marked for proper HTML rendering
+  // Configure marked for proper HTML rendering.
+  // headerIds:false prevents marked from emitting `<h3 id="...">` — the class-injection
+  // regex below was written for `<h3>` literal tags, so without this the .heading-N CSS
+  // never applies and headings collapse to body-text size. mangle:false silences a noisy
+  // deprecation warning about email obfuscation we don't use.
   marked.setOptions({
     breaks: true,
     gfm: true,
-  });
+    headerIds: false,
+    mangle: false,
+  } as any);
 }
 
 /**
@@ -333,18 +361,24 @@ function configureMarkdown() {
 function processSimpleMarkdownToHTML(text: string): string {
   if (!text) return '';
 
+  // Ensure marked options match the main path (in particular, headerIds:false).
+  configureMarkdown();
   // Use marked library for proper markdown parsing
   let html = marked.parse(text);
 
-  // Add custom classes to elements for styling
+  // Add custom classes to elements for styling. Tolerate any pre-existing
+  // attributes (e.g. id="..." that older marked versions emit on headings).
   html = html
-    .replace(/<h1>/g, '<h1 class="heading-1">')
-    .replace(/<h2>/g, '<h2 class="heading-2">')
-    .replace(/<h3>/g, '<h3 class="heading-3">')
-    .replace(/<strong>/g, '<strong class="answer-bold">')
-    .replace(/<p>/g, '<p class="answer-paragraph">')
-    .replace(/<ul>/g, '<ul class="answer-list">')
-    .replace(/<li>/g, '<li class="answer-list-item">');
+    .replace(/<h1(\s[^>]*)?>/g, '<h1 class="heading-1"$1>')
+    .replace(/<h2(\s[^>]*)?>/g, '<h2 class="heading-2"$1>')
+    .replace(/<h3(\s[^>]*)?>/g, '<h3 class="heading-3"$1>')
+    .replace(/<h4(\s[^>]*)?>/g, '<h4 class="heading-4"$1>')
+    .replace(/<h5(\s[^>]*)?>/g, '<h5 class="heading-5"$1>')
+    .replace(/<h6(\s[^>]*)?>/g, '<h6 class="heading-6"$1>')
+    .replace(/<strong(\s[^>]*)?>/g, '<strong class="answer-bold"$1>')
+    .replace(/<p(\s[^>]*)?>/g, '<p class="answer-paragraph"$1>')
+    .replace(/<ul(\s[^>]*)?>/g, '<ul class="answer-list"$1>')
+    .replace(/<li(\s[^>]*)?>/g, '<li class="answer-list-item"$1>');
 
   return html;
 }
@@ -400,17 +434,23 @@ function processMarkdownToHTML(text: string): string {
     }, 'Generated HTML');
   }
 
-  // Add custom classes to elements for styling
+  // Add custom classes to elements for styling. Tolerate any pre-existing
+  // attributes on the opening tag (e.g. id="..." that older marked versions
+  // emit on headings) — without this, the .heading-N classes never apply
+  // and the headings collapse to body-text size.
   html = html
-    .replace(/<h1>/g, '<h1 class="heading-1">')
-    .replace(/<h2>/g, '<h2 class="heading-2">')
-    .replace(/<h3>/g, '<h3 class="heading-3">')
-    .replace(/<strong>/g, '<strong class="answer-bold">')
-    .replace(/<em>/g, '<em class="answer-italic">')
-    .replace(/<p>/g, '<p class="answer-paragraph">')
-    .replace(/<ul>/g, '<ul class="answer-list">')
-    .replace(/<ol>/g, '<ol class="answer-list answer-list-ordered">')
-    .replace(/<li>/g, '<li class="answer-list-item">')
+    .replace(/<h1(\s[^>]*)?>/g, '<h1 class="heading-1"$1>')
+    .replace(/<h2(\s[^>]*)?>/g, '<h2 class="heading-2"$1>')
+    .replace(/<h3(\s[^>]*)?>/g, '<h3 class="heading-3"$1>')
+    .replace(/<h4(\s[^>]*)?>/g, '<h4 class="heading-4"$1>')
+    .replace(/<h5(\s[^>]*)?>/g, '<h5 class="heading-5"$1>')
+    .replace(/<h6(\s[^>]*)?>/g, '<h6 class="heading-6"$1>')
+    .replace(/<strong(\s[^>]*)?>/g, '<strong class="answer-bold"$1>')
+    .replace(/<em(\s[^>]*)?>/g, '<em class="answer-italic"$1>')
+    .replace(/<p(\s[^>]*)?>/g, '<p class="answer-paragraph"$1>')
+    .replace(/<ul(\s[^>]*)?>/g, '<ul class="answer-list"$1>')
+    .replace(/<ol(\s[^>]*)?>/g, '<ol class="answer-list answer-list-ordered"$1>')
+    .replace(/<li(\s[^>]*)?>/g, '<li class="answer-list-item"$1>')
     .replace(/<br>/g, '<br/>');
 
   return html;
@@ -671,7 +711,7 @@ function generateHTML(data: ShareImageData): string {
     </div>
 
     <div class="content">
-        <div class="question">${escapeHtml(data.text)}</div>
+        <div class="question">${escapeHtmlAllowInline(data.text)}</div>
         
         <div class="answer">
             <div class="answer-content">
@@ -691,8 +731,8 @@ function generateHTML(data: ShareImageData): string {
                 <div class="reference-item">
                     <div class="reference-number">[${citation.number}]</div>
                     <div class="reference-content">
-                        <div class="reference-title">${escapeHtml(citation.title)}</div>
-                        <div class="reference-meta">${escapeHtml(citation.metadata)}</div>
+                        <div class="reference-title">${escapeHtmlAllowInline(citation.title)}</div>
+                        <div class="reference-meta">${escapeHtmlAllowInline(citation.metadata)}</div>
                     </div>
                 </div>
             `,
@@ -838,6 +878,14 @@ async function useSvgFallback(req: Request<any, any, any, ShareImageQuery>, res:
 async function generateImageFromData(res: Response, data: ShareImageData) {
   let browser: puppeteer.Browser | null = null;
 
+  // Per-step timing — helps diagnose why a single render is 10–45s.
+  // Each step is logged in milliseconds; the final summary is a single line for grep-ability.
+  const t0 = Date.now();
+  const timings: Record<string, number> = {};
+  const mark = (name: string, since: number) => {
+    timings[name] = Date.now() - since;
+  };
+
   try {
     // Set response headers for PNG image
     res.setHeader('Content-Type', 'image/png');
@@ -848,12 +896,15 @@ async function generateImageFromData(res: Response, data: ShareImageData) {
       : 'public, max-age=21600' // Cache for 6 hours in production
     );
 
-    // Generate HTML content
+    // Generate HTML content (markdown processing + template assembly + base64 background image)
+    const tHtml = Date.now();
     const htmlContent = generateHTML(data);
+    mark('html_build_ms', tHtml);
 
     logger.info('Attempting to launch Puppeteer browser...');
 
     // Launch browser with Docker-optimized settings and timeout
+    const tLaunch = Date.now();
     browser = await puppeteer.launch({
       headless: true,
       timeout: 30000,
@@ -877,9 +928,11 @@ async function generateImageFromData(res: Response, data: ShareImageData) {
       // Try to use system Chrome if available, fallback to bundled
       executablePath: process.env.CHROME_EXECUTABLE_PATH || undefined,
     });
+    mark('puppeteer_launch_ms', tLaunch);
 
     logger.info('Browser launched successfully');
 
+    const tNewPage = Date.now();
     const page = await browser.newPage();
 
     // Set viewport to match our design
@@ -888,26 +941,34 @@ async function generateImageFromData(res: Response, data: ShareImageData) {
       height: 1024,
       deviceScaleFactor: 1,
     });
+    mark('new_page_ms', tNewPage);
 
     logger.info('Setting page content...');
 
     // Set content and wait for rendering
+    const tSetContent = Date.now();
     await page.setContent(htmlContent, {
       waitUntil: 'networkidle0',
       timeout: 30000,
     });
+    mark('set_content_ms', tSetContent);
 
     logger.info('Taking screenshot...');
 
     // Take screenshot
+    const tShot = Date.now();
     const screenshot = await page.screenshot({
       type: 'png',
       fullPage: false,
     });
+    mark('screenshot_ms', tShot);
 
     // Send the PNG image
     res.send(screenshot);
 
+    timings.total_ms = Date.now() - t0;
+    const screenshotBytes = (screenshot as any).length ?? (screenshot as any).byteLength ?? 0;
+    logger.info({ timings, html_chars: htmlContent.length, screenshot_bytes: screenshotBytes }, '[ShareImage] timings');
     logger.info('Successfully generated share image with Puppeteer');
   } catch (error) {
     logger.error(
