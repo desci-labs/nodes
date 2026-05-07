@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { getFeatureStatus } from '../../../controllers/internal/getFeatureStatus.js';
+import { getSciweaveSignupCount } from '../../../controllers/internal/getSciweaveSignupCount.js';
 import { postFeatureUsage } from '../../../controllers/internal/postFeatureUsage.js';
 import { ensureInternalSecret } from '../../../middleware/internalSecret.js';
 import { validateInputs } from '../../../middleware/validator.js';
@@ -16,5 +17,9 @@ router.post(
   [ensureInternalSecret, validateInputs(postFeatureUsageSchema)],
   postFeatureUsage,
 );
+
+// Count new sciweave users in a window. Used by the sciweave-web admin
+// Telegram bot. See controller for definition of "new sciweave user".
+router.get('/sciweave/signups', [ensureInternalSecret], getSciweaveSignupCount);
 
 export default router;
