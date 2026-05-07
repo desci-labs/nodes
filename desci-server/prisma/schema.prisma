@@ -276,6 +276,7 @@ model User {
   refereeInvitesReceived    RefereeInvite[]             @relation("RefereeUser")
   journalFormTemplates      JournalFormTemplate[]
   ExternalApiUsage          ExternalApiUsage[]
+  RefereeRecommenderRun     RefereeRecommenderRun[]
   UserFeatureLimit          UserFeatureLimit[]
   Subscription              Subscription[]
   SentEmail                 SentEmail[]
@@ -1448,6 +1449,36 @@ model ExternalApiUsage {
   @@index([userId])
   @@index([userId, apiType])
   @@index([userId, apiType, createdAt])
+}
+
+// Persistent record of a single referee-recommender run, so users can re-open
+// past reports without depending on the AWS step-function output's retention
+// or the 24h Redis session TTL. Populated by RefereeRecommenderSqsHandler when
+// the AWS pipeline emits PROCESSING_COMPLETED, and as a write-through cache by
+// the getResults controller on first SUCCEEDED fetch.
+model RefereeRecommenderRun {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  uploadedFileName String // AWS step-function key — the join key with the ML side
+  s3Key            String // S3 key of the uploaded manuscript PDF
+  originalFileName String?
+  status           String // RUNNING, SUCCEEDED, FAILED
+  paperTitle       String?
+  paperAbstract    String?  @db.Text
+  paperPubYear     Int?
+  contextNovelty   Float?
+  contentNovelty   Float?
+  reviewerCount    Int?
+  result           Json? // Full ML response payload (paper_data, focal_authors_data, reviewers, recent_works)
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  completedAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, uploadedFileName])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model UserFeatureLimit {
