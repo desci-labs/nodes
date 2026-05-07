@@ -90,6 +90,15 @@ export class RefereeRecommenderSqsHandler {
       // Save to database only for successfully completed processing
       if (eventData.eventType === 'PROCESSING_COMPLETED') {
         await Promise.all(sessions.map((session) => this.saveToDatabase(eventData, session)));
+        // Pull the full reviewer recommendation result from AWS once and fan
+        // it out to every user session so each one gets a persistent report
+        // they can open later. Single AWS round-trip even if multiple users
+        // uploaded the same fileName.
+        await this.persistRunForSessions(eventData, sessions);
+      } else if (eventData.eventType === 'PROCESSING_FAILED') {
+        await Promise.all(
+          sessions.map((session) => this.persistFailedRun(eventData, session)),
+        );
       }
 
       // Emit websocket events to all users who requested this file
@@ -187,6 +196,115 @@ export class RefereeRecommenderSqsHandler {
           fileName: eventData.file_name,
         },
         'Failed to emit websocket event',
+      );
+    }
+  }
+
+  /**
+   * Fetch the full ML result from AWS and upsert a RefereeRecommenderRun row
+   * for every user session associated with this fileName. The row is the
+   * source of truth for the user-facing "past runs" history.
+   */
+  private async persistRunForSessions(
+    eventData: ExternalApiSqsMessage,
+    sessions: Array<{ userId: number; originalFileName: string; createdAt: number }>,
+  ): Promise<void> {
+    const fetchResult = await RefereeRecommenderService.getRefereeResults(eventData.file_name);
+    if (fetchResult.isErr()) {
+      logger.error(
+        { error: fetchResult.error.message, fileName: eventData.file_name },
+        'Failed to fetch referee result for run persistence; history row will be created without result blob',
+      );
+    }
+
+    const remote = fetchResult.isOk() ? fetchResult.value : null;
+    const paperData = remote?.result?.data?.paper_data ?? {};
+    const reviewers = remote?.result?.data?.reviewers;
+    const reviewerCount = Array.isArray(reviewers)
+      ? reviewers.length
+      : reviewers && typeof reviewers === 'object'
+        ? Object.keys(reviewers).length
+        : null;
+
+    await Promise.all(
+      sessions.map(async (session) => {
+        try {
+          await prisma.refereeRecommenderRun.upsert({
+            where: {
+              userId_uploadedFileName: {
+                userId: session.userId,
+                uploadedFileName: eventData.file_name,
+              },
+            },
+            create: {
+              userId: session.userId,
+              uploadedFileName: eventData.file_name,
+              s3Key: eventData.file_name,
+              originalFileName: session.originalFileName,
+              status: 'SUCCEEDED',
+              paperTitle: paperData.title ?? null,
+              paperAbstract: paperData.abstract ?? null,
+              paperPubYear: paperData.pub_year ?? null,
+              contextNovelty: paperData.context_novelty ?? null,
+              contentNovelty: paperData.content_novelty ?? null,
+              reviewerCount,
+              result: remote?.result ?? undefined,
+              completedAt: new Date(),
+            },
+            update: {
+              status: 'SUCCEEDED',
+              paperTitle: paperData.title ?? null,
+              paperAbstract: paperData.abstract ?? null,
+              paperPubYear: paperData.pub_year ?? null,
+              contextNovelty: paperData.context_novelty ?? null,
+              contentNovelty: paperData.content_novelty ?? null,
+              reviewerCount,
+              result: remote?.result ?? undefined,
+              completedAt: new Date(),
+              errorMessage: null,
+            },
+          });
+        } catch (err) {
+          logger.error(
+            { err, userId: session.userId, fileName: eventData.file_name },
+            'Failed to upsert RefereeRecommenderRun row',
+          );
+        }
+      }),
+    );
+  }
+
+  private async persistFailedRun(
+    eventData: ExternalApiSqsMessage,
+    session: { userId: number; originalFileName: string; createdAt: number },
+  ): Promise<void> {
+    try {
+      await prisma.refereeRecommenderRun.upsert({
+        where: {
+          userId_uploadedFileName: {
+            userId: session.userId,
+            uploadedFileName: eventData.file_name,
+          },
+        },
+        create: {
+          userId: session.userId,
+          uploadedFileName: eventData.file_name,
+          s3Key: eventData.file_name,
+          originalFileName: session.originalFileName,
+          status: 'FAILED',
+          errorMessage: eventData.data?.error || 'Processing failed',
+          completedAt: new Date(),
+        },
+        update: {
+          status: 'FAILED',
+          errorMessage: eventData.data?.error || 'Processing failed',
+          completedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      logger.error(
+        { err, userId: session.userId, fileName: eventData.file_name },
+        'Failed to upsert failed RefereeRecommenderRun row',
       );
     }
   }
