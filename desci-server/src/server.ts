@@ -5,8 +5,8 @@ import * as child from 'child_process';
 import type { Server as HttpServer } from 'http';
 import { createRequire } from 'module';
 
-import * as Sentry from '@sentry/node';
 import { PrismaInstrumentation } from '@prisma/instrumentation';
+import * as Sentry from '@sentry/node';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -266,7 +266,10 @@ export class AppServer {
                 status: res.statusCode,
               };
             } else {
-              return res;
+              return {
+                statusCode: res.statusCode,
+                responseTime: res.responseTime,
+              };
             }
           },
           req: (req) => {
@@ -278,7 +281,13 @@ export class AppServer {
                 url: req.url,
               };
             } else {
-              return req;
+              const urlWithoutQuery = (req.originalUrl || req.url || '').split('?')[0];
+              return {
+                id: req.id,
+                method: req.method,
+                url: urlWithoutQuery,
+                route: req.route?.path,
+              };
             }
           },
         },
