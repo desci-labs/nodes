@@ -281,10 +281,11 @@ export class AppServer {
                 url: req.url,
               };
             } else {
+              const urlWithoutQuery = (req.originalUrl || req.url || '').split('?')[0];
               return {
                 id: req.id,
                 method: req.method,
-                url: req.originalUrl || req.url,
+                url: urlWithoutQuery,
                 route: req.route?.path,
               };
             }
