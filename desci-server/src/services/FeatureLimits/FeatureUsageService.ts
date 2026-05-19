@@ -6,9 +6,9 @@ import { logger as parentLogger } from '../../logger.js';
 import { sendEmail } from '../email/email.js';
 import { SciweaveEmailTypes } from '../email/sciweaveEmailTypes.js';
 // import { isUserStudentSciweave } from '../interactionLog.js'; // unused after coupon campaign disable
+import { getUserNameByUser } from '../user.js';
 
 import { FeatureLimitsService } from './FeatureLimitsService.js';
-import { getUserNameByUser } from '../user.js';
 
 const logger = parentLogger.child({ module: 'FeatureUsageService' });
 
@@ -68,6 +68,8 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
         return { type: 'limit', currentUsage, useLimit } as const;
       }
 
+      const remainingUsesAfterConsume = useLimit === null ? null : Math.max(0, useLimit - (currentUsage + 1));
+
       // Check if this usage will hit the limit exactly (send warning email)
       const willHitLimit = useLimit !== null && currentUsage + 1 === useLimit;
       let shouldSendLimitEmail = false;
@@ -94,12 +96,23 @@ async function consumeUsage(request: ConsumeUsageRequest): Promise<Result<Consum
         },
       });
 
-      return { type: 'created', usageId: created.id, shouldSendLimitEmail } as const;
+      return { type: 'created', usageId: created.id, shouldSendLimitEmail, remainingUsesAfterConsume } as const;
     });
 
     if (result.type === 'limit') {
       return err(new LimitExceededError(result.currentUsage, result.useLimit));
     }
+
+    void import('../SubscriptionService.js')
+      .then(({ SubscriptionService }) =>
+        SubscriptionService.triggerBundleAutoReplenishmentIfNeeded({
+          userId,
+          remainingUses: result.remainingUsesAfterConsume,
+        }),
+      )
+      .catch((triggerError) => {
+        logger.error({ triggerError, userId }, 'Failed to trigger bundle auto-replenishment');
+      });
 
     // Send out-of-chats email if user just hit their limit (do this after successful transaction)
     if (result.shouldSendLimitEmail) {

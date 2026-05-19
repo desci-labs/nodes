@@ -98,6 +98,9 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
       case 'payment_intent.succeeded':
         await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
         break;
+      case 'payment_intent.payment_failed':
+        await handlePaymentIntentPaymentFailed(event.data.object as Stripe.PaymentIntent);
+        break;
 
       // Charge events
       case 'charge.succeeded':
@@ -136,10 +139,13 @@ async function handleCustomerCreated(customer: Stripe.Customer) {
   try {
     await SubscriptionService.handleCustomerCreated(customer);
   } catch (err: any) {
-    logger.error({
-      customerId: customer.id,
-      err,
-    }, 'Failed to handle customer created');
+    logger.error(
+      {
+        customerId: customer.id,
+        err,
+      },
+      'Failed to handle customer created',
+    );
     throw err;
   }
 }
@@ -150,10 +156,13 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   try {
     await SubscriptionService.handleSubscriptionCreated(subscription);
   } catch (err: any) {
-    logger.error({
-      subscriptionId: subscription.id,
-      err,
-    }, 'Failed to handle subscription created');
+    logger.error(
+      {
+        subscriptionId: subscription.id,
+        err,
+      },
+      'Failed to handle subscription created',
+    );
     throw err;
   }
 }
@@ -164,10 +173,13 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   try {
     await SubscriptionService.handleSubscriptionUpdated(subscription);
   } catch (err: any) {
-    logger.error({
-      subscriptionId: subscription.id,
-      err,
-    }, 'Failed to handle subscription updated');
+    logger.error(
+      {
+        subscriptionId: subscription.id,
+        err,
+      },
+      'Failed to handle subscription updated',
+    );
     throw err;
   }
 }
@@ -178,10 +190,13 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   try {
     await SubscriptionService.handleSubscriptionDeleted(subscription);
   } catch (err: any) {
-    logger.error({
-      subscriptionId: subscription.id,
-      err,
-    }, 'Failed to handle subscription deleted');
+    logger.error(
+      {
+        subscriptionId: subscription.id,
+        err,
+      },
+      'Failed to handle subscription deleted',
+    );
     throw err;
   }
 }
@@ -192,10 +207,13 @@ async function handleInvoiceCreated(invoice: Stripe.Invoice) {
   try {
     await SubscriptionService.handleInvoiceCreated(invoice);
   } catch (err: any) {
-    logger.error({
-      invoiceId: invoice.id,
-      err,
-    }, 'Failed to handle invoice created');
+    logger.error(
+      {
+        invoiceId: invoice.id,
+        err,
+      },
+      'Failed to handle invoice created',
+    );
     throw err;
   }
 }
@@ -206,10 +224,13 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   try {
     await SubscriptionService.handleInvoicePaymentSucceeded(invoice);
   } catch (err: any) {
-    logger.error({
-      invoiceId: invoice.id,
-      err,
-    }, 'Failed to handle invoice payment succeeded');
+    logger.error(
+      {
+        invoiceId: invoice.id,
+        err,
+      },
+      'Failed to handle invoice payment succeeded',
+    );
     throw err;
   }
 }
@@ -220,10 +241,13 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   try {
     await SubscriptionService.handleInvoicePaymentFailed(invoice);
   } catch (err: any) {
-    logger.error({
-      invoiceId: invoice.id,
-      err,
-    }, 'Failed to handle invoice payment failed');
+    logger.error(
+      {
+        invoiceId: invoice.id,
+        err,
+      },
+      'Failed to handle invoice payment failed',
+    );
     throw err;
   }
 }
@@ -234,10 +258,13 @@ async function handlePaymentMethodAttached(paymentMethod: Stripe.PaymentMethod) 
   try {
     await SubscriptionService.handlePaymentMethodAttached(paymentMethod);
   } catch (err: any) {
-    logger.error({
-      paymentMethodId: paymentMethod.id,
-      err,
-    }, 'Failed to handle payment method attached');
+    logger.error(
+      {
+        paymentMethodId: paymentMethod.id,
+        err,
+      },
+      'Failed to handle payment method attached',
+    );
     throw err;
   }
 }
@@ -248,10 +275,13 @@ async function handlePaymentMethodDetached(paymentMethod: Stripe.PaymentMethod) 
   try {
     await SubscriptionService.handlePaymentMethodDetached(paymentMethod);
   } catch (err: any) {
-    logger.error({
-      paymentMethodId: paymentMethod.id,
-      err,
-    }, 'Failed to handle payment method detached');
+    logger.error(
+      {
+        paymentMethodId: paymentMethod.id,
+        err,
+      },
+      'Failed to handle payment method detached',
+    );
     throw err;
   }
 }
@@ -262,10 +292,13 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
   try {
     await SubscriptionService.handleTrialWillEnd(subscription);
   } catch (err: any) {
-    logger.error({
-      subscriptionId: subscription.id,
-      err,
-    }, 'Failed to handle trial will end');
+    logger.error(
+      {
+        subscriptionId: subscription.id,
+        err,
+      },
+      'Failed to handle trial will end',
+    );
     throw err;
   }
 }
@@ -276,8 +309,13 @@ async function handlePaymentIntentCreated(paymentIntent: Stripe.PaymentIntent) {
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  logger.info({ paymentIntentId: paymentIntent.customer }, 'stripe::handlePaymentIntentSucceeded');
-  // Payment success is handled via invoice.payment_succeeded, no action needed
+  logger.info({ paymentIntentId: paymentIntent.id }, 'stripe::handlePaymentIntentSucceeded');
+  const handledAutoReplenishment = await SubscriptionService.handleBundleAutoReplenishmentSucceeded(paymentIntent);
+  if (handledAutoReplenishment) {
+    return;
+  }
+
+  // Payment success is handled via invoice.payment_succeeded for recurring subscriptions.
   const stripe = getStripe();
   const subscriptions = await stripe.subscriptions.list({
     customer: paymentIntent.customer as string,
@@ -291,6 +329,11 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   }
   logger.info({ subscriptionId: activeSubscription.id }, 'Handling subscription created');
   await SubscriptionService.handleSubscriptionCreated(activeSubscription);
+}
+
+async function handlePaymentIntentPaymentFailed(paymentIntent: Stripe.PaymentIntent) {
+  logger.info({ paymentIntentId: paymentIntent.id }, 'stripe::handlePaymentIntentPaymentFailed');
+  await SubscriptionService.handleBundleAutoReplenishmentFailed(paymentIntent);
 }
 
 async function handleChargeSucceeded(charge: Stripe.Charge) {
