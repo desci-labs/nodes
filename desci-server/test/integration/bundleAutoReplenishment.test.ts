@@ -19,19 +19,17 @@ const stripeMock = {
   },
 };
 
-vi.mock('../../src/utils/stripe.js', () => ({
-  getStripe: () => stripeMock,
-}));
-
 import { prisma } from '../../src/client.js';
 import { SCIWEAVE_FREE_LIMIT } from '../../src/config.js';
 import { SubscriptionService } from '../../src/services/SubscriptionService.js';
+import * as stripeUtils from '../../src/utils/stripe.js';
 
 describe('Bundle auto-replenishment', () => {
   let user: User;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.spyOn(stripeUtils, 'getStripe').mockReturnValue(stripeMock as any);
 
     await prisma.$queryRaw`TRUNCATE TABLE "BundleAutoReplenishment" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "StripeCheckoutFulfillment" CASCADE;`;
