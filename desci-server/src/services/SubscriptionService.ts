@@ -9,6 +9,7 @@ import {
   PlanCodename,
   Period,
   RevenueCatPurchaseFulfillmentType,
+  StripeCheckoutFulfillmentType,
   SentEmailType,
 } from '@prisma/client';
 import Stripe from 'stripe';
@@ -30,6 +31,29 @@ const logger = parentLogger.child({
 
 const prisma = new PrismaClient();
 const BUNDLE_ENTITLEMENT_TYPE = 'bundle_chats';
+const DEFAULT_BUNDLE_AUTO_REPLENISHMENT_THRESHOLD = 5;
+
+export interface BundleAutoReplenishmentStatus {
+  enabled: boolean;
+  threshold: number;
+  replenishmentInProgress: boolean;
+  lastAttemptedAt: Date | null;
+  lastSucceededAt: Date | null;
+  lastFailedAt: Date | null;
+  lastFailureReason: string | null;
+  latestBundlePurchase: {
+    stripePriceId: string;
+    purchasedUnits: number;
+    fulfilledAt: Date;
+  } | null;
+  hasSavedPaymentMethod: boolean;
+  paymentMethodSummary: {
+    brand: string | null;
+    last4: string | null;
+    expiryMonth: number | null;
+    expiryYear: number | null;
+  } | null;
+}
 
 export class SubscriptionService {
   static async getOrCreateStripeCustomer(userId: number) {
@@ -1107,18 +1131,11 @@ export class SubscriptionService {
       return;
     }
 
-    await prisma.paymentMethod.create({
-      data: {
-        userId,
-        stripeCustomerId: paymentMethod.customer as string,
-        stripePaymentMethodId: paymentMethod.id,
-        type: this.mapStripePaymentMethodType(paymentMethod.type),
-        last4: paymentMethod.card?.last4,
-        brand: paymentMethod.card?.brand,
-        expiryMonth: paymentMethod.card?.exp_month,
-        expiryYear: paymentMethod.card?.exp_year,
-        isDefault: false, // Will be updated if set as default
-      },
+    await this.upsertPaymentMethodRecord({
+      userId,
+      stripeCustomerId: paymentMethod.customer as string,
+      paymentMethod,
+      isDefault: false,
     });
 
     logger.info('Payment method attached processed', { paymentMethodId: paymentMethod.id });
@@ -1229,6 +1246,14 @@ export class SubscriptionService {
         },
         'Processed bundle checkout completion',
       );
+
+      if (paymentIntentId && customerId) {
+        await this.saveBundlePaymentMethodForReuse({
+          userId,
+          customerId,
+          paymentIntentId,
+        });
+      }
       return;
     }
 
@@ -1523,6 +1548,312 @@ export class SubscriptionService {
     };
   }
 
+  static async getBundleAutoReplenishmentStatus(userId: number): Promise<BundleAutoReplenishmentStatus> {
+    const [settings, latestBundlePurchase, paymentMethod] = await Promise.all([
+      prisma.bundleAutoReplenishment.findUnique({
+        where: { userId },
+      }),
+      this.getLatestBundlePurchase(userId),
+      prisma.paymentMethod.findFirst({
+        where: { userId },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+      }),
+    ]);
+
+    return {
+      enabled: settings?.isEnabled ?? false,
+      threshold: settings?.threshold ?? DEFAULT_BUNDLE_AUTO_REPLENISHMENT_THRESHOLD,
+      replenishmentInProgress: settings?.replenishmentInProgress ?? false,
+      lastAttemptedAt: settings?.lastAttemptedAt ?? null,
+      lastSucceededAt: settings?.lastSucceededAt ?? null,
+      lastFailedAt: settings?.lastFailedAt ?? null,
+      lastFailureReason: settings?.lastFailureReason ?? null,
+      latestBundlePurchase: latestBundlePurchase
+        ? {
+            stripePriceId: latestBundlePurchase.stripePriceId,
+            purchasedUnits: latestBundlePurchase.purchasedUnits,
+            fulfilledAt: latestBundlePurchase.fulfilledAt,
+          }
+        : null,
+      hasSavedPaymentMethod: !!paymentMethod,
+      paymentMethodSummary: paymentMethod
+        ? {
+            brand: paymentMethod.brand ?? null,
+            last4: paymentMethod.last4 ?? null,
+            expiryMonth: paymentMethod.expiryMonth ?? null,
+            expiryYear: paymentMethod.expiryYear ?? null,
+          }
+        : null,
+    };
+  }
+
+  static async updateBundleAutoReplenishment(
+    userId: number,
+    {
+      enabled,
+      threshold = DEFAULT_BUNDLE_AUTO_REPLENISHMENT_THRESHOLD,
+    }: {
+      enabled: boolean;
+      threshold?: number;
+    },
+  ): Promise<BundleAutoReplenishmentStatus> {
+    const latestBundlePurchase = await this.getLatestBundlePurchase(userId);
+
+    if (enabled) {
+      if (!latestBundlePurchase) {
+        throw new Error('You need a previous chat bundle purchase before enabling auto-replenishment.');
+      }
+
+      const activePaidSubscription = await prisma.subscription.findFirst({
+        where: {
+          userId,
+          status: SubscriptionStatus.ACTIVE,
+          planType: { not: PlanType.FREE },
+        },
+        select: { id: true },
+      });
+
+      if (activePaidSubscription) {
+        throw new Error('Auto-replenishment is only available for chat bundle users without an active subscription.');
+      }
+
+      const customerId = await this.getStripeCustomerId(userId);
+      if (!customerId) {
+        throw new Error('No Stripe customer found for this user.');
+      }
+
+      const paymentMethodId = await this.getReusablePaymentMethodId(userId, customerId);
+      if (!paymentMethodId) {
+        throw new Error('No saved payment method found. Buy a bundle or add a card first.');
+      }
+    }
+
+    await prisma.bundleAutoReplenishment.upsert({
+      where: { userId },
+      update: {
+        isEnabled: enabled,
+        threshold,
+        replenishmentInProgress: false,
+        ...(enabled ? { lastFailureReason: null } : {}),
+      },
+      create: {
+        userId,
+        isEnabled: enabled,
+        threshold,
+        replenishmentInProgress: false,
+      },
+    });
+
+    return await this.getBundleAutoReplenishmentStatus(userId);
+  }
+
+  static async triggerBundleAutoReplenishmentIfNeeded({
+    userId,
+    remainingUses,
+  }: {
+    userId: number;
+    remainingUses: number | null;
+  }): Promise<boolean> {
+    if (remainingUses === null) {
+      return false;
+    }
+
+    const settings = await prisma.bundleAutoReplenishment.findUnique({
+      where: { userId },
+    });
+
+    if (!settings?.isEnabled || settings.replenishmentInProgress || remainingUses > settings.threshold) {
+      return false;
+    }
+
+    const latestBundlePurchase = await this.getLatestBundlePurchase(userId);
+    if (!latestBundlePurchase) {
+      await prisma.bundleAutoReplenishment.update({
+        where: { userId },
+        data: {
+          isEnabled: false,
+          replenishmentInProgress: false,
+          lastFailedAt: new Date(),
+          lastFailureReason: 'No prior bundle purchase is available for auto-replenishment.',
+        },
+      });
+      return false;
+    }
+
+    const claim = await prisma.bundleAutoReplenishment.updateMany({
+      where: {
+        userId,
+        isEnabled: true,
+        replenishmentInProgress: false,
+      },
+      data: {
+        replenishmentInProgress: true,
+        lastAttemptedAt: new Date(),
+        lastFailureReason: null,
+      },
+    });
+
+    if (claim.count === 0) {
+      return false;
+    }
+
+    try {
+      const customerId = await this.getStripeCustomerId(userId);
+      if (!customerId) {
+        throw new Error('No Stripe customer found.');
+      }
+
+      const paymentMethodId = await this.getReusablePaymentMethodId(userId, customerId);
+      if (!paymentMethodId) {
+        throw new Error('No reusable payment method found.');
+      }
+
+      const stripe = getStripe();
+      const price = await stripe.prices.retrieve(latestBundlePurchase.stripePriceId);
+      if (!price.unit_amount || !price.currency) {
+        throw new Error('Last bundle price is missing amount or currency.');
+      }
+
+      const bundleChatsPerUnit = Number.parseInt(price.metadata?.bundle_chats || '', 10);
+      if (!Number.isFinite(bundleChatsPerUnit) || bundleChatsPerUnit <= 0) {
+        throw new Error('Last bundle price is missing valid bundle metadata.');
+      }
+
+      await stripe.paymentIntents.create({
+        amount: price.unit_amount,
+        currency: price.currency,
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        description: `SciWeave bundle auto-replenishment (${bundleChatsPerUnit} chats)`,
+        metadata: {
+          type: 'bundle_auto_replenishment',
+          userId: userId.toString(),
+          priceId: latestBundlePurchase.stripePriceId,
+          bundleChats: bundleChatsPerUnit.toString(),
+          quantity: '1',
+        },
+      });
+
+      return true;
+    } catch (error) {
+      logger.error({ error, userId }, 'Failed to trigger bundle auto-replenishment');
+
+      await prisma.bundleAutoReplenishment.update({
+        where: { userId },
+        data: {
+          isEnabled: false,
+          replenishmentInProgress: false,
+          lastFailedAt: new Date(),
+          lastFailureReason: error instanceof Error ? error.message : 'Failed to trigger auto-replenishment.',
+        },
+      });
+
+      return false;
+    }
+  }
+
+  static async handleBundleAutoReplenishmentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+    if (paymentIntent.metadata?.type !== 'bundle_auto_replenishment') {
+      return false;
+    }
+
+    const metadataUserId = paymentIntent.metadata?.userId ? Number.parseInt(paymentIntent.metadata.userId, 10) : null;
+    const userId =
+      metadataUserId && Number.isFinite(metadataUserId)
+        ? metadataUserId
+        : paymentIntent.customer
+          ? await this.getUserIdFromCustomer(paymentIntent.customer as string)
+          : null;
+
+    if (!userId) {
+      throw new Error(`Unable to resolve user for auto-replenishment payment intent ${paymentIntent.id}`);
+    }
+
+    const priceId = paymentIntent.metadata?.priceId;
+    if (!priceId) {
+      throw new Error(`Missing priceId metadata for auto-replenishment payment intent ${paymentIntent.id}`);
+    }
+
+    const bundleChatsPerUnit = Number.parseInt(paymentIntent.metadata?.bundleChats || '', 10);
+    if (!Number.isFinite(bundleChatsPerUnit) || bundleChatsPerUnit <= 0) {
+      throw new Error(`Invalid bundleChats metadata for auto-replenishment payment intent ${paymentIntent.id}`);
+    }
+
+    await this.handleBundleCheckoutFulfillment({
+      sessionId: `auto_replenishment:${paymentIntent.id}`,
+      userId,
+      customerId:
+        typeof paymentIntent.customer === 'string' ? paymentIntent.customer : (paymentIntent.customer?.id ?? null),
+      priceId,
+      paymentIntentId: paymentIntent.id,
+      amountPaid: paymentIntent.amount_received || paymentIntent.amount || null,
+      currency: paymentIntent.currency ?? null,
+      quantity: Math.max(1, Number.parseInt(paymentIntent.metadata?.quantity || '1', 10) || 1),
+      bundleChatsPerUnit,
+    });
+
+    await prisma.bundleAutoReplenishment.upsert({
+      where: { userId },
+      update: {
+        replenishmentInProgress: false,
+        lastSucceededAt: new Date(),
+        lastFailureReason: null,
+      },
+      create: {
+        userId,
+        isEnabled: false,
+        threshold: DEFAULT_BUNDLE_AUTO_REPLENISHMENT_THRESHOLD,
+        replenishmentInProgress: false,
+        lastSucceededAt: new Date(),
+      },
+    });
+
+    return true;
+  }
+
+  static async handleBundleAutoReplenishmentFailed(paymentIntent: Stripe.PaymentIntent) {
+    if (paymentIntent.metadata?.type !== 'bundle_auto_replenishment') {
+      return false;
+    }
+
+    const metadataUserId = paymentIntent.metadata?.userId ? Number.parseInt(paymentIntent.metadata.userId, 10) : null;
+    const userId =
+      metadataUserId && Number.isFinite(metadataUserId)
+        ? metadataUserId
+        : paymentIntent.customer
+          ? await this.getUserIdFromCustomer(paymentIntent.customer as string)
+          : null;
+
+    if (!userId) {
+      logger.warn({ paymentIntentId: paymentIntent.id }, 'Failed auto-replenishment could not resolve user');
+      return false;
+    }
+
+    await prisma.bundleAutoReplenishment.upsert({
+      where: { userId },
+      update: {
+        isEnabled: false,
+        replenishmentInProgress: false,
+        lastFailedAt: new Date(),
+        lastFailureReason:
+          paymentIntent.last_payment_error?.message || 'Automatic bundle replenishment payment failed.',
+      },
+      create: {
+        userId,
+        isEnabled: false,
+        threshold: DEFAULT_BUNDLE_AUTO_REPLENISHMENT_THRESHOLD,
+        replenishmentInProgress: false,
+        lastFailedAt: new Date(),
+        lastFailureReason:
+          paymentIntent.last_payment_error?.message || 'Automatic bundle replenishment payment failed.',
+      },
+    });
+
+    return true;
+  }
+
   static async updateSubscriptionPlan(userId: number, planType: string) {
     // TODO: Implement plan change logic with Stripe API
     throw new Error('Plan updates not yet implemented');
@@ -1585,6 +1916,170 @@ export class SubscriptionService {
   }
 
   // Helper methods
+  private static async getLatestBundlePurchase(userId: number) {
+    return await prisma.stripeCheckoutFulfillment.findFirst({
+      where: {
+        userId,
+        fulfillmentType: StripeCheckoutFulfillmentType.BUNDLE_CHATS,
+        grantedUnits: {
+          gt: 0,
+        },
+      },
+      orderBy: { fulfilledAt: 'desc' },
+      select: {
+        stripePriceId: true,
+        purchasedUnits: true,
+        fulfilledAt: true,
+      },
+    });
+  }
+
+  private static async getReusablePaymentMethodId(userId: number, customerId: string): Promise<string | null> {
+    const stripe = getStripe();
+
+    try {
+      const customer = await stripe.customers.retrieve(customerId, {
+        expand: ['invoice_settings.default_payment_method'],
+      });
+
+      if (customer && !customer.deleted) {
+        const defaultPaymentMethod = (customer as Stripe.Customer).invoice_settings?.default_payment_method;
+        if (typeof defaultPaymentMethod === 'string') {
+          return defaultPaymentMethod;
+        }
+        if (defaultPaymentMethod && typeof defaultPaymentMethod !== 'string') {
+          await this.upsertPaymentMethodRecord({
+            userId,
+            stripeCustomerId: customerId,
+            paymentMethod: defaultPaymentMethod,
+            isDefault: true,
+          });
+          return defaultPaymentMethod.id;
+        }
+      }
+    } catch (error) {
+      logger.error({ error, customerId, userId }, 'Failed to read Stripe customer default payment method');
+    }
+
+    const latestPaymentMethod = await prisma.paymentMethod.findFirst({
+      where: { userId, stripeCustomerId: customerId },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+      select: { stripePaymentMethodId: true },
+    });
+
+    if (latestPaymentMethod?.stripePaymentMethodId) {
+      return latestPaymentMethod.stripePaymentMethodId;
+    }
+
+    const stripePaymentMethods = await stripe.paymentMethods.list({
+      customer: customerId,
+      type: 'card',
+      limit: 1,
+    });
+
+    const fallbackPaymentMethod = stripePaymentMethods.data[0];
+    if (!fallbackPaymentMethod) {
+      return null;
+    }
+
+    await this.upsertPaymentMethodRecord({
+      userId,
+      stripeCustomerId: customerId,
+      paymentMethod: fallbackPaymentMethod,
+      isDefault: false,
+    });
+
+    return fallbackPaymentMethod.id;
+  }
+
+  private static async saveBundlePaymentMethodForReuse({
+    userId,
+    customerId,
+    paymentIntentId,
+  }: {
+    userId: number;
+    customerId: string;
+    paymentIntentId: string;
+  }) {
+    try {
+      const stripe = getStripe();
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentMethodId =
+        typeof paymentIntent.payment_method === 'string'
+          ? paymentIntent.payment_method
+          : (paymentIntent.payment_method?.id ?? null);
+
+      if (!paymentMethodId) {
+        return;
+      }
+
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethodId,
+        },
+      });
+
+      const paymentMethod =
+        typeof paymentIntent.payment_method === 'string'
+          ? await stripe.paymentMethods.retrieve(paymentMethodId)
+          : paymentIntent.payment_method;
+
+      await this.upsertPaymentMethodRecord({
+        userId,
+        stripeCustomerId: customerId,
+        paymentMethod,
+        isDefault: true,
+      });
+    } catch (error) {
+      logger.error({ error, userId, customerId, paymentIntentId }, 'Failed to save bundle payment method for reuse');
+    }
+  }
+
+  private static async upsertPaymentMethodRecord({
+    userId,
+    stripeCustomerId,
+    paymentMethod,
+    isDefault,
+  }: {
+    userId: number;
+    stripeCustomerId: string;
+    paymentMethod: Stripe.PaymentMethod;
+    isDefault: boolean;
+  }) {
+    await prisma.$transaction(async (tx) => {
+      if (isDefault) {
+        await tx.paymentMethod.updateMany({
+          where: { userId },
+          data: { isDefault: false },
+        });
+      }
+
+      await tx.paymentMethod.upsert({
+        where: { stripePaymentMethodId: paymentMethod.id },
+        update: {
+          stripeCustomerId,
+          type: this.mapStripePaymentMethodType(paymentMethod.type),
+          last4: paymentMethod.card?.last4,
+          brand: paymentMethod.card?.brand,
+          expiryMonth: paymentMethod.card?.exp_month,
+          expiryYear: paymentMethod.card?.exp_year,
+          isDefault,
+        },
+        create: {
+          userId,
+          stripeCustomerId,
+          stripePaymentMethodId: paymentMethod.id,
+          type: this.mapStripePaymentMethodType(paymentMethod.type),
+          last4: paymentMethod.card?.last4,
+          brand: paymentMethod.card?.brand,
+          expiryMonth: paymentMethod.card?.exp_month,
+          expiryYear: paymentMethod.card?.exp_year,
+          isDefault,
+        },
+      });
+    });
+  }
+
   private static async getUserIdFromCustomer(customerId: string): Promise<number | null> {
     // First try local DB lookup
     const subscription = await prisma.subscription.findFirst({

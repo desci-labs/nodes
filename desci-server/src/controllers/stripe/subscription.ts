@@ -35,6 +35,11 @@ const getUserStripePurchasesSchema = z.object({
   }),
 });
 
+const bundleAutoReplenishmentSchema = z.object({
+  enabled: z.boolean(),
+  threshold: z.coerce.number().int().min(1).max(50).optional(),
+});
+
 const formatZodIssues = (error: ZodError) =>
   error.issues.map((issue) => ({
     path: issue.path.join('.'),
@@ -132,6 +137,12 @@ export const createSubscriptionCheckout = async (req: RequestWithUser, res: Resp
         ...(bundleChatsMetadata ? { bundleChats: bundleChatsMetadata } : {}),
       },
     };
+
+    if (isBundleCheckout) {
+      sessionConfig.payment_intent_data = {
+        setup_future_usage: 'off_session',
+      };
+    }
 
     // Add promotion codes or specific coupon support
     if (allowPromotionCodes) {
@@ -262,20 +273,19 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
 
     logger.info({ userId }, 'Creating customer portal session');
 
-    // Get user's Stripe customer ID from any subscription (not just active ones)
-    const subscription = await SubscriptionService.getUserSubscriptionWithDetails(userId);
-    if (!subscription?.stripeCustomerId) {
+    const stripeCustomerId = await SubscriptionService.getStripeCustomerId(userId);
+    if (!stripeCustomerId) {
       logger.warn({ userId }, 'No customer found for user');
       return res.status(404).json({ error: 'No customer found' });
     }
 
-    logger.info({ customerId: subscription.stripeCustomerId }, 'Found customer for portal');
+    logger.info({ customerId: stripeCustomerId }, 'Found customer for portal');
 
     // Create portal session
     try {
       const stripe = getStripe();
       const portalSession = await stripe.billingPortal.sessions.create({
-        customer: subscription.stripeCustomerId,
+        customer: stripeCustomerId,
         return_url: returnUrl || `${req.headers.origin}/settings/subscription`,
       });
 
@@ -287,7 +297,7 @@ export const createCustomerPortal = async (req: RequestWithUser, res: Response):
           err: stripeError,
           type: stripeError.type,
           code: stripeError.code,
-          customerId: subscription.stripeCustomerId,
+          customerId: stripeCustomerId,
         },
         'Stripe portal creation failed',
       );
@@ -389,6 +399,81 @@ export const getUserStripePurchases = async (req: RequestWithUser, res: Response
 
     logger.error({ err: error, userId: req.user?.id }, 'Failed to get user stripe purchases');
     return res.status(500).json({ error: 'Failed to get user stripe purchases' });
+  }
+};
+
+export const getBundleAutoReplenishment = async (req: RequestWithUser, res: Response): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const status = await SubscriptionService.getBundleAutoReplenishmentStatus(userId);
+
+    return res.status(200).json({
+      enabled: status.enabled,
+      threshold: status.threshold,
+      replenishmentInProgress: status.replenishmentInProgress,
+      lastAttemptedAt: status.lastAttemptedAt,
+      lastSucceededAt: status.lastSucceededAt,
+      lastFailedAt: status.lastFailedAt,
+      lastFailureReason: status.lastFailureReason,
+      latestBundlePurchase: status.latestBundlePurchase
+        ? {
+            purchasedUnits: status.latestBundlePurchase.purchasedUnits,
+            fulfilledAt: status.latestBundlePurchase.fulfilledAt,
+          }
+        : null,
+      hasSavedPaymentMethod: status.hasSavedPaymentMethod,
+      paymentMethodSummary: status.paymentMethodSummary,
+    });
+  } catch (error: any) {
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to get bundle auto-replenishment status');
+    return res.status(500).json({ error: 'Failed to get bundle auto-replenishment status' });
+  }
+};
+
+export const updateBundleAutoReplenishment = async (req: RequestWithUser, res: Response): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { enabled, threshold } = bundleAutoReplenishmentSchema.parse(req.body);
+    const status = await SubscriptionService.updateBundleAutoReplenishment(userId, { enabled, threshold });
+
+    return res.status(200).json({
+      enabled: status.enabled,
+      threshold: status.threshold,
+      replenishmentInProgress: status.replenishmentInProgress,
+      lastAttemptedAt: status.lastAttemptedAt,
+      lastSucceededAt: status.lastSucceededAt,
+      lastFailedAt: status.lastFailedAt,
+      lastFailureReason: status.lastFailureReason,
+      latestBundlePurchase: status.latestBundlePurchase
+        ? {
+            purchasedUnits: status.latestBundlePurchase.purchasedUnits,
+            fulfilledAt: status.latestBundlePurchase.fulfilledAt,
+          }
+        : null,
+      hasSavedPaymentMethod: status.hasSavedPaymentMethod,
+      paymentMethodSummary: status.paymentMethodSummary,
+    });
+  } catch (error: any) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: formatZodIssues(error),
+      });
+    }
+
+    logger.error({ err: error, userId: req.user?.id }, 'Failed to update bundle auto-replenishment');
+
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : 'Failed to update bundle auto-replenishment',
+    });
   }
 };
 

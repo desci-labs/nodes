@@ -11,6 +11,8 @@ import {
   getPricingOptions,
   createPaymentIntent,
   resetStripeTestStateForCurrentUser,
+  getBundleAutoReplenishment,
+  updateBundleAutoReplenishment,
 } from '../../controllers/stripe/subscription.js';
 import { handleStripeWebhook } from '../../controllers/stripe/webhook.js';
 import { ensureAdmin } from '../../middleware/ensureAdmin.js';
@@ -29,6 +31,8 @@ router.post('/subscription/checkout', [requireStripe, ensureUser], asyncHandler(
 router.post('/subscription/portal', [requireStripe, ensureUser], asyncHandler(createCustomerPortal));
 router.get('/subscription', [requireStripe, ensureUser], asyncHandler(getUserSubscription));
 router.get('/purchases', [requireStripe, ensureUser], asyncHandler(getUserStripePurchases));
+router.get('/bundle-auto-replenishment', [requireStripe, ensureUser], asyncHandler(getBundleAutoReplenishment));
+router.post('/bundle-auto-replenishment', [requireStripe, ensureUser], asyncHandler(updateBundleAutoReplenishment));
 router.put('/subscription', [requireStripe, ensureUser], asyncHandler(updateSubscription));
 router.delete('/subscription', [requireStripe, ensureUser], asyncHandler(cancelSubscription));
 router.post('/test/reset-current-user', [requireStripe, ensureUser, ensureAdmin], asyncHandler(resetStripeTestStateForCurrentUser));
