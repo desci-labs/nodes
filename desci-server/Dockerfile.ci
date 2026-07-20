@@ -22,7 +22,7 @@ COPY ./vitest.config.ts ./vitest.config.ts
 COPY ./tsconfig.json ./tsconfig.json
 
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
-    yarn build
+    NODE_OPTIONS=--max-old-space-size=4096 yarn build
 
 # ── Test stage (used by docker-compose.test.yml) ─────────────
 FROM builder AS test
