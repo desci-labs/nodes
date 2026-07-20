@@ -32,16 +32,17 @@ export class PostgresStorageAdapter implements StorageAdapterInterface {
 
   async save(keyArray: StorageKey, binary: Uint8Array): Promise<void> {
     const key = getKey(keyArray);
-    this.cache[key] = binary;
 
     try {
       await this.query(
         `INSERT INTO "${this.tableName}" (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2 RETURNING key`,
         [key, Buffer.from(binary)],
       );
+      this.cache[key] = binary;
       console.log('[saved]', { key });
     } catch (e) {
       console.error({ e, key }, 'PostgresStorageAdapter::Save ==> Error saving document');
+      throw e;
     }
   }
 
@@ -73,25 +74,28 @@ export class PostgresStorageAdapter implements StorageAdapterInterface {
   }
 
   async removeRange(keyPrefix: StorageKey): Promise<void> {
-    const key = getKey(keyPrefix);
+    const key = getKeyPrefix(keyPrefix);
     this.cachedKeys(keyPrefix).forEach((key) => delete this.cache[key]);
     try {
-      const result = await this.query(`DELETE FROM "${this.tableName}" WHERE key LIKE $1 RETURNING key`, [`${key}%`]);
+      await this.query(`DELETE FROM "${this.tableName}" WHERE key LIKE $1 RETURNING key`, [`${key}%`]);
     } catch (e) {
       console.error({ keyPrefix, key }, '[DELETE RANGE kEYS]');
+      throw e;
     }
   }
 
   private cachedKeys(keyPrefix: string[]): string[] {
-    const cacheKeyPrefixString = getKey(keyPrefix);
+    const cacheKeyPrefixString = getKeyPrefix(keyPrefix);
     return Object.keys(this.cache).filter((key) => key.startsWith(cacheKeyPrefixString));
   }
 
   private async loadRangeKeys(keyPrefix: string[]): Promise<string[]> {
-    const response = await this.query(`SELECT key FROM "${this.tableName}" WHERE key LIKE $1`, [`${keyPrefix}%`]);
+    const key = getKeyPrefix(keyPrefix);
+    const response = await this.query(`SELECT key FROM "${this.tableName}" WHERE key LIKE $1`, [`${key}%`]);
     return response ? response.map((row) => row.key) : [];
   }
 }
 
 // HELPERS
 const getKey = (key: StorageKey): string => path.join(...key);
+const getKeyPrefix = (key: StorageKey): string => (key.length ? getKey(key) : '');

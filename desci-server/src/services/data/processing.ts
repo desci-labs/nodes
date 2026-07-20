@@ -96,6 +96,7 @@ export async function processS3DataToIpfs({
 }: ProcessS3DataToIpfsParams): Promise<Either<UpdateResponse, ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
+  let draftNodeTreePathsAdded: string[] = [];
   if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
   try {
     await ensureSpaceAvailable(files, user);
@@ -128,6 +129,7 @@ export async function processS3DataToIpfs({
         user,
         contextPath,
       });
+      draftNodeTreePathsAdded = draftNodeTreeEntries.map((entry) => entry.path);
       const addedEntries = await prisma.draftNodeTree.createMany({
         data: draftNodeTreeEntries,
         skipDuplicates: true,
@@ -230,9 +232,10 @@ export async function processS3DataToIpfs({
     // const manifest = await getLatestManifestFromNode(node);
     logger.error({ error }, 'Error processing S3 data to IPFS');
     if (pinResult.length) {
-      handleCleanupOnMidProcessingError({
+      await handleCleanupOnMidProcessingError({
         pinnedFiles: pinResult,
         manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
+        draftNodeTreePathsAdded,
         node,
         user,
       });
@@ -682,6 +685,7 @@ interface HandleCleanupOnMidProcessingErrorParams {
   node: Node;
   user: User;
   pinnedFiles: IpfsPinnedResult[];
+  draftNodeTreePathsAdded?: string[];
   manifestPathsToDbComponentTypesMap: Record<DrivePath, DataType | ExtensionDataTypeMap>;
 }
 
@@ -690,6 +694,7 @@ interface HandleCleanupOnMidProcessingErrorParams {
  */
 export async function handleCleanupOnMidProcessingError({
   pinnedFiles,
+  draftNodeTreePathsAdded,
   manifestPathsToDbComponentTypesMap,
   node,
   user,
@@ -730,6 +735,19 @@ export async function handleCleanupOnMidProcessingError({
       `[UPDATE DATASET E:2] failed adding files to prunelist, db may be down, this is critical, files were pinned but not added to the DB`,
     );
     // In this case, we log the files just incase, no matter how many.
+  }
+
+  if (draftNodeTreePathsAdded?.length) {
+    const deletedDraftTreeEntries = await prisma.draftNodeTree.deleteMany({
+      where: {
+        nodeId: node.id,
+        path: { in: draftNodeTreePathsAdded },
+      },
+    });
+    logger.info(
+      { deletedDraftTreeEntries: deletedDraftTreeEntries.count, draftNodeTreePathsAdded },
+      '[UPDATE DATASET E:2] removed DraftNodeTree entries created by failed upload',
+    );
   }
 }
 

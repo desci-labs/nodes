@@ -88,6 +88,7 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
 
     if (!result) {
       logger.error({ researchObject, uuid: node.uuid }, 'Automerge document Creation Error');
+      await cleanupFailedDraftCreate(node.id, logger);
       res.status(400).send({ ok: false, message: 'Could not intialize new draft document' });
       return;
     }
@@ -121,3 +122,20 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
     return;
   }
 };
+
+async function cleanupFailedDraftCreate(nodeId: number, logger: ReturnType<typeof parentLogger.child>) {
+  try {
+    const cleanupResult = await prisma.$transaction([
+      prisma.draftNodeTree.deleteMany({ where: { nodeId } }),
+      prisma.dataReference.deleteMany({ where: { nodeId } }),
+      prisma.guestDataReference.deleteMany({ where: { nodeId } }),
+      prisma.cidPruneList.deleteMany({ where: { nodeId } }),
+      prisma.nodeVersion.deleteMany({ where: { nodeId } }),
+      prisma.node.delete({ where: { id: nodeId } }),
+    ]);
+
+    logger.info({ nodeId, cleanupResult }, 'Cleaned up draft after Automerge document creation failure');
+  } catch (err) {
+    logger.error({ err, nodeId }, 'Failed to clean up draft after Automerge document creation failure');
+  }
+}

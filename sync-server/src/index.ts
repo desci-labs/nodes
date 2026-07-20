@@ -1,6 +1,5 @@
 import {
   Doc,
-  DocHandle,
   DocHandleChangePayload,
   // DocHandleEphemeralMessagePayload,
   DocHandleEvents,
@@ -22,7 +21,7 @@ import { Env } from './types.js';
 import { ensureUuidEndsWithDot } from './utils.js';
 import { assert } from './automerge-repo-network-websocket/assert.js';
 // import { actionsSchema } from './lib/schema.js';
-import { actionDispatcher, getAutomergeUrl, getDocumentUpdater } from './manifestRepo.js';
+import { actionDispatcher, getAutomergeUrl } from './manifestRepo.js';
 import { ZodError } from 'zod';
 
 interface ResearchObjectDocument {
@@ -37,7 +36,6 @@ export class AutomergeServer extends PartyServer {
   //   hibernate: true;
   // };
   repo: Repo;
-  handle: DocHandle<ResearchObjectDocument>;
 
   constructor(
     private readonly ctx: DurableObjectState,
@@ -172,8 +170,8 @@ export class AutomergeServer extends PartyServer {
         return new Response(JSON.stringify({ ok: false, message: 'Invalid body' }), { status: 400 });
       }
 
-      if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-      const document: Doc<ResearchObjectDocument> | undefined = await this.handle.doc();
+      const handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+      const document: Doc<ResearchObjectDocument> | undefined = await handle.doc();
       return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
     } catch (err) {
       console.error('[getLatestDocument]', { err: errWithCause(err) });
@@ -192,13 +190,13 @@ export class AutomergeServer extends PartyServer {
         return new Response(JSON.stringify({ ok: false, message: 'No actions to dispatch' }), { status: 400 });
       }
 
-      if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+      const handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
 
       for (const action of actions) {
-        await actionDispatcher({ action, handle: this.handle, documentId });
+        await actionDispatcher({ action, handle, documentId });
       }
 
-      const document: Doc<ResearchObjectDocument> | undefined = await this.handle.doc();
+      const document: Doc<ResearchObjectDocument> | undefined = await handle.doc();
       if (!document) {
         console.error({ document }, 'Document not found');
         return new Response(JSON.stringify({ ok: false, message: 'Document not found' }), { status: 400 });
@@ -247,6 +245,12 @@ async function handleCreateDocument(request: Request, env: Env) {
 
   await repo.flush();
   let document = await handle.doc();
+  assert(document, 'Document was not created');
+
+  const persistedChunks = await query('SELECT key FROM "DocumentStore" WHERE key LIKE $1 LIMIT 1', [
+    `${handle.documentId}%`,
+  ]);
+  assert(persistedChunks && persistedChunks.length > 0, 'Document was not persisted');
 
   console.log('[Request]::handleCreateDocument ', { uuid: body.uuid, created: !!document });
   return new Response(JSON.stringify({ documentId: handle.documentId, document }), { status: 200 });
