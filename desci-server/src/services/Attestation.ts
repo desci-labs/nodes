@@ -1072,9 +1072,8 @@ export class AttestationService {
     return queryResult;
   }
 
-  async getRecommendedAttestations(filter?: Prisma.CommunityEntryAttestationFindManyArgs) {
+  async getRecommendedAttestations(filter?: { where?: Prisma.CommunityEntryAttestationWhereInput }) {
     const attestations = await prisma.communityEntryAttestation.findMany({
-      ...filter,
       include: {
         attestation: { select: { community: true } },
         attestationVersion: {
