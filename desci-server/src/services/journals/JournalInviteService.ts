@@ -188,6 +188,7 @@ async function acceptJournalInvite({ token, userId }: { token: string; userId: n
         journalId: invite.journalId,
         userId,
         role: invite.role,
+        expertise: [],
         invitedAt: invite.createdAt,
         acceptedAt: now,
         inviterId: invite.inviterId,

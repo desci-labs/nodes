@@ -470,7 +470,7 @@ describe('Journal Management Service', () => {
 
       it('should return 403 for a journal you dont have access to', async () => {
         const newJournalResult = await JournalManagementService.createJournal({
-          name: 'Test Journal',
+          name: 'Other User Journal',
           description: 'A test journal',
           ownerId: editor.id, // Different owner to auth token used below
         });

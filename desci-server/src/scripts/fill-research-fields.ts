@@ -1,5 +1,5 @@
 import { prisma } from '../client.js';
-import researchFieldsData from '../data/fields.json' assert { type: 'json' };
+import researchFieldsData from '../data/fields.json' with { type: 'json' };
 
 const main = async () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires

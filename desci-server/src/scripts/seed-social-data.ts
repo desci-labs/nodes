@@ -2,7 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { prisma } from '../client.js';
-import communitiesData from '../data/communities.json' assert { type: 'json' };
+import communitiesData from '../data/communities.json' with { type: 'json' };
 import { asyncMap } from '../utils.js';
 
 export const seedSocialData = async () => {

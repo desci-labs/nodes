@@ -29,7 +29,7 @@ import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 
 import { SERVER_ENV } from '../config/index.js';
-import legacyDpidContractMap from '../data/legacy_dpid_contract_map.json' assert { type: 'json' };
+import legacyDpidContractMap from '../data/legacy_dpid_contract_map.json' with { type: 'json' };
 import { getManifestByCid } from '../services/data/processing.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 

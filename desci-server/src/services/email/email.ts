@@ -72,6 +72,7 @@ export enum EmailTypes {
   DoiMinted = 'DoiMinted',
   DOI_REGISTRATION_REQUESTED = 'DOI_REGISTRATION_REQUESTED',
   RejectedSubmission = 'RejectedSubmission',
+  JOURNAL_APPLICATION_SUBMITTED = 'JOURNAL_APPLICATION_SUBMITTED',
 
   // Journals
   EDITOR_INVITE = 'EDITOR_INVITE',
@@ -150,10 +151,22 @@ type RejectSubmissionPayload = {
   };
 };
 
+type JournalApplicationSubmittedPayload = {
+  type: EmailTypes.JOURNAL_APPLICATION_SUBMITTED;
+  payload: {
+    to: string;
+    applicantName: string;
+    applicantEmail: string;
+    journalName: string;
+    journalDescription: string;
+  };
+};
+
 export type EmailProps =
   | DoiRegisteredPayload
   | DoiRequestedPayload
   | RejectSubmissionPayload
+  | JournalApplicationSubmittedPayload
   // Journals
   | EditorInvitePayload
   | ExternalRefereeInvitePayload
@@ -796,6 +809,44 @@ async function sendSubmissionFinalRejectedEmail({
   await sendSgMail(message);
 }
 
+async function sendJournalApplicationSubmittedEmail({
+  to,
+  applicantName,
+  applicantEmail,
+  journalName,
+  journalDescription,
+}: JournalApplicationSubmittedPayload['payload']) {
+  const message = {
+    to,
+    from: 'no-reply@desci.com',
+    subject: `New Journal Application: ${journalName}`,
+    text: `A new journal application has been submitted.\n\nJournal Name: ${journalName}\nDescription: ${journalDescription}\nApplicant: ${applicantName} (${applicantEmail})\n\nPlease review this application in the admin dashboard.`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">New Journal Application Submitted</h2>
+        <p>A new journal application has been submitted and is awaiting review.</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+          <tr>
+            <td style="padding: 8px 12px; font-weight: bold; border-bottom: 1px solid #eee;">Journal Name</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">${journalName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; font-weight: bold; border-bottom: 1px solid #eee;">Description</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">${journalDescription}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; font-weight: bold; border-bottom: 1px solid #eee;">Applicant</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">${applicantName} (${applicantEmail})</td>
+          </tr>
+        </table>
+        <p>Please review this application in the admin dashboard.</p>
+      </div>
+    `,
+  };
+
+  await sendSgMail(message);
+}
+
 export const sendEmail = async (props: EmailProps) => {
   switch (props.type) {
     case EmailTypes.DoiMinted:
@@ -804,6 +855,8 @@ export const sendEmail = async (props: EmailProps) => {
       return sendDoiRequested(props.payload);
     case EmailTypes.RejectedSubmission:
       return sendRejectSubmissionEmail(props.payload);
+    case EmailTypes.JOURNAL_APPLICATION_SUBMITTED:
+      return sendJournalApplicationSubmittedEmail(props.payload);
 
     // JOURNALS
     case EmailTypes.EDITOR_INVITE:
