@@ -7,7 +7,7 @@ import { prisma } from '../../client.js';
 import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
-import { hexToCid } from '../../utils.js';
+import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
 import { getManifestByCid } from '../data/processing.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
 import { SubmissionDetails, SubmissionExtended } from '../email/journalEmailTypes.js';
@@ -1043,6 +1043,116 @@ const getFeaturedPublicationDetails = async (
 };
 
 /**
+ * Batched version of getFeaturedPublicationDetails for better performance.
+ * Fetches all submissions in a single DB query, batches the research object lookup,
+ * and parallelizes manifest fetches.
+ */
+const getBatchedFeaturedPublicationDetails = async (
+  submissionIds: number[],
+): Promise<FeaturedSubmissionDetails[]> => {
+  if (submissionIds.length === 0) {
+    return [];
+  }
+
+  // 1. Single batched DB query for all submissions
+  const submissionsUnordered = await prisma.journalSubmission.findMany({
+    where: { id: { in: submissionIds } },
+    include: {
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      node: {
+        select: {
+          uuid: true,
+        },
+      },
+      author: {
+        select: {
+          name: true,
+          id: true,
+          orcid: true,
+        },
+      },
+    },
+  });
+
+  if (submissionsUnordered.length === 0) {
+    return [];
+  }
+
+  // Preserve input order: findMany doesn't guarantee order matches submissionIds
+  const submissionsById = new Map(submissionsUnordered.map((s) => [s.id, s]));
+  const submissions = submissionIds.map((id) => submissionsById.get(id)).filter((s) => s !== undefined);
+
+  // Handle test environment
+  if (process.env.NODE_ENV === 'test') {
+    return submissions.map((submission) => ({
+      ...submission,
+      researchObject: {
+        ...submission.node,
+        manifest: {
+          version: 'desci-nodes-0.1.0' as const,
+          title: 'Test Title',
+          authors: [{ name: 'Test Author', role: 'author' }],
+          description: 'Test Abstract',
+          components: [],
+        },
+        publishedAt: new Date(),
+      },
+    }));
+  }
+
+  // 2. Single batched call for all UUIDs
+  const uuids = submissions.map((s) => s.node.uuid);
+  const { researchObjects } = await getIndexedResearchObjects(uuids);
+
+  // Guard against undefined/null researchObjects
+  const safeResearchObjects = researchObjects ?? [];
+
+  // Create a map for quick lookup by hex ID (ro.id is in 0x... hex format)
+  const roById = new Map(safeResearchObjects.map((ro) => [ro.id, ro]));
+
+  // 3. Parallel manifest fetches - build the fetch tasks
+  const manifestFetchTasks = submissions.map(async (submission) => {
+    // Convert UUID to hex format to match ro.id
+    const hexId = `0x${decodeBase64UrlSafeToHex(submission.node.uuid)}`;
+    const researchObject = roById.get(hexId);
+    if (!researchObject) {
+      logger.warn({ uuid: submission.node.uuid }, 'No research object found for submission');
+      return null;
+    }
+
+    const targetVersionIndex = researchObject.versions.length - submission.version;
+    const targetVersion = researchObject.versions[targetVersionIndex];
+    if (!targetVersion) {
+      logger.warn({ submission: submission.id, version: submission.version }, 'Target version not found');
+      return null;
+    }
+
+    const targetVersionManifestCid = hexToCid(targetVersion.cid);
+    const manifest = await getManifestByCid(targetVersionManifestCid);
+    const publishedAt = targetVersion.time ? new Date(parseInt(targetVersion.time) * 1000) : undefined;
+
+    return {
+      ...submission,
+      researchObject: { ...submission.node, manifest, publishedAt },
+    } as FeaturedSubmissionDetails;
+  });
+
+  // Execute all manifest fetches in parallel, allowing individual failures
+  const settledResults = await Promise.allSettled(manifestFetchTasks);
+
+  // Filter for fulfilled results with non-null values
+  return settledResults
+    .filter((r): r is PromiseFulfilledResult<FeaturedSubmissionDetails | null> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter((r): r is FeaturedSubmissionDetails => r !== null);
+};
+
+/**
  * Check if the submission is desk rejected.
  ** Current criteria is if the submission was rejected before any referee invites are sent.
  */
@@ -1083,4 +1193,5 @@ export const journalSubmissionService = {
   getFeaturedJournalPublications,
   countFeaturedJournalPublications,
   getFeaturedPublicationDetails,
+  getBatchedFeaturedPublicationDetails,
 };

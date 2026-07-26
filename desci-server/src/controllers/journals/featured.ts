@@ -1,4 +1,4 @@
-import { JournalSubmission, Prisma, SubmissionStatus } from '@prisma/client';
+import { Prisma, SubmissionStatus } from '@prisma/client';
 import { Response } from 'express';
 import { errWithCause } from 'pino-std-serializers';
 
@@ -11,7 +11,6 @@ import {
   journalSubmissionService,
   FeaturedSubmissionDetails,
 } from '../../services/journals/JournalSubmissionService.js';
-import { asyncMap } from '../../utils.js';
 
 const logger = parentLogger.child({
   module: 'Journals::FeaturedController',
@@ -107,15 +106,9 @@ export const listFeaturedPublicationsController = async (
       journalSubmissionService.countFeaturedJournalPublications(filter),
     ]);
 
-    const data = (
-      await asyncMap(publications, async (publication) => {
-        const submissionExtended = await journalSubmissionService.getFeaturedPublicationDetails(publication.id);
-        if (submissionExtended.isErr()) {
-          return null;
-        }
-        return submissionExtended.value;
-      })
-    )?.filter((publication) => publication !== null);
+    const data = await journalSubmissionService.getBatchedFeaturedPublicationDetails(
+      publications.map((p) => p.id),
+    );
 
     await setToCache(cacheKey, { data, totalCount }, data?.length > 0 ? 60 * 60 * 24 : 60); // 24 hours
 
@@ -197,13 +190,9 @@ export const listFeaturedJournalPublicationsController = async (
       journalSubmissionService.countFeaturedJournalPublications(filter),
     ]);
 
-    const data: Partial<JournalSubmission>[] = await asyncMap(publications, async (publication) => {
-      const submissionExtended = await journalSubmissionService.getFeaturedPublicationDetails(publication.id);
-      if (submissionExtended.isErr()) {
-        return null;
-      }
-      return submissionExtended.value;
-    });
+    const data = await journalSubmissionService.getBatchedFeaturedPublicationDetails(
+      publications.map((p) => p.id),
+    );
 
     await setToCache(cacheKey, { data, totalCount }, data.length > 0 ? 60 * 60 * 24 : 60); // 24 hours
 
