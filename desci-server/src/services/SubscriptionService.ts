@@ -2587,12 +2587,23 @@ export class SubscriptionService {
         ];
 
       case PlanType.SCIWEAVE_LIFETIME:
+        // Lifetime is sold as "all premium features", so it must grant everything
+        // PlanType.PREMIUM grants. Omitting REFEREE_FINDER here meant every lifetime
+        // buyer silently kept the FREE referee tier: updateUserFeatureLimits only
+        // writes the features listed here, and getOrCreateUserFeatureLimit then
+        // auto-creates a FREE row on first use.
         return [
           {
             feature: Feature.RESEARCH_ASSISTANT,
             planCodename: PlanCodename.PREMIUM,
             period: Period.MONTH, // sciweave subs no longer reset, period is irrelevant
             useLimit: null, // unlimited
+          },
+          {
+            feature: Feature.REFEREE_FINDER,
+            planCodename: PlanCodename.PRO,
+            period: Period.MONTH,
+            useLimit: 50, // matches PlanType.PREMIUM
           },
         ];
 
