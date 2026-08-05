@@ -17,6 +17,7 @@
     "script:fill-research-fields": "tsx ./src/scripts/fill-research-fields.ts",
     "script:fix-data-refs": "tsx --inspect=0.0.0.0:9277 ./src/scripts/dataRefDoctor.ts",
     "script:active-users": "tsx ./src/scripts/activeUsers.ts",
+    "script:backfill-lifetime-referee": "tsx ./src/scripts/backfill-lifetime-referee-entitlement.ts",
     "script:invalidate-redis-cache": "tsx ./src/scripts/invalidate-redis-cache.ts",
     "script:fix-publish": "tsx --inspect=0.0.0.0:9277 ./src/scripts/fixPublish.ts",
     "script:increase-base-drive-storage": "tsx ./src/scripts/increase-base-drive-storage.ts",

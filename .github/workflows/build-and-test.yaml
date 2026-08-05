@@ -25,16 +25,20 @@ jobs:
       # Enable blacksmith docker layer caching
       #- uses: useblacksmith/setup-docker-builder@v1
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
+      # AWS credential configuration and ECR login were removed here. They had been
+      # failing every run with "The security token included in the request is invalid"
+      # (the static AWS_ECR_* keys in repo secrets are no longer valid), which killed
+      # this job in ~8s before a single test ran.
+      #
+      # Nothing in this job needs them. Every image in docker-compose.test.yml is
+      # publicly pullable — postgres:12.6-alpine, ipfs/kubo:v0.26.0,
+      # descilabs/dpid-resolver:develop, a locally-built worker_test, and
+      # public.ecr.aws/m3e8d9d6/... which is PUBLIC ECR and requires no auth.
+      # integrationTestRunner.sh makes no AWS calls either. The steps were vestigial
+      # from when an image was private.
+      #
+      # If a private ECR image is ever reintroduced, restore both steps AND rotate
+      # the credentials — do not simply re-add them.
       - name: Pre-pull ceramic-one image
         run: |
           docker pull public.ecr.aws/m3e8d9d6/desci-labs/ceramic-one:0.58.1 || echo "Pull failed, will retry during docker-compose"
