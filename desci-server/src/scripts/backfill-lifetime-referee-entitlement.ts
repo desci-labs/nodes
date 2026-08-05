@@ -10,8 +10,9 @@
  *
  * Idempotent: users who already hold an active REFEREE_FINDER/PRO row are skipped.
  *
- * Run:  npm run script -- src/scripts/backfill-lifetime-referee-entitlement.ts
- *   or: DRY_RUN=1 ... to list affected users without writing.
+ * Run:  yarn script:backfill-lifetime-referee
+ *   or: DRY_RUN=1 yarn script:backfill-lifetime-referee   (lists affected users,
+ *       writes nothing)
  */
 import { Feature, PlanCodename, Period, PlanType, SubscriptionStatus } from '@prisma/client';
 
