@@ -70,29 +70,52 @@ export const ensureGuestOrUser = async (req: ExpressRequest, res: Response, next
 /**
  * Extract JWT Authorisation token from IncommingRequest
  */
-export const extractAuthToken = async (request: ExpressRequest | Request) => {
-  let token = await extractTokenFromCookie(request, AUTH_COOKIE_FIELDNAME);
-  logger.trace({ hasToken: !!token }, 'extractAuthToken');
-  if (!token) {
-    // Try to retrieve the token from the header
-    const authHeader = request.headers['authorization'];
-    if (authHeader) {
-      token = authHeader.split(' ')[1];
-    }
-    logger.trace(
-      {
-        module: 'Permissions::extractToken',
-        hasAuthHeader: !!authHeader,
-        hasHeaders: !!request.headers,
-      },
-      'Request',
-    );
+const sanitizeToken = (token: string | null | undefined): string | null => {
+  if (!token) return null;
+  // The frontend has been observed sending these as literal strings.
+  if (token === 'null' || token === 'undefined') return null;
+  return token;
+};
 
-    // Sanitize null or undefined string tokens passed from frontend
-    if (token === 'null' || token === 'undefined') token = null;
+export const extractAuthToken = async (request: ExpressRequest | Request) => {
+  // The Authorization header wins over the cookie. An explicitly attached
+  // credential must beat an ambient one.
+  //
+  // This used to be the other way around, and it produced split-brain identity.
+  // sciweave-web keeps the JWT in localStorage (Safari ITP blocks the
+  // cross-origin cookie) but ALSO writes a long-lived `auth` cookie on
+  // .sciweave.com. Same-origin routes authenticate from the x-auth-token header;
+  // everything here authenticated from the cookie. Once those two stores could
+  // hold different identities — sign into a second account in a browser that
+  // already held one — the app showed you account B while this server acted as
+  // account A. Observed in production 2026-08-05: a brand-new signup was served
+  // another user's subscription (premium/unlimited), had its profile updates
+  // written to that other user's row (so onboarding asked for a name forever),
+  // and was handed that user's Stripe billing portal with their saved card and
+  // invoice history.
+  //
+  // Cookie remains the fallback, so cookie-only callers (SSR forwarding, older
+  // clients) are unaffected.
+  const authHeader = request.headers['authorization'];
+  const headerToken = sanitizeToken(authHeader ? authHeader.split(' ')[1] : null);
+
+  if (headerToken) {
+    logger.trace({ module: 'Permissions::extractToken', source: 'header' }, 'extractAuthToken');
+    return headerToken;
   }
 
-  return token;
+  const cookieToken = sanitizeToken(await extractTokenFromCookie(request, AUTH_COOKIE_FIELDNAME));
+
+  logger.trace(
+    {
+      module: 'Permissions::extractToken',
+      source: cookieToken ? 'cookie' : 'none',
+      hasAuthHeader: !!authHeader,
+    },
+    'extractAuthToken',
+  );
+
+  return cookieToken;
 };
 
 export interface AuthenticatedSocket extends Socket {
