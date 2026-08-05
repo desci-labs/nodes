@@ -21,8 +21,19 @@ COPY ./test ./test
 COPY ./vitest.config.ts ./vitest.config.ts
 COPY ./tsconfig.json ./tsconfig.json
 
+# tsc needs more than Node's default old-space heap (~2 GB) to compile this
+# codebase. Without this, `yarn build` dies with
+#   FATAL ERROR: Ineffective mark-compacts near heap limit - JavaScript heap out of
+#   memory
+# at ~2042 MB. `dist` is then never written, so the sentry:sourcemaps step fails on
+# "./dist: No such file or directory" and the whole image build exits 1.
+#
+# This first broke "Build desci-server" on the 2026-08-05 merge to main. It was not
+# that change's fault — main had not been merged to since 2026-05-25, and the
+# codebase outgrew the default heap somewhere in between, so the failure had simply
+# never been triggered. Raising the cap is the fix; the runner has ample RAM.
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
-    yarn build
+    NODE_OPTIONS="--max-old-space-size=4096" yarn build
 
 # ── Test stage (used by docker-compose.test.yml) ─────────────
 FROM builder AS test
