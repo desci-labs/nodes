@@ -4,6 +4,7 @@ import { getFeatureAdoptionMetrics } from '../../../../controllers/admin/metrics
 import { getPublishMetrics } from '../../../../controllers/admin/metrics/publishMetrics.js';
 import { getResearchObjectMetrics } from '../../../../controllers/admin/metrics/researchObjectMetrics.js';
 import { getRetentionMetrics } from '../../../../controllers/admin/metrics/retentionMetrics.js';
+import { getSciweaveSubscriptionMetrics } from '../../../../controllers/admin/metrics/sciweaveSubscriptionMetrics.js';
 import { getUserEngagementMetrics } from '../../../../controllers/admin/metrics/userEngagements.js';
 import { metricsApiSchema } from '../../../../controllers/admin/schema.js';
 import { ensureUserIsAdmin } from '../../../../middleware/ensureAdmin.js';
@@ -29,6 +30,11 @@ router.get(
   '/feature-adoption-metrics',
   [ensureUser, ensureUserIsAdmin, validateInputs(metricsApiSchema)],
   asyncHandler(getFeatureAdoptionMetrics),
+);
+router.get(
+  '/sciweave-subscriptions',
+  [ensureUser, ensureUserIsAdmin],
+  asyncHandler(getSciweaveSubscriptionMetrics),
 );
 
 export default router;
