@@ -490,7 +490,11 @@ async function updatePublishStatusEntry({
   data: Prisma.PublishStatusUncheckedUpdateInput;
 }) {
   try {
-    const identifier = publishStatusId ? { id: publishStatusId } : nodeUuid && version ? { nodeUuid, version } : null;
+    const identifier = publishStatusId
+      ? { id: publishStatusId }
+      : nodeUuid && version
+        ? { nodeUuid_version: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), version } }
+        : null;
     if (!identifier) {
       throw 'No identifier provided';
     }

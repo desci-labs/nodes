@@ -1,13 +1,14 @@
 import 'dotenv/config';
-import { addDays, differenceInDays, endOfDay, isAfter, isSameDay, startOfDay } from 'date-fns';
+import { addDays, differenceInDays, endOfDay, isAfter, isSameDay, startOfDay, subDays } from 'date-fns';
 import { logger } from './src/logger.js';
 import { db, getNextDayToImport, type OaDb } from './src/db/index.js';
 import { type QueryInfo } from './src/db/types.js';
-import { type Optional, parseDate } from './src/util.js';
+import { type Optional, parseDate, dropTime } from './src/util.js';
 import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
 import { runImportPipeline } from './src/pipeline.js';
 import { Cron } from 'croner';
+import { markImporting, notifyCaughtUp, notifyError, sendDailyDigest, sendTelegram, startCommandListener, stopCommandListener } from './src/notifier.js';
 
 export const MAX_PAGES_TO_FETCH = parseInt(process.env.MAX_PAGES_TO_FETCH || '100');
 export const IS_DEV = process.env.NODE_ENV === 'development';
@@ -24,8 +25,12 @@ const runImportTask = async (db: OaDb, query_type: QueryInfo['query_type']) => {
   const currentDate: UTCDate = new UTCDate();
   if (isSameDay(nextDay, currentDate) || isAfter(nextDay, currentDate)) {
     logger.info({ nextDay, currentDate }, '💤 Next day to import is today or in the future, snoozing...');
+    const syncedTo = dropTime(subDays(nextDay, 1).toISOString());
+    await notifyCaughtUp(syncedTo);
     return;
   }
+
+  markImporting();
 
   const importParams: QueryInfo = {
     query_from: startOfDay(nextDay),
@@ -64,13 +69,20 @@ async function main(): Promise<void> {
       protect: () => {
         logger.info('💤 Recurring task invoked while an import is already running, snoozing...');
       },
-      // For some reason this doesn't trigger if the stream callbacks catches errors, but the app exits anyway so OK
-      catch: (e, job) => {
-        logger.error({ error: errWithCause(e as Error) }, '💥 Cron job caught an error');
-        job.stop();
-        throw e;
+      catch: async (e) => {
+        const err = e as Error;
+        logger.error({ error: errWithCause(err) }, '💥 Cron job caught an error, will retry on next schedule tick');
+        await notifyError(err, 'Recurring import task');
       },
     });
+
+    const digestSchedule = process.env.DIGEST_SCHEDULE ?? '0 9 * * *';
+    const _digestJob = new Cron(digestSchedule, async () => {
+      logger.info('📊 Sending daily digest...');
+      await sendDailyDigest(db);
+    }, { timezone: 'UTC' });
+
+    startCommandListener(db);
 
     // Kick off first run right away
     void job.trigger();
@@ -201,37 +213,45 @@ const getRuntimeArgs = (): RuntimeArgs => {
   return args as RuntimeArgs;
 };
 
-let isPoolEnded = false;
+let isShuttingDown = false;
 
-const endPool = async () => {
-  if (!isPoolEnded) {
-    isPoolEnded = true;
-    await db.$pool.end();
-  }
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T | undefined> =>
+  Promise.race([promise, new Promise<undefined>(r => setTimeout(r, ms))]);
+
+const shutdown = async (reason: string, exitCode: number) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  stopCommandListener();
+  await withTimeout(
+    sendTelegram(`🔴 <b>OpenAlex Importer shutting down</b>\n<b>Reason:</b> ${reason}`),
+    5_000,
+  ).catch(() => {});
+  await withTimeout(db.$pool.end(), 5_000).catch(() => {});
+  process.exit(exitCode);
 };
 
 process.on('uncaughtException', async (err) => {
   logger.fatal(errWithCause(err), 'uncaught exception');
-  await endPool();
-  process.exit(1);
+  await withTimeout(notifyError(err, 'Uncaught exception'), 5_000).catch(() => {});
+  await shutdown('uncaught exception', 1);
 });
 
-process.on("SIGTERM", async () => {
-  logger.info("Received SIGTERM signal. Shutting down pool...");
-  await endPool();
-  process.exit(1);
+process.on('unhandledRejection', async (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  logger.fatal({ err }, 'unhandled rejection');
+  await withTimeout(notifyError(err, 'Unhandled rejection'), 5_000).catch(() => {});
+  await shutdown('unhandled rejection', 1);
 });
 
-process.on("SIGINT", async () => {
-  logger.info("Received SIGINT signal. Shutting down pool...");
-  await endPool();
-  process.exit(1);
+process.on("SIGTERM", () => {
+  logger.info("Received SIGTERM signal. Shutting down...");
+  void shutdown('SIGTERM (K8s rollout or scale-down)', 0);
 });
 
-process.on('beforeExit', async () => {
-  logger.info('Process exiting, shutting down pool...')
-  await endPool();
-  process.exit(0);
+process.on("SIGINT", () => {
+  logger.info("Received SIGINT signal. Shutting down...");
+  void shutdown('SIGINT', 0);
 });
 
 /**

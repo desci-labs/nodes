@@ -1,6 +1,7 @@
 import { Readable, Transform } from 'stream';
 import { pipeline } from 'stream/promises';
 import {
+  cleanupUnfinishedBatches,
   createBatch,
   finalizeBatch,
   type OaDb,
@@ -16,7 +17,6 @@ import { getDuration, sleep } from './util.js';
 import { Writable } from 'node:stream';
 import { IS_DEV, MAX_PAGES_TO_FETCH, SKIP_LOG_WRITE } from '../index.js';
 import { RateLimiter } from './rateLimiter.js';
-import * as pgPromise from 'pg-promise';
 
 const MAX_RETRIES = 10;
 const BASE_DELAY = 1_000;
@@ -178,14 +178,16 @@ const createLogStream = (): Transform => {
   });
 };
 
-const createSaveStream = (tx: pgPromise.ITask<object>, batchId: number): Writable => {
+const createSaveStream = (db: OaDb, batchId: number): Writable => {
   return new Writable({
     highWaterMark: 1,
     objectMode: true,
     async write(chunk: DataModels, _encoding, callback) {
       try {
         const start = Date.now();
-        await saveData(tx, batchId, chunk);
+        await db.tx(async (tx) => {
+          await saveData(tx, batchId, chunk);
+        });
         logger.info({ duration: Date.now() - start }, 'Saved chunk to database');
         callback();
       } catch (error) {
@@ -202,18 +204,29 @@ export const runImportPipeline = async (db: OaDb, queryInfo: QueryInfo): Promise
   await nukeOldLogs();
   const filter = filterFromQueryInfo(queryInfo);
 
-  await db.tx(async (tx) => {
-    const batchId = await createBatch(tx, queryInfo);
+  // Clean up any unfinished batch from a previous crash for this day
+  await cleanupUnfinishedBatches(db, queryInfo);
+
+  // Create batch record in its own transaction
+  const batchId = await createBatch(db, queryInfo);
+  logger.info({ batchId, queryInfo }, 'Created batch record');
+
+  // Each chunk saves in its own transaction — progress survives crashes
+  try {
     await pipeline(
       createWorksAPIStream(filter),
       createBufferStream(),
       createTransformStream(),
       createLogStream(),
-      createSaveStream(tx, batchId),
+      createSaveStream(db, batchId),
     );
+  } catch (err) {
+    logger.error({ batchId, queryInfo, err: errWithCause(err as Error) }, 'Import pipeline failed — batch left unfinished for recovery');
+    throw err;
+  }
 
-    await finalizeBatch(tx, batchId);
-  });
+  // Mark the batch as complete
+  await finalizeBatch(db, batchId);
 
   const duration = getDuration(startTime, Date.now());
   logger.info({ duration: `${duration} s`, queryInfo }, 'Import pipeline finished!');

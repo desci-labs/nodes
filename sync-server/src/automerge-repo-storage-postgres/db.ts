@@ -1,4 +1,4 @@
-import { Client, Pool } from 'pg';
+import { Pool } from 'pg';
 import { err as serialiseErr } from 'pino-std-serializers';
 
 export interface DbDriver {
@@ -8,7 +8,7 @@ export interface DbDriver {
 export default {
   async init(connectionString: string) {
     console.log('[Hyperdrive] ✅', { connectionString });
-    const pool = new Pool({ connectionString, connectionTimeoutMillis: 15000, query_timeout: 1000 });
+    const pool = new Pool({ connectionString, connectionTimeoutMillis: 15000, query_timeout: 15000 });
     pool.on('error', (err) => console.error('[Hyperdrive Error]::', { error: serialiseErr(err as Error), pool }));
 
     return {
@@ -21,7 +21,7 @@ export default {
           return result.rows;
         } catch (err) {
           console.error('[Hyperdrive Error]::', { error: serialiseErr(err as Error), pool });
-          return undefined;
+          throw err;
         } finally {
           // client.release();
         }
